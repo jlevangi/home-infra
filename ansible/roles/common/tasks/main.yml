@@ -1,0 +1,47 @@
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Install initial packages
+  apt:
+    name: 
+      - cowsay
+      - cron
+      - cockpit
+      - tmux
+      - micro # Modern text editor
+      - fzf
+      - neofetch
+      - btop
+      - dos2unix    # Converts line endings from Windows-style to Unix format
+      - curl        # Required for Superfile installation
+    state: present
+
+- name: Copy bash_aliases to the user's home directory
+  ansible.builtin.copy:
+    src: bash_aliases
+    dest: '/home/{{ ansible_user }}/.bash_aliases'
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
+    mode: '0644'
+
+- name: Convert .bash_aliases to Unix format
+  command: dos2unix '/home/{{ ansible_user }}/.bash_aliases'
+
+- name: Check if Superfile is already installed
+  shell: command -v superfile || echo "not installed"
+  register: superfile_check
+  changed_when: false
+
+- name: Download and run Superfile installer
+  shell: bash -c "$(curl -sLo- https://superfile.netlify.app/install.sh)"
+  register: superfile_install_result
+  when: superfile_check.stdout == "not installed"
+  become: "{{ 'yes' if ansible_user != 'root' else 'no' }}"
+  
+- name: Display Superfile installation output
+  debug:
+    var: superfile_install_result.stdout_lines
+  when: superfile_check.stdout == "not installed" and superfile_install_result is defined

@@ -1,0 +1,203 @@
+---
+# Simplified NFS Host Mount Configuration
+# This creates a simple, reliable NFS mount for K3s host path volumes
+
+- name: Install NFS utilities
+  package:
+    name:
+      - nfs-common
+    state: present
+  become: yes
+  tags: nfs-mount
+
+- name: Test NFS server connectivity
+  shell: "ping -c 2 {{ nfs_server }}"
+  register: nfs_ping
+  failed_when: nfs_ping.rc != 0
+  changed_when: false
+  tags: nfs-mount
+
+- name: Display NFS server connectivity
+  debug:
+    msg: "✅ NFS server {{ nfs_server }} is reachable"
+  tags: nfs-mount
+
+- name: Test NFS exports availability
+  shell: "showmount -e {{ nfs_server }}"
+  register: nfs_exports
+  failed_when: nfs_exports.rc != 0
+  changed_when: false
+  tags: nfs-mount
+
+- name: Display available NFS exports
+  debug:
+    msg: "📁 Available NFS exports: {{ nfs_exports.stdout_lines }}"
+  tags: nfs-mount
+
+- name: Check if /mnt/k3s-storage is already mounted
+  shell: mountpoint -q /mnt/k3s-storage
+  register: mount_check
+  failed_when: false
+  changed_when: false
+  tags: nfs-mount
+
+- name: Unmount existing /mnt/k3s-storage if mounted
+  shell: umount /mnt/k3s-storage
+  become: yes
+  when: mount_check.rc == 0
+  tags: nfs-mount
+
+- name: Ensure /mnt/k3s-storage directory exists
+  file:
+    path: /mnt/k3s-storage
+    state: directory
+    mode: '0755'
+  become: yes
+  tags: nfs-mount
+
+- name: Check if GID already exists
+  shell: getent group {{ nfs_gid | default('100') }}
+  register: gid_check
+  failed_when: false
+  changed_when: false
+  tags: nfs-mount
+
+- name: Check if group exists
+  shell: getent group {{ nfs_gid | default('100') }}
+  register: group_check
+  failed_when: false
+  changed_when: false
+  tags: nfs-mount
+
+- name: Get group name for GID 100
+  shell: "getent group 100 | cut -d: -f1"
+  register: gid_100_group
+  failed_when: false
+  changed_when: false
+  tags: nfs-mount
+
+- name: Create NFS service user for app access (using existing GID 100)
+  user:
+    name: "{{ nfs_user | default('k3s-app-user') }}"
+    uid: "{{ nfs_uid | default('1024') }}"
+    group: "{{ gid_100_group.stdout | default('users') }}"
+    system: yes
+    shell: /bin/false
+    home: "/var/lib/{{ nfs_user | default('k3s-app-user') }}"
+    create_home: no
+    comment: "K3s NFS Service User - matches NFS server admin UID"
+  become: yes
+  tags: nfs-mount
+
+- name: Verify service user creation
+  shell: |
+    echo "=== Service User Verification ==="
+    id {{ nfs_user | default('k3s-app-user') }}
+    echo "UID: $(id -u {{ nfs_user | default('k3s-app-user') }})"
+    echo "GID: $(id -g {{ nfs_user | default('k3s-app-user') }})"
+  register: service_user_verification
+  become: yes
+  tags: nfs-mount
+
+- name: Display service user creation results
+  debug:
+    msg: |
+      👤 NFS Service User Created:
+      {{ service_user_verification.stdout }}
+  tags: nfs-mount
+
+- name: Mount NFS share to /mnt/k3s-storage
+  shell: |
+    mount -t nfs -o {{ nfs_mount_options }} {{ nfs_server }}:{{ nfs_path }} /mnt/k3s-storage
+  become: yes
+  register: mount_result
+  tags: nfs-mount
+
+- name: Verify mount is successful
+  shell: |
+    mountpoint /mnt/k3s-storage && echo "✅ Mount successful" || echo "❌ Mount failed"
+    df -h /mnt/k3s-storage
+  register: mount_verification
+  become: yes
+  tags: nfs-mount
+
+- name: Display mount verification
+  debug:
+    msg: "{{ mount_verification.stdout_lines }}"
+  tags: nfs-mount
+
+- name: Add NFS mount to /etc/fstab for persistence
+  lineinfile:
+    path: /etc/fstab
+    line: "{{ nfs_server }}:{{ nfs_path }} /mnt/k3s-storage nfs {{ nfs_mount_options }} 0 0"
+    state: present
+    backup: yes
+  become: yes
+  tags: nfs-mount
+
+- name: Test NFS access with service user
+  shell: |
+    echo "Testing NFS access with service user {{ nfs_user | default('k3s-app-user') }}..."
+    if sudo -u {{ nfs_user | default('k3s-app-user') }} touch /mnt/k3s-storage/.test-write-{{ nfs_user | default('k3s-app-user') }} 2>/dev/null; then
+      echo "✅ Service user can write to NFS mount"
+      sudo -u {{ nfs_user | default('k3s-app-user') }} rm -f /mnt/k3s-storage/.test-write-{{ nfs_user | default('k3s-app-user') }}
+    else
+      echo "❌ Service user cannot write to NFS mount"
+      echo "Mount permissions:"
+      ls -la /mnt/k3s-storage/
+    fi
+  register: nfs_access_test
+  become: yes
+  ignore_errors: yes
+  tags: nfs-mount
+
+- name: Display NFS mount setup completion
+  debug:
+    msg: |
+      🎉 NFS Mount Setup Complete!
+      📁 Mount Point: /mnt/k3s-storage
+      🔗 NFS Share: {{ nfs_server }}:{{ nfs_path }}
+      👤 Service User: {{ nfs_user | default('k3s-app-user') }} (UID:{{ nfs_uid | default('1024') }}, GID:{{ nfs_gid | default('100') }})
+      💾 Added to /etc/fstab for persistence
+      
+      🔍 NFS Access Test Results:
+      {{ nfs_access_test.stdout }}
+      
+      📋 Next Steps:
+      - K3s applications can now use hostPath volumes pointing to /mnt/k3s-storage/
+      - All apps will run with UID 1024 (NFS admin user) for proper NFS permissions
+      - Basic directory structure will be created automatically
+      
+      💡 NFS Configuration Note:
+      Your NFS server maps all operations to UID 1024 (admin user)
+      This is a secure configuration that we're now matching in K3s
+  when: inventory_hostname == groups['k3s_master'][0]
+  tags: nfs-mount
+
+- name: Create basic K3s storage directory structure
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ nfs_user | default('k3s-app-user') }}"
+    group: "{{ gid_100_group.stdout | default('users') }}"
+  loop:
+    - /mnt/k3s-storage/apps
+    - /mnt/k3s-storage/database
+    - /mnt/k3s-storage/config
+    - /mnt/k3s-storage/logs
+  become: yes
+  ignore_errors: yes
+  register: directory_structure_result
+  tags: nfs-mount
+
+- name: Display directory structure creation results
+  debug:
+    msg: |
+      📁 K3s Storage Directory Structure:
+      {% for result in directory_structure_result.results | default([]) %}
+      - {{ result.path }}: {{ 'CREATED' if result.changed else 'EXISTS' }}{% if result.failed %} (FAILED - {{ result.msg }}){% endif %}
+      {% endfor %}
+      
+      💡 Note: If directory creation failed, hostPath volumes will create them automatically with default permissions
+  tags: nfs-mount

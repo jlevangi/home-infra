@@ -1,0 +1,21 @@
+# K3s cluster nodes SSH configuration for Windows
+# Copy this file to: C:\Users\pierc\.ssh\config
+# 
+# Key differences for Windows:
+# - Use Windows path format for IdentityFile
+# - Use 'nul' instead of '/dev/null' for UserKnownHostsFile
+
+Host k3s-node-*
+    User pierce
+    IdentityFile C:\Users\pierc\.ssh\pierce
+    StrictHostKeyChecking no
+    UserKnownHostsFile nul
+
+Host k3s-node-1
+    HostName 172.20.20.101
+
+Host k3s-node-2  
+    HostName 172.20.20.102
+
+Host k3s-node-3
+    HostName 172.20.20.103

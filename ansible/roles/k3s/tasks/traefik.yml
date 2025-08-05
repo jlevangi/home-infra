@@ -1,0 +1,131 @@
+---
+# Traefik 2 Installation
+# This provides advanced ingress controller with SSL support
+
+- name: Check if Traefik namespace exists
+  shell: kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get namespace traefik-system
+  register: traefik_namespace_check
+  ignore_errors: yes
+  changed_when: false
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Check if Traefik is already installed
+  shell: kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get deployment traefik -n traefik-system
+  register: traefik_deployment_check
+  ignore_errors: yes
+  changed_when: false
+  when: 
+    - inventory_hostname == groups['k3s_master'][0]
+    - traefik_namespace_check.rc == 0
+
+- name: Display Traefik skip message
+  debug:
+    msg: |
+      ✅ Traefik 2 already installed and running
+      Skipping installation tasks
+      Use 'kubectl get svc -n traefik-system' to view status
+  when: 
+    - inventory_hostname == groups['k3s_master'][0]
+    - traefik_namespace_check.rc == 0
+    - traefik_deployment_check.rc == 0
+
+- name: Display Traefik installation info
+  debug:
+    msg: |
+      🔧 Installing Traefik 2 Ingress Controller
+      Traefik provides advanced ingress, SSL termination, and load balancing
+      LoadBalancer IP: {{ traefik_loadbalancer_ip | default('auto-assigned by MetalLB') }}
+      Dashboard: {{ traefik_dashboard_enabled | default(true) }}
+  when: 
+    - inventory_hostname == groups['k3s_master'][0]
+    - traefik_namespace_check.rc != 0 or (traefik_deployment_check is defined and traefik_deployment_check.rc != 0)
+
+- name: Add Traefik Helm repository
+  shell: |
+    export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
+    helm repo add traefik https://traefik.github.io/charts
+    helm repo update
+  when: 
+    - inventory_hostname == groups['k3s_master'][0]
+    - traefik_namespace_check.rc != 0 or (traefik_deployment_check is defined and traefik_deployment_check.rc != 0)
+
+- name: Create Traefik configuration
+  copy:
+    src: traefik-values.yaml
+    dest: /tmp/traefik-values.yaml
+    mode: '0644'
+  when: 
+    - inventory_hostname == groups['k3s_master'][0]
+    - traefik_namespace_check.rc != 0 or (traefik_deployment_check is defined and traefik_deployment_check.rc != 0)
+
+- name: Install Traefik 2 using Helm
+  shell: |
+    export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
+    helm install traefik traefik/traefik \
+      --namespace traefik-system \
+      --create-namespace \
+      --values /tmp/traefik-values.yaml \
+      --wait
+  register: traefik_install_result
+  when: 
+    - inventory_hostname == groups['k3s_master'][0]
+    - traefik_namespace_check.rc != 0
+
+- name: Wait for Traefik pods to be ready
+  shell: |
+    kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml wait --for=condition=ready pod \
+      -l app.kubernetes.io/name=traefik \
+      -n traefik-system \
+      --timeout=180s
+  when: 
+    - inventory_hostname == groups['k3s_master'][0]
+    - traefik_namespace_check.rc != 0
+
+- name: Get Traefik LoadBalancer IP
+  shell: |
+    kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get service traefik \
+      -n traefik-system \
+      -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo 'Pending'
+  register: traefik_lb_ip
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Create Traefik Dashboard access (if enabled)
+  template:
+    src: traefik-dashboard.yaml.j2
+    dest: /tmp/traefik-dashboard.yaml
+    mode: '0644'
+  when: 
+    - inventory_hostname == groups['k3s_master'][0]
+    - traefik_dashboard_enabled | default(true)
+    - traefik_namespace_check.rc != 0
+
+- name: Apply Traefik Dashboard configuration
+  shell: |
+    kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml apply -f /tmp/traefik-dashboard.yaml
+  when: 
+    - inventory_hostname == groups['k3s_master'][0]
+    - traefik_dashboard_enabled | default(true)
+    - traefik_namespace_check.rc != 0
+
+- name: Display Traefik installation results
+  debug:
+    msg: |
+      🎉 Traefik 2 Installation Complete!
+      
+      📊 Installation Status:
+      {{ traefik_install_result.stdout if traefik_install_result.stdout is defined else 'Already installed' }}
+      
+      🌐 LoadBalancer IP: {{ traefik_lb_ip.stdout }}
+      🎛️  Dashboard: {{ 'Enabled at http://' + traefik_lb_ip.stdout + '/dashboard/' if traefik_dashboard_enabled | default(true) and traefik_lb_ip.stdout != 'Pending' else 'Disabled or IP pending' }}
+      
+      ✅ Traefik is now ready to handle ingress traffic
+      
+      📝 Verification Commands:
+      kubectl get pods -n traefik-system
+      kubectl get svc -n traefik-system
+      kubectl get ingressroute -n traefik-system
+      
+      💡 To create ingress routes, use IngressRoute CRDs with:
+      annotations:
+        kubernetes.io/ingress.class: traefik
+  when: inventory_hostname == groups['k3s_master'][0]

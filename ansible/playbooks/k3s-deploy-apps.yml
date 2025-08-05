@@ -1,0 +1,34 @@
+---
+# K3s Cluster Deployment with NFS Authentication
+# 
+# IMPORTANT: This playbook uses Ansible Vault for NFS credentials
+# Run with: ansible-playbook -i k3s-inventory playbooks/k3s-deploy-roles.yml --ask-vault-pass
+#
+- name: Deploy K3s Cluster Applications
+  hosts: k3s_cluster
+  become: yes
+  gather_facts: yes
+  
+  vars_files:
+    - ../group_vars/k3s_cluster_vault.yml
+  
+  roles:
+    - ../roles/k3s-apps  # Deploy applications
+
+  vars:
+    # K3s configuration
+    k3s_version: "v1.28.5+k3s1"
+    k3s_token: "{{ vault_k3s_token }}"  # From vault for security with fallback
+    kubectl_version: "v1.28.4"
+    
+    # User configuration
+    k3s_user: "{{ ansible_user }}"
+    k3s_group: "{{ ansible_user }}"
+
+  post_tasks:
+    - name: Display deployment completion message
+      debug:
+        msg:
+          - "🎉 K3s applications deployed!"
+      run_once: true
+      delegate_to: localhost

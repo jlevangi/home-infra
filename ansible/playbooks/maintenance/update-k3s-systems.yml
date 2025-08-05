@@ -1,0 +1,112 @@
+---
+- name: Apply system updates to K3s cluster (Debian/Ubuntu)
+  hosts: all
+  become: yes
+  gather_facts: yes
+  vars:
+    # Set to true to automatically reboot if required
+    auto_reboot: false
+    # Maximum time to wait for reboot (in seconds)
+    reboot_timeout: 300
+    # Update cache valid time (in seconds) - 3600 = 1 hour
+    cache_valid_time: 3600
+    
+  tasks:
+    - name: Verify OS family is Debian or Ubuntu
+      fail:
+        msg: "This playbook is designed for Debian/Ubuntu systems only"
+      when: ansible_os_family not in ["Debian", "Ubuntu"]
+
+    - name: Update apt package cache
+      apt:
+        update_cache: yes
+        cache_valid_time: "{{ cache_valid_time }}"
+      register: cache_update
+      
+    - name: Display cache update status
+      debug:
+        msg: "Package cache updated on {{ inventory_hostname }}"
+      when: cache_update.changed
+      
+    - name: Check for available package upgrades
+      command: apt list --upgradable
+      register: upgradable_packages
+      changed_when: false
+      
+    - name: Display upgradable packages count
+      debug:
+        msg: "{{ upgradable_packages.stdout_lines | length - 1 }} packages available for upgrade"
+      when: upgradable_packages.stdout_lines | length > 1
+      
+    - name: Upgrade all packages to latest version
+      apt:
+        upgrade: dist
+        update_cache: yes
+        autoremove: yes
+        autoclean: yes
+      register: upgrade_result
+      when: upgradable_packages.stdout_lines | length > 1
+      
+    - name: Display upgrade summary
+      debug:
+        msg: "{{ upgrade_result.stdout_lines[-5:] }}"
+      when: upgrade_result is defined and upgrade_result.changed
+      
+    - name: Remove orphaned packages
+      apt:
+        autoremove: yes
+        purge: yes
+      register: autoremove_result
+      
+    - name: Display autoremove results
+      debug:
+        msg: "Removed orphaned packages on {{ inventory_hostname }}"
+      when: autoremove_result.changed
+      
+    - name: Clean package cache
+      apt:
+        autoclean: yes
+      register: autoclean_result
+      
+    - name: Check if reboot is required
+      stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+      
+    - name: Display reboot requirement status
+      debug:
+        msg: "Reboot required on {{ inventory_hostname }}"
+      when: reboot_required.stat.exists
+      
+    - name: Reboot system if required and auto_reboot is enabled
+      reboot:
+        msg: "Rebooting after system updates"
+        pre_reboot_delay: 10
+        post_reboot_delay: 30
+        reboot_timeout: "{{ reboot_timeout }}"
+        test_command: uptime
+      when: 
+        - reboot_required.stat.exists
+        - auto_reboot | bool
+      register: reboot_result
+      
+    - name: Manual reboot notification
+      debug:
+        msg: "ATTENTION: {{ inventory_hostname }} requires a manual reboot to complete updates"
+      when: 
+        - reboot_required.stat.exists
+        - not auto_reboot | bool
+        
+    - name: Verify system status after updates
+      command: systemctl is-system-running
+      register: system_status
+      changed_when: false
+      failed_when: false
+      
+    - name: Display final system status
+      debug:
+        msg: "System status on {{ inventory_hostname }}: {{ system_status.stdout }}"
+        
+    - name: Show kernel version
+      debug:
+        msg: "Current kernel: {{ ansible_kernel }}"

@@ -1,0 +1,66 @@
+---
+# Variables for all K3s cluster nodes - Based on Tech Tim's best practices
+k3s_version: "v1.28.5+k3s1"
+k3s_token: "myverysecrettoken123"  # Use vault or environment variable in production
+kubectl_version: "v1.28.4"
+
+# Network configuration
+k3s_cluster_cidr: "10.42.0.0/16"
+k3s_service_cidr: "10.43.0.0/16"
+
+# Tech Tim's HA configuration options
+# Uncomment and configure these for true HA deployment:
+# load_balancer_ip: "172.20.20.100"  # IP of your load balancer
+# k3s_datastore_endpoint: "mysql://k3s:password@tcp(172.20.20.10:3306)/k3s"  # External database
+
+# Features
+k3s_install_kubectl: true
+k3s_setup_kubeconfig: true
+k3s_install_bash_completion: true
+k3s_enable_auto_deploy: true
+
+# Enhanced kernel modules for better networking support
+k3s_kernel_modules:
+  - br_netfilter
+  - overlay
+  - ip_vs
+  - ip_vs_rr
+  - ip_vs_wrr
+  - ip_vs_sh
+  - nf_conntrack
+
+# Enhanced sysctl settings for production
+k3s_sysctl_settings:
+  - { name: 'net.bridge.bridge-nf-call-iptables', value: '1' }
+  - { name: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
+  - { name: 'net.ipv4.ip_forward', value: '1' }
+  - { name: 'net.ipv4.conf.all.forwarding', value: '1' }
+  - { name: 'net.ipv6.conf.all.forwarding', value: '1' }
+  - { name: 'net.netfilter.nf_conntrack_max', value: '131072' }
+
+# Synology NFS Shared Storage Configuration
+enable_nfs_storage: true
+enable_nfs_host_mount: true
+nfs_server: "172.20.20.5"  # Your Synology NAS IP address (was nas-1)
+nfs_share_root: "{{ vault_nfs_share_root }}"  # Root path from vault (e.g., "/volume1/k3s-storage")
+nfs_path: "{{ nfs_share_root }}"  # Main NFS export path
+nfs_user: "{{ vault_nfs_username }}"  # From vault file
+nfs_password: "{{ vault_nfs_password }}"  # From vault file
+nfs_uid: "{{ vault_nfs_uid }}"  # Service user UID from vault
+nfs_gid: "{{ vault_nfs_gid }}"  # Service user GID from vault
+
+# NFS mount options for Synology - simplified and compatible
+nfs_mount_options: "rw,hard,intr,rsize=65536,wsize=65536,timeo=600,retrans=2,vers=4"
+
+# NFS subdirectories (non-sensitive, can be in regular vars)
+nfs_share_apps: "{{ nfs_share_root }}/apps"
+nfs_share_database: "{{ nfs_share_root }}/database"
+nfs_share_backup: "{{ nfs_share_root }}/backup"
+nfs_share_shared: "{{ nfs_share_root }}/shared"
+
+# Storage Classes
+storage_classes:
+  nfs_database: "nfs-database"
+  nfs_apps: "nfs-apps"
+  nfs_shared: "nfs-shared"
+  nfs_backup: "nfs-backup"

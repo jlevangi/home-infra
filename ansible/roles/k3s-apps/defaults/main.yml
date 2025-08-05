@@ -1,0 +1,15 @@
+---
+# K3s Apps Role Defaults
+# These control the behavior of the k3s-apps role
+
+# Enable/disable individual application deployments
+# These can be overridden in group_vars or host_vars to control which apps get deployed
+deploy_bookstack: true
+deploy_homepage: true  # Set to true to deploy Homepage Dashboard
+
+# Default application configurations
+application_timezone: "America/New_York"
+
+# Role behavior controls
+bookstack_force_redeploy: false  # Set to true to force cleanup and redeploy
+homepage_force_redeploy: false   # Set to true to force cleanup and redeploy

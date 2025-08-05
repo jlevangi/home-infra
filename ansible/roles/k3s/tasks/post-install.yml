@@ -1,0 +1,160 @@
+---
+# Post-installation configuration tasks
+- name: Create .kube directory for user
+  file:
+    path: "/home/{{ k3s_user }}/.kube"
+    state: directory
+    owner: "{{ k3s_user }}"
+    group: "{{ k3s_group }}"
+    mode: '0755'
+  when: k3s_setup_kubeconfig
+
+- name: Copy kubeconfig for user
+  copy:
+    src: "{{ k3s_config_dir }}/k3s.yaml"
+    dest: "/home/{{ k3s_user }}/.kube/config"
+    owner: "{{ k3s_user }}"
+    group: "{{ k3s_group }}"
+    mode: '0600'
+    remote_src: yes
+  when: k3s_setup_kubeconfig
+
+- name: Update kubeconfig server address
+  replace:
+    path: "/home/{{ k3s_user }}/.kube/config"
+    regexp: 'https://:6443'
+    replace: 'https://{{ load_balancer_ip | default(ansible_default_ipv4.address) }}:6443'
+  become: yes
+  when: k3s_setup_kubeconfig
+
+- name: Setup kubectl completion
+  shell: kubectl completion bash > /etc/bash_completion.d/kubectl
+  become: yes
+  when: k3s_install_bash_completion
+
+- name: Add kubectl aliases
+  lineinfile:
+    path: "/home/{{ k3s_user }}/.bashrc"
+    line: "{{ item }}"
+    create: yes
+  loop:
+    - 'alias k=kubectl'
+    - 'alias kgp="kubectl get pods"'
+    - 'alias kgs="kubectl get services"'
+    - 'alias kgn="kubectl get nodes"'
+    - 'complete -F __start_kubectl k'
+  become_user: "{{ k3s_user }}"
+  when: k3s_install_bash_completion
+
+- name: Wait for all nodes to be ready
+  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes --no-headers | grep Ready | wc -l
+  register: ready_nodes
+  until: ready_nodes.stdout | int == groups['k3s_cluster'] | length
+  retries: 30
+  delay: 10
+  become: yes
+
+- name: Display storage architecture information
+  debug:
+    msg: |
+      💾 Storage Architecture:
+      {% if k3s_use_nfs_storage | default(false) %}
+      Using NFS CSI driver for dynamic provisioning
+      - NFS CSI controller will be deployed and validated
+      - Dynamic storage classes available: nfs-apps, nfs-database, nfs-shared, nfs-backup
+      {% else %}
+      Using hostPath volumes with NFS backing
+      - NFS mounted directly to /mnt/k3s-storage on all nodes
+      - Applications use hostPath volumes pointing to NFS-backed storage
+      - No NFS CSI driver needed (simpler, more reliable approach)
+      {% endif %}
+
+- name: Check if NFS CSI controller ServiceAccount exists
+  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get serviceaccount csi-nfs-controller-sa -n kube-system
+  register: csi_sa_check
+  failed_when: false
+  become: yes
+  when: k3s_use_nfs_storage | default(false)
+
+- name: Create NFS CSI controller ServiceAccount if missing
+  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl create serviceaccount csi-nfs-controller-sa -n kube-system
+  become: yes
+  when: 
+    - k3s_use_nfs_storage | default(false)
+    - csi_sa_check.rc != 0
+
+- name: Wait for NFS CSI controller deployment to be ready
+  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get deployment csi-nfs-controller -n kube-system -o jsonpath='{.status.readyReplicas}'
+  register: csi_controller_ready
+  until: csi_controller_ready.stdout | int > 0
+  retries: 20
+  delay: 15
+  become: yes
+  when: k3s_use_nfs_storage | default(false)
+
+- name: Restart NFS CSI controller deployment if not ready
+  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl rollout restart deployment csi-nfs-controller -n kube-system
+  become: yes
+  when: 
+    - k3s_use_nfs_storage | default(false)
+    - csi_controller_ready.stdout | int == 0
+
+- name: Wait for NFS CSI controller to be fully ready after restart
+  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl rollout status deployment csi-nfs-controller -n kube-system --timeout=300s
+  become: yes
+  when: 
+    - k3s_use_nfs_storage | default(false)
+    - csi_controller_ready.stdout | int == 0
+
+- name: Validate NFS storage with test PVC
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f - <<EOF
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: nfs-validation-pvc
+      namespace: default
+    spec:
+      accessModes:
+        - ReadWriteMany
+      resources:
+        requests:
+          storage: 100Mi
+      storageClassName: nfs-shared
+    EOF
+  become: yes
+  when: k3s_use_nfs_storage | default(false)
+
+- name: Wait for test PVC to be bound
+  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc/nfs-validation-pvc --timeout=120s
+  become: yes
+  when: k3s_use_nfs_storage | default(false)
+
+- name: Clean up test PVC
+  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl delete pvc nfs-validation-pvc
+  become: yes
+  when: k3s_use_nfs_storage | default(false)
+
+- name: Display cluster info (Tech Tim style)
+  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes -o wide
+  register: cluster_info
+  become: yes
+
+- name: Show cluster status
+  debug:
+    var: cluster_info.stdout_lines
+
+- name: Display cluster access information
+  debug:
+    msg:
+      - "✅ K3s cluster is ready!"
+      - "📊 Access your cluster:"
+      - "   ssh {{ k3s_user }}@{{ ansible_default_ipv4.address }}"
+      - "   kubectl get nodes"
+      - ""
+      - "🔧 Or copy kubeconfig to your local machine:"
+      - "   scp {{ k3s_user }}@{{ ansible_default_ipv4.address }}:/etc/rancher/k3s.yaml ~/.kube/config"
+      - "   export KUBECONFIG=~/.kube/config"
+      - ""
+      - "{% if k3s_use_nfs_storage | default(false) %}💾 NFS CSI Storage is configured and validated!{% else %}💾 HostPath NFS Storage is configured at /mnt/k3s-storage/{% endif %}"
+      - "{% if k3s_use_nfs_storage | default(false) %}   Available storage classes: nfs-apps, nfs-database, nfs-shared, nfs-backup{% else %}   Applications will use hostPath volumes with NFS backing{% endif %}"

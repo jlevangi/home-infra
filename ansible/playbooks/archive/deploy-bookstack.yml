@@ -1,0 +1,84 @@
+---
+- name: Deploy BookStack to K3s Cluster
+  hosts: k3s_master
+  become: yes
+  gather_facts: yes
+  
+  vars_files:
+    - ../../group_vars/k3s_cluster_vault.yml
+
+  pre_tasks:
+    - name: Verify NFS server connectivity
+      wait_for:
+        host: "{{ vault_nfs_server | default('172.20.20.5') }}"
+        port: 2049
+        timeout: 30
+      delegate_to: "{{ groups['k3s_master'][0] }}"
+      run_once: true
+  
+  roles:
+    - ../roles/k3s-apps/bookstack  # Deploy applications
+
+  vars:
+    # Application deployment flags
+    deploy_bookstack: true
+    # Set to true to force cleanup and redeploy of existing BookStack installation
+    bookstack_force_redeploy: false
+
+    # NFS Configuration from vault
+    nfs_server: "{{ vault_nfs_server | default('172.20.20.5') }}"
+    nfs_username: "{{ vault_nfs_username | default('k3s-app-user') }}"
+    nfs_password: "{{ vault_nfs_password | default('password') }}"
+    nfs_share_apps: "{{ vault_nfs_share_apps | default('/volume1/k3s-storage/apps') }}"
+    nfs_share_database: "{{ vault_nfs_share_database | default('/volume1/k3s-storage/database') }}"
+
+    # BookStack configuration
+    bookstack_app_url: "https://bsk3.levangie.org"
+    bookstack_domain: "bsk3.levangie.org"
+    bookstack_timezone: "America/New_York"
+    bookstack_config_storage_size: "5Gi"
+    bookstack_db_storage_size: "10Gi"
+    
+    # BookStack secrets from vault
+    bookstack_db_password: "{{ vault_bookstack_db_password | default('bookstackpass') }}"
+    bookstack_mysql_root_password: "{{ vault_bookstack_mysql_root_password | default('rootpassword') }}"
+    bookstack_app_key: "{{ vault_bookstack_app_key | default('base64:/26tdmXM1KdKmn2IOidk7T+uUVrc0EOIMqnWRYgJw0k=') }}"
+
+  post_tasks:
+    - name: Verify BookStack pods are running with correct UID/GID
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get pods -n bookstack -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.securityContext.runAsUser}{"\t"}{.spec.securityContext.runAsGroup}{"\n"}{end}'
+      register: pod_security_context
+      delegate_to: "{{ groups['k3s_master'][0] }}"
+      run_once: true
+
+    - name: Display BookStack deployment information
+      debug:
+        msg:
+          - "🎉 BookStack deployment completed successfully!"
+          - ""
+          - "🔒 Security Context Information:"
+          - "{{ pod_security_context.stdout_lines | default(['No pods found']) }}"
+          - ""
+          - "📊 Check deployment status:"
+          - "   kubectl get all -n bookstack"
+          - ""
+          - "🔗 Access BookStack via MetalLB Load Balancer:"
+          - "   Direct IP: http://172.20.20.202:8080"
+          - "   Domain: https://bsk3.levangie.org (via Caddy → Traefik ingress)"
+          - "   Ingress IP: 172.20.20.200:80 (HTTP only - TLS handled by Caddy)"
+          - ""
+          - "🔑 Default credentials:"
+          - "   Email: admin@admin.com"
+          - "   Password: password"
+          - ""
+          - "💾 Persistent data stored on NFS (hostPath backed):"
+          - "   BookStack config: /mnt/k3s-storage/bookstack/"
+          - "   MariaDB data: /mnt/k3s-storage/mariadb/"
+          - "   NFS mapping: All operations run as UID 1024 (NFS admin user)"
+          - ""
+          - "🎯 MetalLB Service IPs:"
+          - "   BookStack: 172.20.20.202:8080"
+          - "   MariaDB: 172.20.20.201:3306"
+      run_once: true
+      delegate_to: localhost8

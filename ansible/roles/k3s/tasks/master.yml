@@ -1,0 +1,105 @@
+---
+# K3s master installation tasks - Based on Tech Tim's best practices
+
+- name: Check if K3s is already installed and running
+  shell: |
+    systemctl is-active k3s && k3s --version | head -1
+  register: k3s_status_check
+  ignore_errors: yes
+  changed_when: false
+
+- name: Display current K3s status
+  debug:
+    msg: |
+      K3s Status: {{ 'Running' if k3s_status_check.rc == 0 else 'Not running or not installed' }}
+      {{ k3s_status_check.stdout if k3s_status_check.rc == 0 else 'Will proceed with installation' }}
+
+- name: Download K3s installation script
+  get_url:
+    url: https://get.k3s.io
+    dest: /tmp/k3s-install.sh
+    mode: '0755'
+  when: k3s_status_check.rc != 0
+
+- name: Install K3s master (Tech Tim's method)
+  shell: |
+    {% if k3s_datastore_endpoint %}
+    export K3S_DATASTORE_ENDPOINT='{{ k3s_datastore_endpoint }}'
+    {% endif %}
+    curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION={{ k3s_version }} \
+    K3S_TOKEN={{ k3s_token }} \
+    sh -s - server {{ k3s_server_args | join(' ') }}
+  register: k3s_install_result
+  failed_when: k3s_install_result.rc != 0
+  when: k3s_status_check.rc != 0
+
+- name: Display K3s installation output
+  debug:
+    var: k3s_install_result.stdout_lines
+  when: k3s_install_result is defined
+
+- name: Wait for K3s API server to be ready
+  wait_for:
+    port: 6443
+    host: "{{ ansible_default_ipv4.address }}"
+    delay: 5
+    timeout: 120
+  when: k3s_status_check.rc != 0
+
+- name: Quick API server check (if already running)
+  uri:
+    url: "https://{{ ansible_default_ipv4.address }}:6443/version"
+    method: GET
+    validate_certs: no
+    timeout: 10
+  register: k3s_api_check
+  ignore_errors: yes
+  when: k3s_status_check.rc == 0
+
+- name: Verify K3s service is running
+  systemd:
+    name: k3s
+    state: started
+    enabled: yes
+  become: yes
+
+- name: Get node token
+  slurp:
+    src: "{{ k3s_data_dir }}/server/node-token"
+  register: node_token
+
+- name: Save node token
+  set_fact:
+    k3s_node_token: "{{ node_token.content | b64decode | trim }}"
+
+- name: Store node token for workers
+  set_fact:
+    k3s_node_token: "{{ k3s_node_token }}"
+  delegate_to: "{{ item }}"
+  delegate_facts: true
+  loop: "{{ groups['k3s_workers'] }}"
+
+- name: Set kubeconfig permissions for non-sudo access
+  file:
+    path: "{{ k3s_config_dir }}/k3s.yaml"
+    mode: '0644'
+  become: yes
+
+- name: Create .kube directory for user
+  file:
+    path: "/home/{{ k3s_user }}/.kube"
+    state: directory
+    owner: "{{ k3s_user }}"
+    group: "{{ k3s_group }}"
+    mode: '0755'
+  become: yes
+
+- name: Copy kubeconfig to user home directory
+  copy:
+    src: "{{ k3s_config_dir }}/k3s.yaml"
+    dest: "/home/{{ k3s_user }}/.kube/config"
+    owner: "{{ k3s_user }}"
+    group: "{{ k3s_group }}"
+    mode: '0644'
+    remote_src: yes
+  become: yes

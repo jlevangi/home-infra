@@ -1,0 +1,11 @@
+alias watchtower='sudo docker run -v /var/run/docker.sock:/var/run/docker.sock containrrr/watchtower --run-once -c'
+alias dc="sudo docker compose"
+alias dcu="sudo docker compose up -d"
+alias dcp="sudo docker compose pull"
+alias dirsearch="find . -maxdepth 1 -type d -iname"
+alias filefind="find . -maxdepth 1 -type f -iname"
+alias hpsrv="nano /mnt/docker/homepage/config/services.yaml"
+alias bashreload="source ~/.bashrc && echo Bash config reloaded"
+alias dprune="docker image prune"
+alias dcporph="docker-compose -f ~/docker-compose.yaml --remove-orphans"
+alias dprunesys="docker system prune --all"

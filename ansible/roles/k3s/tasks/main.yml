@@ -1,0 +1,39 @@
+---
+# Main task file for K3s role
+- name: Wait for cloud-init to complete
+  wait_for:
+    path: /var/lib/cloud/instance/boot-finished
+    timeout: 300
+  become: yes
+
+- name: Include system preparation tasks
+  include_tasks: prepare.yml
+
+- name: Include simplified NFS host mounting
+  include_tasks: nfs-simple-mount.yml
+  when: enable_nfs_mount | default(true)
+
+- name: Include K3s master installation
+  include_tasks: master.yml
+  when: inventory_hostname in groups['k3s_master']
+
+- name: Include K3s worker installation  
+  include_tasks: worker.yml
+  when: inventory_hostname in groups['k3s_workers']
+
+- name: Include post-installation configuration
+  include_tasks: post-install.yml
+  when: inventory_hostname in groups['k3s_master']
+
+# LoadBalancer and Ingress Setup
+- name: Include MetalLB installation
+  include_tasks: metallb.yml
+  when: 
+    - inventory_hostname in groups['k3s_master']
+    - k3s_install_metallb | default(true)
+
+- name: Include Traefik 2 installation
+  include_tasks: traefik.yml
+  when: 
+    - inventory_hostname in groups['k3s_master']
+    - k3s_install_traefik | default(true)

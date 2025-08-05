@@ -1,0 +1,36 @@
+---
+# K3s worker installation tasks
+- name: Download K3s installation script
+  get_url:
+    url: https://get.k3s.io
+    dest: /tmp/k3s-install.sh
+    mode: '0755'
+
+- name: Wait for master to be ready
+  wait_for:
+    port: 6443
+    host: "{{ hostvars[groups['k3s_master'][0]]['ansible_default_ipv4']['address'] }}"
+    delay: 10
+    timeout: 300
+
+- name: Install K3s worker (Tech Tim's method)
+  shell: |
+    curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION={{ k3s_version }} \
+    K3S_URL=https://{{ hostvars[groups['k3s_master'][0]]['ansible_default_ipv4']['address'] }}:6443 \
+    K3S_TOKEN={{ hostvars[groups['k3s_master'][0]]['k3s_node_token'] }} \
+    sh -s - agent {% if k3s_agent_args %}{{ k3s_agent_args | join(' ') }}{% endif %}
+  register: k3s_worker_install
+  failed_when: k3s_worker_install.rc != 0
+  when: hostvars[groups['k3s_master'][0]]['k3s_node_token'] is defined
+
+- name: Display K3s worker installation output
+  debug:
+    var: k3s_worker_install.stdout_lines
+  when: k3s_worker_install is defined
+
+- name: Verify K3s agent service is running
+  systemd:
+    name: k3s-agent
+    state: started
+    enabled: yes
+  become: yes

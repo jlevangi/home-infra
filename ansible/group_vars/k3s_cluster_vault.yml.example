@@ -1,0 +1,18 @@
+# Encrypted vault file for sensitive K3s cluster data
+# To edit: ansible-vault edit group_vars/k3s_cluster_vault.yml
+# To encrypt: ansible-vault encrypt group_vars/k3s_cluster_vault.yml
+
+# NFS Configuration - Sensitive Data Only
+vault_nfs_username: "k3s-app-user"
+vault_nfs_password: "YOUR_ACTUAL_PASSWORD_HERE"
+vault_nfs_uid: "1024"  # UID for the k3s-app-user (matches NFS server admin user UID)
+vault_nfs_gid: "100"   # GID for the k3s-app-user (matches users group)
+vault_nfs_share_root: "/volume1/k3s-storage"  # Root NFS path on your NAS
+
+# K3s Cluster Token
+vault_k3s_token: "YOUR_SECRET_K3S_TOKEN_HERE"
+
+# BookStack Application Secrets
+vault_bookstack_db_password: "YOUR_BOOKSTACK_DB_PASSWORD"
+vault_bookstack_mysql_root_password: "YOUR_MYSQL_ROOT_PASSWORD"
+vault_bookstack_app_key: "base64:YOUR_BOOKSTACK_APP_KEY_HERE"

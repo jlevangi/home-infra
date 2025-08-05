@@ -1,0 +1,155 @@
+---
+# System preparation tasks for K3s - Enhanced based on Tech Tim's best practices
+- name: Verify system is ready for K3s
+  command: systemctl is-active systemd-resolved
+  register: resolved_status
+  failed_when: false
+
+- name: Update package cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  become: yes
+
+- name: Install essential packages for K3s
+  apt:
+    name:
+      - curl
+      - wget
+      - unzip
+      - git
+      - htop
+      - iotop
+      - net-tools
+      - tcpdump
+      - ca-certificates
+      - software-properties-common
+      - apt-transport-https
+      - gnupg
+      - lsb-release
+      - open-iscsi  # For persistent volumes
+      - nfs-common  # For NFS storage
+      - qemu-guest-agent
+    state: present
+  become: yes
+
+- name: Enable and start qemu-guest-agent
+  systemd:
+    name: qemu-guest-agent
+    enabled: yes
+    state: started
+  become: yes
+
+- name: Load required kernel modules (Tech Tim's enhanced list)
+  modprobe:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ k3s_kernel_modules }}"
+  become: yes
+
+- name: Ensure kernel modules load at boot
+  lineinfile:
+    path: /etc/modules-load.d/k3s.conf
+    line: "{{ item }}"
+    create: yes
+  loop: "{{ k3s_kernel_modules }}"
+  become: yes
+
+- name: Configure sysctl for Kubernetes (Tech Tim's enhanced settings)
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_file: /etc/sysctl.d/99-kubernetes.conf
+    reload: yes
+  loop: "{{ k3s_sysctl_settings }}"
+  become: yes
+
+- name: Disable swap
+  shell: |
+    swapoff -a
+    sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+  become: yes
+
+- name: Create directories for K3s and local storage
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ local_storage_dir }}"
+    - "{{ k3s_data_dir }}"
+    - "{{ k3s_config_dir }}"
+  become: yes
+
+- name: Install kubectl
+  get_url:
+    url: "https://dl.k8s.io/release/{{ kubectl_version }}/bin/linux/amd64/kubectl"
+    dest: /usr/local/bin/kubectl
+    mode: '0755'
+    owner: root
+    group: root
+  become: yes
+  when: k3s_install_kubectl
+
+- name: Download Helm install script
+  get_url:
+    url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+    dest: /tmp/get_helm.sh
+    mode: '0755'
+  become: yes
+  when: k3s_install_helm
+
+- name: Install Helm
+  shell: /tmp/get_helm.sh
+  become: yes
+  when: k3s_install_helm
+
+- name: Remove Helm install script
+  file:
+    path: /tmp/get_helm.sh
+    state: absent
+  become: yes
+  when: k3s_install_helm
+
+- name: Create bash completion directory
+  file:
+    path: /etc/bash_completion.d
+    state: directory
+    mode: '0755'
+  become: yes
+  when: k3s_install_bash_completion
+
+- name: Setup kubectl completion
+  shell: kubectl completion bash > /etc/bash_completion.d/kubectl
+  become: yes
+  when: k3s_install_bash_completion
+
+- name: Setup helm completion
+  shell: helm completion bash > /etc/bash_completion.d/helm
+  become: yes
+  when: k3s_install_bash_completion and k3s_install_helm
+
+- name: Add kubectl aliases to user
+  lineinfile:
+    path: "/home/{{ k3s_user }}/.bashrc"
+    line: "{{ item }}"
+    create: yes
+  loop:
+    - 'alias k=kubectl'
+    - 'alias kgp="kubectl get pods"'
+    - 'alias kgs="kubectl get services"'
+    - 'alias kgn="kubectl get nodes"'
+    - 'alias h=helm'
+    - 'alias hls="helm list"'
+    - 'alias hla="helm list --all-namespaces"'
+  become_user: "{{ k3s_user }}"
+
+- name: Display preparation status
+  debug:
+    msg: 
+      - "systemd-resolved: {{ resolved_status.stdout }}"
+      - "Kernel modules loaded and configured"
+      - "Directories created for K3s"
+      - "kubectl installed and configured"
+      - "Helm installed and configured"

@@ -1,0 +1,46 @@
+---
+- name: Reboot K3s cluster servers
+  hosts: all
+  become: yes
+  gather_facts: no
+  vars:
+    # Maximum time to wait for reboot (in seconds)
+    reboot_timeout: 300
+    # Time to wait before attempting reconnection (in seconds)
+    reboot_delay: 10
+    
+  tasks:
+    - name: Check if servers are reachable
+      ping:
+      register: ping_result
+      
+    - name: Reboot the servers
+      reboot:
+        msg: "Rebooting server for maintenance"
+        pre_reboot_delay: "{{ reboot_delay }}"
+        post_reboot_delay: 30
+        reboot_timeout: "{{ reboot_timeout }}"
+        test_command: uptime
+      when: ping_result is succeeded
+      
+    - name: Wait for servers to come back online
+      wait_for_connection:
+        delay: 60
+        timeout: "{{ reboot_timeout }}"
+        
+    - name: Verify servers are back online
+      ping:
+      register: post_reboot_ping
+      
+    - name: Display reboot status
+      debug:
+        msg: "Server {{ inventory_hostname }} successfully rebooted and is online"
+      when: post_reboot_ping is succeeded
+      
+    - name: Check system uptime after reboot
+      command: uptime
+      register: uptime_result
+      
+    - name: Display uptime
+      debug:
+        var: uptime_result.stdout

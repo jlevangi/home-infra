@@ -1,0 +1,85 @@
+---
+# MetalLB Installation
+# This provides LoadBalancer services for K3s
+
+- name: Check if MetalLB namespace exists
+  shell: kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get namespace metallb-system
+  register: metallb_namespace_check
+  ignore_errors: yes
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Display MetalLB installation info
+  debug:
+    msg: |
+      🔧 Installing MetalLB LoadBalancer
+      MetalLB provides LoadBalancer services for bare-metal Kubernetes clusters
+      Configuration: Layer 2 mode with IP range {{ metallb_ip_range | default('172.20.20.200-172.20.20.210') }}
+  when: 
+    - inventory_hostname == groups['k3s_master'][0]
+    - metallb_namespace_check.rc != 0
+
+- name: Add MetalLB Helm repository
+  shell: |
+    export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
+    helm repo add metallb https://metallb.github.io/metallb
+    helm repo update
+  when: 
+    - inventory_hostname == groups['k3s_master'][0]
+    - metallb_namespace_check.rc != 0
+
+- name: Install MetalLB using Helm
+  shell: |
+    export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
+    helm install metallb metallb/metallb \
+      --namespace metallb-system \
+      --create-namespace \
+      --wait
+  register: metallb_install_result
+  when: 
+    - inventory_hostname == groups['k3s_master'][0]
+    - metallb_namespace_check.rc != 0
+
+- name: Wait for MetalLB pods to be ready
+  shell: |
+    kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml wait --for=condition=ready pod \
+      -l app.kubernetes.io/name=metallb \
+      -n metallb-system \
+      --timeout=120s
+  when: 
+    - inventory_hostname == groups['k3s_master'][0]
+    - metallb_namespace_check.rc != 0
+
+- name: Create MetalLB IP address pool configuration
+  template:
+    src: metallb-config.yaml.j2
+    dest: /tmp/metallb-config.yaml
+    mode: '0644'
+  when: 
+    - inventory_hostname == groups['k3s_master'][0]
+    - metallb_namespace_check.rc != 0
+
+- name: Apply MetalLB configuration
+  shell: |
+    kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml apply -f /tmp/metallb-config.yaml
+  register: metallb_config_result
+  when: 
+    - inventory_hostname == groups['k3s_master'][0]
+    - metallb_namespace_check.rc != 0
+
+- name: Display MetalLB installation results
+  debug:
+    msg: |
+      🎉 MetalLB Installation Complete!
+      
+      📊 Installation Status:
+      {{ metallb_install_result.stdout if metallb_install_result.stdout is defined else 'Already installed' }}
+      
+      🌐 IP Address Pool: {{ metallb_ip_range | default('172.20.20.200-172.20.20.210') }}
+      
+      ✅ MetalLB will now provide external IPs for LoadBalancer services
+      
+      📝 Verification Commands:
+      kubectl get pods -n metallb-system
+      kubectl get ipaddresspool -n metallb-system
+      kubectl get l2advertisement -n metallb-system
+  when: inventory_hostname == groups['k3s_master'][0]

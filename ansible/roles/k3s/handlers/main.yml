@@ -1,0 +1,24 @@
+---
+# K3s role handlers
+- name: restart k3s
+  systemd:
+    name: k3s
+    state: restarted
+  when: inventory_hostname in groups['k3s_master']
+
+- name: restart k3s-agent
+  systemd:
+    name: k3s-agent
+    state: restarted
+  when: inventory_hostname in groups['k3s_workers']
+
+- name: restart systemd-resolved
+  systemd:
+    name: systemd-resolved
+    state: restarted
+
+- name: restart nfs-utils
+  systemd:
+    name: nfs-utils
+    state: restarted
+  become: yes

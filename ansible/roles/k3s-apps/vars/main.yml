@@ -1,0 +1,16 @@
+---
+# BookStack Application Configuration
+# These variables define the BookStack deployment settings
+# Override sensitive values in vault files or group_vars
+
+# BookStack application settings
+bookstack_app_url: "https://bsk3.levangie.org"
+bookstack_timezone: "America/New_York"
+bookstack_config_storage_size: "5Gi"
+bookstack_db_storage_size: "10Gi"
+bookstack_db_password: "{{ vault_bookstack_db_password }}"
+bookstack_mysql_root_password: "{{ vault_bookstack_mysql_root_password }}"
+bookstack_app_key: "{{ vault_bookstack_app_key }}"
+
+# Homepage application settings
+homepage_app_url: "https://homepage.levangie.org"

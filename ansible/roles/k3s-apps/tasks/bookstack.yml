@@ -1,0 +1,307 @@
+---
+# Optional cleanup task - only runs when bookstack_force_redeploy is true
+- name: Clean up existing BookStack deployment (if requested)
+  block:
+    - name: Check if BookStack namespace exists for cleanup
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get namespace bookstack
+      register: cleanup_namespace_check
+      ignore_errors: yes
+
+    - name: Remove existing BookStack deployment
+      shell: |
+        echo "🧹 Cleaning up existing BookStack deployment..."
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml delete namespace bookstack --ignore-not-found=true
+        echo "Waiting for namespace deletion to complete..."
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml wait --for=delete namespace/bookstack --timeout=300s || true
+        echo "✅ Cleanup complete"
+      when: cleanup_namespace_check.rc == 0
+      register: cleanup_result
+
+    - name: Display cleanup results
+      debug:
+        msg: |
+          🧹 BookStack Cleanup Results:
+          {% if cleanup_namespace_check.rc == 0 %}
+          ✅ Existing deployment found and removed
+          📝 Namespace 'bookstack' has been deleted
+          💾 Note: Persistent data in NFS storage is preserved
+          {% else %}
+          ℹ️  No existing deployment found - proceeding with fresh install
+          {% endif %}
+  when: 
+    - inventory_hostname == groups['k3s_master'][0]
+    - bookstack_force_redeploy | default(false) | bool
+
+- name: Display BookStack storage architecture info
+  debug:
+    msg: |
+      📦 Storage Architecture:
+      Using host path volumes with NFS backing
+      - Host paths: /mnt/k3s-storage/apps/bookstack & /mnt/k3s-storage/database/bookstack
+      - No NFS CSI driver needed (direct host mount approach)
+      - Static PersistentVolumes with hostPath configuration
+      - Service User: {{ vault_nfs_username | default('k3s-app-user') }} (created by K3s role)
+      {% if bookstack_force_redeploy | default(false) | bool %}
+      🔄 Force redeploy mode: ON (will clean up existing deployment first)
+      {% endif %}
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Check if BookStack namespace exists
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get namespace bookstack
+  register: namespace_check
+  ignore_errors: yes
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Create BookStack namespace if needed
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml create namespace bookstack
+  when: 
+    - inventory_hostname == groups['k3s_master'][0]
+    - namespace_check.rc != 0
+
+- name: Get k3s-app-user UID and GID from system
+  shell: |
+    id -u {{ vault_nfs_username }} 2>/dev/null
+  register: nfs_user_uid_result
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Get k3s-app-user GID from system  
+  shell: |
+    id -g {{ vault_nfs_username }} 2>/dev/null || echo "100"
+  register: nfs_user_gid_result
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Set NFS user UID/GID for host path permissions
+  set_fact:
+    dynamic_nfs_uid: "{{ nfs_user_uid_result.stdout | default('1024') }}"
+    dynamic_nfs_gid: "{{ nfs_user_gid_result.stdout | default('100') }}"
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Display detected NFS UID/GID for host path permissions
+  debug:
+    msg: |
+      🔍 NFS Service User Detection Results:
+      Service User: {{ vault_nfs_username | default('k3s-app-user') }}
+      Raw UID Output: "{{ nfs_user_uid_result.stdout | default('not detected') }}"
+      Raw GID Output: "{{ nfs_user_gid_result.stdout | default('not detected') }}"
+      Final UID: {{ dynamic_nfs_uid | default('1024') }}
+      Final GID: {{ dynamic_nfs_gid | default('100') }}
+      These values will be used for directory ownership and container security contexts.
+      
+      📋 Detection Method:
+      - Looked up actual system user: {{ vault_nfs_username | default('k3s-app-user') }}
+      - Fallback to defaults if user not found (UID:1024, GID:100)
+      - UID 1024 matches NFS server admin user for proper permissions
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Verify host path storage approach
+  debug:
+    msg: |
+      💾 Storage Architecture:
+      Using host path volumes with NFS backing
+      - Host paths: /mnt/k3s-storage/apps/bookstack & /mnt/k3s-storage/database/bookstack
+      - No NFS CSI driver needed (direct host mount approach)
+      - Static PersistentVolumes with hostPath configuration
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Verify NFS mount points exist on K3s nodes
+  stat:
+    path: /mnt/k3s-storage/apps
+  register: nfs_mount_check
+  failed_when: false
+
+- name: Display NFS mount status
+  debug:
+    msg: |
+      🔍 NFS Mount Point Check:
+      {% if nfs_mount_check.stat.exists %}
+      ✅ /mnt/k3s-storage is mounted
+      {% else %}
+      ❌ /mnt/k3s-storage not found - ensure NFS is mounted during K3s setup
+      {% endif %}
+
+- name: Check if BookStack directories exist
+  stat:
+    path: "{{ item }}"
+  loop:
+    - /mnt/k3s-storage/apps/bookstack
+    - /mnt/k3s-storage/database/bookstack
+  register: directory_check
+  when: 
+    - nfs_mount_check.stat.exists
+    - inventory_hostname == groups['k3s_master'][0]
+
+- name: Create BookStack directories on mounted NFS storage (single node)
+  file:
+    path: "{{ item.item }}"
+    state: directory
+    mode: '0755'
+  loop: "{{ directory_check.results | default([]) }}"
+  become: yes
+  register: directory_creation
+  when: 
+    - nfs_mount_check.stat.exists
+    - inventory_hostname == groups['k3s_master'][0]
+    - not item.stat.exists
+
+- name: Check directory ownership after creation
+  stat:
+    path: "{{ item.item }}"
+  loop: "{{ directory_check.results | default([]) }}"
+  register: directory_ownership_check
+  when: 
+    - nfs_mount_check.stat.exists
+    - inventory_hostname == groups['k3s_master'][0]
+
+- name: Attempt to set ownership on BookStack directories (may fail on some NFS setups)
+  file:
+    path: "{{ item.item }}"
+    owner: "{{ dynamic_nfs_uid | default('1024') }}"
+    group: "{{ dynamic_nfs_gid | default('100') }}"
+  loop: "{{ directory_check.results | default([]) }}"
+  become: yes
+  ignore_errors: yes
+  register: ownership_result
+  when: 
+    - nfs_mount_check.stat.exists
+    - inventory_hostname == groups['k3s_master'][0]
+
+- name: Generate BookStack manifests from hostPath template
+  template:
+    src: bookstack-hostpath.yaml.j2
+    dest: /tmp/bookstack-manifests.yaml
+    mode: '0644'
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Remove any existing problematic ingress
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml delete ingress bookstack-ingress -n bookstack --ignore-not-found=true
+  when: inventory_hostname == groups['k3s_master'][0]
+  ignore_errors: yes
+
+- name: Create BookStack secrets
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml create secret generic bookstack-secrets \
+      --from-literal=MYSQL_ROOT_PASSWORD="{{ bookstack_mysql_root_password }}" \
+      --from-literal=MYSQL_PASSWORD="{{ bookstack_db_password }}" \
+      --from-literal=DB_PASS="{{ bookstack_db_password }}" \
+      --from-literal=APP_KEY="{{ bookstack_app_key }}" \
+      --namespace=bookstack \
+      --dry-run=client -o yaml | kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+  ignore_errors: yes
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Apply BookStack manifests
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f /tmp/bookstack-manifests.yaml
+  register: apply_result
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Display apply results
+  debug:
+    msg: |
+      📦 BookStack Deployment Results:
+      {{ apply_result.stdout }}
+      
+      {% if apply_result.stderr %}
+      ⚠️  Warnings/Errors:
+      {{ apply_result.stderr }}
+      {% endif %}
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Wait for BookStack pods to be ready (with progress updates)
+  shell: |
+    echo "Waiting for BookStack pods to be ready..."
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml wait --for=condition=Ready pod -l app=bookstack -n bookstack --timeout=600s
+  register: wait_result
+  ignore_errors: yes
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Show BookStack pod status if wait failed
+  shell: |
+    echo "Current BookStack pod status:"
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get pods -n bookstack -l app=bookstack
+    echo "Recent events:"
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get events -n bookstack --sort-by='.lastTimestamp' | tail -10
+    echo "Container logs (last 20 lines):"
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml logs -n bookstack -l app=bookstack --tail=20
+  when: 
+    - inventory_hostname == groups['k3s_master'][0]
+    - wait_result.rc != 0
+
+- name: Wait for MariaDB pods to be ready
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml wait --for=condition=Ready pod -l app=bookstack-mariadb -n bookstack --timeout=300s
+  register: wait_mariadb_result
+  ignore_errors: yes
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Get final BookStack deployment status
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get pods -n bookstack
+  register: final_status
+  ignore_errors: yes
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Get BookStack service information
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get svc bookstack -n bookstack -o jsonpath='{.metadata.name}' 2>/dev/null || echo 'No service found'
+  register: service_name
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Get BookStack ingress information
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get ingress -n bookstack -o jsonpath='{.items[0].spec.rules[0].host}' 2>/dev/null || echo 'No ingress found'
+  register: ingress_host
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Display BookStack deployment information
+  debug:
+    msg: |
+      🎉 BookStack Deployment Complete with Host Path NFS Storage!
+      
+      📊 Final Pod Status:
+      {{ final_status.stdout if final_status.rc == 0 else 'No pods found' }}
+      
+      🔗 Service: {{ service_name.stdout }}
+      🌐 Ingress Host: {{ ingress_host.stdout }}
+      🌐 Access URL: {{ bookstack_app_url }}
+      
+      ✅ Readiness Status:
+      BookStack: {{ 'Ready' if wait_result.rc == 0 else 'Not Ready - Check logs' }}
+      MariaDB: {{ 'Ready' if wait_mariadb_result.rc == 0 else 'Not Ready - Check logs' }}
+      
+      💾 Host Path Storage (on all K3s nodes):
+      BookStack Config: /mnt/k3s-storage/apps/bookstack
+      MariaDB Database: /mnt/k3s-storage/database/bookstack
+      
+      🔐 Security Context:
+      UID: {{ dynamic_nfs_uid | default('1024') }}
+      GID: {{ dynamic_nfs_gid | default('100') }}
+      This matches your NFS server admin user for proper permissions
+      Init containers handle permission setup automatically
+      
+      📝 Management Commands:
+      kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get all -n bookstack
+      kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml logs -n bookstack deployment/bookstack
+      kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml logs -n bookstack deployment/bookstack-mariadb
+      kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml port-forward -n bookstack svc/bookstack 8080:8080
+      
+      🔐 Default BookStack credentials:
+      📧 Email: admin@admin.com
+      🔑 Password: password
+      
+      💡 Data Location:
+      Data is stored in organized folders on the mounted NFS share:
+      - Host path: /mnt/k3s-storage/apps/bookstack/
+      - Host path: /mnt/k3s-storage/database/bookstack/
+      - NFS backing: {{ vault_nfs_share_apps | default('/volume1/k3s-storage') }}
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Keep manifests for reference
+  debug:
+    msg: |
+      📄 Generated manifests saved to: /tmp/bookstack-manifests.yaml
+      You can review or reuse these manifests as needed.

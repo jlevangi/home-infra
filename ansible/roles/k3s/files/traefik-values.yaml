@@ -1,0 +1,44 @@
+# Simple Traefik 2 Configuration - Production Ready
+deployment:
+  replicas: 1
+
+service:
+  enabled: true
+  type: LoadBalancer
+
+ports:
+  web:
+    port: 80
+    expose:
+      default: true
+    exposedPort: 80
+  websecure:
+    port: 443
+    expose:
+      default: true
+    exposedPort: 443
+    tls:
+      enabled: true
+  traefik:
+    port: 9000
+    expose:
+      default: false
+    exposedPort: 9000
+
+api:
+  dashboard: true
+  insecure: true
+
+providers:
+  kubernetesCRD:
+    enabled: true
+  kubernetesIngress:
+    enabled: true
+
+globalArguments:
+  - "--global.checknewversion=false"
+  - "--global.sendanonymoususage=false"
+
+additionalArguments:
+  - "--providers.kubernetesingress.ingressclass=traefik"
+  - "--metrics.prometheus=true"

@@ -1,0 +1,77 @@
+---
+# K3s role default variables
+k3s_version: "v1.28.5+k3s1"
+k3s_token: "{{ vault_k3s_token }}"
+kubectl_version: "v1.28.4"
+
+# K3s server configuration  
+k3s_server_args: 
+  - "--disable=traefik"      # Disable built-in Traefik (will install Traefik 2 manually)
+  - "--disable=servicelb"    # Disable built-in service LB (will use MetalLB)
+  - "--write-kubeconfig-mode=644"
+  - "--node-external-ip={{ ansible_default_ipv4.address }}"
+  - "--node-taint=CriticalAddonsOnly=true:NoExecute"  # Tech Tim recommendation
+  - "--cluster-init"  # Enable embedded etcd for HA
+  - "--tls-san={{ load_balancer_ip | default(ansible_default_ipv4.address) }}"  # Support load balancer
+
+k3s_agent_args: []
+
+# Load balancer configuration (for future HA setup)
+load_balancer_ip: ""  # Set this for HA deployment with load balancer
+k3s_datastore_endpoint: ""  # Set this for external database (MySQL/PostgreSQL)
+
+# User configuration  
+k3s_user: "{{ ansible_user }}"
+k3s_group: "{{ ansible_user }}"
+
+# Directories
+k3s_config_dir: "/etc/rancher/k3s"
+k3s_data_dir: "/var/lib/rancher/k3s"
+local_storage_dir: "/opt/local-path-provisioner"
+
+# Network configuration
+k3s_cluster_cidr: "10.42.0.0/16"
+k3s_service_cidr: "10.43.0.0/16"
+
+# Enhanced kernel modules
+k3s_kernel_modules:
+  - br_netfilter
+  - overlay
+  - ip_vs
+  - ip_vs_rr
+  - ip_vs_wrr
+  - ip_vs_sh
+  - nf_conntrack
+
+# Enhanced sysctl settings
+k3s_sysctl_settings:
+  - { name: 'net.bridge.bridge-nf-call-iptables', value: '1' }
+  - { name: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
+  - { name: 'net.ipv4.ip_forward', value: '1' }
+  - { name: 'net.ipv4.conf.all.forwarding', value: '1' }
+  - { name: 'net.ipv6.conf.all.forwarding', value: '1' }
+  - { name: 'net.netfilter.nf_conntrack_max', value: '131072' }
+
+# Features
+k3s_install_kubectl: true
+k3s_install_helm: true
+k3s_setup_kubeconfig: true
+k3s_install_bash_completion: true
+k3s_enable_auto_deploy: true
+
+# LoadBalancer and Ingress Setup
+k3s_install_metallb: true
+k3s_install_traefik: true
+
+# MetalLB Configuration
+metallb_ip_range: "172.20.20.200-172.20.20.210"  # Adjust for your network
+
+# Traefik 2 Configuration
+traefik_loadbalancer_ip: ""  # Leave empty for auto-assignment by MetalLB
+traefik_dashboard_enabled: true
+traefik_dashboard_insecure: true  # Set to false for production
+traefik_dashboard_host: "traefik.local"  # Change to your domain
+traefik_dashboard_auth_enabled: false  # Enable for production
+traefik_access_logs: true
+traefik_persistence_enabled: false  # Enable for SSL cert persistence
+traefik_tls_enabled: false  # Enable for Let's Encrypt SSL

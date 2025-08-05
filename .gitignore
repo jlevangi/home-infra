@@ -1,0 +1,116 @@
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+*.terraform.tfstate.backup
+.terraform.lock.hcl
+terraform.tfvars
+secrets.tfvars
+*.auto.tfvars
+*.tfplan
+*.tfplan.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+tf-plugin-*.log
+
+# Ansible
+*.retry
+.vault_pass
+.vault-password
+vault-password
+vault-password.txt
+host_vars/*/vault.yml
+ansible/group_vars/*vault.yml
+!ansible/group_vars/*vault.yml.example
+ansible/host_vars/*/vault.yml
+ansible/*.log
+ansible/playbook.retry
+temp-inventory*
+
+# Generated Kubernetes manifests (temporary)
+/tmp/*-manifests.yaml
+bookstack-manifests.yaml
+*-generated.yaml
+
+# Kubeconfig files (contain sensitive cluster access)
+*kubeconfig*
+k3s-kubeconfig.yaml
+ansible/k3s-kubeconfig.yaml
+.kube/config
+
+# Secrets and sensitive files
+secrets/*
+!secrets/.gitkeep
+!secrets/README.md
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+ssh-keys/
+*.ppk
+id_rsa*
+id_ed25519*
+known_hosts
+
+# NFS and storage related
+nfs-credentials*
+storage-secrets*
+
+# Kubernetes secrets
+*-secrets.yaml.*
+bookstack-secrets.yaml
+nfs-secret.yaml
+
+# IDE and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.vim/
+
+# OS files  
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs and temporary files
+*.log
+logs/
+temp/
+tmp/
+.tmp/
+*-debug.log
+ansible-debug.log
+
+# Python (if using any Python scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.env
+
+# Node.js (if using any Node tools)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Backup files
+*.bak
+*.backup
+*.old
+*~
+
+# Test files and artifacts
+test-results/
+coverage/
+.pytest_cache/

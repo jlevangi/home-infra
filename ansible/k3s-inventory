@@ -1,0 +1,14 @@
+[k3s_master]
+k3s-node-1 ansible_host=172.20.20.101 ansible_user=pierce ansible_ssh_private_key_file=~/.ssh/pierce
+
+[k3s_workers]
+k3s-node-2 ansible_host=172.20.20.102 ansible_user=pierce ansible_ssh_private_key_file=~/.ssh/pierce
+k3s-node-3 ansible_host=172.20.20.103 ansible_user=pierce ansible_ssh_private_key_file=~/.ssh/pierce
+
+[k3s_cluster:children]
+k3s_master
+k3s_workers
+
+[k3s_cluster:vars]
+ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+ansible_python_interpreter=/usr/bin/python3
