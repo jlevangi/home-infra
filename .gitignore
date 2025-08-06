@@ -7,8 +7,10 @@
 terraform.tfvars
 secrets.tfvars
 *.auto.tfvars
+tfplan
 *.tfplan
 *.tfplan.*
+terraform\k3_3node_cluster\tfplan
 crash.log
 crash.*.log
 override.tf
@@ -16,6 +18,7 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 tf-plugin-*.log
+
 
 # Ansible
 *.retry

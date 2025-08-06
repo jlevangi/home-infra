@@ -24,7 +24,7 @@ output "ansible_inventory" {
       hosts = {
         (proxmox_vm_qemu.terraform[0].name) = {
           ansible_host = "172.20.20.101"
-          ansible_user = "pierce"
+          ansible_user = "var.ci_user"
         }
       }
     }
@@ -33,7 +33,7 @@ output "ansible_inventory" {
         for i, vm in slice(proxmox_vm_qemu.terraform, 1, length(proxmox_vm_qemu.terraform)) :
         vm.name => {
           ansible_host = "172.20.20.10${i + 2}"
-          ansible_user = "pierce"
+          ansible_user = "var.ci_user"
         }
       }
     }
