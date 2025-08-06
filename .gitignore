@@ -10,7 +10,10 @@ secrets.tfvars
 tfplan
 *.tfplan
 *.tfplan.*
-terraform\k3_3node_cluster\tfplan
+**/tfplan
+**/tfplan.*
+terraform/*/tfplan
+terraform/*/tfplan.*
 crash.log
 crash.*.log
 override.tf
