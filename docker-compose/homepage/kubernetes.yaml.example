@@ -1,0 +1,31 @@
+# Example Kubernetes configuration for Homepage
+# Copy this to kubernetes.yaml and configure for your cluster
+
+# SECURITY NOTE: This is an example file. Copy to kubernetes.yaml and fill in your actual cluster details.
+# DO NOT commit kubernetes.yaml with real cluster credentials to git!
+
+mode: cluster # or 'default' for in-cluster mode
+
+cluster:
+  # Your cluster server endpoint
+  server: https://YOUR-K3S-CLUSTER-IP:6443
+  # Path to your certificate authority file
+  certificateAuthorityFile: /path/to/ca.crt
+  
+# Skip TLS verification (not recommended for production)
+skipTlsVerify: false
+
+# Token for service account (create a dedicated service account for homepage)
+token: YOUR_KUBERNETES_SERVICE_ACCOUNT_TOKEN_HERE
+
+# Namespace to monitor (optional)
+namespace: default
+
+# Alternative: use kubeconfig file
+# Remove the above cluster/token configuration and use this instead:
+# kubeconfig: /path/to/your/kubeconfig
+
+# Service account example:
+# kubectl create serviceaccount homepage-serviceaccount
+# kubectl create clusterrolebinding homepage-serviceaccount --clusterrole=cluster-admin --serviceaccount=default:homepage-serviceaccount
+# kubectl create token homepage-serviceaccount

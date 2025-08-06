@@ -1,0 +1,119 @@
+# For configuration options and examples, please see:
+# https://gethomepage.dev/en/configs/services
+
+# Icon source at this page - 
+# https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/
+
+# SECURITY NOTE: This is an example file. Copy to services.yaml and fill in your actual credentials.
+# DO NOT commit services.yaml with real secrets to git!
+
+- Media:
+    - Tautulli:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons@master/png/tautulli.png
+        href: https://tautulli.example.org/
+        description:
+        widget:
+          type: tautulli
+          url: http://media-srv.example.org:8181
+          key: "YOUR_TAUTULLI_API_KEY_HERE"
+    - Jellyfin:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons@master/png/jellyfin.png
+        href: https://jellyfin.example.org/
+        description:
+        widget:
+          type: jellyfin
+          url: https://jellyfin.example.org
+          key: YOUR_JELLYFIN_API_KEY_HERE
+    - Overseerr:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons@master/png/overseerr.png
+        href: https://request.example.org
+        description:
+        widget:
+          type: overseerr
+          url: https://request.example.org
+          key: "YOUR_OVERSEERR_API_KEY_HERE"
+    - Radarr:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons@master/png/radarr.png
+        href: https://radarr.example.org/
+        description:
+        widget:
+          type: radarr
+          url: http://media-srv.example.org:7878
+          key: YOUR_RADARR_API_KEY_HERE
+    - Sonarr:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons@master/png/sonarr.png
+        href: https://sonarr.example.org/
+        description:
+        widget:
+          type: sonarr
+          url: http://media-srv.example.org:8989
+          key: YOUR_SONARR_API_KEY_HERE
+    - QBit:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons@master/png/qbittorrent.png
+        href: https://torrent.example.org
+        description:
+        widget:
+          type: qbittorrent
+          url: http://media-srv.example.org:8080
+          username: YOUR_QBITTORRENT_USERNAME
+          password: YOUR_QBITTORRENT_PASSWORD
+
+- Services:
+    - Home Assistant:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons@master/png/home-assistant.png
+        href: https://homeassistant.example.org
+        description:
+    - Vaultwarden:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons@master/png/vaultwarden.png
+        href: https://vw.example.org
+    - Paperless-NGX:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons@master/png/paperless.png
+        href: https://paperless.example.org/dashboard
+        description: Document Management
+
+- Administration:
+    - Portainer:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons@master/png/portainer.png
+        href: https://portainer.example.org/
+        description:
+        widget:
+          type: portainer
+          url: https://192.168.1.24:9433
+          env: 2
+          key: YOUR_PORTAINER_API_KEY_HERE
+    - Proxmox:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons@master/png/proxmox.png
+        href: https://proxmox.example.org/
+
+- Network:
+    - Pi-Hole:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons@master/png/pi-hole.png
+        href: https://pi-hole.example.org/admin/
+        widget:
+          type: pihole
+          url: http://192.168.1.2
+          key: YOUR_PIHOLE_API_KEY_HERE
+    - AdGuard Home:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons@master/png/adguard-home.png
+        href: https://adguard.example.org
+        widget:
+          type: adguard
+          url: http://192.168.1.10
+          username: YOUR_ADGUARD_USERNAME
+          password: YOUR_ADGUARD_PASSWORD
+    - NGINX:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons@master/png/nginx-proxy-manager.png
+        href: https://nginx.example.org/
+        description:
+        widget:
+          type: npm
+          url: http://192.168.1.19:81
+          username: your-email@example.org
+          password: YOUR_NGINX_PASSWORD
+    - Uptime Kuma:
+        icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons@master/png/uptime-kuma.png
+        href: https://status.example.org/dashboard
+        widget:
+          type: uptimekuma
+          url: https://status.example.org
+          slug: services

@@ -42,6 +42,13 @@ temp-inventory*
 bookstack-manifests.yaml
 *-generated.yaml
 
+# Homepage configuration files with secrets
+docker-compose/homepage/services.yaml
+docker-compose/homepage/kubernetes.yaml
+docker-compose/homepage/bookmarks.yaml
+docker-compose/homepage/settings.yaml
+!docker-compose/homepage/*.yaml.example
+
 # Kubeconfig files (contain sensitive cluster access)
 *kubeconfig*
 k3s-kubeconfig.yaml
