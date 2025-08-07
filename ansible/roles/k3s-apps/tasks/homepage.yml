@@ -36,19 +36,7 @@
     - inventory_hostname == groups['k3s_master'][0]
     - homepage_force_redeploy | default(false) | bool
 
-- name: Check if Homepage namespace exists
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get namespace homepage
-  register: namespace_check
-  ignore_errors: yes
-  when: inventory_hostname == groups['k3s_master'][0]
 
-- name: Create Homepage namespace if needed
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml create namespace homepage
-  when: 
-    - inventory_hostname == groups['k3s_master'][0]
-    - namespace_check.rc != 0
 
 - name: Get k3s-app-user UID and GID from system
   shell: |
@@ -69,46 +57,70 @@
   when: inventory_hostname == groups['k3s_master'][0]
 
 - name: Create Homepage storage directories on NFS
-  file:
-    path: "/mnt/k3s-storage/apps/homepage/config"
-    state: directory
-    owner: "{{ vault_nfs_username | default('k3s-app-user') }}"
-    group: "users"
-    mode: '0755'
-    recurse: yes
-  when: inventory_hostname == groups['k3s_master'][0]
-
-- name: Copy Homepage configuration files to storage
-  copy:
-    src: "{{ item }}"
-    dest: "/mnt/k3s-storage/apps/homepage/config/"
-    owner: "{{ vault_nfs_username | default('k3s-app-user') }}"
-    group: "users"
-    mode: '0644'
-  with_fileglob:
-    - "docker-compose/homepage/*.yaml"
-    - "docker-compose/homepage/*.yml"
-  when: inventory_hostname == groups['k3s_master'][0]
-
-- name: Check Homepage configuration files were copied
   shell: |
-    echo "📂 Homepage config files in storage:"
-    ls -la /mnt/k3s-storage/apps/homepage/config/
-  register: homepage_config_files
+    mkdir -p "/mnt/k3s-storage/apps/homepage/config"
+    # Skip Synology metadata files when changing ownership
+    find "/mnt/k3s-storage/apps/homepage/config" \( -name "@eaDir" -o -name "*@SynoEAStream" \) -prune -o -type f -exec chown {{ vault_nfs_username | default('k3s-app-user') }}:users {} \; 2>/dev/null || true
+    find "/mnt/k3s-storage/apps/homepage/config" \( -name "@eaDir" -o -name "*@SynoEAStream" \) -prune -o -type d -exec chown {{ vault_nfs_username | default('k3s-app-user') }}:users {} \; 2>/dev/null || true
+    chmod -R 755 "/mnt/k3s-storage/apps/homepage/config" 2>/dev/null || true
   when: inventory_hostname == groups['k3s_master'][0]
 
-- name: Display Homepage configuration files
-  debug:
-    msg: "{{ homepage_config_files.stdout_lines }}"
-  when: inventory_hostname == groups['k3s_master'][0]
-
-- name: Apply Homepage Kubernetes manifests
+- name: Apply Homepage namespace
   shell: |
     kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
   args:
-    stdin: "{{ lookup('template', 'homepage-hostpath.yaml.j2') }}"
+    stdin: "{{ lookup('template', 'common/namespace.yaml.j2') }}"
+  vars:
+    app_name: homepage
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Apply Homepage ConfigMap
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+  args:
+    stdin: "{{ lookup('template', 'homepage/configmap.yaml.j2') }}"
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Apply Homepage PV/PVC cleanup and creation
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml delete pvc homepage-config-pvc -n homepage --ignore-not-found=true
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml delete pv homepage-config-pv --ignore-not-found=true
+    sleep 3
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+  args:
+    stdin: "{{ lookup('template', 'common/pv-pvc.yaml.j2') }}"
+  vars:
+    app_name: homepage
+    volume_name: config
+    volume_size: 1Gi
+    host_path: /mnt/k3s-storage/apps/homepage/config
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Apply Homepage Deployment
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+  args:
+    stdin: "{{ lookup('template', 'homepage/deployment.yaml.j2') }}"
   when: inventory_hostname == groups['k3s_master'][0]
   register: homepage_deploy_result
+
+- name: Apply Homepage Service
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+  args:
+    stdin: "{{ lookup('template', 'homepage/service.yaml.j2') }}"
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Apply Homepage Ingress
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+  args:
+    stdin: "{{ lookup('template', 'common/ingress.yaml.j2') }}"
+  vars:
+    service_name: "homepage"
+    app_url: "{{ homepage_app_url }}"
+    service_port: "{{ homepage_service_port }}"
+  when: inventory_hostname == groups['k3s_master'][0]
 
 - name: Force restart Homepage deployment to pick up config changes
   shell: |
@@ -116,6 +128,48 @@
     kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml rollout status deployment/homepage -n homepage --timeout=300s
   when: inventory_hostname == groups['k3s_master'][0]
   register: homepage_restart_result
+
+- name: Check what Homepage container sees in /app/config
+  shell: |
+    echo "🔍 Checking Homepage container's view of config directory:"
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml exec -n homepage deployment/homepage -- ls -la /app/config/ || echo "Could not access /app/config in container"
+    echo ""
+    echo "📂 Checking if specific config files are mounted correctly:"
+    for file in bookmarks.yaml services.yaml settings.yaml widgets.yaml; do
+      if kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml exec -n homepage deployment/homepage -- test -f "/app/config/$file"; then
+        echo "✅ $file exists in container"
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml exec -n homepage deployment/homepage -- ls -la "/app/config/$file"
+      else
+        echo "❌ $file missing in container"
+      fi
+    done
+    echo ""
+    echo "🔧 Checking PVC mount info:"
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml exec -n homepage deployment/homepage -- mount | grep /app/config || echo "No mount info for /app/config"
+  register: homepage_container_config_check
+  when: inventory_hostname == groups['k3s_master'][0]
+  ignore_errors: yes
+
+- name: Display Homepage container config check results
+  debug:
+    msg: "{{ homepage_container_config_check.stdout_lines | default(['No container config check results']) }}"
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Check PV/PVC status for Homepage
+  shell: |
+    echo "🔍 Checking PersistentVolume and PersistentVolumeClaim status:"
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get pv,pvc -n homepage
+    echo ""
+    echo "📂 Checking PVC details:"
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml describe pvc homepage-config-pvc -n homepage
+  register: homepage_pvc_status
+  when: inventory_hostname == groups['k3s_master'][0]
+  ignore_errors: yes
+
+- name: Display PV/PVC status
+  debug:
+    msg: "{{ homepage_pvc_status.stdout_lines | default(['No PVC status results']) }}"
+  when: inventory_hostname == groups['k3s_master'][0]
 
 - name: Wait for Homepage deployment to be ready
   shell: |

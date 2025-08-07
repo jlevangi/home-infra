@@ -1,0 +1,26 @@
+---
+# Telegraf role handlers
+- name: restart telegraf
+  systemd:
+    name: "{{ telegraf_service_name }}"
+    state: restarted
+    daemon_reload: yes
+  become: yes
+
+- name: reload telegraf
+  systemd:
+    name: "{{ telegraf_service_name }}"
+    state: reloaded
+  become: yes
+
+- name: stop telegraf
+  systemd:
+    name: "{{ telegraf_service_name }}"
+    state: stopped
+  become: yes
+
+- name: start telegraf
+  systemd:
+    name: "{{ telegraf_service_name }}"
+    state: started
+  become: yes

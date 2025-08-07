@@ -13,7 +13,7 @@
     delay: 10
     timeout: 300
 
-- name: Install K3s worker (Tech Tim's method)
+- name: Install K3s worker
   shell: |
     curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION={{ k3s_version }} \
     K3S_URL=https://{{ hostvars[groups['k3s_master'][0]]['ansible_default_ipv4']['address'] }}:6443 \

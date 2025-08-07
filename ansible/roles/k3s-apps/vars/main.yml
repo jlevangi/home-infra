@@ -5,7 +5,8 @@
 
 # BookStack application settings
 bookstack_app_url: "https://bsk3.levangie.org"
-bookstack_timezone: "America/New_York"
+bookstack_service_name: "bookstack"
+bookstack_service_port: 8080
 bookstack_config_storage_size: "5Gi"
 bookstack_db_storage_size: "10Gi"
 bookstack_db_password: "{{ vault_bookstack_db_password }}"
@@ -14,3 +15,5 @@ bookstack_app_key: "{{ vault_bookstack_app_key }}"
 
 # Homepage application settings
 homepage_app_url: "https://homepage.levangie.org"
+homepage_service_name: "homepage"
+homepage_service_port: 3000
