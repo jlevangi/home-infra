@@ -1,0 +1,28 @@
+---
+# Telegraf role default variables
+
+# Telegraf package and service
+telegraf_version: "latest"
+telegraf_service_name: "telegraf"
+telegraf_config_path: "/etc/telegraf/telegraf.conf"
+telegraf_user: "telegraf"
+telegraf_group: "telegraf"
+
+# Telegraf agent configuration
+telegraf_interval: "10s"
+telegraf_environment: "k3s-homelab"
+telegraf_cluster_name: "k3s-cluster"
+
+# InfluxDB output configuration (mapped from vault variables)
+telegraf_influxdb_url: "{{ vault_telegraf_influxdb_url }}"
+telegraf_database: "{{ vault_telegraf_database }}"
+telegraf_username: "{{ vault_telegraf_username }}"
+telegraf_password: "{{ vault_telegraf_password }}"
+telegraf_retention_policy: "{{ vault_telegraf_retention_policy | default('') }}"
+
+# K3s monitoring configuration (mapped from vault)
+k3s_monitoring_token: "{{ vault_k3s_monitoring_token | default('') }}"
+
+# Package management
+telegraf_apt_repo_url: "https://repos.influxdata.com/ubuntu"
+telegraf_apt_repo_key: "https://repos.influxdata.com/influxdata-archive_compat.key"
