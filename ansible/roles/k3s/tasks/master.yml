@@ -1,5 +1,5 @@
 ---
-# K3s master installation tasks - Based on Tech Tim's best practices
+# K3s master installation tasks
 
 - name: Check if K3s is already installed and running
   shell: |
@@ -21,7 +21,7 @@
     mode: '0755'
   when: k3s_status_check.rc != 0
 
-- name: Install K3s master (Tech Tim's method)
+- name: Install K3s master
   shell: |
     {% if k3s_datastore_endpoint %}
     export K3S_DATASTORE_ENDPOINT='{{ k3s_datastore_endpoint }}'

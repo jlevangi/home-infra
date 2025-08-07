@@ -1,0 +1,9 @@
+---
+# {{ app_name | title }} Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ app_name }}
+  labels:
+    app.kubernetes.io/name: {{ app_name }}
+    app.kubernetes.io/managed-by: ansible

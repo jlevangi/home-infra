@@ -1,0 +1,39 @@
+---
+# {{ app_name | title }} PersistentVolume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ app_name }}-{{ volume_name }}-pv
+spec:
+  capacity:
+    storage: {{ volume_size | default('1Gi') }}
+  volumeMode: Filesystem
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: "nfs-hostpath"
+  hostPath:
+    path: {{ host_path }}
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/os
+          operator: In
+          values:
+          - linux
+---
+# {{ app_name | title }} PersistentVolumeClaim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ app_name }}-{{ volume_name }}-pvc
+  namespace: {{ app_name }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ volume_size | default('1Gi') }}
+  storageClassName: "nfs-hostpath"
+  volumeName: {{ app_name }}-{{ volume_name }}-pv

@@ -1,5 +1,5 @@
 ---
-# System preparation tasks for K3s - Enhanced based on Tech Tim's best practices
+# System preparation tasks for K3s
 - name: Verify system is ready for K3s
   command: systemctl is-active systemd-resolved
   register: resolved_status
@@ -40,7 +40,7 @@
     state: started
   become: yes
 
-- name: Load required kernel modules (Tech Tim's enhanced list)
+- name: Load required kernel modules
   modprobe:
     name: "{{ item }}"
     state: present
@@ -55,7 +55,7 @@
   loop: "{{ k3s_kernel_modules }}"
   become: yes
 
-- name: Configure sysctl for Kubernetes (Tech Tim's enhanced settings)
+- name: Configure sysctl for Kubernetes
   sysctl:
     name: "{{ item.name }}"
     value: "{{ item.value }}"
