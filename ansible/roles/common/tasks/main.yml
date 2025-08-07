@@ -7,16 +7,18 @@
 - name: Install initial packages
   apt:
     name: 
-      - cowsay
-      - cron
-      - cockpit
-      - tmux
-      - micro # Modern text editor
-      - fzf
-      - neofetch
-      - btop
-      - dos2unix    # Converts line endings from Windows-style to Unix format
-      - curl        # Required for Superfile installation
+      - cron          # Daemon to execute scheduled commands
+      - cockpit       # Web-based server management interface
+      - tmux          # Terminal multiplexer
+      - micro         # Modern text editor
+      - fzf           # General-purpose command-line fuzzy finder
+      - btop          # Resource monitor
+      - dos2unix      # Converts line endings from Windows-style to Unix format
+      - curl          # Required for Superfile installation
+      - wget          # Command-line utility for downloading files
+#      - git           # Version control system
+#      - neofetch     # Displays system information
+#      - cowsay       # Fun command-line utility that generates ASCII pictures of a cow with a message
     state: present
 
 - name: Copy bash_aliases to the user's home directory

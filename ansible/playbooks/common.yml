@@ -1,6 +1,6 @@
 ---
 - name: Set up All Servers
-  hosts: apt
+  hosts: all
   become: yes
   roles:
     - common
