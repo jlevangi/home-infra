@@ -1,0 +1,22 @@
+---
+# Generic Ingress Template (TLS handled by Caddy)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ service_name }}-ingress
+  namespace: {{ service_name }}
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: {{ app_url | regex_replace('https?://','') }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ service_name }}
+            port:
+              number: {{ service_port | int }}

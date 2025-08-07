@@ -135,7 +135,7 @@
   become: yes
   when: k3s_use_nfs_storage | default(false)
 
-- name: Display cluster info (Tech Tim style)
+- name: Display cluster info
   shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes -o wide
   register: cluster_info
   become: yes

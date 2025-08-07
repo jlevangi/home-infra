@@ -5,10 +5,12 @@
 
 set -e
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="${1:-compose.yml}"
 APP_NAME="${2:-homepage}"
 DOMAIN="${3:-${APP_NAME}.levangie.org}"
-ANSIBLE_ROLES_DIR="${4:-../../ansible/roles/k3s-apps}"
+ANSIBLE_ROLES_DIR="${4:-${SCRIPT_DIR}/../ansible/roles/k3s-apps}"
 
 echo "🏗️  Kompose to Ansible K3s Generator"
 echo "===================================="
@@ -121,13 +123,52 @@ cat > "${ANSIBLE_ROLES_DIR}/tasks/${APP_NAME}.yml" << EOF
     recurse: yes
   when: inventory_hostname == groups['k3s_master'][0]
 
-- name: Apply ${APP_NAME} Kubernetes manifests
+- name: Apply ${APP_NAME} namespace
   shell: |
     kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
   args:
-    stdin: "{{ lookup('template', '${APP_NAME}-hostpath.yaml.j2') }}"
+    stdin: "{{ lookup('template', '${APP_NAME}/namespace.yaml.j2') }}"
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Apply ${APP_NAME} ConfigMap
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+  args:
+    stdin: "{{ lookup('template', '${APP_NAME}/configmap.yaml.j2') }}"
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Apply ${APP_NAME} PV/PVC
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+  args:
+    stdin: "{{ lookup('template', '${APP_NAME}/pv-pvc.yaml.j2') }}"
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Apply ${APP_NAME} Deployment
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+  args:
+    stdin: "{{ lookup('template', '${APP_NAME}/deployment.yaml.j2') }}"
   when: inventory_hostname == groups['k3s_master'][0]
   register: ${APP_NAME}_deploy_result
+
+- name: Apply ${APP_NAME} Service
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+  args:
+    stdin: "{{ lookup('template', '${APP_NAME}/service.yaml.j2') }}"
+  when: inventory_hostname == groups['k3s_master'][0]
+
+- name: Apply ${APP_NAME} Ingress
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+  args:
+    stdin: "{{ lookup('template', 'common/ingress.yaml.j2') }}"
+  vars:
+    service_name: "{{ ${APP_NAME}_service_name }}"
+    app_url: "{{ ${APP_NAME}_app_url }}"
+    service_port: "{{ ${APP_NAME}_service_port }}"
+  when: inventory_hostname == groups['k3s_master'][0]
 
 - name: Wait for ${APP_NAME} deployment to be ready
   shell: |
@@ -163,16 +204,30 @@ EOF
 
 echo "✅ Task file created: ${ANSIBLE_ROLES_DIR}/tasks/${APP_NAME}.yml"
 
-# Create Ansible template file
+# Create Ansible template directory and files
 echo ""
-echo "📝 Generating Ansible template: ${ANSIBLE_ROLES_DIR}/templates/${APP_NAME}-hostpath.yaml.j2"
-cat > "${ANSIBLE_ROLES_DIR}/templates/${APP_NAME}-hostpath.yaml.j2" << EOF
----
-# ${APP_NAME} Dashboard Deployment
-# Based on Kompose conversion but enhanced for production K3s with NFS storage
-# Architecture: MetalLB LoadBalancer + Traefik Ingress + Caddy TLS termination
+echo "� Creating template directory: ${ANSIBLE_ROLES_DIR}/templates/${APP_NAME}/"
+mkdir -p "${ANSIBLE_ROLES_DIR}/templates/${APP_NAME}"
 
-# ConfigMap for ${APP_NAME} configuration
+echo "�📝 Generating modular Ansible templates..."
+
+# Create namespace template
+cat > "${ANSIBLE_ROLES_DIR}/templates/${APP_NAME}/namespace.yaml.j2" << EOF
+---
+# ${APP_NAME} Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${APP_NAME}
+  labels:
+    app.kubernetes.io/name: ${APP_NAME}
+    app.kubernetes.io/managed-by: ansible
+EOF
+
+# Create configmap template
+cat > "${ANSIBLE_ROLES_DIR}/templates/${APP_NAME}/configmap.yaml.j2" << EOF
+---
+# ${APP_NAME} ConfigMap
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -182,8 +237,12 @@ data:
   TZ: "{{ ${APP_NAME}_timezone | default('America/New_York') }}"
   PUID: "{{ dynamic_nfs_uid | default('1024') }}"
   PGID: "{{ dynamic_nfs_gid | default('100') }}"
+EOF
+
+# Create PV/PVC template
+cat > "${ANSIBLE_ROLES_DIR}/templates/${APP_NAME}/pv-pvc.yaml.j2" << EOF
 ---
-# PersistentVolume for ${APP_NAME} config storage
+# ${APP_NAME} PersistentVolume
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -208,7 +267,7 @@ spec:
           values:
           - linux
 ---
-# PersistentVolumeClaim for ${APP_NAME} config
+# ${APP_NAME} PersistentVolumeClaim
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -221,8 +280,12 @@ spec:
     requests:
       storage: 1Gi
   storageClassName: local-path
+EOF
+
+# Create deployment template
+cat > "${ANSIBLE_ROLES_DIR}/templates/${APP_NAME}/deployment.yaml.j2" << EOF
 ---
-# ${APP_NAME} Deployment (enhanced from Kompose output)
+# ${APP_NAME} Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -305,8 +368,12 @@ spec:
       - name: ${APP_NAME}-config
         persistentVolumeClaim:
           claimName: ${APP_NAME}-config-pvc
+EOF
+
+# Create service template
+cat > "${ANSIBLE_ROLES_DIR}/templates/${APP_NAME}/service.yaml.j2" << EOF
 ---
-# Service (using LoadBalancer with MetalLB)
+# ${APP_NAME} Service
 apiVersion: v1
 kind: Service
 metadata:
@@ -325,33 +392,18 @@ spec:
     protocol: TCP
   selector:
     app: ${APP_NAME}
----
-# HTTP-only Ingress for ${APP_NAME} (TLS handled by Caddy)
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: ${APP_NAME}-ingress
-  namespace: ${APP_NAME}
-  labels:
-    app: ${APP_NAME}
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web  # HTTP only, Caddy handles TLS
-spec:
-  ingressClassName: traefik
-  rules:
-  - host: {{ ${APP_NAME}_app_url | default('https://${DOMAIN}') | regex_replace('^https?://') }}
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: ${APP_NAME}
-            port:
-              number: ${PORT}
 EOF
 
-echo "✅ Template created: ${ANSIBLE_ROLES_DIR}/templates/${APP_NAME}-hostpath.yaml.j2"
+# No longer creating individual ingress template - using common/ingress.yaml.j2
+echo "ℹ️  Using common ingress template instead of app-specific template"
+
+echo "✅ Modular templates created:"
+echo "   - ${ANSIBLE_ROLES_DIR}/templates/${APP_NAME}/namespace.yaml.j2"
+echo "   - ${ANSIBLE_ROLES_DIR}/templates/${APP_NAME}/configmap.yaml.j2"
+echo "   - ${ANSIBLE_ROLES_DIR}/templates/${APP_NAME}/pv-pvc.yaml.j2"
+echo "   - ${ANSIBLE_ROLES_DIR}/templates/${APP_NAME}/deployment.yaml.j2"
+echo "   - ${ANSIBLE_ROLES_DIR}/templates/${APP_NAME}/service.yaml.j2"
+echo "   - ${ANSIBLE_ROLES_DIR}/templates/${APP_NAME}/ingress.yaml.j2"
 
 # Create deployment playbook
 echo ""
@@ -367,6 +419,8 @@ cat > "${APP_NAME}.yml" << EOF
   vars:
     deploy_${APP_NAME}: true
     ${APP_NAME}_app_url: "https://${DOMAIN}"
+    ${APP_NAME}_service_name: "${APP_NAME}"
+    ${APP_NAME}_service_port: ${PORT}
     ${APP_NAME}_timezone: "America/New_York"
     ${APP_NAME}_force_redeploy: false  # Set to true to force cleanup and redeploy
   
@@ -401,6 +455,8 @@ if ! grep -q "deploy_${APP_NAME}:" "${ANSIBLE_ROLES_DIR}/defaults/main.yml"; the
 # ${APP_NAME} configuration
 deploy_${APP_NAME}: false  # Set to true to deploy ${APP_NAME}
 ${APP_NAME}_app_url: "https://${DOMAIN}"
+${APP_NAME}_service_name: "${APP_NAME}"
+${APP_NAME}_service_port: ${PORT}
 ${APP_NAME}_timezone: "America/New_York"
 ${APP_NAME}_force_redeploy: false  # Set to true to force cleanup and redeploy
 EOF
@@ -428,12 +484,19 @@ fi
 rm -rf "$TEMP_DIR"
 
 echo ""
-echo "🎉 Complete Ansible integration generated!"
-echo "========================================"
+echo "🎉 Complete modular Ansible integration generated!"
+echo "=========================================="
 echo ""
-echo "📁 Files created:"
+echo "📁 Template files created in ${ANSIBLE_ROLES_DIR}/templates/${APP_NAME}/:"
+echo "   - namespace.yaml.j2"
+echo "   - configmap.yaml.j2"
+echo "   - pv-pvc.yaml.j2"
+echo "   - deployment.yaml.j2"
+echo "   - service.yaml.j2"
+echo "   - ingress.yaml.j2"
+echo ""
+echo "📁 Other files created:"
 echo "   - ${ANSIBLE_ROLES_DIR}/tasks/${APP_NAME}.yml"
-echo "   - ${ANSIBLE_ROLES_DIR}/templates/${APP_NAME}-hostpath.yaml.j2"  
 echo "   - ${APP_NAME}.yml (deployment playbook)"
 echo ""
 echo "📝 Files updated:"

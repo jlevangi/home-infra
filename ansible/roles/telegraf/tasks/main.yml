@@ -1,0 +1,118 @@
+---
+# Main task file for Telegraf role
+- name: Display Telegraf deployment information
+  debug:
+    msg: |
+      📊 Deploying Telegraf monitoring agent for K3s nodes
+      Node: {{ inventory_hostname }}
+      Type: {% if inventory_hostname in groups['k3s_master'] %}K3s Master{% else %}K3s Worker{% endif %}
+      InfluxDB: {{ vault_telegraf_influxdb_url }}
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  become: yes
+
+- name: Install required packages for Telegraf repository
+  apt:
+    name:
+      - curl
+      - gnupg
+      - lsb-release
+      - ca-certificates
+    state: present
+  become: yes
+
+- name: Add InfluxData GPG key
+  apt_key:
+    url: "{{ telegraf_apt_repo_key }}"
+    state: present
+  become: yes
+
+- name: Add InfluxData repository
+  apt_repository:
+    repo: "deb {{ telegraf_apt_repo_url }} {{ ansible_distribution_release }} stable"
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Install Telegraf
+  apt:
+    name: telegraf
+    state: "{{ 'latest' if telegraf_version == 'latest' else 'present' }}"
+  become: yes
+  notify: restart telegraf
+
+- name: Create telegraf user (if not exists)
+  user:
+    name: "{{ telegraf_user }}"
+    group: "{{ telegraf_group }}"
+    system: yes
+    shell: /bin/false
+    home: /etc/telegraf
+    create_home: no
+  become: yes
+
+- name: Add telegraf user to docker group (for containerd socket access)
+  user:
+    name: "{{ telegraf_user }}"
+    groups: docker
+    append: yes
+  become: yes
+  when: ansible_distribution == "Ubuntu"
+
+- name: Ensure telegraf config directory exists
+  file:
+    path: /etc/telegraf
+    state: directory
+    owner: "{{ telegraf_user }}"
+    group: "{{ telegraf_group }}"
+    mode: '0755'
+  become: yes
+
+- name: Generate Telegraf configuration
+  template:
+    src: telegraf.conf.j2
+    dest: "{{ telegraf_config_path }}"
+    owner: "{{ telegraf_user }}"
+    group: "{{ telegraf_group }}"
+    mode: '0644'
+    backup: yes
+  become: yes
+  notify: restart telegraf
+
+- name: Enable and start Telegraf service
+  systemd:
+    name: "{{ telegraf_service_name }}"
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  become: yes
+
+- name: Verify Telegraf service status
+  command: systemctl is-active telegraf
+  register: telegraf_status
+  changed_when: false
+  become: yes
+
+- name: Display Telegraf status
+  debug:
+    msg: |
+      📈 Telegraf Status: {{ telegraf_status.stdout }}
+      Configuration: {{ telegraf_config_path }}
+      Service: {{ telegraf_service_name }}
+      
+      🔍 Monitoring:
+      - System metrics (CPU, Memory, Disk, Network)
+      - K3s containers via containerd socket
+      - K3s systemd services
+      - Kubernetes API metrics {% if k3s_monitoring_token | default('') %}(enabled){% else %}(disabled - no token){% endif %}
+      
+      📊 Data sent to: {{ telegraf_influxdb_url }}
+      Database: {{ telegraf_database }}
+      
+      🔧 Management commands:
+      sudo systemctl status telegraf
+      sudo journalctl -u telegraf -f
+      telegraf --test --config {{ telegraf_config_path }}
