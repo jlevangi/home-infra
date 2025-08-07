@@ -127,3 +127,5 @@ yarn-error.log*
 test-results/
 coverage/
 .pytest_cache/
+
+vaultwarden/

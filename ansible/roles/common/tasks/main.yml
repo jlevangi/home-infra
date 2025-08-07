@@ -17,8 +17,8 @@
       - curl          # Required for Superfile installation
       - wget          # Command-line utility for downloading files
 #      - git           # Version control system
-#      - neofetch     # Displays system information
-#      - cowsay       # Fun command-line utility that generates ASCII pictures of a cow with a message
+#      - neofetch      # Displays system information
+#      - cowsay        # Fun command-line utility that generates ASCII pictures of a cow with a message
     state: present
 
 - name: Copy bash_aliases to the user's home directory
@@ -32,18 +32,18 @@
 - name: Convert .bash_aliases to Unix format
   command: dos2unix '/home/{{ ansible_user }}/.bash_aliases'
 
-- name: Check if Superfile is already installed
-  shell: command -v superfile || echo "not installed"
-  register: superfile_check
-  changed_when: false
+# - name: Check if Superfile is already installed
+#   shell: command -v superfile || echo "not installed"
+#   register: superfile_check
+#   changed_when: false
 
-- name: Download and run Superfile installer
-  shell: bash -c "$(curl -sLo- https://superfile.netlify.app/install.sh)"
-  register: superfile_install_result
-  when: superfile_check.stdout == "not installed"
-  become: "{{ 'yes' if ansible_user != 'root' else 'no' }}"
+# - name: Download and run Superfile installer
+#   shell: bash -c "$(curl -sLo- https://superfile.netlify.app/install.sh)"
+#   register: superfile_install_result
+#   when: superfile_check.stdout == "not installed"
+#   become: "{{ 'yes' if ansible_user != 'root' else 'no' }}"
   
-- name: Display Superfile installation output
-  debug:
-    var: superfile_install_result.stdout_lines
-  when: superfile_check.stdout == "not installed" and superfile_install_result is defined
+# - name: Display Superfile installation output
+#   debug:
+#     var: superfile_install_result.stdout_lines
+#   when: superfile_check.stdout == "not installed" and superfile_install_result is defined
