@@ -68,3 +68,17 @@ storage_classes:
   nfs_apps: "nfs-apps"
   nfs_shared: "nfs-shared"
   nfs_backup: "nfs-backup"
+
+# Global SMTP Configuration for Applications
+# These settings can be used by any application that needs email functionality
+smtp_host: "{{ vault_smtp_host }}"
+smtp_port: 587
+smtp_from: "lab@levangie.org"
+smtp_from_name: "LeVangie Home Lab"
+smtp_username: "{{ vault_smtp_username }}"
+smtp_password: "{{ vault_smtp_password }}"
+smtp_security: "starttls"  # Options: starttls, ssl, none
+smtp_auth_mechanism: "Login"  # Default auth mechanism
+
+# Application-specific SMTP overrides (when needed)
+application_timezone: "America/New_York"  # Default timezone for all apps

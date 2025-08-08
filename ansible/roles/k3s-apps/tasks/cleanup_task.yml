@@ -1,0 +1,53 @@
+# ansible/roles/k3s-apps/tasks/cleanup_task.yml
+# Generic cleanup task - variables should be passed when including this task
+# Expected variables:
+# - app_name: Display name of the application
+# - k8s_namespace: Kubernetes namespace to clean up  
+# - kubeconfig_path: Path to kubeconfig file
+# - force_redeploy_var: Variable name to check for force redeploy
+# - master_group: Inventory group name for master nodes
+# - additional_cleanup_tasks: (optional) List of additional cleanup tasks
+
+- name: "Clean up existing {{ app_name }} deployment (if requested)"
+  block:
+    - name: "Check if {{ app_name }} namespace exists for cleanup"
+      shell: |
+        kubectl --kubeconfig={{ kubeconfig_path }} get namespace {{ k8s_namespace }}
+      register: cleanup_namespace_check
+      ignore_errors: yes
+
+    - name: "Remove existing {{ app_name }} deployment"
+      shell: |
+        echo "🧹 Cleaning up existing {{ app_name }} deployment..."
+        kubectl --kubeconfig={{ kubeconfig_path }} delete namespace {{ k8s_namespace }} --ignore-not-found=true
+        echo "Waiting for namespace deletion to complete..."
+        kubectl --kubeconfig={{ kubeconfig_path }} wait --for=delete namespace/{{ k8s_namespace }} --timeout=300s || true
+        echo "✅ Cleanup complete"
+      when: cleanup_namespace_check.rc == 0
+      register: cleanup_result
+
+    # Additional cleanup tasks (e.g., PVCs, PVs)
+    - name: "Execute additional cleanup tasks for {{ app_name }}"
+      shell: |
+        kubectl --kubeconfig={{ kubeconfig_path }} {{ item.command }}
+      loop: "{{ additional_cleanup_tasks | default([]) }}"
+      when: 
+        - cleanup_namespace_check.rc == 0
+        - additional_cleanup_tasks is defined
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: "Display cleanup results for {{ app_name }}"
+      debug:
+        msg: |
+          🧹 {{ app_name }} Cleanup Results:
+          {% if cleanup_namespace_check.rc == 0 %}
+          ✅ Existing deployment found and removed
+          📝 Namespace '{{ k8s_namespace }}' has been deleted
+          💾 Note: Persistent data in NFS storage is preserved
+          {% else %}
+          ℹ️  No existing deployment found - proceeding with fresh install
+          {% endif %}
+  when: 
+    - inventory_hostname == groups[master_group][0]
+    - vars[force_redeploy_var] | default(false) | bool

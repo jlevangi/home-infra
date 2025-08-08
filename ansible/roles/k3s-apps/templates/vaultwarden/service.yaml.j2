@@ -1,0 +1,14 @@
+---
+# Vaultwarden App Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: vaultwarden
+  namespace: vaultwarden
+spec:
+  selector:
+    app: vaultwarden
+  ports:
+  - port: 80
+    targetPort: 80
+  type: LoadBalancer
