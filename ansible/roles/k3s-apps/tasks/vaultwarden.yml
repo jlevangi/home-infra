@@ -1,53 +1,19 @@
 ---
 # Optional cleanup task - only runs when vaultwarden_force_redeploy is true
-- name: Clean up existing Vaultwarden deployment (if requested)
-  block:
-    - name: Check if Vaultwarden namespace exists for cleanup
-      shell: |
-        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get namespace vaultwarden
-      register: cleanup_namespace_check
-      ignore_errors: yes
+- name: Include cleanup task for Vaultwarden
+  include_tasks: cleanup_task.yml
+  vars:
+    app_name: "Vaultwarden"
+    k8s_namespace: "vaultwarden"
+    kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
+    force_redeploy_var: "vaultwarden_force_redeploy"
+    master_group: "k3s_master"
+    additional_cleanup_tasks:
+      - name: "Delete Vaultwarden PVC"
+        command: "delete pvc vaultwarden-data-pvc -n vaultwarden --ignore-not-found=true"
+      - name: "Delete Vaultwarden PV"
+        command: "delete pv vaultwarden-data-pv --ignore-not-found=true"
 
-    - name: Remove existing Vaultwarden deployment
-      shell: |
-        echo "🧹 Cleaning up existing Vaultwarden deployment..."
-        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml delete namespace vaultwarden --ignore-not-found=true
-        echo "Waiting for namespace deletion to complete..."
-        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml wait --for=delete namespace/vaultwarden --timeout=300s || true
-        echo "✅ Cleanup complete"
-      when: cleanup_namespace_check.rc == 0
-      register: cleanup_result
-
-    - name: Display cleanup results
-      debug:
-        msg: |
-          🧹 Vaultwarden Cleanup Results:
-          {% if cleanup_namespace_check.rc == 0 %}
-          ✅ Existing deployment found and removed
-          📝 Namespace 'vaultwarden' has been deleted
-          💾 Note: Persistent data in NFS storage is preserved
-          {% else %}
-          ℹ️  No existing deployment found - proceeding with fresh install
-          {% endif %}
-  when: 
-    - inventory_hostname == groups['k3s_master'][0]
-    - vaultwarden_force_redeploy | default(false) | bool
-
-# Delete Vaultwarden PVC if force redeploy is enabled
-- name: Delete Vaultwarden PVC (if force redeploy)
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml delete pvc vaultwarden-data-pvc -n vaultwarden --ignore-not-found=true
-  when:
-    - inventory_hostname == groups['k3s_master'][0]
-    - vaultwarden_force_redeploy | default(false) | bool
-
-# Delete Vaultwarden PV if force redeploy is enabled
-- name: Delete Vaultwarden PV (if force redeploy)
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml delete pv vaultwarden-data-pv --ignore-not-found=true
-  when:
-    - inventory_hostname == groups['k3s_master'][0]
-    - vaultwarden_force_redeploy | default(false) | bool
 - name: Display Vaultwarden storage architecture info
   debug:
     msg: |
