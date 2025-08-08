@@ -193,6 +193,54 @@ Provides external IP addresses for services:
 - Automatic IP assignment for LoadBalancer services
 - Integration with Traefik for ingress traffic
 
+## 📱 Available Applications
+
+This infrastructure includes several pre-configured applications that can be deployed on your K3s cluster:
+
+### BookStack
+A self-hosted wiki and documentation platform.
+- **URL**: Configured via `bookstack_app_url` variable
+- **Database**: MySQL with persistent NFS storage
+- **Features**: WYSIWYG editor, user management, search functionality
+- **Deployment**: Included in main application playbook
+
+### Homepage Dashboard
+A modern application dashboard with service discovery.
+- **URL**: Configured via `homepage_app_url` variable
+- **Features**: Service monitoring, bookmark management, Kubernetes integration
+- **Storage**: Lightweight with configmap-based configuration
+- **Deployment**: Included in main application playbook
+
+### Vaultwarden
+A lightweight, self-hosted Bitwarden-compatible password manager.
+- **URL**: Configured via `vaultwarden_app_url` variable (default: `https://vw.levangie.org`)
+- **Database**: SQLite with NFS-backed storage
+- **Features**: Password management, secure sharing, mobile app support
+- **Security**: Argon2-hashed admin tokens, disabled public signups
+- **Deployment**: Helm-based using guerzon/vaultwarden chart
+- **Documentation**: See `docs/VAULTWARDEN.md` for detailed setup guide
+
+### Application Deployment
+
+Deploy all configured applications:
+```bash
+./scripts/deploy_k3s_apps.sh
+```
+
+Or deploy individual applications by setting deployment flags in `ansible/roles/k3s-apps/defaults/main.yml`:
+```yaml
+deploy_bookstack: true
+deploy_homepage: true
+deploy_vaultwarden: true
+```
+
+Each application includes:
+- Force redeploy capability for clean updates
+- NFS-backed persistent storage
+- Traefik ingress with automatic SSL
+- Health checks and resource limits
+- Ansible vault integration for secrets
+
 ## 🔐 Security Best Practices
 
 ### Ansible Vault

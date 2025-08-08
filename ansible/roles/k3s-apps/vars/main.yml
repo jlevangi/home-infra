@@ -1,6 +1,4 @@
 ---
-# BookStack Application Configuration
-# These variables define the BookStack deployment settings
 # Override sensitive values in vault files or group_vars
 
 # BookStack application settings
@@ -17,3 +15,10 @@ bookstack_app_key: "{{ vault_bookstack_app_key }}"
 homepage_app_url: "https://homepage.levangie.org"
 homepage_service_name: "homepage"
 homepage_service_port: 3000
+
+# Vaultwarden application settings
+vaultwarden_app_url: "https://vw.levangie.dev"
+vaultwarden_service_name: "vaultwarden"
+vaultwarden_service_port: 80
+vaultwarden_data_storage_size: "10Gi"
+vaultwarden_admin_token: "{{ vault_vaultwarden_admin_token }}"
