@@ -2,39 +2,15 @@
 # Homepage Dashboard Deployment
 # Converted from Docker Compose using Kompose as base, enhanced for production K3s
 
-- name: Display Homepage deployment info
-  debug:
-    msg: |
-      🏠 Homepage Dashboard Deployment:
-      Using host path volumes with NFS backing
-      - Host paths: /mnt/k3s-storage/apps/homepage
-      - Service User: {{ vault_nfs_username | default('k3s-app-user') }}
-      - App URL: {{ homepage_app_url | default('https://homepage.levangie.org') }}
-      {% if homepage_force_redeploy | default(false) | bool %}
-      🔄 Force redeploy mode: ON (will clean up existing deployment first)
-      {% endif %}
-  when: inventory_hostname == groups['k3s_master'][0]
-
 # Optional cleanup task
-- name: Clean up existing Homepage deployment (if requested)
-  block:
-    - name: Check if Homepage namespace exists for cleanup
-      shell: |
-        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get namespace homepage
-      register: cleanup_namespace_check
-      ignore_errors: yes
-
-    - name: Remove existing Homepage deployment
-      shell: |
-        echo "🧹 Cleaning up existing Homepage deployment..."
-        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml delete namespace homepage --ignore-not-found=true
-        echo "Waiting for namespace deletion to complete..."
-        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml wait --for=delete namespace/homepage --timeout=300s || true
-        echo "✅ Cleanup complete"
-      when: cleanup_namespace_check.rc == 0
-  when: 
-    - inventory_hostname == groups['k3s_master'][0]
-    - homepage_force_redeploy | default(false) | bool
+- name: Include cleanup task for Homepage
+  include_tasks: cleanup_task.yml
+  vars:
+    app_name: "Homepage"
+    k8s_namespace: "homepage"
+    kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
+    force_redeploy_var: "homepage_force_redeploy"
+    master_group: "k3s_master"
 
 
 
@@ -128,48 +104,6 @@
     kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml rollout status deployment/homepage -n homepage --timeout=300s
   when: inventory_hostname == groups['k3s_master'][0]
   register: homepage_restart_result
-
-- name: Check what Homepage container sees in /app/config
-  shell: |
-    echo "🔍 Checking Homepage container's view of config directory:"
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml exec -n homepage deployment/homepage -- ls -la /app/config/ || echo "Could not access /app/config in container"
-    echo ""
-    echo "📂 Checking if specific config files are mounted correctly:"
-    for file in bookmarks.yaml services.yaml settings.yaml widgets.yaml; do
-      if kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml exec -n homepage deployment/homepage -- test -f "/app/config/$file"; then
-        echo "✅ $file exists in container"
-        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml exec -n homepage deployment/homepage -- ls -la "/app/config/$file"
-      else
-        echo "❌ $file missing in container"
-      fi
-    done
-    echo ""
-    echo "🔧 Checking PVC mount info:"
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml exec -n homepage deployment/homepage -- mount | grep /app/config || echo "No mount info for /app/config"
-  register: homepage_container_config_check
-  when: inventory_hostname == groups['k3s_master'][0]
-  ignore_errors: yes
-
-- name: Display Homepage container config check results
-  debug:
-    msg: "{{ homepage_container_config_check.stdout_lines | default(['No container config check results']) }}"
-  when: inventory_hostname == groups['k3s_master'][0]
-
-- name: Check PV/PVC status for Homepage
-  shell: |
-    echo "🔍 Checking PersistentVolume and PersistentVolumeClaim status:"
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get pv,pvc -n homepage
-    echo ""
-    echo "📂 Checking PVC details:"
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml describe pvc homepage-config-pvc -n homepage
-  register: homepage_pvc_status
-  when: inventory_hostname == groups['k3s_master'][0]
-  ignore_errors: yes
-
-- name: Display PV/PVC status
-  debug:
-    msg: "{{ homepage_pvc_status.stdout_lines | default(['No PVC status results']) }}"
-  when: inventory_hostname == groups['k3s_master'][0]
 
 - name: Wait for Homepage deployment to be ready
   shell: |
