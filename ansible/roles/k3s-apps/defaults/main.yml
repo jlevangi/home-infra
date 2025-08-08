@@ -11,6 +11,7 @@ deploy_vaultwarden: true
 application_timezone: "America/New_York"
 
 # Role behavior controls
-bookstack_force_redeploy: false  # Set to true to force cleanup and redeploy
-homepage_force_redeploy: false   # Set to true to force cleanup and redeploy
-vaultwarden_force_redeploy: false  # Set to true to force cleanup and redeploy
+# Set to true to force cleanup and redeploy
+bookstack_force_redeploy: false 
+homepage_force_redeploy: false
+vaultwarden_force_redeploy: true

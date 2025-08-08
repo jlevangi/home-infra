@@ -12,8 +12,6 @@
     force_redeploy_var: "homepage_force_redeploy"
     master_group: "k3s_master"
 
-
-
 - name: Get k3s-app-user UID and GID from system
   shell: |
     id -u {{ vault_nfs_username }} 2>/dev/null
@@ -70,7 +68,7 @@
     volume_name: config
     volume_size: 1Gi
     host_path: /mnt/k3s-storage/apps/homepage/config
-  when: inventory_hostname == groups['k3s_master'][0]
+  when: inventory_hostname == groups['k3s_master'][0] and homepage_force_redeploy
 
 - name: Apply Homepage Deployment
   shell: |
@@ -97,13 +95,6 @@
     app_url: "{{ homepage_app_url }}"
     service_port: "{{ homepage_service_port }}"
   when: inventory_hostname == groups['k3s_master'][0]
-
-- name: Force restart Homepage deployment to pick up config changes
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml rollout restart deployment/homepage -n homepage
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml rollout status deployment/homepage -n homepage --timeout=300s
-  when: inventory_hostname == groups['k3s_master'][0]
-  register: homepage_restart_result
 
 - name: Wait for Homepage deployment to be ready
   shell: |
