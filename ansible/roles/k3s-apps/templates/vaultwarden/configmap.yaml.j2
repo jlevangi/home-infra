@@ -1,0 +1,24 @@
+---
+# Vaultwarden ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vaultwarden-config
+  namespace: vaultwarden
+data:
+  DOMAIN: "{{ vaultwarden_app_url }}"
+  ADMIN_TOKEN: "{{ vaultwarden_admin_token }}"
+  DB_TYPE: "default"
+  STORAGE_CLAIM: "vaultwarden-data-pvc"
+  PUID: "{{ dynamic_nfs_uid | default('1024') }}"
+  PGID: "{{ dynamic_nfs_gid | default('100') }}"
+  TZ: "{{ application_timezone | default('America/New_York') }}"
+  SMTP_HOST: "{{ vault_smtp_host }}"
+  SMTP_PORT: "587"
+  SMTP_SECURITY: "starttls"
+  SMTP_USERNAME: "{{ vault_smtp_username }}"
+  SMTP_PASSWORD: "{{ vault_smtp_password }}"
+  SMTP_FROM: "vaultwarden@levangie.org"
+  WEB_VAULT_ENABLED: "true"
+  SIGNUPS_ALLOWED: "false"
+  INVITATIONS_ALLOWED: "true"

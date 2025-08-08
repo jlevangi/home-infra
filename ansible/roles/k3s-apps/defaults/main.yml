@@ -3,12 +3,14 @@
 # These control the behavior of the k3s-apps role
 
 # Enable/disable individual application deployments
-deploy_bookstack: true
-deploy_homepage: true
+deploy_bookstack: false
+deploy_homepage: false
+deploy_vaultwarden: true
 
 # Default application configurations
 application_timezone: "America/New_York"
 
 # Role behavior controls
-bookstack_force_redeploy: true  # Set to true to force cleanup and redeploy
-homepage_force_redeploy: true   # Set to true to force cleanup and redeploy
+bookstack_force_redeploy: false  # Set to true to force cleanup and redeploy
+homepage_force_redeploy: false   # Set to true to force cleanup and redeploy
+vaultwarden_force_redeploy: true  # Set to true to force cleanup and redeploy
