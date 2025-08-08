@@ -1,13 +1,13 @@
 ---
 # Main task file for applications deployment
 - name: Include BookStack deployment
-  include_tasks: bookstack.yml
-  when: deploy_bookstack | default(false)
+  include_tasks: apps/bookstack.yml
+  when: deploy_bookstack | default(true)
 
 - name: Include Homepage Dashboard deployment
-  include_tasks: homepage.yml
-  when: deploy_homepage | default(false)
+  include_tasks: apps/homepage.yml
+  when: deploy_homepage | default(true)
 
 - name: Include Vaultwarden deployment
-  include_tasks: vaultwarden.yml
-  when: deploy_vaultwarden | default(false)
+  include_tasks: apps/vaultwarden.yml
+  when: deploy_vaultwarden | default(true)
