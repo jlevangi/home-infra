@@ -1,0 +1,23 @@
+---
+# Install Longhorn via Helm
+- name: Add Longhorn Helm repo
+  ansible.builtin.shell: helm repo add longhorn https://charts.longhorn.io
+  args:
+    creates: /tmp/longhorn-repo-added
+
+- name: Update Helm repos
+  ansible.builtin.shell: helm repo update
+
+- name: Install Longhorn
+  ansible.builtin.shell: |
+    helm upgrade --install longhorn longhorn/longhorn \
+      --namespace longhorn-system \
+      --create-namespace
+  args:
+    creates: /tmp/longhorn-installed
+
+- name: Wait for Longhorn pods to be ready
+  ansible.builtin.shell: |
+    kubectl -n longhorn-system wait --for=condition=Ready pod --all --timeout=300s
+  register: longhorn_wait
+  changed_when: false
