@@ -1,0 +1,1 @@
+ansible-playbook -i ../ansible/k3s-inventory ../ansible/playbooks/k3s-deploy-roles-test-cluster.yml --vault-password-file ~/.ansible_vault_pass -v
