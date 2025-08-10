@@ -4,7 +4,7 @@
 [global_tags]
   environment = "{{ telegraf_environment }}"
   cluster = "{{ telegraf_cluster_name }}"
-  node_type = "{% if inventory_hostname in groups['k3s_master'] %}master{% else %}worker{% endif %}"
+  node_type = "{% if inventory_hostname in master_group %}master{% else %}worker{% endif %}"
   node_name = "{{ inventory_hostname }}"
 
 [agent]

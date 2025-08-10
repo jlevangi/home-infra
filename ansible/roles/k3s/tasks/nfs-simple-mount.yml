@@ -171,7 +171,7 @@
       💡 NFS Configuration Note:
       Your NFS server maps all operations to UID 1024 (admin user)
       This is a secure configuration that we're now matching in K3s
-  when: inventory_hostname == groups['k3s_master'][0]
+  when: inventory_hostname == master_group[0]
   tags: nfs-mount
 
 - name: Create basic K3s storage directory structure

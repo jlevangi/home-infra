@@ -4,14 +4,15 @@
 # IMPORTANT: This playbook uses Ansible Vault for NFS credentials
 # Run with: ansible-playbook -i k3s-inventory playbooks/k3s-deploy-roles.yml --ask-vault-pass
 #
-- name: Deploy K3s Cluster with Roles
+- name: Deploy K3s Test Cluster with Roles
   hosts: k3s_test_cluster
   become: yes
   gather_facts: yes
   
   vars_files:
     - ../group_vars/k3s_cluster_vault.yml
-    - ../group_vars/k3s_cluster.yml
+    - ../group_vars/k3s_cluster.yml  # Base configuration
+    - ../group_vars/k3s_test_cluster.yml  # Test-specific overrides
 
   roles:
     #- ../roles/common    # Apply common system configuration

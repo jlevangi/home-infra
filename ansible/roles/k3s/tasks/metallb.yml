@@ -6,7 +6,7 @@
   shell: kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get namespace metallb-system
   register: metallb_namespace_check
   ignore_errors: yes
-  when: inventory_hostname == groups['k3s_master'][0]
+  when: inventory_hostname == master_group[0]
 
 - name: Display MetalLB installation info
   debug:
@@ -15,7 +15,7 @@
       MetalLB provides LoadBalancer services for bare-metal Kubernetes clusters
       Configuration: Layer 2 mode with IP range {{ metallb_ip_range | default('172.20.20.200-172.20.20.210') }}
   when: 
-    - inventory_hostname == groups['k3s_master'][0]
+    - inventory_hostname == master_group[0]
     - metallb_namespace_check.rc != 0
 
 - name: Add MetalLB Helm repository
@@ -24,7 +24,7 @@
     helm repo add metallb https://metallb.github.io/metallb
     helm repo update
   when: 
-    - inventory_hostname == groups['k3s_master'][0]
+    - inventory_hostname == master_group[0]
     - metallb_namespace_check.rc != 0
 
 - name: Install MetalLB using Helm
@@ -36,7 +36,7 @@
       --wait
   register: metallb_install_result
   when: 
-    - inventory_hostname == groups['k3s_master'][0]
+    - inventory_hostname == master_group[0]
     - metallb_namespace_check.rc != 0
 
 - name: Wait for MetalLB pods to be ready
@@ -46,7 +46,7 @@
       -n metallb-system \
       --timeout=120s
   when: 
-    - inventory_hostname == groups['k3s_master'][0]
+    - inventory_hostname == master_group[0]
     - metallb_namespace_check.rc != 0
 
 - name: Create MetalLB IP address pool configuration
@@ -55,7 +55,7 @@
     dest: /tmp/metallb-config.yaml
     mode: '0644'
   when: 
-    - inventory_hostname == groups['k3s_master'][0]
+    - inventory_hostname == master_group[0]
     - metallb_namespace_check.rc != 0
 
 - name: Apply MetalLB configuration
@@ -63,7 +63,7 @@
     kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml apply -f /tmp/metallb-config.yaml
   register: metallb_config_result
   when: 
-    - inventory_hostname == groups['k3s_master'][0]
+    - inventory_hostname == master_group[0]
     - metallb_namespace_check.rc != 0
 
 - name: Display MetalLB installation results
@@ -82,4 +82,4 @@
       kubectl get pods -n metallb-system
       kubectl get ipaddresspool -n metallb-system
       kubectl get l2advertisement -n metallb-system
-  when: inventory_hostname == groups['k3s_master'][0]
+  when: inventory_hostname == master_group[0]

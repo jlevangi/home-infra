@@ -15,25 +15,25 @@
 
 - name: Include K3s master installation
   include_tasks: master.yml
-  when: inventory_hostname in groups['k3s_master']
+  when: inventory_hostname in master_group
 
 - name: Include K3s worker installation  
   include_tasks: worker.yml
-  when: inventory_hostname in groups['k3s_workers']
+  when: inventory_hostname in worker_group
 
 - name: Include post-installation configuration
   include_tasks: post-install.yml
-  when: inventory_hostname in groups['k3s_master']
+  when: inventory_hostname in master_group
 
 # LoadBalancer and Ingress Setup
 - name: Include MetalLB installation
   include_tasks: metallb.yml
   when: 
-    - inventory_hostname in groups['k3s_master']
+    - inventory_hostname in master_group
     - k3s_install_metallb | default(true)
 
 - name: Include Traefik 2 installation
   include_tasks: traefik.yml
   when: 
-    - inventory_hostname in groups['k3s_master']
+    - inventory_hostname in master_group
     - k3s_install_traefik | default(true)

@@ -59,7 +59,7 @@ resource "proxmox_vm_qemu" "terraform" {
     slot = "scsi0"  # Must be string format like 'scsi0' not numeric
     size = "20G"    # Reduced size for K3s
     type = "disk"   # Must be 'disk', 'cdrom', 'cloudinit', or 'ignore'
-    storage = "local-lvm" # Name of storage local to the host you are spinning the VM up on
+    storage = "vm_data" # Name of storage local to the host you are spinning the VM up on
     # SSD and discard options may not be available in v3.x - removed for compatibility
     #iothread = 1
   }
@@ -68,7 +68,7 @@ resource "proxmox_vm_qemu" "terraform" {
   disk {
     slot = "ide2"
     type = "cloudinit"
-    storage = "local-lvm"
+    storage = "vm_data"
   }
 
   network {
@@ -109,7 +109,7 @@ resource "null_resource" "k3s_deployment" {
   count = var.vm_count == length(proxmox_vm_qemu.terraform) ? 1 : 0
   
   provisioner "local-exec" {
-    command = "env && sleep 180 && ./scripts/redeploy_k3s_roles_test_cluster.sh"
+    command = "env && sleep 180 && ../../scripts/redeploy_k3s_roles_test_cluster.sh"
     working_dir = path.module
   }
   

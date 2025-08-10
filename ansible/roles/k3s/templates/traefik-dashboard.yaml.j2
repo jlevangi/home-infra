@@ -1,0 +1,34 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: traefik-dashboard
+  namespace: traefik-system
+  labels:
+    app.kubernetes.io/name: traefik-dashboard
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`{{ traefik_dashboard_host | default('traefik.' + ansible_default_ipv4.address + '.nip.io') }}`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
+      kind: Rule
+      services:
+        - name: api@internal
+          kind: TraefikService
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: traefik-dashboard-auth
+  namespace: traefik-system
+spec:
+  basicAuth:
+    secret: traefik-dashboard-auth
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: traefik-dashboard-auth
+  namespace: traefik-system
+type: Opaque
+data:
+  users: {{ traefik_dashboard_htpasswd | b64encode }}
