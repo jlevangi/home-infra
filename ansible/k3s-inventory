@@ -1,3 +1,4 @@
+# Production Ansible Inventory for K3s Cluster
 [k3s_master]
 k3s-node-1 ansible_host=172.20.20.101 ansible_user=pierce ansible_ssh_private_key_file=~/.ssh/pierce
 
@@ -10,5 +11,21 @@ k3s_master
 k3s_workers
 
 [k3s_cluster:vars]
+ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+ansible_python_interpreter=/usr/bin/python3
+
+# Test Ansible Inventory for K3s Cluster
+[k3s_test_master]
+k3s-test-node-1 ansible_host=172.20.20.111 ansible_user=pierce ansible_ssh_private_key_file=~/.ssh/pierce
+
+[k3s_test_workers]
+k3s-test-node-2 ansible_host=172.20.20.112 ansible_user=pierce ansible_ssh_private_key_file=~/.ssh/pierce
+k3s-test-node-3 ansible_host=172.20.20.113 ansible_user=pierce ansible_ssh_private_key_file=~/.ssh/pierce
+
+[k3s_test_cluster:children]
+k3s_test_master
+k3s_test_workers
+
+[k3s_test_cluster:vars]
 ansible_ssh_common_args='-o StrictHostKeyChecking=no'
 ansible_python_interpreter=/usr/bin/python3
