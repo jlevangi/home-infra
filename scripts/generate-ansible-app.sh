@@ -97,7 +97,7 @@ cat > "${ANSIBLE_ROLES_DIR}/tasks/${APP_NAME}.yml" << EOF
 
 - name: Get k3s-app-user UID and GID from system
   shell: |
-    id -u {{ vault_nfs_username }} 2>/dev/null
+shell: 'id -u "{{ vault_nfs_username }}" 2>/dev/null'
   register: nfs_user_uid_result
   when: inventory_hostname == groups['k3s_master'][0]
 

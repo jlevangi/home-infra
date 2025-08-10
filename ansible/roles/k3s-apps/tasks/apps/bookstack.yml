@@ -7,7 +7,7 @@
     k8s_namespace: "bookstack"
     kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
     force_redeploy_var: "bookstack_force_redeploy"
-    master_group: "k3s_master"
+    master_group_var: "{{ master_group }}"
 
 - name: Display BookStack storage architecture info
   debug:
