@@ -109,7 +109,7 @@ resource "null_resource" "k3s_deployment" {
   count = var.vm_count == length(proxmox_vm_qemu.terraform) ? 1 : 0
   
   provisioner "local-exec" {
-    command = "env && sleep 180 && ../../scripts/redeploy_k3s_roles_test_cluster.sh"
+    command = "cd ../.. && sleep 180 && scripts/redeploy_k3s_roles_test_cluster.sh"
     working_dir = path.module
   }
   
