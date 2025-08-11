@@ -15,7 +15,7 @@
     - ../group_vars/k3s_test_cluster.yml  # Test-specific overrides
 
   roles:
-    #- ../roles/common    # Apply common system configuration
+    - ../roles/common    # Apply common system configuration
     - ../roles/k3s       # Install and configure K3s cluster
     #- ../roles/k3s-apps  # Deploy applications
     - ../roles/telegraf
