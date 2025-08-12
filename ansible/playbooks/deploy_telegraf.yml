@@ -1,0 +1,48 @@
+---
+# Standalone Telegraf Deployment Playbook
+# 
+# IMPORTANT: This playbook uses Ansible Vault for InfluxDB credentials
+# 
+# Usage examples:
+# Test cluster (default):
+#   ansible-playbook -i k3s-inventory playbooks/deploy_telegraf.yml --vault-password-file ~/.ansible_vault_pass
+# Production cluster:
+#   ansible-playbook -i k3s-inventory playbooks/deploy_telegraf.yml -e target_cluster=k3s_cluster --vault-password-file ~/.ansible_vault_pass
+# Specific host:
+#   ansible-playbook -i k3s-inventory playbooks/deploy_telegraf.yml -l k3s-test-node-1 --vault-password-file ~/.ansible_vault_pass
+#
+- name: Deploy Telegraf Monitoring Agent
+  hosts: "{{ target_cluster | default('k3s_test_cluster') }}"
+  become: yes
+  gather_facts: yes
+  
+  vars_files:
+    - ../group_vars/k3s_cluster_vault.yml
+    - ../group_vars/k3s_cluster.yml
+    - "../group_vars/{{ target_cluster | default('k3s_test_cluster') }}.yml"
+
+  roles:
+    - ../roles/telegraf
+
+  post_tasks:
+    - name: Display Telegraf deployment completion message
+      debug:
+        msg:
+          - "📊 Telegraf deployment completed successfully!"
+          - ""
+          - "🎯 Target: {{ target_cluster | default('k3s_test_cluster') }}"
+          - "🌐 Environment: {{ cluster_environment | default('test') }}"
+          - ""
+          - "🔍 Verify deployment:"
+          - "   ansible all -i k3s-inventory -m command -a 'systemctl status telegraf' --limit {{ target_cluster | default('k3s_test_cluster') }}"
+          - "   ansible all -i k3s-inventory -m command -a 'journalctl -u telegraf --no-pager -n 20' --limit {{ target_cluster | default('k3s_test_cluster') }}"
+          - ""
+          - "📈 Test configuration:"
+          - "   ansible all -i k3s-inventory -m command -a 'telegraf --test --config /etc/telegraf/telegraf.conf' --limit {{ target_cluster | default('k3s_test_cluster') }}"
+          - ""
+          - "🔧 Management commands (run on target nodes):"
+          - "   sudo systemctl status telegraf"
+          - "   sudo journalctl -u telegraf -f"
+          - "   sudo systemctl restart telegraf"
+      run_once: true
+      delegate_to: localhost

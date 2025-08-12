@@ -54,10 +54,10 @@
     create_home: no
   become: yes
 
-- name: Add telegraf user to docker group (for containerd socket access)
+- name: Add telegraf user to appropriate group for containerd socket access
   user:
     name: "{{ telegraf_user }}"
-    groups: docker
+    groups: "{{ 'docker' if ansible_service_mgr == 'systemd' and docker_installed is defined else 'root' }}"
     append: yes
   become: yes
   when: ansible_distribution == "Ubuntu"
