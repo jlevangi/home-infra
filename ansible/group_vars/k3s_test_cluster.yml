@@ -14,6 +14,9 @@ cluster_group: "k3s_test_cluster"
 k3s_cluster_cidr: "10.44.0.0/16"  # Different from prod: 10.42.0.0/16
 k3s_service_cidr: "10.45.0.0/16"  # Different from prod: 10.43.0.0/16
 
+# MetalLB Configuration
+metallb_ip_range: "172.20.20.220-172.20.20.230"
+
 # Test-specific NFS paths (optional)
 # You might want test apps to use different NFS subdirectories
 nfs_share_apps: "{{ nfs_share_root }}/test-apps"
@@ -27,5 +30,5 @@ cluster_environment: "test"
 # Base storage mount path for this cluster  
 base_storage_path: "/mnt/k3s-storage-test"
 
-# MetalLB Configuration
-metallb_ip_range: "172.20.20.220-172.20.20.230"
+# Override NFS path for test environment to prevent mounting main share
+nfs_path: "{{ nfs_share_root }}-test"
