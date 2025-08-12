@@ -34,67 +34,171 @@ Your Proxmox cloud-init template must include:
 - User with sudo privileges (configured via cloud-init)
 - Python3 for Ansible compatibility
 
-## 🚀 Quick Start
+## 🔧 USING IN YOUR ENVIRONMENT
 
-### 1. Clone and Configure
-```bash
-git clone <your-repo-url>
-cd home-infra
-```
+This section covers all the variables and configurations you'll need to customize to deploy this infrastructure in your specific environment.
 
-### 2. Configure Terraform Variables
-Edit `terraform/k3_3node_cluster/terraform.tfvars`:
+### 1. Terraform Variables
+
+#### Edit `terraform/k3_3node_cluster/terraform.tfvars`
+**Critical Variables (Must Change):**
 ```hcl
+# Proxmox API credentials (get from Proxmox web UI)
 token_secret = "your-proxmox-api-token-secret"
-token_id = "your-proxmox-api-token-id"
-ssh_key = "your-ssh-public-key-content"
-ci_password = "vm-user-password"
-vault_password = "ansible-vault-password"
+token_id = "your-proxmox-api-token-id@realm!token-name"
+
+# SSH access (your public key content)
+ssh_key = "ssh-ed25519 AAAAC3NzaC1... your-key-here"
+
+# VM user password (for cloud-init user)
+ci_password = "your-vm-password"
+
+# Ansible vault password (to decrypt secrets)
+vault_password = "your-ansible-vault-password"
 ```
 
-Update `terraform/k3_3node_cluster/variables.tf` for your environment:
+#### Edit `terraform/k3_3node_cluster/variables.tf`
+**Environment-Specific Variables:**
 ```hcl
+# Your Proxmox server API URL
 variable "api_url" {
     default = "https://YOUR-PROXMOX-IP:8006/api2/json"
 }
+
+# Your Proxmox node name
 variable "proxmox_hosts" {
-    default = "YOUR-PROXMOX-NODE-NAME"
+    default = "YOUR-PROXMOX-NODE-NAME"  # e.g., "pve1"
 }
+
+# Your cloud-init template name
 variable "template_name" {
-    default = "debian12-server-template"  # Your template name
+    default = "your-template-name"  # e.g., "debian12-server-template"
+}
+
+# Your network interface (if not vmbr0)
+variable "nic_name" {
+    default = "vmbr0"  # Change if using different bridge
+}
+
+# Your VLAN (if not default)
+variable "vlan_num" {
+    default = "1"  # Change to your VLAN ID
+}
+
+# Cloud-init username (change if desired)
+variable "ci_user" {
+    default = "your-username"  # Will be created on VMs
 }
 ```
 
-### 3. Configure Ansible Inventory
-Update `ansible/k3s-inventory` with your desired IP addresses:
+### 2. Ansible Inventory Configuration
+
+#### Edit `ansible/k3s-inventory`
+**IP Address Configuration (Critical if not using 172.20.20.x network):**
 ```ini
 [k3s_master]
-k3s-node-1 ansible_host=172.20.20.101 ansible_user=pierce ansible_ssh_private_key_file=~/.ssh/pierce
+k3s-node-1 ansible_host=YOUR.MASTER.IP.HERE ansible_user=your-username ansible_ssh_private_key_file=~/.ssh/your-key
 
 [k3s_workers]
-k3s-node-2 ansible_host=172.20.20.102 ansible_user=pierce ansible_ssh_private_key_file=~/.ssh/pierce
-k3s-node-3 ansible_host=172.20.20.103 ansible_user=pierce ansible_ssh_private_key_file=~/.ssh/pierce
+k3s-node-2 ansible_host=YOUR.WORKER1.IP.HERE ansible_user=your-username ansible_ssh_private_key_file=~/.ssh/your-key
+k3s-node-3 ansible_host=YOUR.WORKER2.IP.HERE ansible_user=your-username ansible_ssh_private_key_file=~/.ssh/your-key
 ```
 
-### 4. Configure Ansible Vault
-Create your encrypted configuration:
+### 3. Ansible Group Variables
+
+#### Edit `ansible/group_vars/k3s_cluster.yml`
+**Network Configuration (Critical if not using 172.20.20.x):**
+```yaml
+# MetalLB IP range - MUST be in your network range
+metallb_ip_range: "YOUR.NETWORK.START-YOUR.NETWORK.END"
+# Example: "192.168.1.200-192.168.1.210" if using 192.168.1.x
+
+# Your domain/TLD for applications
+cluster_tld: "your-domain.com"
+
+# SMTP configuration (if you want email notifications)
+smtp_host: "your-smtp-server.com"
+smtp_from: "your-email@your-domain.com"
+```
+
+### 4. Ansible Vault Secrets
+
+#### Create and edit `ansible/group_vars/k3s_cluster_vault.yml`
 ```bash
 cd ansible
 cp group_vars/k3s_cluster_vault.yml.example group_vars/k3s_cluster_vault.yml
 ansible-vault edit group_vars/k3s_cluster_vault.yml
 ```
 
-Required vault variables:
+**Required Vault Variables:**
 ```yaml
-vault_nfs_username: "k3s-service-user"
+# NFS Server Configuration (Critical)
+vault_nfs_server: "YOUR.NFS.SERVER.IP"  # Your NAS/NFS server IP
+vault_nfs_username: "your-nfs-username"  # NFS service account
 vault_nfs_password: "your-nfs-password"
-vault_nfs_uid: "1024"
-vault_nfs_gid: "100"
-vault_nfs_share_root: "/volume1/k3s-storage"
-vault_k3s_token: "your-secure-k3s-token"
+vault_nfs_uid: "1024"  # UID of your NFS user (check with `id username`)
+vault_nfs_gid: "100"   # GID of your NFS user group
+vault_nfs_share_root: "/volume1/k3s-storage"  # Your NFS export path
+
+# K3s Cluster Security
+vault_k3s_token: "your-secure-k3s-cluster-token"  # Generate a secure random token
+
+# SMTP Configuration (for application notifications)
+vault_smtp_host: "your-smtp-server.com"
+vault_smtp_username: "your-smtp-username"
+vault_smtp_password: "your-smtp-password"
+
+# Application-specific secrets (if deploying apps)
+vault_bookstack_db_password: "secure-database-password"
+vault_bookstack_mysql_root_password: "secure-root-password"
+vault_bookstack_app_key: "base64:your-32-char-app-key-here"
+vault_vaultwarden_admin_token: "$argon2id$v=19$m=19456,t=2,p=1$YOUR_ARGON2_HASH"
 ```
 
-### 5. Deploy Infrastructure
+### 5. Network-Specific Considerations
+
+**If you're NOT using 172.20.20.x network:**
+
+1. **Update all IP references** in:
+   - `ansible/k3s-inventory` (node IPs)
+   - `ansible/group_vars/k3s_cluster.yml` (MetalLB range)
+   - `terraform/k3_3node_cluster/variables.tf` (Proxmox API URL)
+
+2. **Ensure your network supports:**
+   - Static IP assignments for cluster nodes
+   - Inter-node communication on required ports
+   - NFS connectivity to your storage server
+
+### 6. Quick Environment Check
+
+Before deployment, verify:
+```bash
+# Can reach your Proxmox API
+curl -k https://YOUR-PROXMOX-IP:8006/api2/json/version
+
+# Can reach your NFS server
+ping YOUR-NFS-SERVER-IP
+showmount -e YOUR-NFS-SERVER-IP
+
+# SSH key is working
+ssh-add -l
+
+# Ansible vault password is correct
+ansible-vault view ansible/group_vars/k3s_cluster_vault.yml
+```
+
+## 🚀 Quick Start
+
+### 1. Clone Repository
+```bash
+git clone <your-repo-url>
+cd home-infra
+```
+
+### 2. Configure Your Environment
+Follow the **[USING IN YOUR ENVIRONMENT](#-using-in-your-environment)** section above to customize all variables for your specific setup.
+
+### 3. Deploy Infrastructure
 ```bash
 # Deploy VMs with Terraform
 cd terraform/k3_3node_cluster
@@ -106,6 +210,56 @@ terraform apply
 cd ../../scripts
 ./redeploy_k3s_roles.sh
 ```
+
+### 4. Verify Deployment
+```bash
+# Configure local kubectl access
+./scripts/setup-local-kubeconfig.sh
+
+# Verify cluster status
+kubectl get nodes
+kubectl get pods -A
+```
+
+### 5. Deploy Applications (Optional)
+```bash
+./scripts/deploy_k3s_apps.sh
+```
+
+## 📂 Documentation & Cluster Management
+
+### Advanced Cluster Management Tools
+
+The `docs/` folder contains detailed guides for advanced cluster operations, including:
+
+**[K3s Cluster Management](docs/K3S-CLUSTER-MANAGEMENT.md)** - Comprehensive guide for managing multiple clusters with:
+- **Context Switching**: Easy switching between production and test clusters
+- **Shell Functions**: Convenient command-line aliases for cluster operations
+- **Enhanced kubectl**: Context-aware kubectl commands with visual indicators
+
+#### Quick Setup for Multi-Cluster Management
+```bash
+# Setup all cluster contexts (production & test)
+./scripts/k3s-context-manager.sh setup
+
+# Add shell functions to your profile
+echo 'source /path/to/home-infra/scripts/k3s-shell-functions.sh' >> ~/.bashrc
+
+# Reload your shell and use convenient commands
+k3s-prod     # Switch to production cluster
+k3s-test     # Switch to test cluster
+k3s-status   # Show current cluster info
+kinfo        # Enhanced cluster information
+```
+
+#### Available Management Commands
+- `k3s-prod` / `k3s-test` - Switch between clusters
+- `k3s-setup` - Setup/refresh all cluster contexts
+- `k3s-list` - List all available contexts
+- `kinfo` - Show detailed cluster information
+- `k` - Context-aware kubectl with cluster display
+
+This system eliminates kubeconfig conflicts and makes multi-cluster operations seamless.
 
 ## 🛠️ Configuration Details
 
@@ -213,7 +367,7 @@ A modern application dashboard with service discovery.
 
 ### Vaultwarden
 A lightweight, self-hosted Bitwarden-compatible password manager.
-- **URL**: Configured via `vaultwarden_app_url` variable (default: `https://vw.levangie.org`)
+- **URL**: Configured via `vaultwarden_app_url` variable)
 - **Database**: SQLite with NFS-backed storage
 - **Features**: Password management, secure sharing, mobile app support
 - **Security**: Argon2-hashed admin tokens, disabled public signups
