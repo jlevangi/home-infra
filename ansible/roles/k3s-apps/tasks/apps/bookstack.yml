@@ -1,113 +1,17 @@
 ---
-# Optional cleanup task - only runs when bookstack_force_redeploy is true
-- name: Include cleanup task for BookStack
-  include_tasks: cleanup_task.yml
+
+# Get NFS user context using shared task
+- name: Get NFS user context for BookStack
+  include_tasks: shared/get_nfs_user_context.yml
+
+# Create BookStack storage directories using shared task
+- name: Create BookStack storage directories
+  include_tasks: shared/create_app_directories.yml
   vars:
-    app_name: "BookStack"
-    k8s_namespace: "bookstack"
-    kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
-    force_redeploy_var: "bookstack_force_redeploy"
-
-- name: Display BookStack storage architecture info
-  debug:
-    msg: |
-      📦 Storage Architecture:
-      Using host path volumes with NFS backing
-      - Host paths: /mnt/k3s-storage/apps/bookstack & /mnt/k3s-storage/database/bookstack
-      - No NFS CSI driver needed (direct host mount approach)
-      - Static PersistentVolumes with hostPath configuration
-      - Service User: {{ vault_nfs_username | default('k3s-app-user') }} (created by K3s role)
-      {% if bookstack_force_redeploy | default(false) | bool %}
-      🔄 Force redeploy mode: ON (will clean up existing deployment first)
-      {% endif %}
-  when: inventory_hostname in groups[master_group]
-
-- name: Get k3s-app-user UID and GID from system
-  shell: |
-    id -u {{ vault_nfs_username }} 2>/dev/null
-  register: nfs_user_uid_result
-  when: inventory_hostname == groups['k3s_master'][0]
-
-- name: Get k3s-app-user GID from system  
-  shell: |
-    id -g {{ vault_nfs_username }} 2>/dev/null || echo "100"
-  register: nfs_user_gid_result
-  when: inventory_hostname == groups['k3s_master'][0]
-
-- name: Set NFS user UID/GID for host path permissions
-  set_fact:
-    dynamic_nfs_uid: "{{ nfs_user_uid_result.stdout | default('1024') }}"
-    dynamic_nfs_gid: "{{ nfs_user_gid_result.stdout | default('100') }}"
-  when: inventory_hostname == groups['k3s_master'][0]
-
-- name: Display detected NFS UID/GID for host path permissions
-  debug:
-    msg: |
-      🔍 NFS Service User Detection Results:
-      Service User: {{ vault_nfs_username | default('k3s-app-user') }}
-      Raw UID Output: "{{ nfs_user_uid_result.stdout | default('not detected') }}"
-      Raw GID Output: "{{ nfs_user_gid_result.stdout | default('not detected') }}"
-      Final UID: {{ dynamic_nfs_uid | default('1024') }}
-      Final GID: {{ dynamic_nfs_gid | default('100') }}
-      These values will be used for directory ownership and container security contexts.
-      
-      📋 Detection Method:
-      - Looked up actual system user: {{ vault_nfs_username | default('k3s-app-user') }}
-      - Fallback to defaults if user not found (UID:1024, GID:100)
-      - UID 1024 matches NFS server admin user for proper permissions
-  when: inventory_hostname == groups['k3s_master'][0]
-
-- name: Verify host path storage approach
-  debug:
-    msg: |
-      💾 Storage Architecture:
-      Using host path volumes with NFS backing
-      - Host paths: /mnt/k3s-storage/apps/bookstack & /mnt/k3s-storage/database/bookstack
-      - No NFS CSI driver needed (direct host mount approach)
-      - Static PersistentVolumes with hostPath configuration
-  when: inventory_hostname == groups['k3s_master'][0]
-
-- name: Verify NFS mount points exist on K3s nodes
-  stat:
-    path: /mnt/k3s-storage/apps
-  register: nfs_mount_check
-  failed_when: false
-
-- name: Display NFS mount status
-  debug:
-    msg: |
-      🔍 NFS Mount Point Check:
-      {% if nfs_mount_check.stat.exists %}
-      ✅ /mnt/k3s-storage is mounted
-      {% else %}
-      ❌ /mnt/k3s-storage not found - ensure NFS is mounted during K3s setup
-      {% endif %}
-
-- name: Check if BookStack directories exist
-  stat:
-    path: "{{ item }}"
-  loop:
-    - /mnt/k3s-storage/apps/bookstack
-    - /mnt/k3s-storage/database/bookstack
-  register: directory_check
-  when: 
-    - nfs_mount_check.stat.exists
-    - inventory_hostname == groups['k3s_master'][0]
-
-- name: Create BookStack directories on mounted NFS storage (single node)
-  shell: |
-    mkdir -p "{{ item.item }}"
-    # Skip Synology metadata files when changing ownership
-    find "{{ item.item }}" \( -name "@eaDir" -o -name "*@SynoEAStream" \) -prune -o -type f -exec chown {{ dynamic_nfs_uid | default('1024') }}:{{ dynamic_nfs_gid | default('100') }} {} \; 2>/dev/null || true
-    find "{{ item.item }}" \( -name "@eaDir" -o -name "*@SynoEAStream" \) -prune -o -type d -exec chown {{ dynamic_nfs_uid | default('1024') }}:{{ dynamic_nfs_gid | default('100') }} {} \; 2>/dev/null || true
-    chmod -R 755 "{{ item.item }}" 2>/dev/null || true
-  loop: "{{ directory_check.results | default([]) }}"
-  become: yes
-  register: directory_creation
-  when: 
-    - nfs_mount_check.stat.exists
-    - inventory_hostname == groups['k3s_master'][0]
-    - not item.stat.exists
+    app_name: "bookstack"
+    app_directories:
+      - "apps/bookstack"
+      - "database/bookstack"
 
 - name: Apply BookStack namespace
   shell: |
