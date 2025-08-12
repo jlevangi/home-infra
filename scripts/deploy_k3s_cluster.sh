@@ -2,6 +2,10 @@
 # Unified K3s cluster deployment script
 # Uses the new k3s-deploy-cluster.yml playbook with target selection
 
+# Determine script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 # Default values
 TARGET_CLUSTER=""
 EXTRA_VARS=""
@@ -105,7 +109,7 @@ echo "📦 Applications: $([ "$DEPLOY_APPS" == "true" ] && echo "Enabled" || ech
 echo "🔊 Verbosity: $([ -n "$VERBOSITY" ] && echo "$VERBOSITY" || echo "Standard")"
 echo ""
 
-ansible-playbook -i ../ansible/k3s-inventory ../ansible/playbooks/k3s-deploy-cluster.yml \
+ansible-playbook -i "$PROJECT_ROOT/ansible/k3s-inventory" "$PROJECT_ROOT/ansible/playbooks/k3s-deploy-cluster.yml" \
   --vault-password-file ~/.ansible_vault_pass \
   $VERBOSITY \
   $EXTRA_VARS
