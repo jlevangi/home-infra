@@ -110,6 +110,7 @@ __pycache__/
 venv/
 env/
 .env
+sync_k3s_inv_tech.py
 
 # Node.js (if using any Node tools)
 node_modules/
@@ -127,3 +128,6 @@ yarn-error.log*
 test-results/
 coverage/
 .pytest_cache/
+
+# Claude
+*.claude

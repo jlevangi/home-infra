@@ -5,7 +5,7 @@
     msg: |
       📊 Deploying Telegraf monitoring agent for K3s nodes
       Node: {{ inventory_hostname }}
-      Type: {% if inventory_hostname in groups['k3s_master'] %}K3s Master{% else %}K3s Worker{% endif %}
+      Type: {% if inventory_hostname in master_group %}K3s Master{% else %}K3s Worker{% endif %}
       InfluxDB: {{ vault_telegraf_influxdb_url }}
 
 - name: Update apt cache

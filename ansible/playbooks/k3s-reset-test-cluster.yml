@@ -1,0 +1,78 @@
+---
+- name: Reset K3s Cluster
+  hosts: k3s_test_cluster
+  become: yes
+  gather_facts: no
+  
+  tasks:
+    - name: Stop K3s service (if exists)
+      systemd:
+        name: k3s
+        state: stopped
+        enabled: no
+      failed_when: false
+      when: inventory_hostname in groups['k3s_master']
+
+    - name: Stop K3s agent service (if exists)
+      systemd:
+        name: k3s-agent
+        state: stopped
+        enabled: no
+      failed_when: false
+      when: inventory_hostname in groups['k3s_workers']
+
+    - name: Run K3s uninstall script (server)
+      shell: /usr/local/bin/k3s-uninstall.sh
+      failed_when: false
+      when: inventory_hostname in groups['k3s_master']
+
+    - name: Run K3s agent uninstall script (worker)
+      shell: /usr/local/bin/k3s-agent-uninstall.sh
+      failed_when: false
+      when: inventory_hostname in groups['k3s_workers']
+
+    - name: Remove K3s directories
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/rancher
+        - /var/lib/rancher
+        - /var/lib/kubelet
+        - /etc/kubernetes
+      failed_when: false
+
+    - name: Unmount NFS shares (if mounted)
+      mount:
+        path: /mnt/k3s-storage
+        state: unmounted
+      failed_when: false
+
+    - name: Remove NFS mount point
+      file:
+        path: /mnt/k3s-storage
+        state: absent
+      failed_when: false
+
+    - name: Remove k3s-app-user (if exists)
+      user:
+        name: k3s-app-user
+        state: absent
+        remove: yes
+      failed_when: false
+
+    - name: Remove k3s-storage group (if exists)
+      group:
+        name: k3s-storage
+        state: absent
+      failed_when: false
+
+    - name: Clean up kubectl config
+      file:
+        path: "/home/{{ ansible_user }}/.kube"
+        state: absent
+      failed_when: false
+
+    - name: Display reset status
+      debug:
+        msg: "K3s cluster reset completed on {{ inventory_hostname }}"

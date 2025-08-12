@@ -1,8 +1,7 @@
 ---
 # Override sensitive values in vault files or group_vars
 
-# BookStack application settings
-bookstack_app_url: "https://bsk3.levangie.org"
+bookstack_app_url: "https://bookstack.{{ cluster_tld }}"
 bookstack_service_name: "bookstack"
 bookstack_service_port: 8080
 bookstack_config_storage_size: "5Gi"
@@ -11,13 +10,11 @@ bookstack_db_password: "{{ vault_bookstack_db_password }}"
 bookstack_mysql_root_password: "{{ vault_bookstack_mysql_root_password }}"
 bookstack_app_key: "{{ vault_bookstack_app_key }}"
 
-# Homepage application settings
-homepage_app_url: "https://homepage.levangie.org"
+homepage_app_url: "https://homepage.{{ cluster_tld }}"
 homepage_service_name: "homepage"
 homepage_service_port: 3000
 
-# Vaultwarden application settings
-vaultwarden_app_url: "https://vw.levangie.dev"
+vaultwarden_app_url: "https://vw.{{ cluster_tld }}"
 vaultwarden_service_name: "vaultwarden"
 vaultwarden_service_port: 80
 vaultwarden_data_storage_size: "10Gi"

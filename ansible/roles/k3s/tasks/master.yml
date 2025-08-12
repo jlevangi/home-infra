@@ -54,6 +54,7 @@
     timeout: 10
   register: k3s_api_check
   ignore_errors: yes
+  failed_when: false
   when: k3s_status_check.rc == 0
 
 - name: Verify K3s service is running

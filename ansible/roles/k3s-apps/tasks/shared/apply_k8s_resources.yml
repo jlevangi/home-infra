@@ -1,0 +1,42 @@
+---
+# Shared task for applying standard Kubernetes resources
+# This task standardizes the kubectl apply pattern used across all apps
+#
+# Required variables:
+# - app_name: Name of the application (e.g., "bookstack", "vaultwarden")  
+# - k8s_resources: List of resources to apply
+#   Each resource should have:
+#   - name: Display name for the resource
+#   - template: Template path (relative to templates directory)
+#   - vars: (optional) Additional variables for the template
+#
+# Example k8s_resources:
+# k8s_resources:
+#   - name: "Namespace"
+#     template: "common/namespace.yaml.j2"
+#     vars:
+#       app_name: "{{ app_name }}"
+#   - name: "ConfigMap"
+#     template: "{{ app_name }}/configmap.yaml.j2"
+#   - name: "Service"
+#     template: "{{ app_name }}/service.yaml.j2"
+
+- name: Apply {{ app_name }} Kubernetes resources
+  include_tasks: apply_single_resource.yml
+  vars:
+    resource_name: "{{ item.name }}"
+    resource_template: "{{ item.template }}"
+    resource_vars: "{{ item.vars | default({}) }}"
+  loop: "{{ k8s_resources }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: k8s_apply_results
+
+- name: Display {{ app_name }} resource application summary
+  debug:
+    msg: |
+      📦 {{ app_name }} Kubernetes Resources Applied:
+      {% for resource in k8s_resources %}
+      {{ loop.index }}. {{ resource.name }}: Applied
+      {% endfor %}
+  when: inventory_hostname == groups[master_group][0]
