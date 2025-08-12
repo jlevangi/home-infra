@@ -1,0 +1,108 @@
+
+#!/bin/bash
+# Unified K3s cluster reset script
+# Allows target selection and verbosity
+
+# Default values
+TARGET_CLUSTER=""
+EXTRA_VARS=""
+VERBOSITY=""
+SHOW_HELP=false
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+	case $1 in
+		--prod|--production)
+			TARGET_CLUSTER="k3s_cluster"
+			shift
+			;;
+		--test)
+			TARGET_CLUSTER="k3s_test_cluster"
+			VERBOSITY="-v"  # Default verbose for test
+			shift
+			;;
+		-v|--verbose)
+			VERBOSITY="-v"
+			shift
+			;;
+		-vv)
+			VERBOSITY="-vv"
+			shift
+			;;
+		-vvv)
+			VERBOSITY="-vvv"
+			shift
+			;;
+		--quiet|-q)
+			VERBOSITY=""
+			shift
+			;;
+		--help|-h)
+			SHOW_HELP=true
+			shift
+			;;
+		*)
+			echo "Unknown option: $1"
+			echo "Use --help for usage information"
+			exit 1
+			;;
+	esac
+done
+
+# Show help if requested or no target specified
+if [[ "$SHOW_HELP" == "true" ]] || [[ -z "$TARGET_CLUSTER" ]]; then
+	echo "Usage: $0 --prod|--test [OPTIONS]"
+	echo ""
+	echo "Target Selection (required):"
+	echo "  --prod, --production   Reset production cluster (k3s_cluster)"
+	echo "  --test                 Reset test cluster (k3s_test_cluster)"
+	echo ""
+	echo "Options:"
+	echo "  -v, --verbose          Enable verbose output"
+	echo "  -vv, -vvv              Enable more verbose output"
+	echo "  -q, --quiet            Disable verbose output"
+	echo "  -h, --help             Show this help message"
+	echo ""
+	echo "Examples:"
+	echo "  $0 --prod              # Reset production cluster"
+	echo "  $0 --test -v           # Reset test cluster with verbose output"
+	echo "  $0 --prod -q           # Reset production cluster quietly"
+	echo ""
+	if [[ -z "$TARGET_CLUSTER" ]]; then
+		echo "❌ Error: Target cluster must be specified (--prod or --test)"
+		exit 1
+	else
+		exit 0
+	fi
+fi
+
+# Set up target-specific variables
+if [[ "$TARGET_CLUSTER" == "k3s_test_cluster" ]]; then
+	EXTRA_VARS="$EXTRA_VARS -e target_cluster=k3s_test_cluster"
+	CLUSTER_NAME="Test"
+	CLUSTER_EMOJI="🧪"
+else
+	CLUSTER_NAME="Production"
+	CLUSTER_EMOJI="🚀"
+fi
+
+echo "$CLUSTER_EMOJI Resetting K3s $CLUSTER_NAME Cluster..."
+echo "📂 Using reset playbook: k3s-reset.yml"
+echo "🎯 Target: $CLUSTER_NAME cluster ($TARGET_CLUSTER)"
+echo "🔊 Verbosity: $([ -n "$VERBOSITY" ] && echo "$VERBOSITY" || echo "Standard")"
+echo ""
+
+ansible-playbook -i ../ansible/k3s-inventory ../ansible/playbooks/k3s-reset.yml \
+	--vault-password-file ~/.ansible_vault_pass \
+	$VERBOSITY \
+	$EXTRA_VARS
+
+RESULT=$?
+
+echo ""
+if [ $RESULT -eq 0 ]; then
+	echo "✅ $CLUSTER_NAME cluster reset complete!"
+else
+	echo "❌ $CLUSTER_NAME cluster reset failed (exit code: $RESULT)"
+	exit $RESULT
+fi
