@@ -10,119 +10,85 @@
     k8s_namespace: "homepage"
     kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
     force_redeploy_var: "homepage_force_redeploy"
-    master_group_var: "{{ master_group }}"
 
-- name: Get k3s-app-user UID and GID from system
-  shell: |
-  shell: 'id -u "{{ vault_nfs_username }}" 2>/dev/null'
-  register: nfs_user_uid_result
-  when: inventory_hostname == groups['k3s_master'][0]
+# Get NFS user context using shared task
+- name: Get NFS user context for Homepage
+  include_tasks: shared/get_nfs_user_context.yml
 
-- name: Get k3s-app-user GID from system  
-  shell: |
-    id -g {{ vault_nfs_username }} 2>/dev/null || echo "100"
-  register: nfs_user_gid_result
-  when: inventory_hostname == groups['k3s_master'][0]
-
-- name: Set NFS user UID/GID for host path permissions
-  set_fact:
-    dynamic_nfs_uid: "{{ nfs_user_uid_result.stdout | default('1024') }}"
-    dynamic_nfs_gid: "{{ nfs_user_gid_result.stdout | default('100') }}"
-  when: inventory_hostname == groups['k3s_master'][0]
-
-- name: Create Homepage storage directories on NFS
-  shell: |
-    mkdir -p "/mnt/k3s-storage/apps/homepage/config"
-    # Skip Synology metadata files when changing ownership
-    find "/mnt/k3s-storage/apps/homepage/config" \( -name "@eaDir" -o -name "*@SynoEAStream" \) -prune -o -type f -exec chown {{ vault_nfs_username | default('k3s-app-user') }}:users {} \; 2>/dev/null || true
-    find "/mnt/k3s-storage/apps/homepage/config" \( -name "@eaDir" -o -name "*@SynoEAStream" \) -prune -o -type d -exec chown {{ vault_nfs_username | default('k3s-app-user') }}:users {} \; 2>/dev/null || true
-    chmod -R 755 "/mnt/k3s-storage/apps/homepage/config" 2>/dev/null || true
-  when: inventory_hostname == groups['k3s_master'][0]
-
-- name: Apply Homepage namespace
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'common/namespace.yaml.j2') }}"
+# Create application directories using shared task
+- name: Create Homepage storage directories
+  include_tasks: shared/create_app_directories.yml
   vars:
-    app_name: homepage
-  when: inventory_hostname == groups['k3s_master'][0]
+    app_name: "homepage"
+    app_directories:
+      - "apps/homepage/config"
 
-- name: Apply Homepage ConfigMap
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'homepage/configmap.yaml.j2') }}"
-  when: inventory_hostname == groups['k3s_master'][0]
-
-- name: Apply Homepage PV/PVC cleanup and creation
+# Handle PV/PVC cleanup for force redeploy
+- name: Clean up Homepage PV/PVC for force redeploy
   shell: |
     kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml delete pvc homepage-config-pvc -n homepage --ignore-not-found=true
     kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml delete pv homepage-config-pv --ignore-not-found=true
     sleep 3
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'common/pv-pvc.yaml.j2') }}"
+  when: 
+    - inventory_hostname == groups[master_group][0]
+    - homepage_force_redeploy | default(false) | bool
+
+# Apply Kubernetes resources using shared task
+- name: Apply Homepage Kubernetes resources
+  include_tasks: shared/apply_k8s_resources.yml
   vars:
-    app_name: homepage
-    volume_name: config
-    volume_size: 1Gi
-    host_path: /mnt/k3s-storage/apps/homepage/config
-  when: inventory_hostname == groups['k3s_master'][0] and homepage_force_redeploy
+    app_name: "homepage"
+    k8s_resources:
+      - name: "Namespace"
+        template: "common/namespace.yaml.j2"
+        vars:
+          app_name: homepage
+      - name: "ConfigMap"
+        template: "homepage/configmap.yaml.j2"
+      - name: "PV/PVC"
+        template: "common/pv-pvc.yaml.j2"
+        vars:
+          app_name: homepage
+          volume_name: config
+          volume_size: 1Gi
+          host_path: "{{ base_storage_path }}/apps/homepage/config"
+      - name: "Deployment"
+        template: "homepage/deployment.yaml.j2"
+      - name: "Service"
+        template: "homepage/service.yaml.j2"
+      - name: "Ingress"
+        template: "common/ingress.yaml.j2"
+        vars:
+          service_name: "homepage"
+          app_url: "{{ homepage_app_url }}"
+          service_port: "{{ homepage_service_port }}"
+  when: inventory_hostname == groups[master_group][0]
 
-- name: Apply Homepage Deployment
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'homepage/deployment.yaml.j2') }}"
-  when: inventory_hostname == groups['k3s_master'][0]
-  register: homepage_deploy_result
-
-- name: Apply Homepage Service
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'homepage/service.yaml.j2') }}"
-  when: inventory_hostname == groups['k3s_master'][0]
-
-- name: Apply Homepage Ingress
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'common/ingress.yaml.j2') }}"
+# Wait for deployment readiness using shared task
+- name: Wait for Homepage deployment readiness
+  include_tasks: shared/wait_for_deployment.yml
   vars:
-    service_name: "homepage"
-    app_url: "{{ homepage_app_url }}"
-    service_port: "{{ homepage_service_port }}"
-  when: inventory_hostname == groups['k3s_master'][0]
+    app_name: "homepage"
+    k8s_namespace: "homepage"
+    deployment_checks:
+      - name: "Homepage deployment"
+        type: "deployment"
+        selector: "app=homepage"
+        timeout: 300
 
-- name: Wait for Homepage deployment to be ready
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml wait --for=condition=available --timeout=300s deployment/homepage -n homepage
-  when: inventory_hostname == groups['k3s_master'][0]
-  register: homepage_ready_result
-
-- name: Get Homepage service status
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get svc,pods -n homepage -o wide
-  register: homepage_status
-  when: inventory_hostname == groups['k3s_master'][0]
-
-- name: Display Homepage deployment results
+# Final deployment information
+- name: Display Homepage deployment summary
   debug:
     msg: |
-      🏠 Homepage Dashboard Deployment Results:
-      {% if homepage_deploy_result.rc == 0 %}
-      ✅ Deployment successful
+      🏠 Homepage Dashboard Deployment Complete!
+      
       📝 Namespace: homepage
       🌐 Service URL: {{ homepage_app_url | default('https://homepage.levangie.org') }}
       📦 Storage: /mnt/k3s-storage/apps/homepage
       👤 Running as: {{ vault_nfs_username | default('k3s-app-user') }} ({{ dynamic_nfs_uid }}:{{ dynamic_nfs_gid }})
       
-      📊 Service Status:
-      {{ homepage_status.stdout }}
-      {% else %}
-      ❌ Deployment failed
-      Error: {{ homepage_deploy_result.stderr }}
-      {% endif %}
-  when: inventory_hostname == groups['k3s_master'][0]
+      📊 Management Commands:
+      kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get all -n homepage
+      kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml logs -n homepage deployment/homepage
+      kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml port-forward -n homepage svc/homepage 8080:3000
+  when: inventory_hostname == groups[master_group][0]

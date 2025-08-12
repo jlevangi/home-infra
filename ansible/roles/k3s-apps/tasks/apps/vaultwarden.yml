@@ -7,172 +7,106 @@
     k8s_namespace: "vaultwarden"
     kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
     force_redeploy_var: "vaultwarden_force_redeploy"
-    master_group_var: "{{ master_group }}"
     additional_cleanup_tasks:
       - name: "Delete Vaultwarden PVC"
         command: "delete pvc vaultwarden-data-pvc -n vaultwarden --ignore-not-found=true"
       - name: "Delete Vaultwarden PV"
         command: "delete pv vaultwarden-data-pv --ignore-not-found=true"
 
-- name: Display Vaultwarden storage architecture info
-  debug:
-    msg: |
-      📦 Vaultwarden Storage Architecture:
-      Using host path volumes with NFS backing
-      - Host path: /mnt/k3s-storage/apps/vaultwarden
-      - No NFS CSI driver needed (direct host mount approach)
-      - Static PersistentVolume with hostPath configuration
-      - Service User: {{ vault_nfs_username | default('k3s-app-user') }} (created by K3s role)
-      {% if vaultwarden_force_redeploy | default(false) | bool %}
-      🔄 Force redeploy mode: ON (will clean up existing deployment first)
-      {% endif %}
-  when: inventory_hostname == master_group[0]
+# Get NFS user context using shared task
+- name: Get NFS user context for Vaultwarden
+  include_tasks: shared/get_nfs_user_context.yml
 
-- name: Get k3s-app-user UID and GID from system
-  shell: |
-    id -u {{ vault_nfs_username }} 2>/dev/null
-  register: nfs_user_uid_result
-  when: inventory_hostname == master_group[0]
-
-- name: Get k3s-app-user GID from system
-  shell: |
-    id -g {{ vault_nfs_username }} 2>/dev/null || echo "100"
-  register: nfs_user_gid_result
-  when: inventory_hostname == master_group[0]
-
-- name: Set NFS user UID/GID for host path permissions
-  set_fact:
-    dynamic_nfs_uid: "{{ nfs_user_uid_result.stdout | default('1024') }}"
-    dynamic_nfs_gid: "{{ nfs_user_gid_result.stdout | default('100') }}"
-  when: inventory_hostname == master_group[0]
-
-- name: Display Vaultwarden user context info
-  debug:
-    msg: |
-      👤 Vaultwarden User Context:
-      - Username: {{ vault_nfs_username }}
-      - UID: {{ dynamic_nfs_uid }}
-      - GID: {{ dynamic_nfs_gid }}
-      - Storage path: /mnt/k3s-storage/apps/vaultwarden
-  when: inventory_hostname == master_group[0]
-
-- name: Create Vaultwarden storage directory
-  file:
-    path: "/mnt/k3s-storage/apps/vaultwarden"
-    state: directory
-    owner: "{{ vault_nfs_username }}"
-    group: "users"  # k3s-app-user belongs to the users group (GID 100)
-    mode: '0755'
-  when: inventory_hostname == master_group[0]
-
-- name: Apply Vaultwarden Namespace (using common template)
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'common/namespace.yaml.j2') }}"
+# Create application directories using shared task
+- name: Create Vaultwarden storage directories
+  include_tasks: shared/create_app_directories.yml
   vars:
     app_name: "vaultwarden"
-  when: inventory_hostname == master_group[0]
+    app_directories:
+      - "apps/vaultwarden"
 
-- name: Apply Vaultwarden PVC (using common template)
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'common/pv-pvc.yaml.j2') }}"
+# Apply Kubernetes resources using shared task
+- name: Apply Vaultwarden Kubernetes resources
+  include_tasks: shared/apply_k8s_resources.yml
   vars:
     app_name: "vaultwarden"
-    volume_name: "data"
-    volume_size: "{{ vaultwarden_data_storage_size }}"
-    host_path: "/mnt/k3s-storage/apps/vaultwarden"
-  when: inventory_hostname == master_group[0]
+    k8s_resources:
+      - name: "Namespace"
+        template: "common/namespace.yaml.j2"
+        vars:
+          app_name: "vaultwarden"
+      - name: "PV/PVC"
+        template: "common/pv-pvc.yaml.j2"
+        vars:
+          app_name: "vaultwarden"
+          volume_name: "data"
+          volume_size: "{{ vaultwarden_data_storage_size }}"
+          host_path: "{{ base_storage_path }}/apps/vaultwarden"
+      - name: "ConfigMap"
+        template: "vaultwarden/configmap.yaml.j2"
+        vars:
+          app_name: "vaultwarden"
+      - name: "Service"
+        template: "vaultwarden/service.yaml.j2"
+        vars:
+          app_name: "vaultwarden"
+          service_port: "{{ vaultwarden_service_port }}"
+      - name: "Deployment"
+        template: "vaultwarden/deployment.yaml.j2"
+        vars:
+          app_name: "vaultwarden"
+          image:
+            registry: "docker.io"
+            repository: "vaultwarden/server"
+            tag: "latest"
+            pullPolicy: "IfNotPresent"
+          pvc_name: "vaultwarden-data"
+          uid: "{{ dynamic_nfs_uid }}"
+          gid: "{{ dynamic_nfs_gid }}"
+          service_port: "{{ vaultwarden_service_port }}"
+          smtp_host: "{{ smtp_host }}"
+          smtp_port: "{{ smtp_port }}"
+          smtp_security: "{{ smtp_security }}"
+          smtp_username: "{{ smtp_username }}"
+          smtp_password: "{{ smtp_password }}"
+          admin_token: "{{ vaultwarden_admin_token }}"
+      - name: "Ingress"
+        template: "common/ingress.yaml.j2"
+        vars:
+          service_name: "vaultwarden"
+          app_url: "{{ vaultwarden_app_url }}"
+          service_port: "{{ vaultwarden_service_port }}"
+  when: inventory_hostname == groups[master_group][0]
 
-- name: Apply Vaultwarden ConfigMap (using template)
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'vaultwarden/configmap.yaml.j2') }}"
-  vars:
-    app_name: "vaultwarden"
-  when: inventory_hostname == master_group[0]
-
-- name: Apply Vaultwarden Secret (using template, if needed)
+# Apply optional secret if enabled
+- name: Apply Vaultwarden Secret (if enabled)
   shell: |
     kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
   args:
     stdin: "{{ lookup('template', 'vaultwarden/secret.yaml.j2') }}"
   vars:
     app_name: "vaultwarden"
-  when: inventory_hostname == master_group[0] and vaultwarden_secret_enabled | default(false)
+  when: 
+    - inventory_hostname == groups[master_group][0] 
+    - vaultwarden_secret_enabled | default(false)
 
-- name: Apply Vaultwarden Service (using template)
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'vaultwarden/service.yaml.j2') }}"
+# Wait for deployment readiness using shared task
+- name: Wait for Vaultwarden deployment readiness
+  include_tasks: shared/wait_for_deployment.yml
   vars:
     app_name: "vaultwarden"
-    service_port: "{{ vaultwarden_service_port }}"
-  when: inventory_hostname == master_group[0]
+    k8s_namespace: "vaultwarden"
+    deployment_checks:
+      - name: "Vaultwarden deployment"
+        type: "deployment" 
+        selector: "app=vaultwarden"
+        timeout: 300
 
-- name: Apply Vaultwarden Deployment (using template)
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'vaultwarden/deployment.yaml.j2') }}"
-  vars:
-    app_name: "vaultwarden"
-    image:
-      registry: "docker.io"
-      repository: "vaultwarden/server"
-      tag: "latest"
-      pullPolicy: "IfNotPresent"
-    pvc_name: "vaultwarden-data"
-    uid: "{{ dynamic_nfs_uid }}"
-    gid: "{{ dynamic_nfs_gid }}"
-    service_port: "{{ vaultwarden_service_port }}"
-    smtp_host: "{{ smtp_host }}"
-    smtp_port: "{{ smtp_port }}"
-    smtp_security: "{{ smtp_security }}"
-    smtp_username: "{{ smtp_username }}"
-    smtp_password: "{{ smtp_password }}"
-    admin_token: "{{ vaultwarden_admin_token }}"
-  when: inventory_hostname == master_group[0]
-
-- name: Apply Vaultwarden Ingress (using common template)
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'common/ingress.yaml.j2') }}"
-  vars:
-    service_name: "vaultwarden"
-    app_url: "{{ vaultwarden_app_url }}"
-    service_port: "{{ vaultwarden_service_port }}"
-  when: inventory_hostname == master_group[0]
-
-- name: Get Vaultwarden service details
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get svc -n vaultwarden -o wide
-  register: service_details
-  changed_when: false
-  when: inventory_hostname == master_group[0]
-
-- name: Get Vaultwarden pod status
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get pods -n vaultwarden -o wide
-  register: pod_status
-  changed_when: false
-  when: inventory_hostname == master_group[0]
-
-- name: Display Vaultwarden deployment results
+# Final deployment information
+- name: Display Vaultwarden deployment summary
   debug:
     msg: |
       🚀 Vaultwarden Deployment Complete!
-
-      🌐 Service Details:
-      {{ service_details.stdout }}
-
-      🗂️ Pod Status:
-      {{ pod_status.stdout }}
 
       🔗 Access Information:
       - Application URL: {{ vaultwarden_app_url }}
@@ -182,20 +116,18 @@
       📁 Storage:
       - Data Path: /mnt/k3s-storage/apps/vaultwarden
       - Size: {{ vaultwarden_data_storage_size }}
+      👤 Running as: {{ vault_nfs_username | default('k3s-app-user') }} ({{ dynamic_nfs_uid }}:{{ dynamic_nfs_gid }})
 
       🔒 Security:
       - Admin token configured via vault
       - HTTPS ingress enabled
 
+      📊 Management Commands:
+      kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get all -n vaultwarden
+      kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml logs -n vaultwarden deployment/vaultwarden
+
       ⚠️  Next Steps:
       1. Ensure DNS points {{ vaultwarden_app_url | regex_replace('https://') }} to your Traefik load balancer
       2. Access admin panel at {{ vaultwarden_app_url }}/admin using the vault admin token
       3. Configure SMTP settings in the admin panel for user invitations
-
-  when: inventory_hostname == master_group[0]
-
-- name: Clean up temporary files
-  file:
-    path: /tmp/vaultwarden-values.yaml
-    state: absent
-  when: inventory_hostname == master_group[0]
+  when: inventory_hostname in groups[master_group]

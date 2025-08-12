@@ -14,7 +14,8 @@
       shell: |
         kubectl --kubeconfig={{ kubeconfig_path }} get namespace {{ k8s_namespace }}
       register: cleanup_namespace_check
-      ignore_errors: yes
+      failed_when: false
+      changed_when: false
 
     - name: "Remove existing {{ app_name }} deployment"
       shell: |

@@ -9,19 +9,19 @@
 - name: Wait for master to be ready
   wait_for:
     port: 6443
-    host: "{{ hostvars[master_group[0]]['ansible_default_ipv4']['address'] }}"
+    host: "{{ hostvars[groups[master_group][0]]['ansible_default_ipv4']['address'] }}"
     delay: 10
     timeout: 300
 
 - name: Install K3s worker
   shell: |
     curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION={{ k3s_version }} \
-    K3S_URL=https://{{ hostvars[master_group[0]]['ansible_default_ipv4']['address'] }}:6443 \
-    K3S_TOKEN={{ hostvars[master_group[0]]['k3s_node_token'] }} \
+    K3S_URL=https://{{ hostvars[groups[master_group][0]]['ansible_default_ipv4']['address'] }}:6443 \
+    K3S_TOKEN={{ hostvars[groups[master_group][0]]['k3s_node_token'] }} \
     sh -s - agent {% if k3s_agent_args %}{{ k3s_agent_args | join(' ') }}{% endif %}
   register: k3s_worker_install
   failed_when: k3s_worker_install.rc != 0
-  when: hostvars[master_group[0]]['k3s_node_token'] is defined
+  when: hostvars[groups[master_group][0]]['k3s_node_token'] is defined
 
 - name: Display K3s worker installation output
   debug:

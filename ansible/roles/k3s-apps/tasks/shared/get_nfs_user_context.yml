@@ -1,0 +1,45 @@
+---
+# Shared task for getting NFS user UID/GID context
+# This task is reused across all application deployments
+# 
+# Expected variables (should be available from group_vars):
+# - vault_nfs_username: NFS service username from vault
+#
+# Sets facts:
+# - dynamic_nfs_uid: Detected or default UID
+# - dynamic_nfs_gid: Detected or default GID
+
+- name: Get k3s-app-user UID from system
+  shell: |
+    id -u {{ vault_nfs_username }} 2>/dev/null
+  register: nfs_user_uid_result
+  when: inventory_hostname == groups[master_group][0]
+
+- name: Get k3s-app-user GID from system  
+  shell: |
+    id -g {{ vault_nfs_username }} 2>/dev/null || echo "100"
+  register: nfs_user_gid_result
+  when: inventory_hostname == groups[master_group][0]
+
+- name: Set NFS user UID/GID for host path permissions
+  set_fact:
+    dynamic_nfs_uid: "{{ nfs_user_uid_result.stdout | default('1024') }}"
+    dynamic_nfs_gid: "{{ nfs_user_gid_result.stdout | default('100') }}"
+  when: inventory_hostname == groups[master_group][0]
+
+- name: Display detected NFS UID/GID context
+  debug:
+    msg: |
+      🔍 NFS Service User Detection Results:
+      Service User: {{ vault_nfs_username | default('k3s-app-user') }}
+      Raw UID Output: "{{ nfs_user_uid_result.stdout | default('not detected') }}"
+      Raw GID Output: "{{ nfs_user_gid_result.stdout | default('not detected') }}"
+      Final UID: {{ dynamic_nfs_uid | default('1024') }}
+      Final GID: {{ dynamic_nfs_gid | default('100') }}
+      These values will be used for directory ownership and container security contexts.
+      
+      📋 Detection Method:
+      - Looked up actual system user: {{ vault_nfs_username | default('k3s-app-user') }}
+      - Fallback to defaults if user not found (UID:1024, GID:100)
+      - UID 1024 matches NFS server admin user for proper permissions
+  when: inventory_hostname == groups[master_group][0]
