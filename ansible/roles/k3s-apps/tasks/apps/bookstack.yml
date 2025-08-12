@@ -20,26 +20,26 @@
     stdin: "{{ lookup('template', 'common/namespace.yaml.j2') }}"
   vars:
     app_name: bookstack
-  when: inventory_hostname == groups['k3s_master'][0]
+  when: inventory_hostname == groups[master_group][0]
 
 - name: Apply BookStack ConfigMap
   shell: |
     kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
   args:
     stdin: "{{ lookup('template', 'bookstack/configmap.yaml.j2') }}"
-  when: inventory_hostname == groups['k3s_master'][0]
+  when: inventory_hostname == groups[master_group][0]
 
 - name: Apply BookStack Secrets
   shell: |
     kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
   args:
     stdin: "{{ lookup('template', 'bookstack/secrets.yaml.j2') }}"
-  when: inventory_hostname == groups['k3s_master'][0]
+  when: inventory_hostname == groups[master_group][0]
 
 - name: Remove any existing problematic ingress
   shell: |
     kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml delete ingress bookstack-ingress -n bookstack --ignore-not-found=true
-  when: inventory_hostname == groups['k3s_master'][0]
+  when: inventory_hostname == groups[master_group][0]
   ignore_errors: yes
 
 - name: Apply BookStack Deployment
@@ -47,7 +47,7 @@
     kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
   args:
     stdin: "{{ lookup('template', 'bookstack/deployment.yaml.j2') }}"
-  when: inventory_hostname == groups['k3s_master'][0]
+  when: inventory_hostname == groups[master_group][0]
   register: apply_result
 
 - name: Apply BookStack Service
@@ -55,7 +55,7 @@
     kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
   args:
     stdin: "{{ lookup('template', 'bookstack/service.yaml.j2') }}"
-  when: inventory_hostname == groups['k3s_master'][0]
+  when: inventory_hostname == groups[master_group][0]
 
 - name: Apply BookStack Ingress
   shell: |
@@ -66,7 +66,7 @@
     service_name: "bookstack"
     app_url: "{{ bookstack_app_url }}"
     service_port: "{{ bookstack_service_port }}"
-  when: inventory_hostname == groups['k3s_master'][0]
+  when: inventory_hostname == groups[master_group][0]
 
 - name: Display apply results
   debug:
@@ -78,7 +78,7 @@
       ⚠️  Warnings/Errors:
       {{ apply_result.stderr }}
       {% endif %}
-  when: inventory_hostname == groups['k3s_master'][0]
+  when: inventory_hostname == groups[master_group][0]
 
 - name: Wait for BookStack pods to be ready
   shell: |
@@ -86,7 +86,7 @@
     kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml wait --for=condition=Ready pod -l app=bookstack -n bookstack --timeout=600s
   register: wait_result
   ignore_errors: yes
-  when: inventory_hostname == groups['k3s_master'][0]
+  when: inventory_hostname == groups[master_group][0]
 
 - name: Show BookStack pod status if wait failed
   shell: |
@@ -105,26 +105,26 @@
     kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml wait --for=condition=Ready pod -l app=bookstack-mariadb -n bookstack --timeout=300s
   register: wait_mariadb_result
   ignore_errors: yes
-  when: inventory_hostname == groups['k3s_master'][0]
+  when: inventory_hostname == groups[master_group][0]
 
 - name: Get final BookStack deployment status
   shell: |
     kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get pods -n bookstack
   register: final_status
   ignore_errors: yes
-  when: inventory_hostname == groups['k3s_master'][0]
+  when: inventory_hostname == groups[master_group][0]
 
 - name: Get BookStack service information
   shell: |
     kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get svc bookstack -n bookstack -o jsonpath='{.metadata.name}' 2>/dev/null || echo 'No service found'
   register: bookstack_service_info
-  when: inventory_hostname == groups['k3s_master'][0]
+  when: inventory_hostname == groups[master_group][0]
 
 - name: Get BookStack ingress information
   shell: |
     kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get ingress -n bookstack -o jsonpath='{.items[0].spec.rules[0].host}' 2>/dev/null || echo 'No ingress found'
   register: ingress_host
-  when: inventory_hostname == groups['k3s_master'][0]
+  when: inventory_hostname == groups[master_group][0]
 
 - name: Display BookStack deployment information
   debug:
