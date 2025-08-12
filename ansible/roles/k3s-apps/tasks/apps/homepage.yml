@@ -83,7 +83,7 @@
       🏠 Homepage Dashboard Deployment Complete!
       
       📝 Namespace: homepage
-      🌐 Service URL: {{ homepage_app_url | default('https://homepage.levangie.org') }}
+      🌐 Service URL: {{ homepage_app_url }}
       📦 Storage: /mnt/k3s-storage/apps/homepage
       👤 Running as: {{ vault_nfs_username | default('k3s-app-user') }} ({{ dynamic_nfs_uid }}:{{ dynamic_nfs_gid }})
       
