@@ -1,0 +1,25 @@
+---
+# Apply a single Kubernetes resource with proper variable context
+# This task is called from apply_k8s_resources.yml for each resource
+#
+# Expected variables:
+# - resource_name: Name of the resource being applied
+# - resource_template: Template path
+# - resource_vars: Variables to pass to the template (optional)
+
+- name: Set template variables for {{ resource_name }}
+  set_fact: "{{ var_item.key }}={{ var_item.value }}"
+  loop: "{{ resource_vars | default({}) | dict2items }}"
+  loop_control:
+    loop_var: var_item
+  when: 
+    - inventory_hostname == groups[master_group][0]
+    - resource_vars is defined
+    - resource_vars.keys() | length > 0
+
+- name: Apply {{ resource_name }}
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+  args:
+    stdin: "{{ lookup('template', resource_template) }}"
+  when: inventory_hostname == groups[master_group][0]

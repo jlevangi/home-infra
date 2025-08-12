@@ -49,7 +49,7 @@
 - name: Wait for all nodes to be ready
   shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes --no-headers | grep Ready | wc -l
   register: ready_nodes
-  until: ready_nodes.stdout | int == cluster_group | length
+  until: ready_nodes.stdout | int == groups['k3s_cluster'] | length
   retries: 30
   delay: 10
   become: yes

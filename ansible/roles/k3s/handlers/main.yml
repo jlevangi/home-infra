@@ -4,13 +4,13 @@
   systemd:
     name: k3s
     state: restarted
-  when: inventory_hostname in master_group
+  when: inventory_hostname in groups[master_group]
 
 - name: restart k3s-agent
   systemd:
     name: k3s-agent
     state: restarted
-  when: inventory_hostname in worker_group
+  when: inventory_hostname in groups[worker_group]
 
 - name: restart systemd-resolved
   systemd:
