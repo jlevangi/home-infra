@@ -2,6 +2,10 @@
 # Unified K3s cluster deployment script
 # Uses the new k3s-deploy-cluster.yml playbook with target selection
 
+# Determine script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 # Default values
 TARGET_CLUSTER=""
 EXTRA_VARS=""
@@ -105,7 +109,16 @@ echo "📦 Applications: $([ "$DEPLOY_APPS" == "true" ] && echo "Enabled" || ech
 echo "🔊 Verbosity: $([ -n "$VERBOSITY" ] && echo "$VERBOSITY" || echo "Standard")"
 echo ""
 
-ansible-playbook -i ../ansible/k3s-inventory ../ansible/playbooks/k3s-deploy-cluster.yml \
+# Pre-deployment kubeconfig setup attempt (for existing clusters)
+echo "🔑 Pre-deployment kubeconfig check..."
+if "$SCRIPT_DIR/k3s-context-manager.sh" setup > /dev/null 2>&1; then
+  echo "✅ Existing kubeconfig contexts updated"
+else
+  echo "ℹ️  No existing clusters found or kubeconfig setup not needed yet"
+fi
+echo ""
+
+ansible-playbook -i "$PROJECT_ROOT/ansible/k3s-inventory" "$PROJECT_ROOT/ansible/playbooks/k3s-deploy-cluster.yml" \
   --vault-password-file ~/.ansible_vault_pass \
   $VERBOSITY \
   $EXTRA_VARS
@@ -114,6 +127,18 @@ RESULT=$?
 
 echo ""
 if [ $RESULT -eq 0 ]; then
+  echo "🔑 Post-deployment kubeconfig setup..."
+  echo ""
+  
+  # Setup kubeconfig contexts for the deployed cluster
+  if ! "$SCRIPT_DIR/k3s-context-manager.sh" setup; then
+    echo "⚠️  Warning: Kubeconfig setup failed, but cluster deployment succeeded"
+    echo "   You may need to run './scripts/k3s-context-manager.sh setup' manually"
+  else
+    echo "✅ Kubeconfig contexts configured successfully"
+  fi
+  
+  echo ""
   echo "✅ $CLUSTER_NAME cluster deployment complete!"
 else
   echo "❌ $CLUSTER_NAME cluster deployment failed (exit code: $RESULT)"

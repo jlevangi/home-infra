@@ -3,9 +3,9 @@
 # This provides advanced ingress controller with SSL support
 
 - name: Check if Traefik namespace exists
-  shell: kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get namespace traefik-system
+  shell: kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get namespace traefik-system 2>/dev/null
   register: traefik_namespace_check
-  ignore_errors: yes
+  failed_when: false
   changed_when: false
   when: inventory_hostname == groups[master_group][0]
 
@@ -77,6 +77,14 @@
       -l app.kubernetes.io/name=traefik \
       -n traefik-system \
       --timeout=180s
+  when: 
+    - inventory_hostname == groups[master_group][0]
+    - traefik_namespace_check.rc != 0
+
+- name: Wait for Traefik CRDs to be available
+  shell: |
+    kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml wait --for=condition=established crd/ingressroutes.traefik.containo.us --timeout=120s &&
+    kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml wait --for=condition=established crd/middlewares.traefik.containo.us --timeout=120s
   when: 
     - inventory_hostname == groups[master_group][0]
     - traefik_namespace_check.rc != 0
