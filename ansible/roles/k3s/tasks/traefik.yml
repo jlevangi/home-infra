@@ -7,7 +7,7 @@
   register: traefik_namespace_check
   ignore_errors: yes
   changed_when: false
-  when: inventory_hostname == groups['k3s_master'][0]
+  when: inventory_hostname == groups[master_group][0]
 
 - name: Check if Traefik is already installed
   shell: kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get deployment traefik -n traefik-system
@@ -15,7 +15,7 @@
   ignore_errors: yes
   changed_when: false
   when: 
-    - inventory_hostname == groups['k3s_master'][0]
+    - inventory_hostname == groups[master_group][0]
     - traefik_namespace_check.rc == 0
 
 - name: Display Traefik skip message
@@ -25,7 +25,7 @@
       Skipping installation tasks
       Use 'kubectl get svc -n traefik-system' to view status
   when: 
-    - inventory_hostname == groups['k3s_master'][0]
+    - inventory_hostname == groups[master_group][0]
     - traefik_namespace_check.rc == 0
     - traefik_deployment_check.rc == 0
 
@@ -37,7 +37,7 @@
       LoadBalancer IP: {{ traefik_loadbalancer_ip | default('auto-assigned by MetalLB') }}
       Dashboard: {{ traefik_dashboard_enabled | default(true) }}
   when: 
-    - inventory_hostname == groups['k3s_master'][0]
+    - inventory_hostname == groups[master_group][0]
     - traefik_namespace_check.rc != 0 or (traefik_deployment_check is defined and traefik_deployment_check.rc != 0)
 
 - name: Add Traefik Helm repository
@@ -46,7 +46,7 @@
     helm repo add traefik https://traefik.github.io/charts
     helm repo update
   when: 
-    - inventory_hostname == groups['k3s_master'][0]
+    - inventory_hostname == groups[master_group][0]
     - traefik_namespace_check.rc != 0 or (traefik_deployment_check is defined and traefik_deployment_check.rc != 0)
 
 - name: Create Traefik configuration
@@ -55,7 +55,7 @@
     dest: /tmp/traefik-values.yaml
     mode: '0644'
   when: 
-    - inventory_hostname == groups['k3s_master'][0]
+    - inventory_hostname == groups[master_group][0]
     - traefik_namespace_check.rc != 0 or (traefik_deployment_check is defined and traefik_deployment_check.rc != 0)
 
 - name: Install Traefik 2 using Helm
@@ -68,7 +68,7 @@
       --wait
   register: traefik_install_result
   when: 
-    - inventory_hostname == groups['k3s_master'][0]
+    - inventory_hostname == groups[master_group][0]
     - traefik_namespace_check.rc != 0
 
 - name: Wait for Traefik pods to be ready
@@ -78,7 +78,7 @@
       -n traefik-system \
       --timeout=180s
   when: 
-    - inventory_hostname == groups['k3s_master'][0]
+    - inventory_hostname == groups[master_group][0]
     - traefik_namespace_check.rc != 0
 
 - name: Get Traefik LoadBalancer IP
@@ -87,7 +87,7 @@
       -n traefik-system \
       -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo 'Pending'
   register: traefik_lb_ip
-  when: inventory_hostname == groups['k3s_master'][0]
+  when: inventory_hostname == groups[master_group][0]
 
 - name: Create Traefik Dashboard access (if enabled)
   template:
@@ -95,7 +95,7 @@
     dest: /tmp/traefik-dashboard.yaml
     mode: '0644'
   when: 
-    - inventory_hostname == groups['k3s_master'][0]
+    - inventory_hostname == groups[master_group][0]
     - traefik_dashboard_enabled | default(true)
     - traefik_namespace_check.rc != 0
 
@@ -103,7 +103,7 @@
   shell: |
     kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml apply -f /tmp/traefik-dashboard.yaml
   when: 
-    - inventory_hostname == groups['k3s_master'][0]
+    - inventory_hostname == groups[master_group][0]
     - traefik_dashboard_enabled | default(true)
     - traefik_namespace_check.rc != 0
 
@@ -128,4 +128,4 @@
       💡 To create ingress routes, use IngressRoute CRDs with:
       annotations:
         kubernetes.io/ingress.class: traefik
-  when: inventory_hostname == groups['k3s_master'][0]
+  when: inventory_hostname == groups[master_group][0]

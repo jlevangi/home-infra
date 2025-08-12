@@ -76,11 +76,11 @@ resource "proxmox_vm_qemu" "terraform" {
     model = "virtio"
     bridge = var.nic_name
 #    tag = var.vlan_num # This tag can be left off if you are not taking advantage of VLANs
-    macaddr  = "76:5A:F1:57:5A:0${count.index + 1}"  # Updated MAC address pattern
+    macaddr  = "76:5A:F2:57:5B:0${count.index + 1}"  # Updated MAC address pattern
   }
 
   # Updated IP configuration for K3s cluster
-  ipconfig0 = "ip=172.20.20.10${count.index + 1}/24,gw=172.20.20.1"
+  ipconfig0 = "ip=172.20.20.11${count.index + 1}/24,gw=172.20.20.1"
   nameserver = "172.20.20.4"
   searchdomain = "local"
 
@@ -109,7 +109,7 @@ resource "null_resource" "k3s_deployment" {
   count = var.vm_count == length(proxmox_vm_qemu.terraform) ? 1 : 0
   
   provisioner "local-exec" {
-    command = "env && sleep 180 && ../../scripts/redeploy_k3s_roles.sh"
+    command = "cd ../.. && sleep 180 && scripts/redeploy_k3s_roles_test_cluster.sh"
     working_dir = path.module
   }
   

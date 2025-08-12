@@ -1,8 +1,22 @@
 ---
+# Group mappings for production cluster
+master_group: "k3s_master"
+worker_group: "k3s_workers" 
+cluster_group: "k3s_cluster"
+
+# TLD for production cluster
+cluster_tld: "levangie.dev"
+
 # Variables for all K3s cluster nodes
 k3s_version: "v1.28.5+k3s1"
 k3s_token: "{{ vault_k3s_token }}"
 kubectl_version: "v1.28.4"
+
+# Cluster environment identifier
+cluster_environment: "prod"
+
+# Base storage mount path for this cluster
+base_storage_path: "/mnt/k3s-storage"
 
 # User configuration
 k3s_user: "{{ ansible_user }}"
@@ -11,6 +25,7 @@ k3s_group: "{{ ansible_user }}"
 # Network configuration
 k3s_cluster_cidr: "10.42.0.0/16"
 k3s_service_cidr: "10.43.0.0/16"
+metallb_ip_range: "172.20.20.200-172.20.20.210"
 
 # Tech Tim's HA configuration options
 # Uncomment and configure these for true HA deployment:

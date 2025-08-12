@@ -34,22 +34,22 @@
     msg: "📁 Available NFS exports: {{ nfs_exports.stdout_lines }}"
   tags: nfs-mount
 
-- name: Check if /mnt/k3s-storage is already mounted
-  shell: mountpoint -q /mnt/k3s-storage
+- name: Check if {{ base_storage_path }} is already mounted
+  shell: mountpoint -q "{{ base_storage_path }}"
   register: mount_check
   failed_when: false
   changed_when: false
   tags: nfs-mount
 
-- name: Unmount existing /mnt/k3s-storage if mounted
-  shell: umount /mnt/k3s-storage
+- name: Unmount existing {{ base_storage_path }} if mounted
+  shell: umount "{{ base_storage_path }}"
   become: yes
   when: mount_check.rc == 0
   tags: nfs-mount
 
-- name: Ensure /mnt/k3s-storage directory exists
+- name: Ensure {{ base_storage_path }} directory exists
   file:
-    path: /mnt/k3s-storage
+    path: "{{ base_storage_path }}"
     state: directory
     mode: '0755'
   become: yes
@@ -106,17 +106,17 @@
       {{ service_user_verification.stdout }}
   tags: nfs-mount
 
-- name: Mount NFS share to /mnt/k3s-storage
+- name: Mount NFS share to {{ base_storage_path }}
   shell: |
-    mount -t nfs -o {{ nfs_mount_options }} {{ nfs_server }}:{{ nfs_path }} /mnt/k3s-storage
+    mount -t nfs -o {{ nfs_mount_options }} {{ nfs_server }}:{{ nfs_path }} "{{ base_storage_path }}"
   become: yes
   register: mount_result
   tags: nfs-mount
 
 - name: Verify mount is successful
   shell: |
-    mountpoint /mnt/k3s-storage && echo "✅ Mount successful" || echo "❌ Mount failed"
-    df -h /mnt/k3s-storage
+    mountpoint "{{ base_storage_path }}" && echo "✅ Mount successful" || echo "❌ Mount failed"
+    df -h "{{ base_storage_path }}"
   register: mount_verification
   become: yes
   tags: nfs-mount
@@ -129,7 +129,7 @@
 - name: Add NFS mount to /etc/fstab for persistence
   lineinfile:
     path: /etc/fstab
-    line: "{{ nfs_server }}:{{ nfs_path }} /mnt/k3s-storage nfs {{ nfs_mount_options }} 0 0"
+    line: "{{ nfs_server }}:{{ nfs_path }} {{ base_storage_path }} nfs {{ nfs_mount_options }} 0 0"
     state: present
     backup: yes
   become: yes
@@ -138,13 +138,13 @@
 - name: Test NFS access with service user
   shell: |
     echo "Testing NFS access with service user {{ nfs_user | default('k3s-app-user') }}..."
-    if sudo -u {{ nfs_user | default('k3s-app-user') }} touch /mnt/k3s-storage/.test-write-{{ nfs_user | default('k3s-app-user') }} 2>/dev/null; then
+    if sudo -u {{ nfs_user | default('k3s-app-user') }} touch "{{ base_storage_path }}"/.test-write-{{ nfs_user | default('k3s-app-user') }} 2>/dev/null; then
       echo "✅ Service user can write to NFS mount"
-      sudo -u {{ nfs_user | default('k3s-app-user') }} rm -f /mnt/k3s-storage/.test-write-{{ nfs_user | default('k3s-app-user') }}
+      sudo -u {{ nfs_user | default('k3s-app-user') }} rm -f "{{ base_storage_path }}"/.test-write-{{ nfs_user | default('k3s-app-user') }}
     else
       echo "❌ Service user cannot write to NFS mount"
       echo "Mount permissions:"
-      ls -la /mnt/k3s-storage/
+      ls -la "{{ base_storage_path }}"/
     fi
   register: nfs_access_test
   become: yes
@@ -155,7 +155,7 @@
   debug:
     msg: |
       🎉 NFS Mount Setup Complete!
-      📁 Mount Point: /mnt/k3s-storage
+      📁 Mount Point: {{ base_storage_path }}
       🔗 NFS Share: {{ nfs_server }}:{{ nfs_path }}
       👤 Service User: {{ nfs_user | default('k3s-app-user') }} (UID:{{ nfs_uid | default('1024') }}, GID:{{ nfs_gid | default('100') }})
       💾 Added to /etc/fstab for persistence
@@ -164,14 +164,14 @@
       {{ nfs_access_test.stdout }}
       
       📋 Next Steps:
-      - K3s applications can now use hostPath volumes pointing to /mnt/k3s-storage/
+      - K3s applications can now use hostPath volumes pointing to {{ base_storage_path }}/
       - All apps will run with UID 1024 (NFS admin user) for proper NFS permissions
       - Basic directory structure will be created automatically
       
       💡 NFS Configuration Note:
       Your NFS server maps all operations to UID 1024 (admin user)
       This is a secure configuration that we're now matching in K3s
-  when: inventory_hostname == groups['k3s_master'][0]
+  when: inventory_hostname == groups[master_group][0]
   tags: nfs-mount
 
 - name: Create basic K3s storage directory structure
@@ -182,10 +182,10 @@
     owner: "{{ nfs_user | default('k3s-app-user') }}"
     group: "{{ gid_100_group.stdout | default('users') }}"
   loop:
-    - /mnt/k3s-storage/apps
-    - /mnt/k3s-storage/database
-    - /mnt/k3s-storage/config
-    - /mnt/k3s-storage/logs
+    - "{{ base_storage_path }}/apps"
+    - "{{ base_storage_path }}/database"
+    - "{{ base_storage_path }}/config"
+    - "{{ base_storage_path }}/logs"
   become: yes
   ignore_errors: yes
   register: directory_structure_result

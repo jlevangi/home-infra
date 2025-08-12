@@ -1,10 +1,10 @@
 #!/bin/bash
-# Production cluster deployment script using unified playbook
-# Uses the new k3s-deploy-cluster.yml playbook
+# Test cluster deployment script using unified playbook
+# Uses the new k3s-deploy-cluster.yml playbook with target_cluster parameter
 
 # Parse command line arguments
-EXTRA_VARS=""
-VERBOSITY=""
+EXTRA_VARS="-e target_cluster=k3s_test_cluster"
+VERBOSITY="-v"  # Default to verbose for test cluster
 DEPLOY_APPS="true"
 
 while [[ $# -gt 0 ]]; do
@@ -26,19 +26,24 @@ while [[ $# -gt 0 ]]; do
       VERBOSITY="-vvv"
       shift
       ;;
+    --quiet|-q)
+      VERBOSITY=""
+      shift
+      ;;
     --help|-h)
       echo "Usage: $0 [OPTIONS]"
       echo ""
       echo "Options:"
       echo "  --no-apps          Deploy only infrastructure (K3s, networking), skip applications"
-      echo "  -v, --verbose      Enable verbose output"
+      echo "  -v, --verbose      Enable verbose output (default for test cluster)"
       echo "  -vv, -vvv          Enable more verbose output"
+      echo "  -q, --quiet        Disable verbose output"
       echo "  -h, --help         Show this help message"
       echo ""
       echo "Examples:"
-      echo "  $0                 # Deploy full production cluster with apps"
+      echo "  $0                 # Deploy full test cluster with apps (verbose)"
       echo "  $0 --no-apps       # Deploy only infrastructure"
-      echo "  $0 -v --no-apps    # Deploy infrastructure with verbose output"
+      echo "  $0 -q --no-apps    # Deploy infrastructure quietly"
       exit 0
       ;;
     *)
@@ -49,10 +54,11 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-echo "🚀 Deploying K3s Production Cluster..."
+echo "🧪 Deploying K3s Test Cluster..."
 echo "📂 Using unified deployment playbook: k3s-deploy-cluster.yml"
-echo "🎯 Target: Production cluster (k3s_cluster)"
+echo "🎯 Target: Test cluster (k3s_test_cluster)"
 echo "📦 Applications: $([ "$DEPLOY_APPS" == "true" ] && echo "Enabled" || echo "Disabled")"
+echo "🔊 Verbosity: $([ -n "$VERBOSITY" ] && echo "$VERBOSITY" || echo "Quiet")"
 echo ""
 
 ansible-playbook -i ../ansible/k3s-inventory ../ansible/playbooks/k3s-deploy-cluster.yml \
@@ -61,4 +67,4 @@ ansible-playbook -i ../ansible/k3s-inventory ../ansible/playbooks/k3s-deploy-clu
   $EXTRA_VARS
 
 echo ""
-echo "✅ Production cluster deployment complete!"
+echo "✅ Test cluster deployment complete!"
