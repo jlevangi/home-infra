@@ -4,6 +4,9 @@ master_group: "k3s_master"
 worker_group: "k3s_workers" 
 cluster_group: "k3s_cluster"
 
+# TLD for production cluster
+cluster_tld: "levangie.dev"
+
 # Variables for all K3s cluster nodes
 k3s_version: "v1.28.5+k3s1"
 k3s_token: "{{ vault_k3s_token }}"
