@@ -7,6 +7,14 @@ cluster_group: "k3s_test_cluster"
 # Test cluster specific overrides (if any)
 # Most settings will inherit from k3s_cluster.yml, but you can override here
 
+# Override TLD for test cluster
+cluster_tld: "test"
+
+# Override app URLs for test cluster to use .test TLDs
+bookstack_app_url: "https://bookstack.test"
+homepage_app_url: "https://homepage.test"
+vaultwarden_app_url: "https://vw.test"
+
 # Example: Different version for testing
 # k3s_version: "v1.29.0+k3s1"  # Uncomment to test newer version
 
