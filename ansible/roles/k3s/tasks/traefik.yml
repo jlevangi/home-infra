@@ -95,8 +95,8 @@
 
 - name: Check if Traefik CRDs exist
   shell: |
-    kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get crd ingressroutes.traefik.containo.us 2>/dev/null &&
-    kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get crd middlewares.traefik.containo.us 2>/dev/null
+    kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get crd ingressroutes.traefik.io 2>/dev/null &&
+    kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get crd middlewares.traefik.io 2>/dev/null
   register: traefik_crds_check
   ignore_errors: yes
   failed_when: false
@@ -104,8 +104,8 @@
 
 - name: Wait for Traefik CRDs to be available
   shell: |
-    kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml wait --for=condition=established crd/ingressroutes.traefik.containo.us --timeout=120s &&
-    kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml wait --for=condition=established crd/middlewares.traefik.containo.us --timeout=120s
+    kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml wait --for=condition=established crd/ingressroutes.traefik.io --timeout=120s &&
+    kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml wait --for=condition=established crd/middlewares.traefik.io --timeout=120s
   when: 
     - inventory_hostname == groups[master_group][0]
     - traefik_crds_check.rc == 0
@@ -126,7 +126,15 @@
   when: 
     - inventory_hostname == groups[master_group][0]
     - traefik_dashboard_enabled | default(true)
-    - traefik_namespace_check.rc != 0 or (traefik_deployment_check is defined and traefik_deployment_check.rc != 0)
+
+- name: Wait for Traefik CRDs before applying dashboard
+  shell: |
+    kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml wait --for=condition=established crd/ingressroutes.traefik.io --timeout=120s &&
+    kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml wait --for=condition=established crd/middlewares.traefik.io --timeout=120s
+  when: 
+    - inventory_hostname == groups[master_group][0]
+    - traefik_dashboard_enabled | default(true)
+  ignore_errors: yes
 
 - name: Apply Traefik Dashboard configuration
   shell: |
@@ -134,7 +142,8 @@
   when: 
     - inventory_hostname == groups[master_group][0]
     - traefik_dashboard_enabled | default(true)
-    - traefik_namespace_check.rc != 0 or (traefik_deployment_check is defined and traefik_deployment_check.rc != 0)
+  retries: 3
+  delay: 10
 
 - name: Display Traefik installation results
   debug:
