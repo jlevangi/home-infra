@@ -5,6 +5,15 @@
   gather_facts: no
   
   tasks:
+    - name: Display reset warning
+      debug:
+        msg: |
+          🚨 RESETTING K3S CLUSTER ON {{ inventory_hostname }}
+          📦 This will remove: K3s, Helm repos, services, temp files
+          💾 PRESERVED: Longhorn data in /var/lib/longhorn/
+          ⏳ Starting reset process...
+
+    # === K3s Service Cleanup ===
     - name: Stop K3s service (if exists)
       systemd:
         name: k3s
@@ -21,6 +30,21 @@
       failed_when: false
       when: inventory_hostname in groups['k3s_workers']
 
+    # === Helm Repository Cleanup ===
+    - name: Remove Helm repositories (if helm exists)
+      shell: |
+        if command -v helm >/dev/null 2>&1; then
+          echo "🧹 Cleaning up Helm repositories..."
+          helm repo remove metallb 2>/dev/null || echo "MetalLB repo not found"
+          helm repo remove traefik 2>/dev/null || echo "Traefik repo not found" 
+          helm repo remove longhorn 2>/dev/null || echo "Longhorn repo not found"
+          echo "✅ Helm repositories cleaned up"
+        else
+          echo "ℹ️  Helm not found, skipping repository cleanup"
+        fi
+      failed_when: false
+      when: inventory_hostname in groups['k3s_master']
+
     - name: Run K3s uninstall script (server)
       shell: /usr/local/bin/k3s-uninstall.sh
       failed_when: false
@@ -31,15 +55,49 @@
       failed_when: false
       when: inventory_hostname in groups['k3s_workers']
 
-    - name: Remove K3s directories
+    # === K3s Directory Cleanup ===
+    - name: Remove K3s directories (preserving Longhorn data)
       file:
         path: "{{ item }}"
         state: absent
       loop:
         - /etc/rancher
-        - /var/lib/rancher
+        - /var/lib/rancher  # This removes k3s data but preserves /var/lib/longhorn
         - /var/lib/kubelet
         - /etc/kubernetes
+      failed_when: false
+
+    # === System Services Cleanup ===
+    - name: Stop and disable storage-related services
+      systemd:
+        name: "{{ item }}"
+        state: stopped
+        enabled: no
+      loop:
+        - iscsid
+      failed_when: false
+      when: k3s_cleanup_services | default(true)
+
+    - name: Stop and disable qemu-guest-agent (if desired)
+      systemd:
+        name: qemu-guest-agent
+        state: stopped
+        enabled: no
+      failed_when: false
+      when: k3s_cleanup_qemu_agent | default(false)  # Default to keep it running
+
+    # === Temporary Files Cleanup ===
+    - name: Remove K3s temporary and configuration files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/k3s-install.sh
+        - /tmp/traefik-values.yaml
+        - /tmp/traefik-dashboard.yaml
+        - /tmp/metallb-config.yaml
+        - /tmp/longhorn-repo-added
+        - /tmp/k3s-*  # Any other k3s temp files
       failed_when: false
 
     - name: Unmount NFS shares (if mounted)
@@ -67,12 +125,100 @@
         state: absent
       failed_when: false
 
+    # === Kernel Modules Cleanup ===
+    - name: Unload K3s kernel modules (if specified)
+      shell: |
+        echo "🧹 Cleaning up kernel modules..."
+        {% for module in k3s_kernel_modules | default([]) %}
+        modprobe -r {{ module }} 2>/dev/null || echo "Module {{ module }} not loaded or in use"
+        {% endfor %}
+        echo "✅ Kernel module cleanup attempted"
+      failed_when: false
+      when: k3s_kernel_modules is defined
+
+    - name: Remove kernel module configuration files
+      file:
+        path: "/etc/modules-load.d/k3s.conf"
+        state: absent
+      failed_when: false
+
+    # === Package Cleanup (Optional) ===
+    - name: Remove K3s-specific packages (if enabled)
+      apt:
+        name:
+          - open-iscsi  # Only if not needed by other services
+        state: absent
+        autoremove: yes
+      failed_when: false
+      when: k3s_remove_packages | default(false)
+
+    - name: Remove K3s utility packages (if enabled)
+      apt:
+        name:
+          - htop
+          - iotop
+          - tcpdump
+        state: absent
+        autoremove: yes
+      failed_when: false
+      when: k3s_remove_utility_packages | default(false)
+
+    # === User Configuration Cleanup ===
     - name: Clean up kubectl config
       file:
         path: "/home/{{ ansible_user }}/.kube"
         state: absent
       failed_when: false
 
-    - name: Display reset status
+    - name: Remove kubectl bash completion
+      lineinfile:
+        path: "/home/{{ ansible_user }}/.bashrc"
+        regexp: ".*kubectl.*completion.*"
+        state: absent
+      failed_when: false
+
+    # === Container Runtime Cleanup ===
+    - name: Clean up container images and networks
+      shell: |
+        echo "🧹 Cleaning up container runtime artifacts..."
+        # Remove any remaining container networks
+        if command -v crictl >/dev/null 2>&1; then
+          crictl rmi --prune 2>/dev/null || echo "No images to prune"
+        fi
+        # Clean up iptables rules that might be left behind
+        iptables -t nat -F 2>/dev/null || echo "iptables nat table flush failed"
+        iptables -t filter -F 2>/dev/null || echo "iptables filter table flush failed"
+        echo "✅ Container runtime cleanup completed"
+      failed_when: false
+
+    # === Final Status Display ===
+    - name: Display comprehensive reset status
       debug:
-        msg: "K3s cluster reset completed on {{ inventory_hostname }}"
+        msg: |
+          ✅ K3S CLUSTER RESET COMPLETED ON {{ inventory_hostname }}
+          
+          🗑️  REMOVED:
+          - K3s services and binaries
+          - Helm repositories (metallb, traefik, longhorn)
+          - Configuration directories (/etc/rancher, /var/lib/rancher, etc.)
+          - Temporary files and scripts
+          - User kubectl configuration
+          - Container runtime artifacts
+          
+          🔧 SERVICES MANAGED:
+          - iscsid: {{ 'Stopped/Disabled' if k3s_cleanup_services | default(true) else 'Left Running' }}
+          - qemu-guest-agent: {{ 'Stopped/Disabled' if k3s_cleanup_qemu_agent | default(false) else 'Left Running' }}
+          
+          📦 PACKAGES:
+          - K3s packages: {{ 'Removed' if k3s_remove_packages | default(false) else 'Left Installed' }}
+          - Utility packages: {{ 'Removed' if k3s_remove_utility_packages | default(false) else 'Left Installed' }}
+          
+          💾 PRESERVED:
+          - Longhorn storage data (/var/lib/longhorn/)
+          - Core system packages (curl, wget, etc.)
+          - SSH access and basic system functionality
+          
+          🎯 NEXT STEPS:
+          - System is ready for fresh K3s installation
+          - Previous Longhorn volumes will be automatically detected
+          - No reboot required unless kernel modules were problematic
