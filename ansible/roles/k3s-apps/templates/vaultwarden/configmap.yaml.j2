@@ -10,8 +10,8 @@ data:
   ADMIN_TOKEN: "{{ vaultwarden_admin_token }}"
   DB_TYPE: "default"
   STORAGE_CLAIM: "vaultwarden-data-pvc"
-  PUID: "{{ dynamic_nfs_uid | default('1024') }}"
-  PGID: "{{ dynamic_nfs_gid | default('100') }}"
+  # PUID: "{{ dynamic_nfs_uid | default('1024') }}"  # NFS-related, commented out for Longhorn
+  # PGID: "{{ dynamic_nfs_gid | default('100') }}"   # NFS-related, commented out for Longhorn
   TZ: "{{ application_timezone | default('America/New_York') }}"
   SMTP_HOST: "{{ vault_smtp_host }}"
   SMTP_PORT: "587"

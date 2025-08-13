@@ -11,17 +11,18 @@
     kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
     force_redeploy_var: "homepage_force_redeploy"
 
-# Get NFS user context using shared task
-- name: Get NFS user context for Homepage
-  include_tasks: shared/get_nfs_user_context.yml
+# NFS-related tasks commented out - using Longhorn storage instead
+# # Get NFS user context using shared task
+# - name: Get NFS user context for Homepage
+#   include_tasks: shared/get_nfs_user_context.yml
 
-# Create application directories using shared task
-- name: Create Homepage storage directories
-  include_tasks: shared/create_app_directories.yml
-  vars:
-    app_name: "homepage"
-    app_directories:
-      - "apps/homepage/config"
+# # Create application directories using shared task
+# - name: Create Homepage storage directories
+#   include_tasks: shared/create_app_directories.yml
+#   vars:
+#     app_name: "homepage"
+#     app_directories:
+#       - "apps/homepage/config"
 
 # PVC cleanup is now handled by the generic cleanup_task.yml
 
@@ -88,8 +89,9 @@
       
       📝 Namespace: homepage
       🌐 Service URL: {{ homepage_app_url }}
-      📦 Storage: /mnt/k3s-storage/apps/homepage
-      👤 Running as: {{ vault_nfs_username | default('k3s-app-user') }} ({{ dynamic_nfs_uid }}:{{ dynamic_nfs_gid }})
+      📦 Storage: Longhorn distributed storage
+      # 👤 Running as: {{ vault_nfs_username | default('k3s-app-user') }} ({{ dynamic_nfs_uid | default('N/A') }}:{{ dynamic_nfs_gid | default('N/A') }})
+      👤 Running as: Container default user (Longhorn storage)
       
       📊 Management Commands:
       kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get all -n homepage

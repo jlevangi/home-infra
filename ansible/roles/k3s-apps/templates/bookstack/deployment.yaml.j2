@@ -34,16 +34,16 @@ spec:
       - name: bookstack
         image: linuxserver/bookstack:latest
         env:
-        - name: PUID
-          valueFrom:
-            configMapKeyRef:
-              name: bookstack-config
-              key: PUID
-        - name: PGID
-          valueFrom:
-            configMapKeyRef:
-              name: bookstack-config
-              key: PGID
+        # - name: PUID  # NFS-related, commented out for Longhorn
+        #   valueFrom:
+        #     configMapKeyRef:
+        #       name: bookstack-config
+        #       key: PUID
+        # - name: PGID  # NFS-related, commented out for Longhorn
+        #   valueFrom:
+        #     configMapKeyRef:
+        #       name: bookstack-config
+        #       key: PGID
         - name: DB_HOST
           valueFrom:
             configMapKeyRef:
@@ -105,7 +105,7 @@ spec:
           httpGet:
             path: /
             port: 80
-          initialDelaySeconds: 120
+          initialDelaySeconds: 60
           periodSeconds: 30
           timeoutSeconds: 10
           failureThreshold: 5
@@ -113,7 +113,7 @@ spec:
           httpGet:
             path: /
             port: 80
-          initialDelaySeconds: 180
+          initialDelaySeconds: 90
           periodSeconds: 60
           timeoutSeconds: 10
           failureThreshold: 3
@@ -144,16 +144,16 @@ spec:
       - name: mariadb
         image: linuxserver/mariadb:latest
         env:
-        - name: PUID
-          valueFrom:
-            configMapKeyRef:
-              name: bookstack-config
-              key: PUID
-        - name: PGID
-          valueFrom:
-            configMapKeyRef:
-              name: bookstack-config
-              key: PGID
+        # - name: PUID  # NFS-related, commented out for Longhorn
+        #   valueFrom:
+        #     configMapKeyRef:
+        #       name: bookstack-config
+        #       key: PUID
+        # - name: PGID  # NFS-related, commented out for Longhorn
+        #   valueFrom:
+        #     configMapKeyRef:
+        #       name: bookstack-config
+        #       key: PGID
         - name: TZ
           valueFrom:
             configMapKeyRef:
