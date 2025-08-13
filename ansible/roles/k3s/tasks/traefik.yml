@@ -50,26 +50,38 @@
     - traefik_namespace_check.rc != 0 or (traefik_deployment_check is defined and traefik_deployment_check.rc != 0)
 
 - name: Create Traefik configuration
-  copy:
-    src: traefik-values.yaml
+  template:
+    src: traefik-values.yaml.j2
     dest: /tmp/traefik-values.yaml
     mode: '0644'
   when: 
     - inventory_hostname == groups[master_group][0]
     - traefik_namespace_check.rc != 0 or (traefik_deployment_check is defined and traefik_deployment_check.rc != 0)
 
-- name: Install Traefik 2 using Helm
+- name: Wait for MetalLB to be fully operational
   shell: |
     export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
-    helm install traefik traefik/traefik \
-      --namespace traefik-system \
-      --create-namespace \
-      --values /tmp/traefik-values.yaml \
-      --wait
-  register: traefik_install_result
+    kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=metallb -n metallb-system --timeout=300s
   when: 
     - inventory_hostname == groups[master_group][0]
     - traefik_namespace_check.rc != 0
+    - k3s_install_metallb | default(true)
+
+- name: Install Traefik 2 using Helm
+  shell: |
+    export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
+    helm upgrade --install traefik traefik/traefik \
+      --namespace traefik-system \
+      --create-namespace \
+      --values /tmp/traefik-values.yaml \
+      --wait \
+      --timeout=15m
+  register: traefik_install_result
+  retries: 2
+  delay: 60
+  when: 
+    - inventory_hostname == groups[master_group][0]
+    - traefik_namespace_check.rc != 0 or (traefik_deployment_check is defined and traefik_deployment_check.rc != 0)
 
 - name: Wait for Traefik pods to be ready
   shell: |
@@ -79,7 +91,16 @@
       --timeout=180s
   when: 
     - inventory_hostname == groups[master_group][0]
-    - traefik_namespace_check.rc != 0
+    - traefik_namespace_check.rc != 0 or (traefik_deployment_check is defined and traefik_deployment_check.rc != 0)
+
+- name: Check if Traefik CRDs exist
+  shell: |
+    kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get crd ingressroutes.traefik.containo.us 2>/dev/null &&
+    kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get crd middlewares.traefik.containo.us 2>/dev/null
+  register: traefik_crds_check
+  ignore_errors: yes
+  failed_when: false
+  when: inventory_hostname == groups[master_group][0]
 
 - name: Wait for Traefik CRDs to be available
   shell: |
@@ -87,7 +108,7 @@
     kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml wait --for=condition=established crd/middlewares.traefik.containo.us --timeout=120s
   when: 
     - inventory_hostname == groups[master_group][0]
-    - traefik_namespace_check.rc != 0
+    - traefik_crds_check.rc == 0
 
 - name: Get Traefik LoadBalancer IP
   shell: |
@@ -105,7 +126,7 @@
   when: 
     - inventory_hostname == groups[master_group][0]
     - traefik_dashboard_enabled | default(true)
-    - traefik_namespace_check.rc != 0
+    - traefik_namespace_check.rc != 0 or (traefik_deployment_check is defined and traefik_deployment_check.rc != 0)
 
 - name: Apply Traefik Dashboard configuration
   shell: |
@@ -113,7 +134,7 @@
   when: 
     - inventory_hostname == groups[master_group][0]
     - traefik_dashboard_enabled | default(true)
-    - traefik_namespace_check.rc != 0
+    - traefik_namespace_check.rc != 0 or (traefik_deployment_check is defined and traefik_deployment_check.rc != 0)
 
 - name: Display Traefik installation results
   debug:
