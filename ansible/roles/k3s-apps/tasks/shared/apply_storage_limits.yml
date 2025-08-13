@@ -1,0 +1,27 @@
+# Shared task to apply storage limits to an application namespace
+# Expected variables:
+# - app_name: Name of the application
+# - max_namespace_storage: Maximum total storage for the namespace
+# - max_pvc_size: Maximum size per individual PVC
+# - min_pvc_size: Minimum size per PVC
+# - default_pvc_size: Default PVC size
+# - max_pvcs: Maximum number of PVCs allowed
+
+- name: "Apply {{ app_name }} storage limits (ResourceQuota)"
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+  args:
+    stdin: "{{ lookup('template', 'common/resource-quota.yaml.j2') }}"
+  vars:
+    max_namespace_storage: "{{ app_max_namespace_storage }}"
+    max_pvcs: "{{ max_pvcs | default('10') }}"
+
+- name: "Apply {{ app_name }} PVC size limits (LimitRange)"
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+  args:
+    stdin: "{{ lookup('template', 'common/limit-range.yaml.j2') }}"
+  vars:
+    max_pvc_size: "{{ app_max_pvc_size }}"
+    min_pvc_size: "{{ min_pvc_size | default('10Mi') }}"
+    default_pvc_size: "{{ app_default_pvc_size }}"

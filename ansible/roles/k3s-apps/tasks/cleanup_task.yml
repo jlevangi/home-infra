@@ -17,17 +17,7 @@
       failed_when: false
       changed_when: false
 
-    - name: "Remove existing {{ app_name }} deployment"
-      shell: |
-        echo "🧹 Cleaning up existing {{ app_name }} deployment..."
-        kubectl --kubeconfig={{ kubeconfig_path }} delete namespace {{ k8s_namespace }} --ignore-not-found=true
-        echo "Waiting for namespace deletion to complete..."
-        kubectl --kubeconfig={{ kubeconfig_path }} wait --for=delete namespace/{{ k8s_namespace }} --timeout=300s || true
-        echo "✅ Cleanup complete"
-      when: cleanup_namespace_check.rc == 0
-      register: cleanup_result
-
-    # Additional cleanup tasks (e.g., PVCs, PVs)
+    # First: Execute additional cleanup tasks (PVCs, PVs) before namespace deletion
     - name: "Execute additional cleanup tasks for {{ app_name }}"
       shell: |
         kubectl --kubeconfig={{ kubeconfig_path }} {{ item.command }}
@@ -37,6 +27,45 @@
         - additional_cleanup_tasks is defined
       loop_control:
         label: "{{ item.name }}"
+
+    # Second: Delete all resources in the namespace to avoid finalizer issues
+    - name: "Delete all resources in {{ k8s_namespace }} namespace"
+      shell: |
+        echo "🗑️ Deleting all resources in {{ k8s_namespace }} namespace..."
+        kubectl --kubeconfig={{ kubeconfig_path }} delete all --all -n {{ k8s_namespace }} --ignore-not-found=true --timeout=60s || true
+        kubectl --kubeconfig={{ kubeconfig_path }} delete pvc --all -n {{ k8s_namespace }} --ignore-not-found=true --timeout=120s || true
+        kubectl --kubeconfig={{ kubeconfig_path }} delete configmap --all -n {{ k8s_namespace }} --ignore-not-found=true --timeout=30s || true
+        kubectl --kubeconfig={{ kubeconfig_path }} delete secret --all -n {{ k8s_namespace }} --ignore-not-found=true --timeout=30s || true
+        echo "✅ Resource deletion complete"
+      when: cleanup_namespace_check.rc == 0
+
+    # Third: Force cleanup stuck PVCs by removing finalizers if needed
+    - name: "Force cleanup stuck PVCs in {{ k8s_namespace }} (if any)"
+      shell: |
+        echo "🔧 Checking for stuck PVCs in {{ k8s_namespace }}..."
+        # Get list of PVCs that might be stuck
+        STUCK_PVCS=$(kubectl --kubeconfig={{ kubeconfig_path }} get pvc -n {{ k8s_namespace }} -o name 2>/dev/null || echo "")
+        if [ ! -z "$STUCK_PVCS" ]; then
+          echo "Found stuck PVCs, removing finalizers..."
+          for pvc in $STUCK_PVCS; do
+            kubectl --kubeconfig={{ kubeconfig_path }} patch $pvc -n {{ k8s_namespace }} -p '{"metadata":{"finalizers":null}}' --type=merge || true
+          done
+          echo "✅ Finalizer cleanup complete"
+        else
+          echo "✅ No stuck PVCs found"
+        fi
+      when: cleanup_namespace_check.rc == 0
+
+    # Fourth: Delete the namespace
+    - name: "Remove existing {{ app_name }} deployment"
+      shell: |
+        echo "🧹 Cleaning up existing {{ app_name }} deployment..."
+        kubectl --kubeconfig={{ kubeconfig_path }} delete namespace {{ k8s_namespace }} --ignore-not-found=true
+        echo "Waiting for namespace deletion to complete..."
+        kubectl --kubeconfig={{ kubeconfig_path }} wait --for=delete namespace/{{ k8s_namespace }} --timeout=300s || echo "⚠️ Namespace deletion timed out, but continuing..."
+        echo "✅ Cleanup complete"
+      when: cleanup_namespace_check.rc == 0
+      register: cleanup_result
 
     - name: "Display cleanup results for {{ app_name }}"
       debug:

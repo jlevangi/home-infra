@@ -1,4 +1,12 @@
 ---
+# Optional cleanup task
+- name: Include cleanup task for BookStack
+  include_tasks: cleanup_task.yml
+  vars:
+    app_name: "BookStack"
+    k8s_namespace: "bookstack"
+    kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
+    force_redeploy_var: "bookstack_force_redeploy"
 
 # Get NFS user context using shared task
 - name: Get NFS user context for BookStack
@@ -20,6 +28,51 @@
     stdin: "{{ lookup('template', 'common/namespace.yaml.j2') }}"
   vars:
     app_name: bookstack
+  when: inventory_hostname == groups[master_group][0]
+
+- name: Apply BookStack storage limits (ResourceQuota)
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+  args:
+    stdin: "{{ lookup('template', 'common/resource-quota.yaml.j2') }}"
+  vars:
+    app_name: bookstack
+    max_namespace_storage: "{{ bookstack_max_namespace_storage | default('50Gi') }}"
+    max_pvcs: "{{ global_max_pvcs | default('10') }}"
+  when: inventory_hostname == groups[master_group][0]
+
+- name: Apply BookStack PVC size limits (LimitRange)
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+  args:
+    stdin: "{{ lookup('template', 'common/limit-range.yaml.j2') }}"
+  vars:
+    app_name: bookstack
+    max_pvc_size: "{{ bookstack_max_pvc_size | default('20Gi') }}"
+    min_pvc_size: "{{ global_min_pvc_size | default('10Mi') }}"
+    default_pvc_size: "{{ bookstack_default_pvc_size | default('1Gi') }}"
+  when: inventory_hostname == groups[master_group][0]
+
+- name: Apply BookStack App PVC (dynamic sizing)
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+  args:
+    stdin: "{{ lookup('template', 'common/pv-pvc.yaml.j2') }}"
+  vars:
+    app_name: bookstack
+    volume_name: app-data
+    initial_volume_size: "{{ default_initial_volume_size | default('100Mi') }}"
+  when: inventory_hostname == groups[master_group][0]
+
+- name: Apply BookStack Database PVC (dynamic sizing)
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+  args:
+    stdin: "{{ lookup('template', 'common/pv-pvc.yaml.j2') }}"
+  vars:
+    app_name: bookstack
+    volume_name: db-data
+    initial_volume_size: "{{ bookstack_database_initial_volume_size | default(default_initial_volume_size) | default('500Mi') }}"
   when: inventory_hostname == groups[master_group][0]
 
 - name: Apply BookStack ConfigMap

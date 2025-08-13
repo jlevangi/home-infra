@@ -11,7 +11,10 @@ deploy_vaultwarden: true
 application_timezone: "America/New_York"
 
 # Role behavior controls
-# Set to true to force cleanup and redeploy
-bookstack_force_redeploy: true 
-homepage_force_redeploy: true
-vaultwarden_force_redeploy: true
+# Force redeploy settings are now controlled by group_vars for each environment:
+# - Production (k3s_cluster.yml): force_redeploy defaults to false for safety
+# - Test (k3s_test_cluster.yml): force_redeploy defaults to true for clean testing
+# These defaults provide fallback values if not set in group_vars
+bookstack_force_redeploy: false 
+homepage_force_redeploy: false
+vaultwarden_force_redeploy: false
