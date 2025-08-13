@@ -8,18 +8,32 @@
   ignore_errors: yes
   changed_when: false
 
+- name: Check if K3s API server is responding
+  uri:
+    url: "https://{{ ansible_default_ipv4.address }}:6443/version"
+    method: GET
+    validate_certs: no
+    timeout: 10
+  register: k3s_api_check
+  ignore_errors: yes
+  failed_when: false
+  when: k3s_status_check.rc == 0
+
+- name: Determine if reinstall is needed
+  set_fact:
+    k3s_needs_install: >-
+      {{
+        k3s_status_check.rc != 0 or
+        (k3s_status_check.rc == 0 and k3s_api_check.status != 200)
+      }}
+
 - name: Display current K3s status
   debug:
     msg: |
       K3s Status: {{ 'Running' if k3s_status_check.rc == 0 else 'Not running or not installed' }}
+      API Server: {{ 'Responding' if (k3s_status_check.rc == 0 and k3s_api_check.status == 200) else 'Not responding or not checked' }}
+      Will reinstall: {{ k3s_needs_install }}
       {{ k3s_status_check.stdout if k3s_status_check.rc == 0 else 'Will proceed with installation' }}
-
-- name: Download K3s installation script
-  get_url:
-    url: https://get.k3s.io
-    dest: /tmp/k3s-install.sh
-    mode: '0755'
-  when: k3s_status_check.rc != 0
 
 - name: Install K3s master
   shell: |
@@ -31,12 +45,12 @@
     sh -s - server {{ k3s_server_args | join(' ') }}
   register: k3s_install_result
   failed_when: k3s_install_result.rc != 0
-  when: k3s_status_check.rc != 0
+  when: k3s_needs_install
 
 - name: Display K3s installation output
   debug:
     var: k3s_install_result.stdout_lines
-  when: k3s_install_result is defined
+  when: k3s_install_result is defined and not k3s_install_result.skipped|default(false)
 
 - name: Wait for K3s API server to be ready
   wait_for:
@@ -44,18 +58,7 @@
     host: "{{ ansible_default_ipv4.address }}"
     delay: 5
     timeout: 120
-  when: k3s_status_check.rc != 0
-
-- name: Quick API server check (if already running)
-  uri:
-    url: "https://{{ ansible_default_ipv4.address }}:6443/version"
-    method: GET
-    validate_certs: no
-    timeout: 10
-  register: k3s_api_check
-  ignore_errors: yes
-  failed_when: false
-  when: k3s_status_check.rc == 0
+  when: k3s_needs_install
 
 - name: Verify K3s service is running
   systemd:
