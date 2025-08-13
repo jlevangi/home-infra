@@ -25,6 +25,9 @@ k3s_service_cidr: "10.45.0.0/16"  # Different from prod: 10.43.0.0/16
 # MetalLB Configuration
 metallb_ip_range: "172.20.20.220-172.20.20.230"
 
+# Traefik LoadBalancer Configuration  
+traefik_loadbalancer_ip: "172.20.20.220"  # Fixed IP for Traefik LoadBalancer
+
 # Test-specific NFS paths (optional)
 # You might want test apps to use different NFS subdirectories
 nfs_share_apps: "{{ nfs_share_root }}/test-apps"
