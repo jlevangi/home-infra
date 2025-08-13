@@ -9,17 +9,18 @@
     force_redeploy_var: "vaultwarden_force_redeploy"
     # PVC cleanup is now handled automatically by cleanup_task.yml
 
-# Get NFS user context using shared task
-- name: Get NFS user context for Vaultwarden
-  include_tasks: shared/get_nfs_user_context.yml
+# NFS-related tasks commented out - using Longhorn storage instead
+# # Get NFS user context using shared task
+# - name: Get NFS user context for Vaultwarden
+#   include_tasks: shared/get_nfs_user_context.yml
 
-# Create application directories using shared task
-- name: Create Vaultwarden storage directories
-  include_tasks: shared/create_app_directories.yml
-  vars:
-    app_name: "vaultwarden"
-    app_directories:
-      - "apps/vaultwarden"
+# # Create application directories using shared task
+# - name: Create Vaultwarden storage directories
+#   include_tasks: shared/create_app_directories.yml
+#   vars:
+#     app_name: "vaultwarden"
+#     app_directories:
+#       - "apps/vaultwarden"
 
 # Apply Kubernetes resources using shared task
 - name: Apply Vaultwarden Kubernetes resources
@@ -69,8 +70,8 @@
             tag: "latest"
             pullPolicy: "IfNotPresent"
           pvc_name: "vaultwarden-data"
-          uid: "{{ dynamic_nfs_uid }}"
-          gid: "{{ dynamic_nfs_gid }}"
+          # uid: "{{ dynamic_nfs_uid }}"  # NFS-related, commented out for Longhorn
+          # gid: "{{ dynamic_nfs_gid }}"  # NFS-related, commented out for Longhorn
           service_port: "{{ vaultwarden_service_port }}"
           smtp_host: "{{ smtp_host }}"
           smtp_port: "{{ smtp_port }}"
@@ -122,9 +123,10 @@
       - Service Port: {{ vaultwarden_service_port }}
 
       📁 Storage:
-      - Data Path: /mnt/k3s-storage/apps/vaultwarden
-      - Size: {{ vaultwarden_data_storage_size }}
-      👤 Running as: {{ vault_nfs_username | default('k3s-app-user') }} ({{ dynamic_nfs_uid }}:{{ dynamic_nfs_gid }})
+      - Storage: Longhorn distributed storage
+      - Size: {{ vaultwarden_data_storage_size | default('5Gi') }}
+      # 👤 Running as: {{ vault_nfs_username | default('k3s-app-user') }} ({{ dynamic_nfs_uid | default('N/A') }}:{{ dynamic_nfs_gid | default('N/A') }})
+      👤 Running as: Container default user (Longhorn storage)
 
       🔒 Security:
       - Admin token configured via vault

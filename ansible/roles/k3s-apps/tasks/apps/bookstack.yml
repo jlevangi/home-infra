@@ -8,18 +8,19 @@
     kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
     force_redeploy_var: "bookstack_force_redeploy"
 
-# Get NFS user context using shared task
-- name: Get NFS user context for BookStack
-  include_tasks: shared/get_nfs_user_context.yml
+# NFS-related tasks commented out - using Longhorn storage instead
+# # Get NFS user context using shared task
+# - name: Get NFS user context for BookStack
+#   include_tasks: shared/get_nfs_user_context.yml
 
-# Create BookStack storage directories using shared task
-- name: Create BookStack storage directories
-  include_tasks: shared/create_app_directories.yml
-  vars:
-    app_name: "bookstack"
-    app_directories:
-      - "apps/bookstack"
-      - "database/bookstack"
+# # Create BookStack storage directories using shared task
+# - name: Create BookStack storage directories
+#   include_tasks: shared/create_app_directories.yml
+#   vars:
+#     app_name: "bookstack"
+#     app_directories:
+#       - "apps/bookstack"
+#       - "database/bookstack"
 
 - name: Apply BookStack namespace
   shell: |
@@ -195,14 +196,15 @@
       BookStack: {{ 'Ready' if wait_result.rc == 0 else 'Not Ready - Check logs' }}
       MariaDB: {{ 'Ready' if wait_mariadb_result.rc == 0 else 'Not Ready - Check logs' }}
       
-      💾 Host Path Storage (on all K3s nodes):
-      BookStack Config: /mnt/k3s-storage/apps/bookstack
-      MariaDB Database: /mnt/k3s-storage/database/bookstack
+      💾 Storage:
+      - Storage: Longhorn distributed storage
+      - BookStack Config: Dynamic PVC
+      - MariaDB Database: Dynamic PVC
       
       🔐 Security Context:
-      UID: {{ dynamic_nfs_uid | default('1024') }}
-      GID: {{ dynamic_nfs_gid | default('100') }}
-      This matches your NFS server admin user for proper permissions
+      # UID: {{ dynamic_nfs_uid | default('1024') }}  # NFS-related, commented out for Longhorn
+      # GID: {{ dynamic_nfs_gid | default('100') }}   # NFS-related, commented out for Longhorn
+      Running as: Container default user (Longhorn storage)
       Init containers handle permission setup automatically
       
       📝 Management Commands:
@@ -216,10 +218,10 @@
       🔑 Password: password
       
       💡 Data Location:
-      Data is stored in organized folders on the mounted NFS share:
-      - Host path: /mnt/k3s-storage/apps/bookstack/
-      - Host path: /mnt/k3s-storage/database/bookstack/
-      - NFS backing: {{ vault_nfs_share_apps | default('/volume1/k3s-storage') }}
+      Data is stored in Longhorn distributed storage:
+      - BookStack Config: PVC bookstack-app-data
+      - Database: PVC bookstack-db-data
+      # - NFS backing: {{ vault_nfs_share_apps | default('/volume1/k3s-storage') }}  # NFS-related, commented out
   when: inventory_hostname == groups['k3s_master'][0]
 
 - name: BookStack deployment information

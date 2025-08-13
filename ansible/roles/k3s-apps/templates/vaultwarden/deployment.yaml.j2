@@ -56,16 +56,16 @@ spec:
             configMapKeyRef:
               name: vaultwarden-config
               key: STORAGE_CLAIM
-        - name: PUID
-          valueFrom:
-            configMapKeyRef:
-              name: vaultwarden-config
-              key: PUID
-        - name: PGID
-          valueFrom:
-            configMapKeyRef:
-              name: vaultwarden-config
-              key: PGID
+        # - name: PUID  # NFS-related, commented out for Longhorn
+        #   valueFrom:
+        #     configMapKeyRef:
+        #       name: vaultwarden-config
+        #       key: PUID
+        # - name: PGID  # NFS-related, commented out for Longhorn
+        #   valueFrom:
+        #     configMapKeyRef:
+        #       name: vaultwarden-config
+        #       key: PGID
         - name: TZ
           valueFrom:
             configMapKeyRef:
