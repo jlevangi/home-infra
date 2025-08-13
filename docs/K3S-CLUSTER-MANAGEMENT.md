@@ -18,6 +18,42 @@ The new system uses Kubernetes contexts to manage multiple clusters cleanly, eli
    ./scripts/k3s-context-manager.sh setup
    ```
 
+## Longhorn Storage UI Access
+
+Each cluster includes Longhorn distributed storage with UI access configured:
+
+### Access Methods
+
+**NodePort (Always Available):**
+- Test Cluster: `http://172.20.20.111:30080`
+- Production: `http://[prod-master-ip]:30080`
+
+**Ingress (Configurable):**
+- Test: `http://longhorn.test` (enabled by default)
+- Production: `https://longhorn.levangie.dev` (disabled by default for security)
+
+### Configuration
+
+Longhorn UI access is controlled via group_vars:
+
+```yaml
+# Enable/disable ingress access
+longhorn_ui_ingress_enabled: true/false
+
+# Set app URL for ingress (compatible with Caddy TLS)
+longhorn_ui_app_url: "http://longhorn.test"
+```
+
+**Test Cluster** (`k3s_test_cluster.yml`):
+- Ingress enabled by default for development convenience
+- URL: `http://longhorn.test` (TLS handled by Caddy)
+
+**Production Cluster** (`k3s_cluster.yml`):
+- Ingress disabled by default for security
+- NodePort access available for administrators
+- Can be temporarily enabled if needed
+- URL: `https://longhorn.levangie.dev` (when enabled)
+
 2. **Load Shell Functions** - Add to your `~/.bashrc` or `~/.zshrc`:
    ```bash
    source /path/to/home-infra/scripts/k3s-shell-functions.sh

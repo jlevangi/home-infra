@@ -58,17 +58,20 @@
   debug:
     msg: |
       💾 Storage Architecture:
-      {% if k3s_use_nfs_storage | default(false) %}
-      Using NFS CSI driver for dynamic provisioning
-      - NFS CSI controller will be deployed and validated
-      - Dynamic storage classes available: nfs-apps, nfs-database, nfs-shared, nfs-backup
+      {% if k3s_install_longhorn | default(true) %}
+      Using Longhorn distributed storage for dynamic provisioning
+      - Longhorn provides replicated block storage using local node storage
+      - Dynamic storage class available: longhorn (default)
+      - High availability with configurable replica count
+      - Built-in snapshots, backups, and disaster recovery
       {% else %}
       Using hostPath volumes with NFS backing
       - NFS mounted directly to /mnt/k3s-storage on all nodes
       - Applications use hostPath volumes pointing to NFS-backed storage
-      - No NFS CSI driver needed (simpler, more reliable approach)
+      - No CSI driver needed (simpler, but less resilient approach)
       {% endif %}
 
+# Legacy NFS CSI validation tasks (only run when NFS is explicitly enabled)
 - name: Check if NFS CSI controller ServiceAccount exists
   shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get serviceaccount csi-nfs-controller-sa -n kube-system
   register: csi_sa_check
@@ -156,5 +159,5 @@
       - "   scp {{ k3s_user }}@{{ ansible_default_ipv4.address }}:/etc/rancher/k3s.yaml ~/.kube/config"
       - "   export KUBECONFIG=~/.kube/config"
       - ""
-      - "{% if k3s_use_nfs_storage | default(false) %}💾 NFS CSI Storage is configured and validated!{% else %}💾 HostPath NFS Storage is configured at /mnt/k3s-storage/{% endif %}"
-      - "{% if k3s_use_nfs_storage | default(false) %}   Available storage classes: nfs-apps, nfs-database, nfs-shared, nfs-backup{% else %}   Applications will use hostPath volumes with NFS backing{% endif %}"
+      - "{% if k3s_install_longhorn | default(true) %}💾 Longhorn distributed storage is configured and validated!{% else %}💾 HostPath NFS Storage is configured at /mnt/k3s-storage/{% endif %}"
+      - "{% if k3s_install_longhorn | default(true) %}   Default storage class: longhorn (replicated block storage){% else %}   Applications will use hostPath volumes with NFS backing{% endif %}"

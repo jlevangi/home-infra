@@ -1,39 +1,20 @@
----
-# {{ app_name | title }} PersistentVolume
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: {{ app_name }}-{{ volume_name }}-pv
-spec:
-  capacity:
-    storage: {{ volume_size | default('1Gi') }}
-  volumeMode: Filesystem
-  accessModes:
-  - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: "nfs-hostpath"
-  hostPath:
-    path: {{ host_path }}
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-      - matchExpressions:
-        - key: kubernetes.io/os
-          operator: In
-          values:
-          - linux
----
-# {{ app_name | title }} PersistentVolumeClaim
+# {{ app_name | title }} PersistentVolumeClaim - Longhorn Dynamic Provisioning
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ app_name }}-{{ volume_name }}-pvc
   namespace: {{ app_name }}
+  annotations:
+    # Enable automatic volume expansion
+    volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+  labels:
+    app: {{ app_name }}
+    volume-type: {{ volume_name }}
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: {{ volume_size | default('1Gi') }}
-  storageClassName: "nfs-hostpath"
-  volumeName: {{ app_name }}-{{ volume_name }}-pv
+      # Start with minimal size - will grow as needed within limits
+      storage: {{ initial_volume_size | default('100Mi') }}
+  storageClassName: "{{ storage_class | default('longhorn') }}"

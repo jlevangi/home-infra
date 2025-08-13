@@ -1,0 +1,191 @@
+---
+# Install Longhorn distributed storage system
+- name: Add Longhorn Helm repo
+  ansible.builtin.shell: helm repo add longhorn https://charts.longhorn.io
+  args:
+    creates: /tmp/longhorn-repo-added
+
+- name: Mark Longhorn repo as added
+  ansible.builtin.file:
+    path: /tmp/longhorn-repo-added
+    state: touch
+  when: not ansible_check_mode
+
+- name: Update Helm repos
+  ansible.builtin.shell: helm repo update
+
+- name: Check if Longhorn is already installed
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm list -n longhorn-system | grep longhorn
+  register: longhorn_check
+  failed_when: false
+  become: yes
+
+- name: Install Longhorn
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm upgrade --install longhorn longhorn/longhorn \
+      --namespace longhorn-system \
+      --create-namespace \
+      --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(3) }} \
+      --set defaultSettings.defaultDataPath="/var/lib/longhorn/" \
+      --wait --timeout=600s
+  become: yes
+  when: longhorn_check.rc != 0
+
+- name: Wait for Longhorn manager pods to be ready
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl -n longhorn-system wait --for=condition=Ready pod -l app=longhorn-manager --timeout=300s
+  register: longhorn_manager_wait
+  changed_when: false
+  become: yes
+
+- name: Wait for Longhorn driver deployer to be ready
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl -n longhorn-system wait --for=condition=Ready pod -l app=longhorn-driver-deployer --timeout=300s
+  register: longhorn_driver_wait
+  changed_when: false
+  become: yes
+  ignore_errors: yes
+
+- name: Check Longhorn storage class is available
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get storageclass longhorn
+  register: longhorn_sc_check
+  until: longhorn_sc_check.rc == 0
+  retries: 10
+  delay: 30
+  become: yes
+
+- name: Check for any existing validation PVC
+  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pvc longhorn-validation-pvc --ignore-not-found=true
+  register: existing_pvc
+  become: yes
+
+- name: Clean up any existing validation PVC
+  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl delete pvc longhorn-validation-pvc --ignore-not-found=true
+  become: yes
+  when: existing_pvc.stdout != ""
+
+- name: Validate Longhorn storage with test PVC
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f - <<EOF
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: longhorn-validation-pvc
+      namespace: default
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 100Mi
+      storageClassName: longhorn
+    EOF
+  become: yes
+
+- name: Wait for test PVC to be bound
+  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc/longhorn-validation-pvc --timeout=300s
+  register: pvc_wait_result
+  become: yes
+  ignore_errors: yes
+
+- name: Show PVC status if binding failed
+  shell: |
+    echo "=== PVC Status ==="
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pvc longhorn-validation-pvc -o yaml
+    echo "=== Events ==="
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get events --sort-by='.lastTimestamp' | grep longhorn-validation-pvc || echo "No PVC events found"
+    echo "=== Longhorn Manager Logs ==="
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl logs -n longhorn-system -l app=longhorn-manager --tail=20 || echo "No manager logs"
+  become: yes
+  when: pvc_wait_result.rc != 0
+
+- name: Clean up test PVC
+  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl delete pvc longhorn-validation-pvc --ignore-not-found=true
+  become: yes
+
+- name: Check if master nodes are registered with Longhorn
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes.longhorn.io {{ item }} -n longhorn-system >/dev/null 2>&1
+  loop: "{{ groups[master_group] }}"
+  become: yes
+  register: master_longhorn_check
+  failed_when: false  # Don't fail - we expect this to fail
+  when: 
+    - longhorn_exclude_master_from_storage | default(true)
+    - item in groups[master_group]
+
+- name: Disable storage scheduling on masters that are in Longhorn
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch nodes.longhorn.io {{ item.item }} -n longhorn-system \
+      --type='merge' -p='{"spec":{"allowScheduling":false}}'
+  loop: "{{ master_longhorn_check.results | default([]) }}"
+  become: yes
+  when: 
+    - longhorn_exclude_master_from_storage | default(true)
+    - item.rc == 0  # Only patch if the node exists in Longhorn
+
+- name: Display master node storage exclusion status
+  debug:
+    msg: |
+      📊 Master Node Storage Exclusion Status:
+      {% for result in master_longhorn_check.results | default([]) %}
+      {% if result.rc == 0 %}
+      ⚠️  {{ result.item }}: Found in Longhorn - storage scheduling disabled
+      {% else %}
+      ✅ {{ result.item }}: Correctly excluded from Longhorn storage (best practice)
+      {% endif %}
+      {% endfor %}
+  when: 
+    - longhorn_exclude_master_from_storage | default(true)
+    - master_longhorn_check is defined
+
+- name: Patch Longhorn frontend service to NodePort
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch svc longhorn-frontend -n longhorn-system \
+      -p '{"spec":{"type":"NodePort","ports":[{"port":80,"nodePort":30080,"targetPort":8000}]}}'
+  become: yes
+  when: inventory_hostname == groups[master_group][0]
+
+- name: Deploy Longhorn UI Ingress
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f - <<EOF
+    ---
+    # Longhorn UI Ingress (using common pattern, TLS handled by Caddy)
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: longhorn-frontend-ingress
+      namespace: longhorn-system
+      annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: web
+    spec:
+      ingressClassName: traefik
+      rules:
+      - host: {{ longhorn_ui_app_url | regex_replace('https?://','') }}
+        http:
+          paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: longhorn-frontend
+                port:
+                  number: 80
+    EOF
+  become: yes
+  when: 
+    - inventory_hostname == groups[master_group][0]
+    - longhorn_ui_ingress_enabled | default(false)
+
+- name: Display Longhorn installation info
+  debug:
+    msg:
+      - "✅ Longhorn distributed storage is ready!"
+      - "💾 Storage Architecture: Longhorn distributed block storage"
+      - "📊 Access Longhorn UI:"
+      - "   🌐 NodePort: http://{{ ansible_default_ipv4.address }}:30080"
+      - "{% if longhorn_ui_ingress_enabled | default(false) %}   🔗 Ingress: {{ longhorn_ui_app_url }}{% endif %}"
+      - "🔧 Default storage class: longhorn"
+      - "⚡ Using local node storage with {{ longhorn_replica_count | default(3) }} replicas"

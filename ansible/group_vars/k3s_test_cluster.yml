@@ -40,3 +40,51 @@ base_storage_path: "/mnt/k3s-storage-test"
 
 # Override NFS path for test environment to prevent mounting main share
 nfs_path: "{{ nfs_share_root }}-test"
+
+# Test Environment - App Deployment Control
+# Enable all apps by default in test for comprehensive testing
+deploy_bookstack: true
+deploy_homepage: true
+deploy_vaultwarden: true
+
+# Test Environment - Force Redeploy Configuration
+bookstack_force_redeploy: true
+homepage_force_redeploy: true
+vaultwarden_force_redeploy: true
+
+# Longhorn Configuration for Test Cluster
+# Dynamic replica count based on available worker nodes
+# Calculates based on nodes in the worker_group (k3s_test_workers)
+longhorn_replica_count: "{{ [groups[worker_group] | length, 3] | min }}"
+longhorn_exclude_master_from_storage: true
+
+# Longhorn UI Access Configuration
+longhorn_ui_ingress_enabled: true
+longhorn_ui_app_url: "http://longhorn.test"
+
+# Test Environment - Dynamic Storage Configuration with Limits
+# Fully dynamic sizing with maximum limits to prevent overage
+
+# Global storage limits for test environment (conservative for small nodes)
+global_max_pvc_size: "5Gi"               # Global max per PVC
+global_min_pvc_size: "10Mi"              # Global min per PVC  
+global_max_pvcs: "5"                     # Max PVCs per namespace
+
+# Global initial size for all PVCs (starts small, grows as needed)
+default_initial_volume_size: "100Mi"
+
+# Database-specific initial sizes (databases need more space for initialization)
+bookstack_database_initial_volume_size: "500Mi"
+
+# Per-application storage limits (maximum each app can consume)
+bookstack_max_namespace_storage: "8Gi"    # Total for BookStack namespace
+bookstack_max_pvc_size: "5Gi"             # Max per individual PVC
+bookstack_default_pvc_size: "500Mi"       # Default PVC size
+
+vaultwarden_max_namespace_storage: "5Gi"
+vaultwarden_max_pvc_size: "3Gi"
+vaultwarden_default_pvc_size: "500Mi"
+
+homepage_max_namespace_storage: "2Gi"
+homepage_max_pvc_size: "1Gi"
+homepage_default_pvc_size: "100Mi"

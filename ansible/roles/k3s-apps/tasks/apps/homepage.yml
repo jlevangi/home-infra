@@ -23,15 +23,7 @@
     app_directories:
       - "apps/homepage/config"
 
-# Handle PV/PVC cleanup for force redeploy
-- name: Clean up Homepage PV/PVC for force redeploy
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml delete pvc homepage-config-pvc -n homepage --ignore-not-found=true
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml delete pv homepage-config-pv --ignore-not-found=true
-    sleep 3
-  when: 
-    - inventory_hostname == groups[master_group][0]
-    - homepage_force_redeploy | default(false) | bool
+# PVC cleanup is now handled by the generic cleanup_task.yml
 
 # Apply Kubernetes resources using shared task
 - name: Apply Homepage Kubernetes resources
@@ -43,15 +35,27 @@
         template: "common/namespace.yaml.j2"
         vars:
           app_name: homepage
+      - name: "ResourceQuota"
+        template: "common/resource-quota.yaml.j2"
+        vars:
+          app_name: homepage
+          max_namespace_storage: "{{ homepage_max_namespace_storage | default('10Gi') }}"
+          max_pvcs: "{{ global_max_pvcs | default('10') }}"
+      - name: "LimitRange"
+        template: "common/limit-range.yaml.j2"
+        vars:
+          app_name: homepage
+          max_pvc_size: "{{ homepage_max_pvc_size | default('5Gi') }}"
+          min_pvc_size: "{{ global_min_pvc_size | default('10Mi') }}"
+          default_pvc_size: "{{ homepage_default_pvc_size | default('1Gi') }}"
       - name: "ConfigMap"
         template: "homepage/configmap.yaml.j2"
-      - name: "PV/PVC"
+      - name: "PV/PVC (Dynamic)"
         template: "common/pv-pvc.yaml.j2"
         vars:
           app_name: homepage
           volume_name: config
-          volume_size: 1Gi
-          host_path: "{{ base_storage_path }}/apps/homepage/config"
+          initial_volume_size: "{{ default_initial_volume_size | default('100Mi') }}"
       - name: "Deployment"
         template: "homepage/deployment.yaml.j2"
       - name: "Service"
