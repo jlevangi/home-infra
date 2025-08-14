@@ -124,6 +124,7 @@ longhorn_ui_app_url: "https://longhorn.levangie.dev"
 
 # Longhorn Backup Configuration
 enable_longhorn_backup: true  # Enable automatic backups to NFS
+longhorn_backup_shared_across_clusters: true   # Use shared backup location for cross-cluster restore
 longhorn_backup_schedule_daily: "0 2 * * *"    # Daily at 2 AM
 longhorn_backup_schedule_weekly: "0 3 * * 0"   # Weekly on Sunday at 3 AM
 longhorn_backup_retain_daily: 7                # Keep 7 daily backups

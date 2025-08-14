@@ -43,7 +43,7 @@
       --create-namespace \
       --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
       --set defaultSettings.defaultDataPath="/var/lib/longhorn/" \
-      {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}" \
+      {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}" \
       {% endif %}--wait --timeout=600s
   become: yes
   when: longhorn_check.rc != 0
@@ -146,7 +146,7 @@
 - name: Update Longhorn BackupTarget resource with correct NFS format
   ansible.builtin.shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch backuptarget.longhorn.io default -n longhorn-system \
-      --type='merge' -p='{"spec":{"backupTargetURL":"nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}"}}'
+      --type='merge' -p='{"spec":{"backupTargetURL":"nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}"}}'
   become: yes
   register: backup_target_update_result
   failed_when: false
