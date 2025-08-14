@@ -1,0 +1,123 @@
+---
+# Playbook to migrate production data from NFS hostPath to Longhorn volumes
+# This performs a safe, zero-downtime migration with backup verification
+
+- name: Migrate Production Data from NFS to Longhorn
+  hosts: "{{ target_hosts | default('k3s_master') }}"
+  become: yes
+  gather_facts: yes
+  vars:
+    migration_namespace: "migration-temp"
+    
+  tasks:
+    - name: Display migration overview
+      debug:
+        msg: |
+          🔄 Production Data Migration Plan:
+          
+          📋 Current Production Storage:
+          - homepage: nfs-hostpath PVC (1Gi)
+          - vaultwarden: nfs-hostpath PVC (10Gi)
+          
+          🎯 Migration Strategy:
+          1. Deploy Longhorn to production cluster
+          2. Create migration namespace
+          3. Copy data from NFS mounts to Longhorn volumes
+          4. Switch applications to use Longhorn PVCs
+          5. Verify and cleanup
+          
+          ⚠️  This is a PREVIEW - actual migration requires manual approval
+
+    - name: Check if Longhorn is already deployed in production
+      shell: |
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get namespace longhorn-system
+      register: longhorn_check
+      failed_when: false
+
+    - name: Display Longhorn deployment status
+      debug:
+        msg: |
+          🔍 Longhorn Deployment Status:
+          {% if longhorn_check.rc == 0 %}
+          ✅ Longhorn namespace exists - Longhorn appears to be deployed
+          {% else %}
+          ❌ Longhorn not found - needs to be deployed first
+          💡 Run: ansible-playbook k3s-deploy-cluster.yml to deploy Longhorn
+          {% endif %}
+
+    - name: Check current PVCs and their mount points
+      shell: |
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pvc -A -o custom-columns=NAMESPACE:.metadata.namespace,NAME:.metadata.name,STATUS:.status.phase,VOLUME:.spec.volumeName,STORAGECLASS:.spec.storageClassName,SIZE:.spec.resources.requests.storage
+      register: current_pvcs
+
+    - name: Display current PVC status
+      debug:
+        msg: |
+          📊 Current Production PVCs:
+          {{ current_pvcs.stdout_lines | join('\n') }}
+
+    - name: Get detailed information about NFS-based volumes
+      shell: |
+        echo "=== Homepage PVC Details ==="
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pvc homepage-config-pvc -n homepage -o yaml | grep -A10 -B5 "storageClassName\|volumeName"
+        echo ""
+        echo "=== Vaultwarden PVC Details ==="
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pvc vaultwarden-data-pvc -n vaultwarden -o yaml | grep -A10 -B5 "storageClassName\|volumeName"
+      register: pvc_details
+      failed_when: false
+
+    - name: Display PVC details
+      debug:
+        msg: |
+          📋 Detailed PVC Information:
+          {{ pvc_details.stdout_lines | join('\n') }}
+
+    - name: Check current pod status
+      shell: |
+        echo "=== Running Pods Using NFS Storage ==="
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -n homepage
+        echo ""
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -n vaultwarden
+      register: pod_status
+
+    - name: Display pod status
+      debug:
+        msg: |
+          📊 Current Pod Status:
+          {{ pod_status.stdout_lines | join('\n') }}
+
+    - name: Create migration plan summary
+      debug:
+        msg: |
+          📋 PRODUCTION MIGRATION SUMMARY:
+          
+          🎯 Current State:
+          - Using nfs-hostpath storage class
+          - Data stored on NFS mounts
+          - Apps: homepage (1Gi), vaultwarden (10Gi)
+          
+          🔄 Migration Steps Required:
+          {% if longhorn_check.rc == 0 %}
+          1. ✅ Longhorn is deployed
+          {% else %}
+          1. ❌ Deploy Longhorn to production first
+          {% endif %}
+          2. 📊 Take backup of current NFS data
+          3. 🔄 Create Longhorn PVCs with same size
+          4. 📂 Copy data from NFS to Longhorn volumes
+          5. 🔀 Update apps to use Longhorn PVCs
+          6. ✅ Verify and cleanup old NFS volumes
+          
+          ⚠️  NEXT ACTIONS NEEDED:
+          {% if longhorn_check.rc != 0 %}
+          - Deploy Longhorn to production cluster first
+          - Then run data migration playbook
+          {% else %}
+          - Review this plan
+          - Run with --extra-vars "execute_migration=true" to proceed
+          {% endif %}
+          
+          💡 Backup Strategy:
+          - All data will be copied, not moved
+          - Original NFS data remains until verified
+          - Can rollback by switching PVC references

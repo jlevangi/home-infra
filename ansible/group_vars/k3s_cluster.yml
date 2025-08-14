@@ -119,7 +119,7 @@ longhorn_replica_count: "{{ [groups[worker_group] | length, 3] | min }}"
 longhorn_exclude_master_from_storage: true
 
 # Longhorn UI Access Configuration
-longhorn_ui_ingress_enabled: false  # Disabled in production for security
+longhorn_ui_ingress_enabled: true  # Temporarily enabled for UI access
 longhorn_ui_app_url: "https://longhorn.levangie.dev"
 
 # Longhorn Backup Configuration
