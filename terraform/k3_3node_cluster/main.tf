@@ -69,7 +69,6 @@ resource "proxmox_vm_qemu" "terraform" {
     slot = "ide2"
     type = "cloudinit"
     storage = "vm_data"
-    size = "4M"  # Minimal size to suppress warning
   }
 
   network {
@@ -110,8 +109,10 @@ resource "null_resource" "k3s_deployment" {
   count = var.vm_count == length(proxmox_vm_qemu.terraform) ? 1 : 0
   
   provisioner "local-exec" {
-    command = "cd ../.. && sleep 180 && scripts/deploy_k3s_cluster.sh --prod"
-    working_dir = path.module
+    # Use timeout command to allow 30 minutes for full K3s deployment
+    # Default Terraform timeout is ~10 minutes which is too short
+    # Use absolute path to handle being called from rebuild script
+    command = "sleep 90 && timeout 1800 bash ${path.module}/../../scripts/deploy_k3s_cluster.sh --prod"
   }
   
   # Trigger re-run if any VM changes
