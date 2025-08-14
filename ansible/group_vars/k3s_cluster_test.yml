@@ -32,7 +32,7 @@ traefik_loadbalancer_ip: "172.20.20.220"  # Fixed IP for Traefik LoadBalancer
 # You might want test apps to use different NFS subdirectories
 nfs_share_apps: "{{ nfs_share_root }}/test-apps"
 nfs_share_database: "{{ nfs_share_root }}/test-database" 
-nfs_share_backup: "{{ vault_nfs_share_backup_root }}/test"
+nfs_share_backup: "{{ vault_nfs_share_backup_root }}"
 nfs_share_shared: "{{ nfs_share_root }}/test-shared"
 
 # Cluster environment identifier

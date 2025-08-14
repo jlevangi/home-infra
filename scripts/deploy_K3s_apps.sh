@@ -13,7 +13,7 @@ SHOW_HELP=false
 while [[ $# -gt 0 ]]; do
 	case $1 in
 		--prod|--production)
-			TARGET_CLUSTER="k3s_cluster_prod"
+			TARGET_CLUSTER="k3s_cluster"
 			shift
 			;;
 		--test)
@@ -54,7 +54,7 @@ if [[ "$SHOW_HELP" == "true" ]] || [[ -z "$TARGET_CLUSTER" ]]; then
 	echo "Usage: $0 --prod|--test [OPTIONS]"
 	echo ""
 	echo "Target Selection (required):"
-	echo "  --prod, --production   Deploy apps to production cluster (k3s_cluster_prod)"
+	echo "  --prod, --production   Deploy apps to production cluster (k3s_cluster)"
 	echo "  --test                 Deploy apps to test cluster (k3s_cluster_test)"
 	echo ""
 	echo "Options:"
@@ -81,8 +81,8 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Set up target-specific variables and switch kubectl context
-if [[ "$TARGET_CLUSTER" == "k3s_test_cluster" ]]; then
-	EXTRA_VARS="$EXTRA_VARS -e target_cluster=k3s_test_cluster"
+if [[ "$TARGET_CLUSTER" == "k3s_cluster_test" ]]; then
+	EXTRA_VARS="$EXTRA_VARS -e target_cluster=k3s_cluster_test"
 	CLUSTER_NAME="Test"
 	CLUSTER_EMOJI="🧪"
 	KUBECTL_CONTEXT="test"
