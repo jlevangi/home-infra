@@ -8,225 +8,235 @@
     kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
     force_redeploy_var: "bookstack_force_redeploy"
 
-# NFS-related tasks commented out - using Longhorn storage instead
-# # Get NFS user context using shared task
-# - name: Get NFS user context for BookStack
-#   include_tasks: shared/get_nfs_user_context.yml
-
-# # Create BookStack storage directories using shared task
-# - name: Create BookStack storage directories
-#   include_tasks: shared/create_app_directories.yml
-#   vars:
-#     app_name: "bookstack"
-#     app_directories:
-#       - "apps/bookstack"
-#       - "database/bookstack"
-
-- name: Apply BookStack namespace
+# Check if BookStack deployment already exists (to respect force_redeploy flag)
+- name: Check if BookStack namespace exists
   shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'common/namespace.yaml.j2') }}"
-  vars:
-    app_name: bookstack
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get namespace bookstack
+  register: bookstack_namespace_check
+  failed_when: false
+  changed_when: false
   when: inventory_hostname == groups[master_group][0]
 
-- name: Apply BookStack storage limits (ResourceQuota)
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'common/resource-quota.yaml.j2') }}"
-  vars:
-    app_name: bookstack
-    max_namespace_storage: "{{ bookstack_max_namespace_storage | default('50Gi') }}"
-    max_pvcs: "{{ global_max_pvcs | default('10') }}"
+# Set deployment condition: deploy if force_redeploy is true OR namespace doesn't exist
+- name: Set BookStack deployment condition
+  set_fact:
+    should_deploy_bookstack: "{{ bookstack_force_redeploy | default(false) | bool or bookstack_namespace_check.rc != 0 }}"
   when: inventory_hostname == groups[master_group][0]
 
-- name: Apply BookStack PVC size limits (LimitRange)
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'common/limit-range.yaml.j2') }}"
-  vars:
-    app_name: bookstack
-    max_pvc_size: "{{ bookstack_max_pvc_size | default('20Gi') }}"
-    min_pvc_size: "{{ global_min_pvc_size | default('10Mi') }}"
-    default_pvc_size: "{{ bookstack_default_pvc_size | default('1Gi') }}"
-  when: inventory_hostname == groups[master_group][0]
-
-- name: Apply BookStack App PVC (dynamic sizing)
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'common/pv-pvc.yaml.j2') }}"
-  vars:
-    app_name: bookstack
-    volume_name: app-data
-    initial_volume_size: "{{ default_initial_volume_size | default('100Mi') }}"
-  when: inventory_hostname == groups[master_group][0]
-
-- name: Apply BookStack Database PVC (dynamic sizing)
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'common/pv-pvc.yaml.j2') }}"
-  vars:
-    app_name: bookstack
-    volume_name: db-data
-    initial_volume_size: "{{ bookstack_database_initial_volume_size | default(default_initial_volume_size) | default('500Mi') }}"
-  when: inventory_hostname == groups[master_group][0]
-
-- name: Apply BookStack ConfigMap
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'bookstack/configmap.yaml.j2') }}"
-  when: inventory_hostname == groups[master_group][0]
-
-- name: Apply BookStack Secrets
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'bookstack/secrets.yaml.j2') }}"
-  when: inventory_hostname == groups[master_group][0]
-
-- name: Remove any existing problematic ingress
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml delete ingress bookstack-ingress -n bookstack --ignore-not-found=true
-  when: inventory_hostname == groups[master_group][0]
-  ignore_errors: yes
-
-- name: Apply BookStack Deployment
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'bookstack/deployment.yaml.j2') }}"
-  when: inventory_hostname == groups[master_group][0]
-  register: apply_result
-
-- name: Apply BookStack Service
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'bookstack/service.yaml.j2') }}"
-  when: inventory_hostname == groups[master_group][0]
-
-- name: Apply BookStack Ingress
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'common/ingress.yaml.j2') }}"
-  vars:
-    service_name: "bookstack"
-    app_url: "{{ bookstack_app_url }}"
-    service_port: "{{ bookstack_service_port }}"
-  when: inventory_hostname == groups[master_group][0]
-
-- name: Display apply results
+- name: Display BookStack deployment decision
   debug:
     msg: |
-      📦 BookStack Deployment Results:
-      {{ apply_result.stdout }}
-      
-      {% if apply_result.stderr %}
-      ⚠️  Warnings/Errors:
-      {{ apply_result.stderr }}
-      {% endif %}
+      📋 BookStack Deployment Decision:
+      Force redeploy setting: {{ bookstack_force_redeploy | default(false) }}
+      Namespace exists: {{ 'Yes' if bookstack_namespace_check.rc == 0 else 'No' }}
+      Will deploy: {{ should_deploy_bookstack | default(false) }}
+      Reason: {{ 'Force redeploy enabled' if bookstack_force_redeploy | default(false) | bool else ('Namespace missing - first deployment' if bookstack_namespace_check.rc != 0 else 'Skipping - deployment exists and force_redeploy=false') }}
   when: inventory_hostname == groups[master_group][0]
 
-- name: Wait for BookStack pods to be ready
-  shell: |
-    echo "Waiting for BookStack pods to be ready..."
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml wait --for=condition=Ready pod -l app=bookstack -n bookstack --timeout=600s
-  register: wait_result
-  ignore_errors: yes
-  when: inventory_hostname == groups[master_group][0]
+# Deploy BookStack resources (only if should_deploy_bookstack is true)
+- name: Deploy BookStack Kubernetes resources
+  block:
+    - name: Apply BookStack namespace
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+      args:
+        stdin: "{{ lookup('template', 'common/namespace.yaml.j2') }}"
+      vars:
+        app_name: bookstack
 
-- name: Show BookStack pod status if wait failed
-  shell: |
-    echo "Current BookStack pod status:"
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get pods -n bookstack -l app=bookstack
-    echo "Recent events:"
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get events -n bookstack --sort-by='.lastTimestamp' | tail -10
-    echo "Container logs (last 20 lines):"
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml logs -n bookstack -l app=bookstack --tail=20
+    - name: Apply BookStack storage limits (ResourceQuota)
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+      args:
+        stdin: "{{ lookup('template', 'common/resource-quota.yaml.j2') }}"
+      vars:
+        app_name: bookstack
+        max_namespace_storage: "{{ bookstack_max_namespace_storage | default('50Gi') }}"
+        max_pvcs: "{{ global_max_pvcs | default('10') }}"
+
+    - name: Apply BookStack PVC size limits (LimitRange)
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+      args:
+        stdin: "{{ lookup('template', 'common/limit-range.yaml.j2') }}"
+      vars:
+        app_name: bookstack
+        max_pvc_size: "{{ bookstack_max_pvc_size | default('20Gi') }}"
+        min_pvc_size: "{{ global_min_pvc_size | default('10Mi') }}"
+        default_pvc_size: "{{ bookstack_default_pvc_size | default('1Gi') }}"
+
+    - name: Apply BookStack App PVC (dynamic sizing)
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+      args:
+        stdin: "{{ lookup('template', 'common/pv-pvc.yaml.j2') }}"
+      vars:
+        app_name: bookstack
+        volume_name: app-data
+        initial_volume_size: "{{ default_initial_volume_size | default('100Mi') }}"
+
+    - name: Apply BookStack Database PVC (dynamic sizing)
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+      args:
+        stdin: "{{ lookup('template', 'common/pv-pvc.yaml.j2') }}"
+      vars:
+        app_name: bookstack
+        volume_name: db-data
+        initial_volume_size: "{{ bookstack_database_initial_volume_size | default(default_initial_volume_size) | default('500Mi') }}"
+
+    - name: Apply BookStack ConfigMap
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+      args:
+        stdin: "{{ lookup('template', 'bookstack/configmap.yaml.j2') }}"
+
+    - name: Apply BookStack Secrets
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+      args:
+        stdin: "{{ lookup('template', 'bookstack/secrets.yaml.j2') }}"
+
+    - name: Remove any existing problematic ingress
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml delete ingress bookstack-ingress -n bookstack --ignore-not-found=true
+      ignore_errors: yes
+
+    - name: Apply BookStack Deployment
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+      args:
+        stdin: "{{ lookup('template', 'bookstack/deployment.yaml.j2') }}"
+      register: apply_result
+
+    - name: Apply BookStack Service
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+      args:
+        stdin: "{{ lookup('template', 'bookstack/service.yaml.j2') }}"
+
+    - name: Apply BookStack Ingress
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+      args:
+        stdin: "{{ lookup('template', 'common/ingress.yaml.j2') }}"
+      vars:
+        service_name: "bookstack"
+        app_url: "{{ bookstack_app_url }}"
+        service_port: "{{ bookstack_service_port }}"
+
+    - name: Display apply results
+      debug:
+        msg: |
+          📦 BookStack Deployment Results:
+          {{ apply_result.stdout }}
+          
+          {% if apply_result.stderr %}
+          ⚠️  Warnings/Errors:
+          {{ apply_result.stderr }}
+          {% endif %}
+
+    - name: Wait for BookStack pods to be ready
+      shell: |
+        echo "Waiting for BookStack pods to be ready..."
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml wait --for=condition=Ready pod -l app=bookstack -n bookstack --timeout=600s
+      register: wait_result
+      ignore_errors: yes
+
+    - name: Show BookStack pod status if wait failed
+      shell: |
+        echo "Current BookStack pod status:"
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get pods -n bookstack -l app=bookstack
+        echo "Recent events:"
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get events -n bookstack --sort-by='.lastTimestamp' | tail -10
+        echo "Container logs (last 20 lines):"
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml logs -n bookstack -l app=bookstack --tail=20
+      when: wait_result.rc != 0
+
+    - name: Wait for MariaDB pods to be ready
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml wait --for=condition=Ready pod -l app=bookstack-mariadb -n bookstack --timeout=300s
+      register: wait_mariadb_result
+      ignore_errors: yes
+
+    - name: Get final BookStack deployment status
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get pods -n bookstack
+      register: final_status
+      ignore_errors: yes
+
+    - name: Get BookStack service information
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get svc bookstack -n bookstack -o jsonpath='{.metadata.name}' 2>/dev/null || echo 'No service found'
+      register: bookstack_service_info
+
+    - name: Get BookStack ingress information
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get ingress -n bookstack -o jsonpath='{.items[0].spec.rules[0].host}' 2>/dev/null || echo 'No ingress found'
+      register: ingress_host
+
+    - name: Display BookStack deployment information
+      debug:
+        msg: |
+          🎉 BookStack Deployment Complete with Longhorn Storage!
+          
+          📊 Final Pod Status:
+          {{ final_status.stdout if final_status.rc == 0 else 'No pods found' }}
+          
+          🔗 Service: {{ bookstack_service_info.stdout }}
+          🌐 Ingress Host: {{ ingress_host.stdout }}
+          🌐 Access URL: {{ bookstack_app_url }}
+          
+          ✅ Readiness Status:
+          BookStack: {{ 'Ready' if wait_result.rc == 0 else 'Not Ready - Check logs' }}
+          MariaDB: {{ 'Ready' if wait_mariadb_result.rc == 0 else 'Not Ready - Check logs' }}
+          
+          💾 Storage:
+          - Storage: Longhorn distributed storage
+          - BookStack Config: Dynamic PVC
+          - MariaDB Database: Dynamic PVC
+          
+          🔐 Security Context:
+          Running as: Container default user (Longhorn storage)
+          Init containers handle permission setup automatically
+          
+          📝 Management Commands:
+          kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get all -n bookstack
+          kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml logs -n bookstack deployment/bookstack
+          kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml logs -n bookstack deployment/bookstack-mariadb
+          kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml port-forward -n bookstack svc/bookstack 8080:8080
+          
+          🔐 Default BookStack credentials:
+          📧 Email: admin@admin.com
+          🔑 Password: password
+          
+          💡 Data Location:
+          Data is stored in Longhorn distributed storage:
+          - BookStack Config: PVC bookstack-app-data
+          - Database: PVC bookstack-db-data
+
+    - name: BookStack deployment information
+      debug:
+        msg: |
+          📄 BookStack deployed using modular templates
+          Templates used: bookstack/configmap.yaml.j2, bookstack/secrets.yaml.j2, 
+                         bookstack/deployment.yaml.j2, bookstack/service.yaml.j2, common/ingress.yaml.j2
+
   when: 
     - inventory_hostname == groups[master_group][0]
-    - wait_result.rc != 0
+    - should_deploy_bookstack | default(false) | bool
 
-- name: Wait for MariaDB pods to be ready
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml wait --for=condition=Ready pod -l app=bookstack-mariadb -n bookstack --timeout=300s
-  register: wait_mariadb_result
-  ignore_errors: yes
-  when: inventory_hostname == groups[master_group][0]
-
-- name: Get final BookStack deployment status
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get pods -n bookstack
-  register: final_status
-  ignore_errors: yes
-  when: inventory_hostname == groups[master_group][0]
-
-- name: Get BookStack service information
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get svc bookstack -n bookstack -o jsonpath='{.metadata.name}' 2>/dev/null || echo 'No service found'
-  register: bookstack_service_info
-  when: inventory_hostname == groups[master_group][0]
-
-- name: Get BookStack ingress information
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get ingress -n bookstack -o jsonpath='{.items[0].spec.rules[0].host}' 2>/dev/null || echo 'No ingress found'
-  register: ingress_host
-  when: inventory_hostname == groups[master_group][0]
-
-- name: Display BookStack deployment information
+# Show skip message when deployment is skipped
+- name: Display BookStack skip message
   debug:
     msg: |
-      🎉 BookStack Deployment Complete with Host Path NFS Storage!
+      ⏭️ BookStack Deployment Skipped
       
-      📊 Final Pod Status:
-      {{ final_status.stdout if final_status.rc == 0 else 'No pods found' }}
+      📋 Reason: force_redeploy is false and BookStack namespace already exists
+      📊 Current Status: BookStack is already deployed
       
-      🔗 Service: {{ bookstack_service_info.stdout }}
-      🌐 Ingress Host: {{ ingress_host.stdout }}
-      🌐 Access URL: {{ bookstack_app_url }}
-      
-      ✅ Readiness Status:
-      BookStack: {{ 'Ready' if wait_result.rc == 0 else 'Not Ready - Check logs' }}
-      MariaDB: {{ 'Ready' if wait_mariadb_result.rc == 0 else 'Not Ready - Check logs' }}
-      
-      💾 Storage:
-      - Storage: Longhorn distributed storage
-      - BookStack Config: Dynamic PVC
-      - MariaDB Database: Dynamic PVC
-      
-      🔐 Security Context:
-      # UID: {{ dynamic_nfs_uid | default('1024') }}  # NFS-related, commented out for Longhorn
-      # GID: {{ dynamic_nfs_gid | default('100') }}   # NFS-related, commented out for Longhorn
-      Running as: Container default user (Longhorn storage)
-      Init containers handle permission setup automatically
-      
-      📝 Management Commands:
-      kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get all -n bookstack
-      kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml logs -n bookstack deployment/bookstack
-      kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml logs -n bookstack deployment/bookstack-mariadb
-      kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml port-forward -n bookstack svc/bookstack 8080:8080
-      
-      🔐 Default BookStack credentials:
-      📧 Email: admin@admin.com
-      🔑 Password: password
-      
-      💡 Data Location:
-      Data is stored in Longhorn distributed storage:
-      - BookStack Config: PVC bookstack-app-data
-      - Database: PVC bookstack-db-data
-      # - NFS backing: {{ vault_nfs_share_apps | default('/volume1/k3s-storage') }}  # NFS-related, commented out
-  when: inventory_hostname == groups[master_group][0]
-
-- name: BookStack deployment information
-  debug:
-    msg: |
-      📄 BookStack deployed using modular templates
-      Templates used: bookstack/configmap.yaml.j2, bookstack/secrets.yaml.j2, 
-                     bookstack/deployment.yaml.j2, bookstack/service.yaml.j2, bookstack/ingress.yaml.j2
+      💡 To redeploy BookStack, set bookstack_force_redeploy: true in your group_vars
+      🔍 To check current status: kubectl get all -n bookstack
+  when: 
+    - inventory_hostname == groups[master_group][0]
+    - not (should_deploy_bookstack | default(false) | bool)
