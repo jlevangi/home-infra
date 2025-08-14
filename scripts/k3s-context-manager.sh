@@ -25,15 +25,45 @@ REMOTE_KUBECONFIG="/etc/rancher/k3s/k3s.yaml"
 mkdir -p "$LOCAL_KUBECONFIG_DIR"
 
 function show_usage() {
-    echo "Usage: $0 [setup|switch|list|status]"
+    echo "Usage: $0 [setup|switch|list|status|cleanup]"
     echo ""
     echo "Commands:"
     echo "  setup       - Setup kubeconfigs for all clusters"
     echo "  switch      - Switch between cluster contexts"
     echo "  list        - List available contexts"
     echo "  status      - Show current context and cluster info"
+    echo "  cleanup     - Clean up SSH known_hosts for all cluster nodes"
     echo ""
     echo "Available clusters: prod, test"
+}
+
+function cleanup_known_hosts() {
+    local master_node="$1"
+    local cluster_name="$2"
+    
+    # Check if known_hosts file exists
+    if [ ! -f "$HOME/.ssh/known_hosts" ]; then
+        return 0
+    fi
+    
+    # Check if the host exists in known_hosts (check for any lines containing the IP)
+    if grep -q "$master_node" "$HOME/.ssh/known_hosts" 2>/dev/null; then
+        echo -e "${YELLOW}🧹 Cleaning up old SSH host key for $master_node ($cluster_name)...${NC}"
+        
+        # Remove all entries for this host (handles different key types)
+        ssh-keygen -f "$HOME/.ssh/known_hosts" -R "$master_node" > /dev/null 2>&1
+        
+        # Also try to remove any entries that might be in [ip]:port format
+        ssh-keygen -f "$HOME/.ssh/known_hosts" -R "[$master_node]:22" > /dev/null 2>&1
+        
+        # Double-check and manually remove any remaining entries
+        if grep -q "$master_node" "$HOME/.ssh/known_hosts" 2>/dev/null; then
+            echo -e "${YELLOW}🔧 Manually removing remaining entries...${NC}"
+            sed -i "/$master_node/d" "$HOME/.ssh/known_hosts" 2>/dev/null || true
+        fi
+        
+        echo -e "${GREEN}✅ SSH host key cleaned up for $master_node${NC}"
+    fi
 }
 
 function test_connectivity() {
@@ -48,12 +78,15 @@ function test_connectivity() {
         return 1
     fi
     
-    if ! ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no "$master_user@$master_node" "echo 'SSH connection successful'" > /dev/null 2>&1; then
+    # Clean up old SSH host keys before attempting connection
+    cleanup_known_hosts "$master_node" "$cluster_name"
+    
+    if ! ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "$master_user@$master_node" "echo 'SSH connection successful'" > /dev/null 2>&1; then
         echo -e "${RED}❌ Cannot SSH to master node${NC}"
         return 1
     fi
     
-    if ! ssh -o StrictHostKeyChecking=no "$master_user@$master_node" "systemctl is-active k3s" > /dev/null 2>&1; then
+    if ! ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "$master_user@$master_node" "systemctl is-active k3s" > /dev/null 2>&1; then
         echo -e "${RED}❌ K3s service is not running on master node${NC}"
         return 1
     fi
@@ -83,7 +116,7 @@ function setup_cluster() {
     
     # Download kubeconfig
     echo -e "${YELLOW}📥 Downloading kubeconfig from $cluster_name cluster...${NC}"
-    if ! scp -o StrictHostKeyChecking=no "$master_user@$master_node:$REMOTE_KUBECONFIG" "$temp_config"; then
+    if ! scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "$master_user@$master_node:$REMOTE_KUBECONFIG" "$temp_config"; then
         echo -e "${RED}❌ Failed to download kubeconfig for $cluster_name${NC}"
         return 1
     fi
@@ -241,6 +274,24 @@ function show_status() {
     fi
 }
 
+function cleanup_all_known_hosts() {
+    echo -e "${BLUE}🧹 Cleaning up SSH known_hosts for all cluster nodes...${NC}"
+    
+    local cleaned_count=0
+    
+    for cluster_config in "${CLUSTERS[@]}"; do
+        IFS=':' read -r cluster_name master_node master_user <<< "$cluster_config"
+        
+        echo -e "${YELLOW}Processing $cluster_name cluster ($master_node)...${NC}"
+        cleanup_known_hosts "$master_node" "$cluster_name"
+        cleaned_count=$((cleaned_count + 1))
+    done
+    
+    echo ""
+    echo -e "${GREEN}✅ Cleaned up SSH host keys for $cleaned_count cluster(s)${NC}"
+    echo -e "${YELLOW}💡 You can now run './scripts/k3s-context-manager.sh setup' to reconnect to clusters${NC}"
+}
+
 # Main script logic
 case "${1:-}" in
     "setup")
@@ -254,6 +305,9 @@ case "${1:-}" in
         ;;
     "status")
         show_status
+        ;;
+    "cleanup")
+        cleanup_all_known_hosts
         ;;
     "")
         show_usage

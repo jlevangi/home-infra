@@ -22,8 +22,8 @@
   roles:
     - ../roles/common    # Apply common system configuration
     - ../roles/k3s       # Install and configure K3s cluster
-    - role: ../roles/k3s-apps  # Deploy applications
-      when: deploy_applications | default(true) | bool
+    #- role: ../roles/k3s-apps  # Deploy applications
+      #when: deploy_applications | default(true) | bool
     - ../roles/telegraf
 
   post_tasks:
@@ -39,22 +39,19 @@
     - name: Display deployment completion message
       debug:
         msg:
-          - "🎉 K3s deployment completed successfully!"
+          - "🎊 K3s deployment process completed!"
           - ""
-          - "📋 Cluster is ready to use:"
-          - "1. Kubeconfig has been automatically configured"
-          - "2. Start a new terminal or run: source ~/.bashrc"
-          - "3. Test with: kubectl get nodes"
+          - "📊 REFER TO CLUSTER STATUS ABOVE for detailed health information"
+          - "   The comprehensive status summary shows if any components failed"
           - ""
-          - "📊 Check your cluster:"
-          - "   kubectl get nodes -o wide"
-          - "   kubectl get pods -A"
+          - "💡 If the status shows issues (❌ or ⚠️):"
+          - "   - Check the specific component status in the summary above"
+          - "   - Review logs: kubectl logs -n <namespace> <pod-name>"
+          - "   - Verify connectivity: kubectl get pods -A"
+          - "   - Re-run deployment to retry failed components"
           - ""
-          - "🔧 Useful aliases (already added to your shell):"
-          - "   k = kubectl"
-          - "   kgp = kubectl get pods"
-          - "   kgn = kubectl get nodes"
-          - "   kgs = kubectl get services"
+          - "📋 If status shows 'HEALTHY' - your cluster is ready to use!"
+          - "📋 If status shows 'DEGRADED' - troubleshooting is required"
           - ""
           - "🏷️ Cluster Type: {{ target_cluster | default('k3s_cluster (production)') }}"
           - "🌐 Environment: {{ cluster_environment | default('production') }}"

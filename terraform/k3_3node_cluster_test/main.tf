@@ -69,7 +69,6 @@ resource "proxmox_vm_qemu" "terraform" {
     slot = "ide2"
     type = "cloudinit"
     storage = "vm_data"
-    size = "4M"  # Minimal size to suppress warning
   }
 
   network {
@@ -87,7 +86,7 @@ resource "proxmox_vm_qemu" "terraform" {
 
   # Cloud-init configuration
   sshkeys = var.ssh_key
-  
+
   # Cloud-init user configuration
   ciuser = var.ci_user
   cipassword = var.ci_password
@@ -102,20 +101,22 @@ resource "proxmox_vm_qemu" "terraform" {
   }
 }
 
-# Null resource to run Ansible after all VMs are created
-resource "null_resource" "k3s_deployment" {
-  depends_on = [proxmox_vm_qemu.terraform]
-  
-  # Only run when all VMs are created
-  count = var.vm_count == length(proxmox_vm_qemu.terraform) ? 1 : 0
-  
-  provisioner "local-exec" {
-    command = "cd ../.. && sleep 180 && scripts/deploy_k3s_cluster.sh --test"
-    working_dir = path.module
-  }
-  
-  # Trigger re-run if any VM changes
-  triggers = {
-    vm_ids = join(",", proxmox_vm_qemu.terraform[*].id)
-  }
-}
+## Null resource to run Ansible after all VMs are created
+#resource "null_resource" "k3s_deployment" {
+#  depends_on = [proxmox_vm_qemu.terraform]
+#
+#  # Only run when all VMs are created
+#  count = var.vm_count == length(proxmox_vm_qemu.terraform) ? 1 : 0
+#
+#  provisioner "local-exec" {
+#    # Use timeout command to allow 30 minutes for full K3s deployment
+#    # Default Terraform timeout is ~10 minutes which is too short
+#    # Use absolute path to handle being called from rebuild script
+#    command = "sleep 90 && timeout 1800 bash ${path.module}/../../scripts/deploy_k3s_cluster.sh --test"
+#  }
+#
+#  # Trigger re-run if any VM changes
+#  triggers = {
+#    vm_ids = join(",", proxmox_vm_qemu.terraform[*].id)
+#  }
+#}

@@ -9,24 +9,87 @@
   failed_when: false
   when: inventory_hostname == groups[master_group][0]
 
+- name: Check if MetalLB Helm release exists
+  shell: |
+    export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
+    helm list -n metallb-system -o json | jq -r '.[].name' | grep -q metallb
+  register: metallb_helm_check
+  ignore_errors: yes
+  failed_when: false
+  when: inventory_hostname == groups[master_group][0]
+
+- name: Get MetalLB release status if it exists
+  shell: |
+    export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
+    helm status metallb -n metallb-system -o json | jq -r '.info.status'
+  register: metallb_status_check
+  ignore_errors: yes
+  failed_when: false
+  when: 
+    - inventory_hostname == groups[master_group][0]
+    - metallb_helm_check.rc == 0
+
+- name: Uninstall failed MetalLB release if needed
+  shell: |
+    export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
+    helm uninstall metallb -n metallb-system
+  when: 
+    - inventory_hostname == groups[master_group][0]
+    - metallb_helm_check.rc == 0
+    - metallb_status_check.stdout == "failed"
+  ignore_errors: yes
+
 - name: Display MetalLB installation info
   debug:
     msg: |
-      🔧 Installing MetalLB LoadBalancer
+      🔧 {{ 'Installing' if metallb_helm_check.rc != 0 else 'Updating' }} MetalLB LoadBalancer
       MetalLB provides LoadBalancer services for bare-metal Kubernetes clusters
       Configuration: Layer 2 mode with IP range {{ metallb_ip_range | default('172.20.20.200-172.20.20.210') }}
-  when: 
-    - inventory_hostname == groups[master_group][0]
-    - metallb_namespace_check.rc != 0
+      Status: {{ 'New installation' if metallb_helm_check.rc != 0 else 'Existing installation found' }}
+      Current Status: {{ metallb_status_check.stdout | default('Not installed') }}
+  when: inventory_hostname == groups[master_group][0]
 
 - name: Add MetalLB Helm repository
   shell: |
     export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
-    helm repo add metallb https://metallb.github.io/metallb
+    helm repo add metallb https://metallb.github.io/metallb || true
     helm repo update
-  when: 
-    - inventory_hostname == groups[master_group][0]
-    - metallb_namespace_check.rc != 0
+  when: inventory_hostname == groups[master_group][0]
+
+- name: Wait for K3s API server to be fully ready
+  shell: |
+    export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
+    kubectl get nodes --request-timeout=5s
+  retries: 12
+  delay: 10
+  register: k3s_api_ready
+  until: k3s_api_ready.rc == 0
+  when: inventory_hostname == groups[master_group][0]
+
+- name: Check for any existing MetalLB releases across all namespaces
+  shell: |
+    export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
+    helm list --all-namespaces | grep metallb || echo "No MetalLB releases found"
+  register: metallb_all_releases_check
+  ignore_errors: yes
+  when: inventory_hostname == groups[master_group][0]
+
+- name: Force cleanup any existing MetalLB releases
+  shell: |
+    export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
+    # Check all namespaces for metallb releases and remove them
+    for ns in $(kubectl get namespaces -o name | cut -d/ -f2); do
+      if helm list -n "$ns" | grep -q metallb; then
+        echo "Found MetalLB release in namespace $ns, removing..."
+        helm uninstall metallb -n "$ns" || true
+      fi
+    done
+    # Also try common locations just in case
+    helm uninstall metallb -n metallb-system 2>/dev/null || true
+    helm uninstall metallb -n default 2>/dev/null || true
+    helm uninstall metallb -n kube-system 2>/dev/null || true
+  when: inventory_hostname == groups[master_group][0]
+  ignore_errors: yes
 
 - name: Install MetalLB using Helm
   shell: |
@@ -34,11 +97,12 @@
     helm install metallb metallb/metallb \
       --namespace metallb-system \
       --create-namespace \
-      --wait
+      --wait \
+      --timeout=10m
   register: metallb_install_result
-  when: 
-    - inventory_hostname == groups[master_group][0]
-    - metallb_namespace_check.rc != 0
+  retries: 2
+  delay: 30
+  when: inventory_hostname == groups[master_group][0]
 
 - name: Wait for MetalLB pods to be ready
   shell: |
@@ -46,9 +110,15 @@
       -l app.kubernetes.io/name=metallb \
       -n metallb-system \
       --timeout=120s
-  when: 
-    - inventory_hostname == groups[master_group][0]
-    - metallb_namespace_check.rc != 0
+  when: inventory_hostname == groups[master_group][0]
+
+- name: Check if MetalLB IP address pool exists
+  shell: |
+    kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get ipaddresspool default-pool -n metallb-system
+  register: metallb_pool_check
+  ignore_errors: yes
+  failed_when: false
+  when: inventory_hostname == groups[master_group][0]
 
 - name: Create MetalLB IP address pool configuration
   template:
@@ -57,7 +127,7 @@
     mode: '0644'
   when: 
     - inventory_hostname == groups[master_group][0]
-    - metallb_namespace_check.rc != 0
+    - metallb_pool_check.rc != 0
 
 - name: Apply MetalLB configuration
   shell: |
@@ -65,7 +135,7 @@
   register: metallb_config_result
   when: 
     - inventory_hostname == groups[master_group][0]
-    - metallb_namespace_check.rc != 0
+    - metallb_pool_check.rc != 0
 
 - name: Display MetalLB installation results
   debug:

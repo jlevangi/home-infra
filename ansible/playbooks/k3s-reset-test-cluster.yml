@@ -1,8 +1,12 @@
 ---
 - name: Reset K3s Cluster
-  hosts: k3s_test_cluster
+  hosts: "{{ target_cluster | default('k3s_test_cluster') }}"
   become: yes
   gather_facts: no
+  
+  vars_files:
+    - ../group_vars/k3s_cluster.yml
+    - "../group_vars/{{ target_cluster | default('k3s_test_cluster') }}.yml"
   
   tasks:
     - name: Stop K3s service (if exists)
@@ -11,7 +15,7 @@
         state: stopped
         enabled: no
       failed_when: false
-      when: inventory_hostname in groups['k3s_master']
+      when: inventory_hostname in groups[master_group | default('k3s_test_master')]
 
     - name: Stop K3s agent service (if exists)
       systemd:
@@ -19,17 +23,17 @@
         state: stopped
         enabled: no
       failed_when: false
-      when: inventory_hostname in groups['k3s_workers']
+      when: inventory_hostname in groups[worker_group | default('k3s_test_workers')]
 
     - name: Run K3s uninstall script (server)
       shell: /usr/local/bin/k3s-uninstall.sh
       failed_when: false
-      when: inventory_hostname in groups['k3s_master']
+      when: inventory_hostname in groups[master_group | default('k3s_test_master')]
 
     - name: Run K3s agent uninstall script (worker)
       shell: /usr/local/bin/k3s-agent-uninstall.sh
       failed_when: false
-      when: inventory_hostname in groups['k3s_workers']
+      when: inventory_hostname in groups[worker_group | default('k3s_test_workers')]
 
     - name: Remove K3s directories
       file:

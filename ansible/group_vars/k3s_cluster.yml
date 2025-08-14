@@ -27,6 +27,9 @@ k3s_cluster_cidr: "10.42.0.0/16"
 k3s_service_cidr: "10.43.0.0/16"
 metallb_ip_range: "172.20.20.200-172.20.20.210"
 
+# Traefik LoadBalancer Configuration
+traefik_loadbalancer_ip: "172.20.20.200"  # Fixed IP for Traefik LoadBalancer
+
 # Tech Tim's HA configuration options
 # Uncomment and configure these for true HA deployment:
 # load_balancer_ip: "172.20.20.100"  # IP of your load balancer
@@ -60,6 +63,7 @@ k3s_sysctl_settings:
 # Synology NFS Shared Storage Configuration
 enable_nfs_storage: true
 enable_nfs_host_mount: true
+nfs_server_ip: "172.20.20.5"  # Direct NAS IP address for backup target configuration
 nfs_server: "{{ vault_nfs_server }}"  # Your Synology NAS IP address (was nas-1)
 nfs_share_root: "{{ vault_nfs_share_root }}"  # Root path from vault (e.g., "/volume1/k3s-storage")
 nfs_path: "{{ nfs_share_root }}"  # Main NFS export path
@@ -74,7 +78,7 @@ nfs_mount_options: "rw,hard,intr,rsize=65536,wsize=65536,timeo=600,retrans=2,ver
 # NFS subdirectories (non-sensitive, can be in regular vars)
 nfs_share_apps: "{{ nfs_share_root }}/apps"
 nfs_share_database: "{{ nfs_share_root }}/database"
-nfs_share_backup: "{{ nfs_share_root }}/backup"
+nfs_share_backup: "{{ vault_nfs_share_backup_root }}"
 nfs_share_shared: "{{ nfs_share_root }}/shared"
 
 # Storage Classes
@@ -97,3 +101,57 @@ smtp_auth_mechanism: "Login"  # Default auth mechanism
 
 # Application-specific SMTP overrides (when needed)
 application_timezone: "America/New_York"  # Default timezone for all apps
+
+# Production Environment - App Deployment Control
+deploy_bookstack: true
+deploy_homepage: true
+deploy_vaultwarden: true
+
+# Production Environment - Force Redeploy Configuration
+# Only enable these manually when intentional redeployment is needed
+bookstack_force_redeploy: false
+homepage_force_redeploy: false  
+vaultwarden_force_redeploy: false
+
+# ================================================================================
+# STORAGE CONFIGURATION - PRODUCTION ENVIRONMENT
+# ================================================================================
+
+# Global Storage Limits (generous for production large nodes)
+global_max_pvc_size: "10Gi"              # Global max per PVC
+global_min_pvc_size: "100Mi"             # Global min per PVC
+global_max_pvcs: "20"                    # Max PVCs per namespace
+default_initial_volume_size: "500Mi"     # Global initial size for all PVCs
+
+# Database-specific initial sizes (databases need more space for initialization)
+bookstack_database_initial_volume_size: "1Gi"
+
+# Per-application storage limits (maximum each app can consume)
+bookstack_max_namespace_storage: "15Gi"   # Total for BookStack namespace
+bookstack_max_pvc_size: "10Gi"             # Max per individual PVC
+bookstack_default_pvc_size: "5Gi"          # Default PVC size
+
+vaultwarden_max_namespace_storage: "15Gi"
+vaultwarden_max_pvc_size: "10Gi"
+vaultwarden_default_pvc_size: "5Gi"
+
+homepage_max_namespace_storage: "3Gi"
+homepage_max_pvc_size: "2Gi"
+homepage_default_pvc_size: "1Gi"
+
+# Longhorn Configuration for Production Cluster
+# Dynamic replica count based on available worker nodes
+longhorn_replica_count: "{{ [groups[worker_group] | length, 3] | min }}"
+longhorn_exclude_master_from_storage: true
+
+# Longhorn UI Access Configuration
+longhorn_ui_ingress_enabled: true  # Temporarily enabled for UI access
+longhorn_ui_app_url: "https://longhorn.levangie.dev"
+
+# Longhorn Backup Configuration
+enable_longhorn_backup: true  # Enable automatic backups to NFS
+longhorn_backup_shared_across_clusters: true   # Use shared backup location for cross-cluster restore
+longhorn_backup_schedule_daily: "0 2 * * *"    # Daily at 2 AM
+longhorn_backup_schedule_weekly: "0 3 * * 0"   # Weekly on Sunday at 3 AM
+longhorn_backup_retain_daily: 7                # Keep 7 daily backups
+longhorn_backup_retain_weekly: 4               # Keep 4 weekly backups

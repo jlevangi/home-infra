@@ -9,9 +9,9 @@
 - name: Include system preparation tasks
   include_tasks: prepare.yml
 
-- name: Include simplified NFS host mounting
-  include_tasks: nfs-simple-mount.yml
-  when: enable_nfs_mount | default(true)
+# - name: Include simplified NFS host mounting
+#   include_tasks: nfs-simple-mount.yml
+#   when: enable_nfs_mount | default(true)
 
 - name: Include K3s master installation
   include_tasks: master.yml
@@ -24,6 +24,29 @@
 - name: Include post-installation configuration
   include_tasks: post-install.yml
   when: inventory_hostname in groups[master_group]
+
+# Storage Setup - Node preparation on all nodes
+- name: Install open-iscsi for Longhorn on all nodes
+  ansible.builtin.package:
+    name: open-iscsi
+    state: present
+  become: yes
+  when: k3s_install_longhorn | default(true)
+
+- name: Start and enable iscsid service on all nodes
+  ansible.builtin.systemd:
+    name: iscsid
+    state: started
+    enabled: yes
+  become: yes
+  when: k3s_install_longhorn | default(true)
+
+# Storage Setup - Longhorn installation on master only
+- name: Include Longhorn storage installation
+  include_tasks: longhorn.yml
+  when: 
+    - inventory_hostname in groups[master_group]
+    - k3s_install_longhorn | default(true)
 
 # LoadBalancer and Ingress Setup
 - name: Include MetalLB installation

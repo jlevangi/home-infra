@@ -1,0 +1,220 @@
+---
+# Migrate Vaultwarden data from Production NFS to Test Longhorn
+# This validates the cross-cluster migration workflow
+
+- name: Migrate Vaultwarden from Production to Test Cluster
+  hosts: "{{ target_hosts | default('k3s_master') }}"
+  become: yes
+  gather_facts: yes
+  vars:
+    app_namespace: "vaultwarden"
+    nfs_mount_base: "/mnt/k3s-storage"
+    migration_backup_dir: "/tmp/vaultwarden-migration-backup"
+    test_cluster_master: "172.20.20.111"
+    
+  tasks:
+    - name: Display migration overview
+      debug:
+        msg: |
+          🔄 Vaultwarden Production → Test Migration Plan:
+          
+          📊 Source (Production):
+          - Storage: NFS hostPath (nfs-hostpath StorageClass)
+          - Location: {{ nfs_mount_base }}/apps/vaultwarden
+          - PVC Size: 10Gi
+          
+          🎯 Target (Test Cluster):
+          - Storage: Longhorn distributed storage
+          - Location: Longhorn PVC (vaultwarden-data-pvc)
+          - Backup Target: Shared NFS location for cross-cluster access
+          
+          🔄 Migration Strategy:
+          1. Take backup of production Vaultwarden data
+          2. Create Longhorn backup of test cluster Vaultwarden
+          3. Scale down test Vaultwarden safely
+          4. Copy production data to test Longhorn volume
+          5. Restart test Vaultwarden and verify functionality
+          6. Test cross-cluster backup capabilities
+
+    - name: Check production Vaultwarden status
+      shell: |
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -n {{ app_namespace }}
+      register: prod_pods
+
+    - name: Display production pod status
+      debug:
+        msg: |
+          📊 Production Vaultwarden Status:
+          {{ prod_pods.stdout_lines | join('\n') }}
+
+    - name: Check production data size
+      shell: |
+        echo "Production Vaultwarden Data:"
+        du -sh {{ nfs_mount_base }}/apps/vaultwarden 2>/dev/null || echo "Directory not found"
+      register: prod_data_size
+
+    - name: Display production data size
+      debug:
+        msg: |
+          📊 Production Vaultwarden Data Size:
+          {{ prod_data_size.stdout_lines | join('\n') }}
+
+    - name: Create migration backup directory
+      file:
+        path: "{{ migration_backup_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Backup production Vaultwarden data
+      shell: |
+        echo "Creating backup of production Vaultwarden data..."
+        mkdir -p {{ migration_backup_dir }}/vaultwarden
+        cp -r {{ nfs_mount_base }}/apps/vaultwarden {{ migration_backup_dir }}/ 2>/dev/null || echo "Backup completed with warnings"
+        echo "Backup completed to {{ migration_backup_dir }}"
+        echo "Backup size:"
+        du -sh {{ migration_backup_dir }}/vaultwarden
+      register: backup_result
+
+    - name: Display backup result
+      debug:
+        msg: |
+          💾 Production Backup Status:
+          {{ backup_result.stdout_lines | join('\n') }}
+
+    - name: Check test cluster Vaultwarden status remotely
+      shell: |
+        ssh -o StrictHostKeyChecking=no {{ test_cluster_master }} "KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -n {{ app_namespace }}"
+      register: test_pods
+      delegate_to: localhost
+
+    - name: Display test cluster status
+      debug:
+        msg: |
+          📊 Test Cluster Vaultwarden Status:
+          {{ test_pods.stdout_lines | join('\n') }}
+
+    - name: Create backup of current test cluster Vaultwarden data
+      shell: |
+        ssh -o StrictHostKeyChecking=no {{ test_cluster_master }} "KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec -n {{ app_namespace }} \$(kubectl get pods -n {{ app_namespace }} -l app=vaultwarden -o jsonpath='{.items[0].metadata.name}') -- tar czf /tmp/test-vaultwarden-backup.tar.gz /data"
+      register: test_backup
+      delegate_to: localhost
+      failed_when: false
+
+    - name: Scale down test cluster Vaultwarden
+      shell: |
+        ssh -o StrictHostKeyChecking=no {{ test_cluster_master }} "KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl scale deployment vaultwarden -n {{ app_namespace }} --replicas=0"
+      register: test_scale_down
+      delegate_to: localhost
+
+    - name: Wait for test cluster pods to terminate
+      shell: |
+        ssh -o StrictHostKeyChecking=no {{ test_cluster_master }} "KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=delete pod -l app=vaultwarden -n {{ app_namespace }} --timeout=300s"
+      register: test_pod_termination
+      delegate_to: localhost
+      failed_when: false
+
+    - name: Create data migration pod in test cluster
+      shell: |
+        ssh -o StrictHostKeyChecking=no {{ test_cluster_master }} "KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f - <<EOF
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: vaultwarden-data-migrator
+          namespace: {{ app_namespace }}
+        spec:
+          containers:
+          - name: migrator
+            image: busybox:1.35
+            command: ['sleep', '3600']
+            volumeMounts:
+            - name: vaultwarden-data
+              mountPath: /data
+          volumes:
+          - name: vaultwarden-data
+            persistentVolumeClaim:
+              claimName: vaultwarden-data-pvc
+          restartPolicy: Never
+        EOF"
+      register: test_migrator_creation
+      delegate_to: localhost
+
+    - name: Wait for migration pod to be ready in test cluster
+      shell: |
+        ssh -o StrictHostKeyChecking=no {{ test_cluster_master }} "KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=condition=Ready pod/vaultwarden-data-migrator -n {{ app_namespace }} --timeout=300s"
+      register: test_migrator_ready
+      delegate_to: localhost
+
+    - name: Copy production data to test cluster Longhorn volume
+      shell: |
+        echo "Copying production Vaultwarden data to test cluster..."
+        # First, copy data to test cluster master
+        scp -r -o StrictHostKeyChecking=no {{ migration_backup_dir }}/vaultwarden {{ test_cluster_master }}:/tmp/
+        
+        # Then copy into the Longhorn volume via the migration pod
+        ssh -o StrictHostKeyChecking=no {{ test_cluster_master }} "
+          KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec -n {{ app_namespace }} vaultwarden-data-migrator -- rm -rf /data/* 2>/dev/null || true
+          cd /tmp/vaultwarden
+          tar cf - . | KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec -n {{ app_namespace }} vaultwarden-data-migrator -i -- tar xf - -C /data/
+        "
+        
+        echo "Verifying copied data in test cluster..."
+        ssh -o StrictHostKeyChecking=no {{ test_cluster_master }} "KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec -n {{ app_namespace }} vaultwarden-data-migrator -- ls -la /data/"
+      register: data_copy_result
+      delegate_to: localhost
+
+    - name: Display data copy results
+      debug:
+        msg: |
+          📂 Data Migration Results:
+          {{ data_copy_result.stdout_lines | join('\n') }}
+
+    - name: Clean up migration pod in test cluster
+      shell: |
+        ssh -o StrictHostKeyChecking=no {{ test_cluster_master }} "KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl delete pod vaultwarden-data-migrator -n {{ app_namespace }}"
+      delegate_to: localhost
+
+    - name: Scale up test cluster Vaultwarden
+      shell: |
+        ssh -o StrictHostKeyChecking=no {{ test_cluster_master }} "KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl scale deployment vaultwarden -n {{ app_namespace }} --replicas=1"
+      register: test_scale_up
+      delegate_to: localhost
+
+    - name: Wait for test cluster Vaultwarden to be ready
+      shell: |
+        ssh -o StrictHostKeyChecking=no {{ test_cluster_master }} "KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=condition=Ready pod -l app=vaultwarden -n {{ app_namespace }} --timeout=300s"
+      register: test_pod_ready
+      delegate_to: localhost
+
+    - name: Verify test cluster Vaultwarden is functional
+      shell: |
+        ssh -o StrictHostKeyChecking=no {{ test_cluster_master }} "KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -n {{ app_namespace }}"
+      register: final_test_status
+      delegate_to: localhost
+
+    - name: Display migration summary
+      debug:
+        msg: |
+          🎯 VAULTWARDEN PRODUCTION → TEST MIGRATION SUMMARY:
+          
+          ✅ Completed Steps:
+          - Created backup of production data in {{ migration_backup_dir }}
+          - Safely scaled down test cluster Vaultwarden
+          - Copied production data to test cluster Longhorn volume
+          - Scaled test cluster Vaultwarden back up
+          
+          📊 Final Test Cluster Status:
+          {{ final_test_status.stdout_lines | join('\n') }}
+          
+          💾 Backup Location: {{ migration_backup_dir }}
+          
+          🔄 Next Steps:
+          1. Test Vaultwarden functionality in test cluster
+          2. Validate that production data is accessible
+          3. Test Longhorn backup/restore between clusters
+          4. Prepare for production cluster rebuild
+          
+          ⚠️  IMPORTANT: 
+          - Production Vaultwarden is still running with original data
+          - Test cluster now has a copy of production data
+          - Both clusters can run simultaneously for testing
+          - Original production data is preserved for rollback

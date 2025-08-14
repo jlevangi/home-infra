@@ -18,7 +18,7 @@ variable "proxmox_hosts" {
 variable "vm_name" {
   description = "Name of the VM(s) + -##"
   type        = string
-  default = "k3s-node"
+  default = "k3s-prod-node"
 }
 
 # Specify the amount of VMs to be created.

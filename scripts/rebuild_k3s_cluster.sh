@@ -72,11 +72,11 @@ if [[ "$SHOW_HELP" == "true" ]] || [[ -z "$TARGET_CLUSTER" ]]; then
 fi
 
 if [[ "$TARGET_CLUSTER" == "test" ]]; then
-  TF_DIR="../terraform/k3_3node_test_cluster"
+  TF_DIR="../terraform/k3_3node_cluster_test"
   CLUSTER_NAME="Test"
   CLUSTER_EMOJI="🧪"
 else
-  TF_DIR="../terraform/k3_3node_cluster"
+  TF_DIR="../terraform/k3_3node_cluster_prod"
   CLUSTER_NAME="Production"
   CLUSTER_EMOJI="🚀"
 fi

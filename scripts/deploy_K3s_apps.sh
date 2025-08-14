@@ -17,7 +17,7 @@ while [[ $# -gt 0 ]]; do
 			shift
 			;;
 		--test)
-			TARGET_CLUSTER="k3s_test_cluster"
+			TARGET_CLUSTER="k3s_cluster_test"
 			VERBOSITY="-v"  # Default verbose for test
 			shift
 			;;
@@ -55,7 +55,7 @@ if [[ "$SHOW_HELP" == "true" ]] || [[ -z "$TARGET_CLUSTER" ]]; then
 	echo ""
 	echo "Target Selection (required):"
 	echo "  --prod, --production   Deploy apps to production cluster (k3s_cluster)"
-	echo "  --test                 Deploy apps to test cluster (k3s_test_cluster)"
+	echo "  --test                 Deploy apps to test cluster (k3s_cluster_test)"
 	echo ""
 	echo "Options:"
 	echo "  -v, --verbose          Enable verbose output"
@@ -77,15 +77,30 @@ if [[ "$SHOW_HELP" == "true" ]] || [[ -z "$TARGET_CLUSTER" ]]; then
 	fi
 fi
 
-# Set up target-specific variables
-if [[ "$TARGET_CLUSTER" == "k3s_test_cluster" ]]; then
-	EXTRA_VARS="$EXTRA_VARS -e target_cluster=k3s_test_cluster"
+# Determine script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Set up target-specific variables and switch kubectl context
+if [[ "$TARGET_CLUSTER" == "k3s_cluster_test" ]]; then
+	EXTRA_VARS="$EXTRA_VARS -e target_cluster=k3s_cluster_test"
 	CLUSTER_NAME="Test"
 	CLUSTER_EMOJI="🧪"
+	KUBECTL_CONTEXT="test"
 else
 	CLUSTER_NAME="Production"
 	CLUSTER_EMOJI="🚀"
+	KUBECTL_CONTEXT="prod"
 fi
+
+# Switch to the appropriate kubectl context
+echo "🔄 Switching to $CLUSTER_NAME cluster context..."
+if ! "$SCRIPT_DIR/k3s-context-manager.sh" switch "$KUBECTL_CONTEXT"; then
+	echo "⚠️  Warning: Failed to switch kubectl context to $KUBECTL_CONTEXT"
+	echo "   Continuing with deployment, but you may need to switch context manually"
+else
+	echo "✅ Successfully switched to k3s-$KUBECTL_CONTEXT context"
+fi
+echo ""
 
 echo "$CLUSTER_EMOJI Deploying K3s $CLUSTER_NAME Apps..."
 echo "📂 Using unified apps deployment playbook: k3s-deploy-apps.yml"

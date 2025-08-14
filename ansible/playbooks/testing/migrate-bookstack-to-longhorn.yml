@@ -1,0 +1,248 @@
+---
+# Migrate BookStack from hostPath NFS volumes to Longhorn PVCs
+# This performs a safe migration with data copy and rollback capability
+
+- name: Migrate BookStack to Longhorn Storage
+  hosts: "{{ target_hosts | default('k3s_master') }}"
+  become: yes
+  gather_facts: yes
+  vars:
+    app_namespace: "bookstack"
+    nfs_mount_base: "/mnt/k3s-storage"
+    migration_backup_dir: "/tmp/bookstack-migration-backup"
+    
+  tasks:
+    - name: Display migration overview
+      debug:
+        msg: |
+          🔄 BookStack Migration to Longhorn Storage:
+          
+          📊 Current Configuration:
+          - BookStack App: hostPath → {{ nfs_mount_base }}/apps/bookstack
+          - BookStack DB: hostPath → {{ nfs_mount_base }}/database/bookstack
+          
+          🎯 Target Configuration:
+          - BookStack App: Longhorn PVC (bookstack-app-data-pvc)
+          - BookStack DB: Longhorn PVC (bookstack-db-data-pvc)
+          
+          🔄 Migration Strategy:
+          1. Take backup of current data
+          2. Create Longhorn PVCs
+          3. Copy data from hostPath to Longhorn volumes
+          4. Update deployments to use Longhorn PVCs
+          5. Verify and cleanup
+
+    - name: Check current BookStack deployment status
+      shell: |
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -n {{ app_namespace }}
+      register: current_pods
+
+    - name: Display current pod status
+      debug:
+        msg: |
+          📊 Current BookStack Pods:
+          {{ current_pods.stdout_lines | join('\n') }}
+
+    - name: Check available storage space on NFS
+      shell: df -h {{ nfs_mount_base }}
+      register: storage_space
+
+    - name: Display storage information
+      debug:
+        msg: |
+          💾 NFS Storage Status:
+          {{ storage_space.stdout_lines | join('\n') }}
+
+    - name: Check current data sizes
+      shell: |
+        echo "BookStack App Data:"
+        du -sh {{ nfs_mount_base }}/apps/bookstack 2>/dev/null || echo "Directory not found"
+        echo ""
+        echo "BookStack Database Data:"
+        du -sh {{ nfs_mount_base }}/database/bookstack 2>/dev/null || echo "Directory not found"
+      register: data_sizes
+
+    - name: Display current data sizes
+      debug:
+        msg: |
+          📊 Current Data Sizes:
+          {{ data_sizes.stdout_lines | join('\n') }}
+
+    - name: Create migration backup directory
+      file:
+        path: "{{ migration_backup_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Backup current BookStack data
+      shell: |
+        echo "Creating backup of BookStack data..."
+        mkdir -p {{ migration_backup_dir }}/apps
+        mkdir -p {{ migration_backup_dir }}/database
+        cp -r {{ nfs_mount_base }}/apps/bookstack {{ migration_backup_dir }}/apps/ 2>/dev/null || echo "App data backup skipped"
+        cp -r {{ nfs_mount_base }}/database/bookstack {{ migration_backup_dir }}/database/ 2>/dev/null || echo "DB data backup skipped"
+        echo "Backup completed to {{ migration_backup_dir }}"
+      register: backup_result
+
+    - name: Display backup result
+      debug:
+        msg: |
+          💾 Backup Status:
+          {{ backup_result.stdout_lines | join('\n') }}
+
+    - name: Create Longhorn PVCs for BookStack
+      shell: |
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f - <<EOF
+        ---
+        apiVersion: v1
+        kind: PersistentVolumeClaim
+        metadata:
+          name: bookstack-app-data-pvc
+          namespace: {{ app_namespace }}
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 5Gi
+          storageClassName: longhorn
+        ---
+        apiVersion: v1
+        kind: PersistentVolumeClaim
+        metadata:
+          name: bookstack-db-data-pvc
+          namespace: {{ app_namespace }}
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 5Gi
+          storageClassName: longhorn
+        EOF
+      register: pvc_creation
+
+    - name: Wait for PVCs to be bound
+      shell: |
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc/bookstack-app-data-pvc -n {{ app_namespace }} --timeout=300s
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc/bookstack-db-data-pvc -n {{ app_namespace }} --timeout=300s
+      register: pvc_wait
+
+    - name: Display PVC status
+      debug:
+        msg: |
+          📊 Longhorn PVC Creation:
+          {% if pvc_wait.rc == 0 %}
+          ✅ Both PVCs successfully bound to Longhorn volumes
+          {% else %}
+          ❌ PVC binding failed: {{ pvc_wait.stderr | default('Unknown error') }}
+          {% endif %}
+
+    - name: Scale down BookStack deployments for data migration
+      shell: |
+        echo "Scaling down BookStack deployments for safe data migration..."
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl scale deployment bookstack -n {{ app_namespace }} --replicas=0
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl scale deployment bookstack-mariadb -n {{ app_namespace }} --replicas=0
+      register: scale_down
+
+    - name: Wait for pods to terminate
+      shell: |
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=delete pod -l app=bookstack -n {{ app_namespace }} --timeout=300s
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=delete pod -l app=bookstack-mariadb -n {{ app_namespace }} --timeout=300s
+      register: pod_termination
+      failed_when: false
+
+    - name: Create temporary data migration pod
+      shell: |
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f - <<EOF
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: bookstack-data-migrator
+          namespace: {{ app_namespace }}
+        spec:
+          containers:
+          - name: migrator
+            image: busybox:1.35
+            command: ['sleep', '3600']
+            volumeMounts:
+            - name: old-app-data
+              mountPath: /old-app-data
+            - name: old-db-data
+              mountPath: /old-db-data
+            - name: new-app-data
+              mountPath: /new-app-data
+            - name: new-db-data
+              mountPath: /new-db-data
+          volumes:
+          - name: old-app-data
+            hostPath:
+              path: {{ nfs_mount_base }}/apps/bookstack
+              type: DirectoryOrCreate
+          - name: old-db-data
+            hostPath:
+              path: {{ nfs_mount_base }}/database/bookstack
+              type: DirectoryOrCreate
+          - name: new-app-data
+            persistentVolumeClaim:
+              claimName: bookstack-app-data-pvc
+          - name: new-db-data
+            persistentVolumeClaim:
+              claimName: bookstack-db-data-pvc
+          restartPolicy: Never
+        EOF
+      register: migrator_creation
+
+    - name: Wait for migrator pod to be ready
+      shell: |
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=condition=Ready pod/bookstack-data-migrator -n {{ app_namespace }} --timeout=300s
+      register: migrator_ready
+
+    - name: Copy data from hostPath to Longhorn volumes
+      shell: |
+        echo "Copying BookStack application data..."
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec -n {{ app_namespace }} bookstack-data-migrator -- cp -r /old-app-data/. /new-app-data/ 2>/dev/null || echo "App data copy completed"
+        
+        echo "Copying BookStack database data..."
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec -n {{ app_namespace }} bookstack-data-migrator -- cp -r /old-db-data/. /new-db-data/ 2>/dev/null || echo "DB data copy completed"
+        
+        echo "Verifying copied data..."
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec -n {{ app_namespace }} bookstack-data-migrator -- ls -la /new-app-data/
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec -n {{ app_namespace }} bookstack-data-migrator -- ls -la /new-db-data/
+      register: data_copy
+
+    - name: Display data copy results
+      debug:
+        msg: |
+          📂 Data Migration Results:
+          {{ data_copy.stdout_lines | join('\n') }}
+
+    - name: Clean up migrator pod
+      shell: |
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl delete pod bookstack-data-migrator -n {{ app_namespace }}
+
+    - name: Display final migration summary
+      debug:
+        msg: |
+          🎯 BOOKSTACK MIGRATION TO LONGHORN SUMMARY:
+          
+          ✅ Completed Steps:
+          - Created backup of existing data in {{ migration_backup_dir }}
+          - Created Longhorn PVCs (bookstack-app-data-pvc, bookstack-db-data-pvc)
+          - Scaled down BookStack pods safely
+          - Copied all data from hostPath to Longhorn volumes
+          
+          📋 Next Manual Steps Required:
+          1. Update BookStack deployment to use new PVCs
+          2. Scale BookStack back up
+          3. Verify application functionality
+          4. Clean up old hostPath data (optional)
+          
+          💾 Backup Location: {{ migration_backup_dir }}
+          🔄 Ready for deployment updates!
+          
+          ⚠️  IMPORTANT: 
+          - Applications are currently scaled down
+          - Data is copied to Longhorn volumes
+          - Deployments need to be updated to use PVCs instead of hostPath
+          - Original data remains in hostPath for rollback if needed

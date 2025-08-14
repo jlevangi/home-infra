@@ -7,23 +7,20 @@
     k8s_namespace: "vaultwarden"
     kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
     force_redeploy_var: "vaultwarden_force_redeploy"
-    additional_cleanup_tasks:
-      - name: "Delete Vaultwarden PVC"
-        command: "delete pvc vaultwarden-data-pvc -n vaultwarden --ignore-not-found=true"
-      - name: "Delete Vaultwarden PV"
-        command: "delete pv vaultwarden-data-pv --ignore-not-found=true"
+    # PVC cleanup is now handled automatically by cleanup_task.yml
 
-# Get NFS user context using shared task
-- name: Get NFS user context for Vaultwarden
-  include_tasks: shared/get_nfs_user_context.yml
+# NFS-related tasks commented out - using Longhorn storage instead
+# # Get NFS user context using shared task
+# - name: Get NFS user context for Vaultwarden
+#   include_tasks: shared/get_nfs_user_context.yml
 
-# Create application directories using shared task
-- name: Create Vaultwarden storage directories
-  include_tasks: shared/create_app_directories.yml
-  vars:
-    app_name: "vaultwarden"
-    app_directories:
-      - "apps/vaultwarden"
+# # Create application directories using shared task
+# - name: Create Vaultwarden storage directories
+#   include_tasks: shared/create_app_directories.yml
+#   vars:
+#     app_name: "vaultwarden"
+#     app_directories:
+#       - "apps/vaultwarden"
 
 # Apply Kubernetes resources using shared task
 - name: Apply Vaultwarden Kubernetes resources
@@ -35,13 +32,25 @@
         template: "common/namespace.yaml.j2"
         vars:
           app_name: "vaultwarden"
-      - name: "PV/PVC"
+      - name: "ResourceQuota"
+        template: "common/resource-quota.yaml.j2"
+        vars:
+          app_name: "vaultwarden"
+          max_namespace_storage: "{{ vaultwarden_max_namespace_storage | default('50Gi') }}"
+          max_pvcs: "{{ global_max_pvcs | default('10') }}"
+      - name: "LimitRange"
+        template: "common/limit-range.yaml.j2"
+        vars:
+          app_name: "vaultwarden"
+          max_pvc_size: "{{ vaultwarden_max_pvc_size | default('30Gi') }}"
+          min_pvc_size: "{{ global_min_pvc_size | default('10Mi') }}"
+          default_pvc_size: "{{ vaultwarden_default_pvc_size | default('5Gi') }}"
+      - name: "PV/PVC (Dynamic)"
         template: "common/pv-pvc.yaml.j2"
         vars:
           app_name: "vaultwarden"
           volume_name: "data"
-          volume_size: "{{ vaultwarden_data_storage_size }}"
-          host_path: "{{ base_storage_path }}/apps/vaultwarden"
+          initial_volume_size: "{{ default_initial_volume_size | default('100Mi') }}"
       - name: "ConfigMap"
         template: "vaultwarden/configmap.yaml.j2"
         vars:
@@ -61,8 +70,8 @@
             tag: "latest"
             pullPolicy: "IfNotPresent"
           pvc_name: "vaultwarden-data"
-          uid: "{{ dynamic_nfs_uid }}"
-          gid: "{{ dynamic_nfs_gid }}"
+          # uid: "{{ dynamic_nfs_uid }}"  # NFS-related, commented out for Longhorn
+          # gid: "{{ dynamic_nfs_gid }}"  # NFS-related, commented out for Longhorn
           service_port: "{{ vaultwarden_service_port }}"
           smtp_host: "{{ smtp_host }}"
           smtp_port: "{{ smtp_port }}"
@@ -114,9 +123,10 @@
       - Service Port: {{ vaultwarden_service_port }}
 
       📁 Storage:
-      - Data Path: /mnt/k3s-storage/apps/vaultwarden
-      - Size: {{ vaultwarden_data_storage_size }}
-      👤 Running as: {{ vault_nfs_username | default('k3s-app-user') }} ({{ dynamic_nfs_uid }}:{{ dynamic_nfs_gid }})
+      - Storage: Longhorn distributed storage
+      - Size: {{ vaultwarden_data_storage_size | default('5Gi') }}
+      # 👤 Running as: {{ vault_nfs_username | default('k3s-app-user') }} ({{ dynamic_nfs_uid | default('N/A') }}:{{ dynamic_nfs_gid | default('N/A') }})
+      👤 Running as: Container default user (Longhorn storage)
 
       🔒 Security:
       - Admin token configured via vault
