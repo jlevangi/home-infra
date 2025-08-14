@@ -5,12 +5,13 @@ A comprehensive infrastructure-as-code solution for deploying a production-ready
 ## 🏗️ Architecture Overview
 
 This infrastructure consists of:
-- **Terraform**: Provisions 3-node K3s cluster VMs on Proxmox VE using cloud-init templates
+- **Terraform**: Provisions 3-node K3s cluster VMs on Proxmox VE using cloud-init templates (production and test clusters)
 - **Ansible**: Configures nodes and deploys K3s with advanced networking, storage, and ingress
 - **K3s Kubernetes**: Lightweight, production-ready Kubernetes distribution
+- **Longhorn**: Distributed block storage with cross-cluster backup capabilities
 - **Traefik**: Advanced ingress controller with SSL termination and dashboard
 - **MetalLB**: Load balancer for bare metal Kubernetes
-- **NFS Storage**: Shared persistent storage integration
+- **NFS Storage**: Backup target for Longhorn volumes and legacy storage integration
 
 ## 📋 Prerequisites
 
@@ -40,7 +41,7 @@ This section covers all the variables and configurations you'll need to customiz
 
 ### 1. Terraform Variables
 
-#### Edit `terraform/k3_3node_cluster/terraform.tfvars`
+#### Edit `terraform/k3_3node_cluster_prod/terraform.tfvars`
 **Critical Variables (Must Change):**
 ```hcl
 # Proxmox API credentials (get from Proxmox web UI)
@@ -57,7 +58,7 @@ ci_password = "your-vm-password"
 vault_password = "your-ansible-vault-password"
 ```
 
-#### Edit `terraform/k3_3node_cluster/variables.tf`
+#### Edit `terraform/k3_3node_cluster_prod/variables.tf`
 **Environment-Specific Variables:**
 ```hcl
 # Your Proxmox server API URL
@@ -199,16 +200,32 @@ cd home-infra
 Follow the **[USING IN YOUR ENVIRONMENT](#-using-in-your-environment)** section above to customize all variables for your specific setup.
 
 ### 3. Deploy Infrastructure
+
+#### Production Cluster
 ```bash
-# Deploy VMs with Terraform
-cd terraform/k3_3node_cluster
+# Deploy production VMs with Terraform
+cd terraform/k3_3node_cluster_prod
 terraform init
 terraform plan
 terraform apply
 
-# Configure and deploy K3s cluster
+# Configure and deploy production K3s cluster
 cd ../../scripts
-./redeploy_k3s_roles.sh
+./deploy_k3s_cluster.sh
+```
+
+#### Test Cluster (Optional)
+```bash
+# Deploy test VMs with Terraform
+cd terraform/k3_3node_cluster_test
+terraform init
+terraform plan
+terraform apply
+
+# Configure and deploy test K3s cluster with test inventory
+cd ../../scripts
+# Edit the deploy script to use k3s_cluster_test group or run Ansible directly:
+# ansible-playbook -i ../ansible/k3s-inventory ../ansible/playbooks/k3s-deploy-cluster.yml --limit k3s_cluster_test --ask-vault-pass
 ```
 
 ### 4. Verify Deployment
@@ -236,6 +253,12 @@ The `docs/` folder contains detailed guides for advanced cluster operations, inc
 - **Context Switching**: Easy switching between production and test clusters
 - **Shell Functions**: Convenient command-line aliases for cluster operations
 - **Enhanced kubectl**: Context-aware kubectl commands with visual indicators
+
+**[Longhorn Cross-Cluster Migration](docs/LONGHORN-CROSS-CLUSTER-MIGRATION.md)** - Advanced storage migration guide covering:
+- **Storage Migration**: Moving from NFS to Longhorn distributed storage
+- **Cross-Cluster Data Transfer**: Migrating applications between clusters
+- **Backup Strategy**: Shared NFS backup targets for disaster recovery
+- **Production Validation**: Real-world migration examples with BookStack and Vaultwarden
 
 #### Quick Setup for Multi-Cluster Management
 ```bash
@@ -271,7 +294,7 @@ The Terraform deployment creates:
 - **Network**: Static IP assignments on specified VLAN
 - **Storage**: VM disks on Proxmox storage
 
-Key variables in `terraform/k3_3node_cluster/variables.tf`:
+Key variables in `terraform/k3_3node_cluster_prod/variables.tf`:
 - `vm_count`: Number of VMs to create (default: 3)
 - `vm_name`: VM name prefix (default: "k3s-node")
 - `nic_name`: Network interface (default: "vmbr0")
@@ -304,10 +327,10 @@ Default network configuration:
 
 ## 📜 Setup Scripts
 
-### `scripts/redeploy_k3s_roles.sh`
+### `scripts/deploy_k3s_cluster.sh`
 Primary deployment script that runs the complete Ansible playbook:
 ```bash
-ansible-playbook -i ../ansible/k3s-inventory ../ansible/playbooks/k3s-deploy-roles.yml --ask-vault-pass
+ansible-playbook -i ../ansible/k3s-inventory ../ansible/playbooks/k3s-deploy-cluster.yml --ask-vault-pass
 ```
 
 ### `scripts/setup-local-kubeconfig.sh`
@@ -319,7 +342,7 @@ Automatically configures local kubectl access:
 ### `scripts/deploy_K3s_apps.sh`
 Deploys applications after cluster setup:
 ```bash
-ansible-playbook -i ../ansible/k3s-inventory ../ansible/playbooks/k3s-deploy-apps.yml --vault-password-file ~/.ansible_vault_pass
+ansible-playbook -i ../ansible/k3s-inventory ../ansible/playbooks/k3s-deploy-apps.yml --ask-vault-pass
 ```
 
 ### `scripts/update_k3s_nodes.sh`
@@ -327,11 +350,20 @@ Updates and maintains cluster nodes.
 
 ## 🔧 Advanced Configuration
 
-### NFS Storage Integration
-Configure shared storage for persistent volumes:
+### Storage Architecture
+
+#### Longhorn Distributed Storage (Primary)
+The cluster uses Longhorn for distributed block storage:
+- **Dynamic replica count** based on available worker nodes
+- **Cross-cluster backup capabilities** via shared NFS targets
+- **Automatic volume management** with storage classes
+- **UI access** via ingress for monitoring and management
+
+#### NFS Integration (Backup/Legacy)
+NFS server configuration for Longhorn backups:
 1. Setup NFS server (Synology NAS recommended)
 2. Create service user with appropriate permissions
-3. Configure NFS exports
+3. Configure NFS exports for backup targets
 4. Update vault variables with NFS credentials
 
 ### Traefik Ingress Controller
@@ -381,7 +413,7 @@ Deploy all configured applications:
 ./scripts/deploy_k3s_apps.sh
 ```
 
-Or deploy individual applications by setting deployment flags in `ansible/roles/k3s-apps/defaults/main.yml`:
+Or deploy individual applications by setting deployment flags in `ansible/group_vars/k3s_cluster.yml`:
 ```yaml
 deploy_bookstack: true
 deploy_homepage: true

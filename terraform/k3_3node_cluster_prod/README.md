@@ -19,6 +19,11 @@ This Terraform configuration deploys a 3-node K3s Kubernetes cluster on Proxmox 
 - Cloud-init template named `debian12-server-template` (or update the template name in variables.tf)
 - Template must support cloud-init and have qemu-guest-agent installed
 
+### 4. NFS Storage
+- NFS server (e.g., Synology NAS) for Longhorn backup targets
+- NFS export accessible from all cluster nodes
+- Service account configured for NFS access
+
 ### 4. SSH Key Setup
 - Update the SSH key in `variables.tf` with your public key
 - Ensure you have the corresponding private key for SSH access
@@ -91,8 +96,8 @@ chmod +x deploy.sh
 
 5. **Deploy K3s using Ansible:**
    ```bash
-   cd ../ansible
-   ansible-playbook -i k3s-inventory playbooks/k3s-deploy.yml
+   cd ../../scripts
+   ./deploy_k3s_cluster.sh
    ```
 
 ## Post-Deployment
@@ -157,7 +162,7 @@ size = "40G"     # Increase disk size
 ```
 
 ### K3s Configuration
-Modify the K3s installation in `ansible/playbooks/k3s-deploy.yml`:
+Modify the K3s installation in `ansible/playbooks/k3s-deploy-cluster.yml`:
 - Change K3s version
 - Add/remove K3s server arguments
 - Configure additional features
@@ -200,6 +205,7 @@ terraform destroy
 - **Terraform Proxmox Provider**: ~> 3.0
 - **K3s Version**: v1.28.5+k3s1 (configurable in Ansible playbook)
 - **Terraform**: >= 1.0
+- **Storage**: Longhorn distributed storage with NFS backup targets
 
 ## Support
 
