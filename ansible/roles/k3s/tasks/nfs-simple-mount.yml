@@ -189,15 +189,21 @@
   become: yes
   ignore_errors: yes
   register: directory_structure_result
+  when: not (skip_directory_creation | default(false))
   tags: nfs-mount
 
 - name: Display directory structure creation results
   debug:
     msg: |
+      {% if skip_directory_creation | default(false) %}
+      📁 K3s Storage Directory Structure: SKIPPED
+      💡 Directory creation skipped - mount will remain clean for external management
+      {% else %}
       📁 K3s Storage Directory Structure:
       {% for result in directory_structure_result.results | default([]) %}
       - {{ result.path }}: {{ 'CREATED' if result.changed else 'EXISTS' }}{% if result.failed %} (FAILED - {{ result.msg }}){% endif %}
       {% endfor %}
       
       💡 Note: If directory creation failed, hostPath volumes will create them automatically with default permissions
+      {% endif %}
   tags: nfs-mount

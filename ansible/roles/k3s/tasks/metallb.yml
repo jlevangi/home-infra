@@ -91,7 +91,7 @@
   when: inventory_hostname == groups[master_group][0]
   ignore_errors: yes
 
-- name: Install MetalLB using Helm (fresh install)
+- name: Install MetalLB using Helm
   shell: |
     export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
     helm install metallb metallb/metallb \
