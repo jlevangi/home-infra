@@ -285,18 +285,17 @@
 
 - name: Display Longhorn installation info
   debug:
-    msg:
-      - "✅ Longhorn distributed storage is ready!"
-      - "💾 Storage Architecture: Longhorn distributed block storage"
-      - "📊 Access Longhorn UI:"
-      - "   🌐 NodePort: http://{{ ansible_default_ipv4.address }}:30080"
-      - "{% if longhorn_ui_ingress_enabled | default(false) %}   🔗 Ingress: {{ longhorn_ui_app_url }}{% endif %}"
-      - "🔧 Default storage class: longhorn"
-      - "⚡ Using local node storage with {{ longhorn_replica_count | default(3) }} replicas"
-      - "{% if enable_longhorn_backup | default(true) and nfs_server is defined %}"
-      - "🔄 Backup Configuration:"
-      - "   📂 NFS Target: nfs://{{ nfs_server }}:{{ nfs_share_backup }}"
-      - "   📅 Daily: {{ longhorn_backup_schedule_daily | default('0 2 * * *') }} (retain {{ longhorn_backup_retain_daily | default(7) }})"
-      - "   📅 Weekly: {{ longhorn_backup_schedule_weekly | default('0 3 * * 0') }} (retain {{ longhorn_backup_retain_weekly | default(4) }})"
-      - "   ✅ Automatic recurring jobs created"
-      - "{% endif %}"
+    msg: |
+      ✅ Longhorn distributed storage is ready!
+      💾 Storage Architecture: Longhorn distributed block storage
+      📊 Access Longhorn UI:
+         🌐 NodePort: http://{{ ansible_default_ipv4.address }}:30080
+      {% if longhorn_ui_ingress_enabled | default(false) %}   🔗 Ingress: {{ longhorn_ui_app_url }}{% endif %}
+      🔧 Default storage class: longhorn
+      ⚡ Using local node storage with {{ longhorn_replica_count | default(3) }} replicas
+      
+      {% if enable_longhorn_backup | default(true) and nfs_server is defined %}🔄 Backup Configuration:
+         📂 NFS Target: nfs://{{ nfs_server }}:{{ nfs_share_backup }}
+         📅 Daily: {{ longhorn_backup_schedule_daily | default('0 2 * * *') }} (retain {{ longhorn_backup_retain_daily | default(7) }})
+         📅 Weekly: {{ longhorn_backup_schedule_weekly | default('0 3 * * 0') }} (retain {{ longhorn_backup_retain_weekly | default(4) }})
+         ✅ Automatic recurring jobs created{% endif %}

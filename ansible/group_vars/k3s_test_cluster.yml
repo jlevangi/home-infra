@@ -46,9 +46,9 @@ nfs_path: "{{ nfs_share_root }}-test"
 
 # Test Environment - App Deployment Control
 # Enable all apps by default in test for comprehensive testing
-deploy_bookstack: false
-deploy_homepage: false
-deploy_vaultwarden: false
+deploy_bookstack: true
+deploy_homepage: true
+deploy_vaultwarden: true
 
 # Test Environment - Force Redeploy Configuration
 bookstack_force_redeploy: true
