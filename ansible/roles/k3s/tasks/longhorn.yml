@@ -43,7 +43,7 @@
       --create-namespace \
       --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
       --set defaultSettings.defaultDataPath="/var/lib/longhorn/" \
-      {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server_ip }}{{ nfs_share_backup }}" \
+      {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}" \
       {% endif %}--wait --timeout=600s
   become: yes
   when: longhorn_check.rc != 0
@@ -143,10 +143,10 @@
       ⚠️  StorageClass recreation failed: {{ storageclass_update_result.stderr | default('Unknown error') }}
       {% endif %}
 
-- name: Update Longhorn backup target setting
+- name: Update Longhorn BackupTarget resource with correct NFS format
   ansible.builtin.shell: |
-    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch setting backup-target -n longhorn-system \
-      --type='merge' -p='{"value":"nfs://{{ nfs_server_ip }}{{ nfs_share_backup }}"}'
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch backuptarget.longhorn.io default -n longhorn-system \
+      --type='merge' -p='{"spec":{"backupTargetURL":"nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}"}}'
   become: yes
   register: backup_target_update_result
   failed_when: false
@@ -158,11 +158,12 @@
 - name: Display Longhorn backup target update result
   debug:
     msg: |
-      🔧 Longhorn Backup Target Setting Update:
+      🔧 Longhorn BackupTarget Resource Update:
       {% if backup_target_update_result.rc == 0 %}
-      ✅ Successfully updated backup-target to nfs://{{ nfs_server_ip }}{{ nfs_share_backup }}
+      ✅ Successfully updated BackupTarget resource to nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}
+      💡 Fixed NFS format with colon (:) after IP address for proper mounting
       {% else %}
-      ⚠️  Backup target update failed (may not exist yet): {{ backup_target_update_result.stderr | default('Unknown error') }}
+      ⚠️  BackupTarget update failed: {{ backup_target_update_result.stderr | default('Unknown error') }}
       💡 This is normal for fresh installations - backup target will be applied via helm values above
       {% endif %}
   when: 
@@ -408,7 +409,7 @@
       ⚡ Using local node storage with {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} replicas
       
       {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}🔄 Backup Configuration:
-         📂 NFS Target: nfs://{{ nfs_server_ip }}{{ nfs_share_backup }}
+         📂 NFS Target: nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}
          📅 Daily: {{ longhorn_backup_schedule_daily | default('0 2 * * *') }} (retain {{ longhorn_backup_retain_daily | default(7) }})
          📅 Weekly: {{ longhorn_backup_schedule_weekly | default('0 3 * * 0') }} (retain {{ longhorn_backup_retain_weekly | default(4) }})
          ✅ Automatic recurring jobs created{% endif %}
