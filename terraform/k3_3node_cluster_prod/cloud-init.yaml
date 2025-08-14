@@ -1,0 +1,199 @@
+#cloud-config
+# Cloud-init configuration for K3s nodes
+# This file prepares the nodes for Kubernetes deployment
+
+# System upgrade
+package_update: true
+package_upgrade: true
+
+# Essential packages for K3s
+packages:
+  - curl
+  - wget
+  - unzip
+  - git
+  - htop
+  - iotop
+  - net-tools
+  - tcpdump
+  - nfs-common
+  - open-iscsi
+  - util-linux
+  - ca-certificates
+  - software-properties-common
+  - apt-transport-https
+  - gnupg
+  - lsb-release
+
+# Configure users
+users:
+  - name: k3s
+    groups: sudo
+    shell: /bin/bash
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    ssh_authorized_keys:
+      - ${ssh_key}
+    lock_passwd: false
+    passwd: $6$rounds=4096$saltsalt$L/Vq.6LZ8NrNJg7v8K.8K8zQjJ0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0
+
+# System configuration
+timezone: America/New_York
+
+# Network configuration (backup - mainly handled by Proxmox)
+write_files:
+  # Configure DNS
+  - path: /etc/systemd/resolved.conf
+    content: |
+      [Resolve]
+      DNS=172.20.20.4 172.20.20.5
+      FallbackDNS=1.1.1.1 8.8.8.8
+      Domains=local
+      DNSSEC=no
+      DNSOverTLS=no
+    owner: root:root
+    permissions: '0644'
+
+  # Configure sysctl for Kubernetes
+  - path: /etc/sysctl.d/99-kubernetes.conf
+    content: |
+      # Kubernetes sysctl settings
+      net.bridge.bridge-nf-call-iptables = 1
+      net.bridge.bridge-nf-call-ip6tables = 1
+      net.ipv4.ip_forward = 1
+      # Disable swap accounting
+      vm.swappiness = 0
+      # Network performance
+      net.core.somaxconn = 32768
+      net.core.netdev_max_backlog = 5000
+      net.ipv4.tcp_max_syn_backlog = 8192
+      # File system
+      fs.inotify.max_user_watches = 524288
+      fs.inotify.max_user_instances = 512
+    owner: root:root
+    permissions: '0644'
+
+  # Configure modules for Kubernetes
+  - path: /etc/modules-load.d/k3s.conf
+    content: |
+      # Required modules for K3s
+      br_netfilter
+      overlay
+      ip_vs
+      ip_vs_rr
+      ip_vs_wrr
+      ip_vs_sh
+      nf_conntrack
+    owner: root:root
+    permissions: '0644'
+
+  # Configure crictl for container runtime
+  - path: /etc/crictl.yaml
+    content: |
+      runtime-endpoint: unix:///run/k3s/containerd/containerd.sock
+      image-endpoint: unix:///run/k3s/containerd/containerd.sock
+      timeout: 2
+      debug: false
+      pull-image-on-create: false
+    owner: root:root
+    permissions: '0644'
+
+  # Create directory for local path provisioner
+  - path: /opt/local-path-provisioner/.gitkeep
+    content: ""
+    owner: root:root
+    permissions: '0755'
+
+  # K3s preparation script
+  - path: /opt/k3s-prep.sh
+    content: |
+      #!/bin/bash
+      # K3s node preparation script
+      
+      echo "Preparing node for K3s installation..."
+      
+      # Load kernel modules
+      modprobe br_netfilter
+      modprobe overlay
+      modprobe ip_vs
+      modprobe ip_vs_rr
+      modprobe ip_vs_wrr
+      modprobe ip_vs_sh
+      modprobe nf_conntrack
+      
+      # Apply sysctl settings
+      sysctl --system
+      
+      # Disable swap
+      swapoff -a
+      sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+      
+      # Configure containerd (if using containerd)
+      mkdir -p /var/lib/rancher/k3s/agent/etc/containerd/
+      
+      # Set hostname if not already set
+      if [ ! -f /etc/hostname.set ]; then
+        hostnamectl set-hostname $(hostname)
+        echo "$(hostname)" > /etc/hostname
+        touch /etc/hostname.set
+      fi
+      
+      # Create k3s directories
+      mkdir -p /var/lib/rancher/k3s
+      mkdir -p /opt/local-path-provisioner
+      chmod 755 /opt/local-path-provisioner
+      
+      # Install kubectl completion
+      curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+      chmod +x kubectl
+      mv kubectl /usr/local/bin/
+      
+      # Setup bash completion for kubectl
+      kubectl completion bash > /etc/bash_completion.d/kubectl
+      
+      # Add aliases for k3s user
+      echo 'alias k=kubectl' >> /home/k3s/.bashrc
+      echo 'alias kgp="kubectl get pods"' >> /home/k3s/.bashrc
+      echo 'alias kgs="kubectl get services"' >> /home/k3s/.bashrc
+      echo 'alias kgn="kubectl get nodes"' >> /home/k3s/.bashrc
+      echo 'complete -F __start_kubectl k' >> /home/k3s/.bashrc
+      
+      echo "Node preparation complete!"
+    owner: root:root
+    permissions: '0755'
+
+# Commands to run during cloud-init
+runcmd:
+  # Update system
+  - apt-get update
+  - apt-get upgrade -y
+  
+  # Configure systemd-resolved
+  - systemctl restart systemd-resolved
+  - systemctl enable systemd-resolved
+  
+  # Run K3s preparation script
+  - /opt/k3s-prep.sh
+  
+  # Configure firewall (if ufw is installed)
+  - systemctl stop ufw || true
+  - systemctl disable ufw || true
+  
+  # Enable and start services
+  - systemctl enable ssh
+  - systemctl start ssh
+  
+  # Set proper permissions
+  - chown -R k3s:k3s /home/k3s
+  - chmod 700 /home/k3s/.ssh || true
+  - chmod 600 /home/k3s/.ssh/authorized_keys || true
+  
+  # Clean up
+  - apt-get autoremove -y
+  - apt-get autoclean
+
+# Reboot after cloud-init completes
+power_state:
+  delay: "+1"
+  mode: reboot
+  message: Rebooting after cloud-init completion
+  condition: True

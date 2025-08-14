@@ -48,12 +48,31 @@
   become: yes
   when: longhorn_check.rc != 0
 
+- name: Wait for K3s to be fully ready before Longhorn checks
+  wait_for:
+    port: 6443
+    host: "{{ ansible_default_ipv4.address }}"
+    delay: 5
+    timeout: 120
+
+- name: Verify kubeconfig exists and is readable
+  stat:
+    path: /etc/rancher/k3s/k3s.yaml
+  register: kubeconfig_check
+
+- name: Display kubeconfig status
+  debug:
+    msg: "Kubeconfig exists: {{ kubeconfig_check.stat.exists }}, readable: {{ kubeconfig_check.stat.readable | default('unknown') }}"
+
 - name: Wait for Longhorn manager pods to be ready
   ansible.builtin.shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl -n longhorn-system wait --for=condition=Ready pod -l app=longhorn-manager --timeout=300s
   register: longhorn_manager_wait
   changed_when: false
   become: yes
+  retries: 3
+  delay: 10
+  when: kubeconfig_check.stat.exists
 
 - name: Wait for Longhorn driver deployer to be ready
   ansible.builtin.shell: |

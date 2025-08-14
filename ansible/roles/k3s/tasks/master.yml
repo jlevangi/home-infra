@@ -81,7 +81,7 @@
     k3s_node_token: "{{ k3s_node_token }}"
   delegate_to: "{{ item }}"
   delegate_facts: true
-  loop: "{{ groups['k3s_workers'] }}"
+  loop: "{{ groups[worker_group] }}"
 
 - name: Set kubeconfig permissions for non-sudo access
   file:

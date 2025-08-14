@@ -21,7 +21,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --test)
-      TARGET_CLUSTER="k3s_test_cluster"
+      TARGET_CLUSTER="k3s_cluster_test"
       VERBOSITY="-v"  # Default verbose for test
       shift
       ;;
@@ -64,7 +64,7 @@ if [[ "$SHOW_HELP" == "true" ]] || [[ -z "$TARGET_CLUSTER" ]]; then
   echo ""
   echo "Target Selection (required):"
   echo "  --prod, --production   Deploy to production cluster (k3s_cluster)"
-  echo "  --test                 Deploy to test cluster (k3s_test_cluster)"
+  echo "  --test                 Deploy to test cluster (k3s_cluster_test)"
   echo ""
   echo "Options:"
   echo "  --no-apps              Deploy only infrastructure, skip applications"
@@ -81,7 +81,7 @@ if [[ "$SHOW_HELP" == "true" ]] || [[ -z "$TARGET_CLUSTER" ]]; then
   echo ""
   echo "Legacy Scripts (still available):"
   echo "  ./redeploy_k3s_roles.sh                    # Production deployment"
-  echo "  ./redeploy_k3s_roles_test_cluster.sh       # Test deployment"
+  echo "  ./redeploy_k3s_roles_cluster_test.sh       # Test deployment"
   
   if [[ -z "$TARGET_CLUSTER" ]]; then
     echo ""
@@ -93,8 +93,8 @@ if [[ "$SHOW_HELP" == "true" ]] || [[ -z "$TARGET_CLUSTER" ]]; then
 fi
 
 # Set up target-specific variables and switch kubectl context
-if [[ "$TARGET_CLUSTER" == "k3s_test_cluster" ]]; then
-  EXTRA_VARS="$EXTRA_VARS -e target_cluster=k3s_test_cluster"
+if [[ "$TARGET_CLUSTER" == "k3s_cluster_test" ]]; then
+  EXTRA_VARS="$EXTRA_VARS -e target_cluster=k3s_cluster_test"
   CLUSTER_NAME="Test"
   CLUSTER_EMOJI="🧪"
   KUBECTL_CONTEXT="test"

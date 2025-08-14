@@ -22,8 +22,8 @@
   roles:
     - ../roles/common    # Apply common system configuration
     - ../roles/k3s       # Install and configure K3s cluster
-    - role: ../roles/k3s-apps  # Deploy applications
-      when: deploy_applications | default(true) | bool
+    #- role: ../roles/k3s-apps  # Deploy applications
+      #when: deploy_applications | default(true) | bool
     - ../roles/telegraf
 
   post_tasks:
