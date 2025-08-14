@@ -58,34 +58,15 @@ bookstack_force_redeploy: false
 homepage_force_redeploy: false
 vaultwarden_force_redeploy: false
 
-# Longhorn Configuration for Test Cluster
-# Dynamic replica count based on available worker nodes
-# Calculates based on nodes in the worker_group (k3s_test_workers)
-longhorn_replica_count: "{{ [groups[worker_group] | length, 3] | min }}"
-longhorn_exclude_master_from_storage: true
+# ================================================================================
+# STORAGE CONFIGURATION - TEST ENVIRONMENT
+# ================================================================================
 
-# Longhorn UI Access Configuration
-longhorn_ui_ingress_enabled: true
-longhorn_ui_app_url: "http://longhorn.test"
-
-# Longhorn Backup Configuration (Test environment)
-enable_longhorn_backup: true  # Enable backups in test for validation
-longhorn_backup_shared_across_clusters: true   # Use shared backup location for cross-cluster restore
-longhorn_backup_schedule_daily: "0 1 * * *"    # Daily at 1 AM (offset from prod)
-longhorn_backup_schedule_weekly: "0 2 * * 6"   # Weekly on Saturday at 2 AM
-longhorn_backup_retain_daily: 3                # Keep 3 daily backups (less for test)
-longhorn_backup_retain_weekly: 2               # Keep 2 weekly backups
-
-# Test Environment - Dynamic Storage Configuration with Limits
-# Fully dynamic sizing with maximum limits to prevent overage
-
-# Global storage limits for test environment (conservative for small nodes)
+# Global Storage Limits (conservative for test environment small nodes)
 global_max_pvc_size: "5Gi"               # Global max per PVC
 global_min_pvc_size: "10Mi"              # Global min per PVC  
 global_max_pvcs: "5"                     # Max PVCs per namespace
-
-# Global initial size for all PVCs (starts small, grows as needed)
-default_initial_volume_size: "100Mi"
+default_initial_volume_size: "100Mi"     # Global initial size for all PVCs
 
 # Database-specific initial sizes (databases need more space for initialization)
 bookstack_database_initial_volume_size: "500Mi"
@@ -102,3 +83,20 @@ vaultwarden_default_pvc_size: "500Mi"
 homepage_max_namespace_storage: "2Gi"
 homepage_max_pvc_size: "1Gi"
 homepage_default_pvc_size: "100Mi"
+
+# Longhorn Configuration for Test Cluster
+# Dynamic replica count based on available worker nodes
+longhorn_replica_count: "{{ [groups[worker_group] | length, 3] | min }}"
+longhorn_exclude_master_from_storage: true
+
+# Longhorn UI Access Configuration
+longhorn_ui_ingress_enabled: true
+longhorn_ui_app_url: "http://longhorn.test"
+
+# Longhorn Backup Configuration (Test environment)
+enable_longhorn_backup: true  # Enable backups in test for validation
+longhorn_backup_shared_across_clusters: true   # Use shared backup location for cross-cluster restore
+longhorn_backup_schedule_daily: "0 1 * * *"    # Daily at 1 AM (offset from prod)
+longhorn_backup_schedule_weekly: "0 2 * * 6"   # Weekly on Saturday at 2 AM
+longhorn_backup_retain_daily: 3                # Keep 3 daily backups (less for test)
+longhorn_backup_retain_weekly: 2               # Keep 2 weekly backups

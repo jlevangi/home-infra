@@ -1,20 +1,12 @@
 ---
 # K3s Apps Role Defaults
-# These control the behavior of the k3s-apps role
+# These provide fallback values when not explicitly set in group_vars
 
-# Enable/disable individual application deployments
-deploy_bookstack: true
-deploy_homepage: true
-deploy_vaultwarden: true
-
-# Default application configurations
+# Default application configurations (fallback only)
+# Primary values should be set in group_vars for each environment
 application_timezone: "America/New_York"
 
-# Role behavior controls
-# Force redeploy settings are now controlled by group_vars for each environment:
-# - Production (k3s_cluster.yml): force_redeploy defaults to false for safety
-# - Test (k3s_test_cluster.yml): force_redeploy defaults to true for clean testing
-# These defaults provide fallback values if not set in group_vars
-bookstack_force_redeploy: false 
-homepage_force_redeploy: false
-vaultwarden_force_redeploy: false
+# Note: The following variables are managed in group_vars for each environment:
+# - deploy_bookstack/homepage/vaultwarden: Controls which apps to deploy
+# - bookstack_force_redeploy/homepage_force_redeploy/vaultwarden_force_redeploy: Force redeployment controls
+# - All storage and configuration settings
