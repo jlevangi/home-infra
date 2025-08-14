@@ -102,16 +102,72 @@ smtp_auth_mechanism: "Login"  # Default auth mechanism
 # Application-specific SMTP overrides (when needed)
 application_timezone: "America/New_York"  # Default timezone for all apps
 
-# Production Environment - App Deployment Control
-deploy_bookstack: true
-deploy_homepage: true
-deploy_vaultwarden: true
+# ================================================================================
+# APPLICATIONS CONFIGURATION - PRODUCTION ENVIRONMENT
+# ================================================================================
 
-# Production Environment - Force Redeploy Configuration
-# Only enable these manually when intentional redeployment is needed
-bookstack_force_redeploy: false
-homepage_force_redeploy: false  
-vaultwarden_force_redeploy: false
+applications:
+  bookstack:
+    # Deployment Control
+    deploy: true
+    force_redeploy: false
+    
+    # Application Settings
+    app_url: "https://bookstack.{{ cluster_tld }}"
+    service_name: "bookstack"
+    service_port: 8080
+    
+    # Storage Configuration
+    storage:
+      max_namespace_storage: "15Gi"    # Total for BookStack namespace
+      max_pvc_size: "10Gi"             # Max per individual PVC
+      default_pvc_size: "5Gi"          # Default PVC size
+      database_initial_size: "1Gi"     # Database needs more space for initialization
+      app_initial_size: "{{ default_initial_volume_size | default('500Mi') }}"
+    
+    # Application Secrets (from vault)
+    secrets:
+      db_password: "{{ vault_bookstack_db_password }}"
+      mysql_root_password: "{{ vault_bookstack_mysql_root_password }}"
+      app_key: "{{ vault_bookstack_app_key }}"
+
+  vaultwarden:
+    # Deployment Control
+    deploy: true
+    force_redeploy: false
+    
+    # Application Settings
+    app_url: "https://vw.{{ cluster_tld }}"
+    service_name: "vaultwarden"
+    service_port: 80
+    
+    # Storage Configuration
+    storage:
+      max_namespace_storage: "15Gi"
+      max_pvc_size: "10Gi"
+      default_pvc_size: "5Gi"
+      data_initial_size: "{{ default_initial_volume_size | default('500Mi') }}"
+    
+    # Application Secrets (from vault)
+    secrets:
+      admin_token: "{{ vault_vaultwarden_admin_token }}"
+
+  homepage:
+    # Deployment Control
+    deploy: true
+    force_redeploy: false
+    
+    # Application Settings
+    app_url: "https://homepage.{{ cluster_tld }}"
+    service_name: "homepage"
+    service_port: 3000
+    
+    # Storage Configuration
+    storage:
+      max_namespace_storage: "3Gi"
+      max_pvc_size: "2Gi"
+      default_pvc_size: "1Gi"
+      config_initial_size: "{{ default_initial_volume_size | default('500Mi') }}"
 
 # ================================================================================
 # STORAGE CONFIGURATION - PRODUCTION ENVIRONMENT
@@ -123,21 +179,7 @@ global_min_pvc_size: "100Mi"             # Global min per PVC
 global_max_pvcs: "20"                    # Max PVCs per namespace
 default_initial_volume_size: "500Mi"     # Global initial size for all PVCs
 
-# Database-specific initial sizes (databases need more space for initialization)
-bookstack_database_initial_volume_size: "1Gi"
-
-# Per-application storage limits (maximum each app can consume)
-bookstack_max_namespace_storage: "15Gi"   # Total for BookStack namespace
-bookstack_max_pvc_size: "10Gi"             # Max per individual PVC
-bookstack_default_pvc_size: "5Gi"          # Default PVC size
-
-vaultwarden_max_namespace_storage: "15Gi"
-vaultwarden_max_pvc_size: "10Gi"
-vaultwarden_default_pvc_size: "5Gi"
-
-homepage_max_namespace_storage: "3Gi"
-homepage_max_pvc_size: "2Gi"
-homepage_default_pvc_size: "1Gi"
+# Note: Per-application storage limits are now defined in the applications section above
 
 # Longhorn Configuration for Production Cluster
 # Dynamic replica count based on available worker nodes
