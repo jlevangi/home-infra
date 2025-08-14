@@ -77,7 +77,7 @@ nfs_mount_options: "rw,hard,intr,rsize=65536,wsize=65536,timeo=600,retrans=2,ver
 # NFS subdirectories (non-sensitive, can be in regular vars)
 nfs_share_apps: "{{ nfs_share_root }}/apps"
 nfs_share_database: "{{ nfs_share_root }}/database"
-nfs_share_backup: "{{ nfs_share_root }}/backup"
+nfs_share_backup: "{{ vault_nfs_share_backup_root }}"
 nfs_share_shared: "{{ nfs_share_root }}/shared"
 
 # Storage Classes
@@ -116,9 +116,17 @@ global_max_pvcs: "20"                    # Max PVCs per namespace
 # Calculates based on nodes in the worker_group (k3s_workers)
 longhorn_replica_count: "{{ [groups[worker_group] | length, 3] | min }}"
 longhorn_exclude_master_from_storage: true
+
 # Longhorn UI Access Configuration
 longhorn_ui_ingress_enabled: false  # Disabled in production for security
 longhorn_ui_app_url: "https://longhorn.levangie.dev"
+
+# Longhorn Backup Configuration
+enable_longhorn_backup: true  # Enable automatic backups to NFS
+longhorn_backup_schedule_daily: "0 2 * * *"    # Daily at 2 AM
+longhorn_backup_schedule_weekly: "0 3 * * 0"   # Weekly on Sunday at 3 AM
+longhorn_backup_retain_daily: 7                # Keep 7 daily backups
+longhorn_backup_retain_weekly: 4               # Keep 4 weekly backups
 
 # Production Environment - Dynamic Storage Configuration with Limits
 # Fully dynamic sizing with generous limits for production workloads

@@ -28,7 +28,8 @@
       --create-namespace \
       --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(3) }} \
       --set defaultSettings.defaultDataPath="/var/lib/longhorn/" \
-      --wait --timeout=600s
+      {% if enable_longhorn_backup | default(true) and nfs_server is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server }}:{{ nfs_share_backup }}" \
+      {% endif %}--wait --timeout=600s
   become: yes
   when: longhorn_check.rc != 0
 
@@ -141,13 +142,23 @@
     - longhorn_exclude_master_from_storage | default(true)
     - master_longhorn_check is defined
 
+- name: Check if any Longhorn volumes exist
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get volumes -n longhorn-system --no-headers 2>/dev/null | wc -l
+  register: volume_count
+  become: yes
+  changed_when: false
+  failed_when: false
+
 - name: Check existing volumes with incorrect replica count
   shell: |
-    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get volumes -n longhorn-system -o json | \
-    jq -r '.items[] | select(.spec.numberOfReplicas != {{ longhorn_replica_count | default(3) }}) | .metadata.name'
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get volumes -n longhorn-system -o jsonpath='{range .items[*]}{.metadata.name}:{.spec.numberOfReplicas}{"\n"}{end}' 2>/dev/null | \
+    awk -F: -v target={{ longhorn_replica_count | default(3) }} '$2 != target && NF > 0 {print $1}' || echo ""
   register: incorrect_replica_volumes
   become: yes
   changed_when: false
+  failed_when: false
+  when: volume_count.stdout | int > 0
 
 - name: Update existing volumes to correct replica count
   shell: |
@@ -155,7 +166,10 @@
       --type='merge' -p='{"spec":{"numberOfReplicas":{{ longhorn_replica_count | default(3) }}}}'
   loop: "{{ incorrect_replica_volumes.stdout_lines }}"
   become: yes
-  when: incorrect_replica_volumes.stdout_lines | length > 0
+  when: 
+    - volume_count.stdout | int > 0
+    - incorrect_replica_volumes is defined
+    - incorrect_replica_volumes.stdout_lines | length > 0
 
 - name: Display replica count adjustment status
   debug:
@@ -164,7 +178,9 @@
       Target replica count: {{ longhorn_replica_count | default(3) }}
       Based on: min({{ groups[worker_group] | length }} worker nodes, 3)
       
-      {% if incorrect_replica_volumes.stdout_lines | length > 0 %}
+      {% if volume_count.stdout | int == 0 %}
+      ℹ️  No existing volumes found - new volumes will use correct replica count
+      {% elif incorrect_replica_volumes is defined and incorrect_replica_volumes.stdout_lines | length > 0 %}
       ✅ Updated {{ incorrect_replica_volumes.stdout_lines | length }} volume(s) to correct replica count:
       {% for volume in incorrect_replica_volumes.stdout_lines %}
       - {{ volume }}
@@ -172,7 +188,6 @@
       {% else %}
       ✅ All volumes already have correct replica count ({{ longhorn_replica_count | default(3) }})
       {% endif %}
-  when: incorrect_replica_volumes is defined
 
 - name: Wait for updated volumes to become healthy
   shell: |
@@ -183,7 +198,10 @@
   until: volume_health_check.rc == 0
   retries: 12
   delay: 10
-  when: incorrect_replica_volumes.stdout_lines | length > 0
+  when: 
+    - volume_count.stdout | int > 0
+    - incorrect_replica_volumes is defined
+    - incorrect_replica_volumes.stdout_lines | length > 0
   ignore_errors: yes
 
 - name: Patch Longhorn frontend service to NodePort
