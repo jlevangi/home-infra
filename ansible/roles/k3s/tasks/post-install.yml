@@ -200,34 +200,3 @@
         (['Longhorn not running'] if k3s_install_longhorn | default(true) and (longhorn_status.stdout | int) == 0 else [])
         )
       }}
-
-- name: Display comprehensive cluster status
-  debug:
-    msg:
-      - "{{ '🎉 K3s cluster deployment successful!' if cluster_healthy else '⚠️  K3s cluster deployed with issues!' }}"
-      - ""
-      - "📊 CLUSTER STATUS SUMMARY:"
-      - "├── 🖥️  Nodes: {{ ready_nodes.stdout }}/{{ groups[cluster_group] | length }} Ready"
-      - "├── ⚖️  MetalLB LoadBalancer: {{ '✅ Running (' + metallb_status.stdout + ' pods)' if (metallb_status.stdout | int) > 0 else '❌ Not running' }}"
-      - "├── 🚪 Traefik Ingress: {{ '✅ Running (' + traefik_status.stdout + ' pods)' if (traefik_status.stdout | int) > 0 else '❌ Not running' }}"
-      - "{{ '├── 💾 Longhorn Storage: ' + ('✅ Running (' + longhorn_status.stdout + ' pods)' if (longhorn_status.stdout | int) > 0 else '❌ Not running') if k3s_install_longhorn | default(true) else '├── 💾 Storage: ✅ HostPath with NFS' }}"
-      - "└── 🌐 LoadBalancer Services:"
-      - "{% for line in loadbalancer_status.stdout_lines %}    {{ '✅' if line.startswith('READY:') else '⏳' }} {{ line.replace('READY: ', '').replace('PENDING: ', '') }}{% endfor %}"
-      - ""
-      - "{% if not cluster_healthy %}🚨 ISSUES DETECTED:{% for issue in health_issues %}{{ '    ❌ ' + issue }}{% endfor %}{% endif %}"
-      - "{{ '📋 Cluster is ready for use!' if cluster_healthy else '🔧 Troubleshooting required - check issues above' }}"
-      - ""
-      - "📊 Access your cluster:"
-      - "   ssh {{ k3s_user }}@{{ ansible_default_ipv4.address }}"
-      - "   kubectl get nodes -o wide"
-      - "   kubectl get pods -A"
-      - ""
-      - "🔧 Copy kubeconfig to your local machine:"
-      - "   scp {{ k3s_user }}@{{ ansible_default_ipv4.address }}:/etc/rancher/k3s.yaml ~/.kube/config"
-      - "   sed -i 's/127.0.0.1/{{ ansible_default_ipv4.address }}/g' ~/.kube/config"
-      - ""
-      - "{% if k3s_install_longhorn | default(true) %}💾 Longhorn distributed storage configured{% if (longhorn_status.stdout | int) > 0 %} and running{% endif %}!{% else %}💾 HostPath NFS Storage configured at /mnt/k3s-storage/{% endif %}"
-      - "{% if k3s_install_longhorn | default(true) %}   Default storage class: longhorn (replicated block storage){% else %}   Applications use hostPath volumes with NFS backing{% endif %}"
-      - ""  
-      - "🏷️ Cluster: {{ cluster_environment | default('production') }} ({{ groups[cluster_group] | length }} nodes)"
-      - "{{ '🎯 Status: HEALTHY - All core components operational' if cluster_healthy else '⚠️  Status: DEGRADED - Some components need attention' }}"
