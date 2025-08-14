@@ -1,8 +1,12 @@
 ---
 - name: Reset K3s Cluster
-  hosts: "{{ target_cluster | default('k3s_test_cluster') }}"
+  hosts: "{{ target_cluster | default('k3s_cluster_test') }}"
   become: yes
   gather_facts: no
+  
+  vars_files:
+    - ../group_vars/k3s_cluster.yml
+    - "../group_vars/{{ target_cluster | default('k3s_cluster_test') }}.yml"
   
   tasks:
     - name: Display reset warning
@@ -20,7 +24,7 @@
         state: stopped
         enabled: no
       failed_when: false
-      when: inventory_hostname in groups['k3s_master']
+      when: inventory_hostname in groups[master_group | default('k3s_test_master')]
 
     - name: Stop K3s agent service (if exists)
       systemd:
@@ -28,7 +32,7 @@
         state: stopped
         enabled: no
       failed_when: false
-      when: inventory_hostname in groups['k3s_workers']
+      when: inventory_hostname in groups[worker_group | default('k3s_test_workers')]
 
     # === Helm Repository Cleanup ===
     - name: Remove Helm repositories (if helm exists)
@@ -43,17 +47,17 @@
           echo "ℹ️  Helm not found, skipping repository cleanup"
         fi
       failed_when: false
-      when: inventory_hostname in groups['k3s_master']
+      when: inventory_hostname in groups[master_group | default('k3s_test_master')]
 
     - name: Run K3s uninstall script (server)
       shell: /usr/local/bin/k3s-uninstall.sh
       failed_when: false
-      when: inventory_hostname in groups['k3s_master']
+      when: inventory_hostname in groups[master_group | default('k3s_test_master')]
 
     - name: Run K3s agent uninstall script (worker)
       shell: /usr/local/bin/k3s-agent-uninstall.sh
       failed_when: false
-      when: inventory_hostname in groups['k3s_workers']
+      when: inventory_hostname in groups[worker_group | default('k3s_test_workers')]
 
     # === K3s Directory Cleanup ===
     - name: Remove K3s directories (preserving Longhorn data)

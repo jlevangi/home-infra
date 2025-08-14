@@ -13,11 +13,11 @@ SHOW_HELP=false
 while [[ $# -gt 0 ]]; do
 	case $1 in
 		--prod|--production)
-			TARGET_CLUSTER="k3s_cluster"
+			TARGET_CLUSTER="k3s_cluster_prod"
 			shift
 			;;
 		--test)
-			TARGET_CLUSTER="k3s_test_cluster"
+			TARGET_CLUSTER="k3s_cluster_test"
 			VERBOSITY="-v"  # Default verbose for test
 			shift
 			;;
@@ -54,8 +54,8 @@ if [[ "$SHOW_HELP" == "true" ]] || [[ -z "$TARGET_CLUSTER" ]]; then
 	echo "Usage: $0 --prod|--test [OPTIONS]"
 	echo ""
 	echo "Target Selection (required):"
-	echo "  --prod, --production   Deploy apps to production cluster (k3s_cluster)"
-	echo "  --test                 Deploy apps to test cluster (k3s_test_cluster)"
+	echo "  --prod, --production   Deploy apps to production cluster (k3s_cluster_prod)"
+	echo "  --test                 Deploy apps to test cluster (k3s_cluster_test)"
 	echo ""
 	echo "Options:"
 	echo "  -v, --verbose          Enable verbose output"

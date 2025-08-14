@@ -151,7 +151,7 @@
     echo "Container logs (last 20 lines):"
     kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml logs -n bookstack -l app=bookstack --tail=20
   when: 
-    - inventory_hostname == groups['k3s_master'][0]
+    - inventory_hostname == groups[master_group][0]
     - wait_result.rc != 0
 
 - name: Wait for MariaDB pods to be ready
@@ -222,7 +222,7 @@
       - BookStack Config: PVC bookstack-app-data
       - Database: PVC bookstack-db-data
       # - NFS backing: {{ vault_nfs_share_apps | default('/volume1/k3s-storage') }}  # NFS-related, commented out
-  when: inventory_hostname == groups['k3s_master'][0]
+  when: inventory_hostname == groups[master_group][0]
 
 - name: BookStack deployment information
   debug:
