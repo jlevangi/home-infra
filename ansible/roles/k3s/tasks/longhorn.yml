@@ -91,6 +91,58 @@
       💡 This is normal for fresh installations - settings will be applied via existing volume updates below
       {% endif %}
 
+- name: Update Longhorn StorageClass ConfigMap to match replica count
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch configmap longhorn-storageclass -n longhorn-system \
+      --type='merge' -p='{"data":{"storageclass.yaml":"kind: StorageClass\napiVersion: storage.k8s.io/v1\nmetadata:\n  name: longhorn\n  annotations:\n    storageclass.kubernetes.io/is-default-class: \"true\"\nprovisioner: driver.longhorn.io\nallowVolumeExpansion: true\nreclaimPolicy: \"Delete\"\nvolumeBindingMode: Immediate\nparameters:\n  numberOfReplicas: \"{{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}\"\n  staleReplicaTimeout: \"30\"\n  fromBackup: \"\"\n  fsType: \"ext4\"\n  dataLocality: \"disabled\"\n  unmapMarkSnapChainRemoved: \"ignored\"\n  disableRevisionCounter: \"true\"\n  dataEngine: \"v1\"\n  backupTargetName: \"default\"\n"}}'
+  become: yes
+  register: storageclass_configmap_update_result
+  failed_when: false
+
+- name: Delete and recreate Longhorn StorageClass with correct replica count
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl delete storageclass longhorn
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f - <<EOF
+    kind: StorageClass
+    apiVersion: storage.k8s.io/v1
+    metadata:
+      name: longhorn
+      annotations:
+        storageclass.kubernetes.io/is-default-class: "true"
+    provisioner: driver.longhorn.io
+    allowVolumeExpansion: true
+    reclaimPolicy: "Delete"
+    volumeBindingMode: Immediate
+    parameters:
+      numberOfReplicas: "{{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}"
+      staleReplicaTimeout: "30"
+      fromBackup: ""
+      fsType: "ext4"
+      dataLocality: "disabled"
+      unmapMarkSnapChainRemoved: "ignored"
+      disableRevisionCounter: "true"
+      dataEngine: "v1"
+      backupTargetName: "default"
+    EOF
+  become: yes
+  register: storageclass_update_result
+  failed_when: false
+
+- name: Display StorageClass update result
+  debug:
+    msg: |
+      🔧 Longhorn StorageClass Update:
+      {% if storageclass_configmap_update_result.rc == 0 %}
+      ✅ Successfully updated StorageClass ConfigMap
+      {% else %}
+      ⚠️  ConfigMap update failed: {{ storageclass_configmap_update_result.stderr | default('Unknown error') }}
+      {% endif %}
+      {% if storageclass_update_result.rc == 0 %}
+      ✅ Successfully recreated StorageClass with {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} replicas
+      {% else %}
+      ⚠️  StorageClass recreation failed: {{ storageclass_update_result.stderr | default('Unknown error') }}
+      {% endif %}
+
 - name: Update Longhorn backup target setting
   ansible.builtin.shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch setting backup-target -n longhorn-system \

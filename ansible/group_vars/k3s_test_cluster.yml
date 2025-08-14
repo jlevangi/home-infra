@@ -54,9 +54,9 @@ deploy_homepage: true
 deploy_vaultwarden: true
 
 # Test Environment - Force Redeploy Configuration
-bookstack_force_redeploy: true
-homepage_force_redeploy: true
-vaultwarden_force_redeploy: true
+bookstack_force_redeploy: false
+homepage_force_redeploy: false
+vaultwarden_force_redeploy: false
 
 # Longhorn Configuration for Test Cluster
 # Dynamic replica count based on available worker nodes
