@@ -107,33 +107,21 @@ deploy_bookstack: true
 deploy_homepage: true
 deploy_vaultwarden: true
 
-# Global storage limits for production environment (generous for large nodes)
+# Production Environment - Force Redeploy Configuration
+# Only enable these manually when intentional redeployment is needed
+bookstack_force_redeploy: false
+homepage_force_redeploy: false  
+vaultwarden_force_redeploy: false
+
+# ================================================================================
+# STORAGE CONFIGURATION - PRODUCTION ENVIRONMENT
+# ================================================================================
+
+# Global Storage Limits (generous for production large nodes)
 global_max_pvc_size: "10Gi"              # Global max per PVC
 global_min_pvc_size: "100Mi"             # Global min per PVC
 global_max_pvcs: "20"                    # Max PVCs per namespace
-
-# Longhorn Configuration for Production Cluster
-# Dynamic replica count based on available worker nodes
-# Calculates based on nodes in the worker_group (k3s_workers)
-longhorn_replica_count: "{{ [groups[worker_group] | length, 3] | min }}"
-longhorn_exclude_master_from_storage: true
-
-# Longhorn UI Access Configuration
-longhorn_ui_ingress_enabled: true  # Temporarily enabled for UI access
-longhorn_ui_app_url: "https://longhorn.levangie.dev"
-
-# Longhorn Backup Configuration
-enable_longhorn_backup: true  # Enable automatic backups to NFS
-longhorn_backup_shared_across_clusters: true   # Use shared backup location for cross-cluster restore
-longhorn_backup_schedule_daily: "0 2 * * *"    # Daily at 2 AM
-longhorn_backup_schedule_weekly: "0 3 * * 0"   # Weekly on Sunday at 3 AM
-longhorn_backup_retain_daily: 7                # Keep 7 daily backups
-longhorn_backup_retain_weekly: 4               # Keep 4 weekly backups
-
-# Production Environment - Dynamic Storage Configuration with Limits
-# Fully dynamic sizing with generous limits for production workloads
-# Global initial size for all PVCs (starts small, grows as needed)
-default_initial_volume_size: "500Mi"
+default_initial_volume_size: "500Mi"     # Global initial size for all PVCs
 
 # Database-specific initial sizes (databases need more space for initialization)
 bookstack_database_initial_volume_size: "1Gi"
@@ -151,9 +139,19 @@ homepage_max_namespace_storage: "3Gi"
 homepage_max_pvc_size: "2Gi"
 homepage_default_pvc_size: "1Gi"
 
+# Longhorn Configuration for Production Cluster
+# Dynamic replica count based on available worker nodes
+longhorn_replica_count: "{{ [groups[worker_group] | length, 3] | min }}"
+longhorn_exclude_master_from_storage: true
 
-# Production Environment - Force Redeploy Configuration
-# Only enable these manually when intentional redeployment is needed
-bookstack_force_redeploy: false
-homepage_force_redeploy: false  
-vaultwarden_force_redeploy: false
+# Longhorn UI Access Configuration
+longhorn_ui_ingress_enabled: true  # Temporarily enabled for UI access
+longhorn_ui_app_url: "https://longhorn.levangie.dev"
+
+# Longhorn Backup Configuration
+enable_longhorn_backup: true  # Enable automatic backups to NFS
+longhorn_backup_shared_across_clusters: true   # Use shared backup location for cross-cluster restore
+longhorn_backup_schedule_daily: "0 2 * * *"    # Daily at 2 AM
+longhorn_backup_schedule_weekly: "0 3 * * 0"   # Weekly on Sunday at 3 AM
+longhorn_backup_retain_daily: 7                # Keep 7 daily backups
+longhorn_backup_retain_weekly: 4               # Keep 4 weekly backups
