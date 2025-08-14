@@ -6,138 +6,165 @@
     app_name: "Vaultwarden"
     k8s_namespace: "vaultwarden"
     kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
-    force_redeploy_var: "vaultwarden_force_redeploy"
+    force_redeploy_var: "applications.vaultwarden.force_redeploy"
     # PVC cleanup is now handled automatically by cleanup_task.yml
 
-# NFS-related tasks commented out - using Longhorn storage instead
-# # Get NFS user context using shared task
-# - name: Get NFS user context for Vaultwarden
-#   include_tasks: shared/get_nfs_user_context.yml
-
-# # Create application directories using shared task
-# - name: Create Vaultwarden storage directories
-#   include_tasks: shared/create_app_directories.yml
-#   vars:
-#     app_name: "vaultwarden"
-#     app_directories:
-#       - "apps/vaultwarden"
-
-# Apply Kubernetes resources using shared task
-- name: Apply Vaultwarden Kubernetes resources
-  include_tasks: shared/apply_k8s_resources.yml
-  vars:
-    app_name: "vaultwarden"
-    k8s_resources:
-      - name: "Namespace"
-        template: "common/namespace.yaml.j2"
-        vars:
-          app_name: "vaultwarden"
-      - name: "ResourceQuota"
-        template: "common/resource-quota.yaml.j2"
-        vars:
-          app_name: "vaultwarden"
-          max_namespace_storage: "{{ vaultwarden_max_namespace_storage | default('50Gi') }}"
-          max_pvcs: "{{ global_max_pvcs | default('10') }}"
-      - name: "LimitRange"
-        template: "common/limit-range.yaml.j2"
-        vars:
-          app_name: "vaultwarden"
-          max_pvc_size: "{{ vaultwarden_max_pvc_size | default('30Gi') }}"
-          min_pvc_size: "{{ global_min_pvc_size | default('10Mi') }}"
-          default_pvc_size: "{{ vaultwarden_default_pvc_size | default('5Gi') }}"
-      - name: "PV/PVC (Dynamic)"
-        template: "common/pv-pvc.yaml.j2"
-        vars:
-          app_name: "vaultwarden"
-          volume_name: "data"
-          initial_volume_size: "{{ default_initial_volume_size | default('100Mi') }}"
-      - name: "ConfigMap"
-        template: "vaultwarden/configmap.yaml.j2"
-        vars:
-          app_name: "vaultwarden"
-      - name: "Service"
-        template: "vaultwarden/service.yaml.j2"
-        vars:
-          app_name: "vaultwarden"
-          service_port: "{{ vaultwarden_service_port }}"
-      - name: "Deployment"
-        template: "vaultwarden/deployment.yaml.j2"
-        vars:
-          app_name: "vaultwarden"
-          image:
-            registry: "docker.io"
-            repository: "vaultwarden/server"
-            tag: "latest"
-            pullPolicy: "IfNotPresent"
-          pvc_name: "vaultwarden-data"
-          # uid: "{{ dynamic_nfs_uid }}"  # NFS-related, commented out for Longhorn
-          # gid: "{{ dynamic_nfs_gid }}"  # NFS-related, commented out for Longhorn
-          service_port: "{{ vaultwarden_service_port }}"
-          smtp_host: "{{ smtp_host }}"
-          smtp_port: "{{ smtp_port }}"
-          smtp_security: "{{ smtp_security }}"
-          smtp_username: "{{ smtp_username }}"
-          smtp_password: "{{ smtp_password }}"
-          admin_token: "{{ vaultwarden_admin_token }}"
-      - name: "Ingress"
-        template: "common/ingress.yaml.j2"
-        vars:
-          service_name: "vaultwarden"
-          app_url: "{{ vaultwarden_app_url }}"
-          service_port: "{{ vaultwarden_service_port }}"
+# Check if Vaultwarden deployment already exists (to respect force_redeploy flag)
+- name: Check if Vaultwarden namespace exists
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get namespace vaultwarden
+  register: vaultwarden_namespace_check
+  failed_when: false
+  changed_when: false
   when: inventory_hostname == groups[master_group][0]
 
-# Apply optional secret if enabled
-- name: Apply Vaultwarden Secret (if enabled)
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
-  args:
-    stdin: "{{ lookup('template', 'vaultwarden/secret.yaml.j2') }}"
-  vars:
-    app_name: "vaultwarden"
-  when: 
-    - inventory_hostname == groups[master_group][0] 
-    - vaultwarden_secret_enabled | default(false)
+# Set deployment condition: deploy if force_redeploy is true OR namespace doesn't exist
+- name: Set Vaultwarden deployment condition
+  set_fact:
+    should_deploy_vaultwarden: "{{ applications.vaultwarden.force_redeploy | default(false) | bool or vaultwarden_namespace_check.rc != 0 }}"
+  when: inventory_hostname == groups[master_group][0]
 
-# Wait for deployment readiness using shared task
-- name: Wait for Vaultwarden deployment readiness
-  include_tasks: shared/wait_for_deployment.yml
-  vars:
-    app_name: "vaultwarden"
-    k8s_namespace: "vaultwarden"
-    deployment_checks:
-      - name: "Vaultwarden deployment"
-        type: "deployment" 
-        selector: "app=vaultwarden"
-        timeout: 300
-
-# Final deployment information
-- name: Display Vaultwarden deployment summary
+- name: Display Vaultwarden deployment decision
   debug:
     msg: |
-      🚀 Vaultwarden Deployment Complete!
+      📋 Vaultwarden Deployment Decision:
+      Force redeploy setting: {{ applications.vaultwarden.force_redeploy | default(false) }}
+      Namespace exists: {{ 'Yes' if vaultwarden_namespace_check.rc == 0 else 'No' }}
+      Will deploy: {{ should_deploy_vaultwarden | default(false) }}
+      Reason: {{ 'Force redeploy enabled' if applications.vaultwarden.force_redeploy | default(false) | bool else ('Namespace missing - first deployment' if vaultwarden_namespace_check.rc != 0 else 'Skipping - deployment exists and force_redeploy=false') }}
+  when: inventory_hostname == groups[master_group][0]
 
-      🔗 Access Information:
-      - Application URL: {{ vaultwarden_app_url }}
-      - Admin URL: {{ vaultwarden_app_url }}/admin
-      - Service Port: {{ vaultwarden_service_port }}
+# Deploy Vaultwarden resources (only if should_deploy_vaultwarden is true)
+- name: Deploy Vaultwarden Kubernetes resources
+  block:
+    # Apply Kubernetes resources using shared task
+    - name: Apply Vaultwarden Kubernetes resources
+      include_tasks: shared/apply_k8s_resources.yml
+      vars:
+        app_name: "vaultwarden"
+        k8s_resources:
+          - name: "Namespace"
+            template: "common/namespace.yaml.j2"
+            vars:
+              app_name: "vaultwarden"
+          - name: "ResourceQuota"
+            template: "common/resource-quota.yaml.j2"
+            vars:
+              app_name: "vaultwarden"
+              max_namespace_storage: "{{ applications.vaultwarden.storage.max_namespace_storage | default('50Gi') }}"
+              max_pvcs: "{{ global_max_pvcs | default('10') }}"
+          - name: "LimitRange"
+            template: "common/limit-range.yaml.j2"
+            vars:
+              app_name: "vaultwarden"
+              max_pvc_size: "{{ applications.vaultwarden.storage.max_pvc_size | default('30Gi') }}"
+              min_pvc_size: "{{ global_min_pvc_size | default('10Mi') }}"
+              default_pvc_size: "{{ applications.vaultwarden.storage.default_pvc_size | default('5Gi') }}"
+          - name: "PV/PVC (Dynamic)"
+            template: "common/pv-pvc.yaml.j2"
+            vars:
+              app_name: "vaultwarden"
+              volume_name: "data"
+              initial_volume_size: "{{ applications.vaultwarden.storage.data_initial_size | default('100Mi') }}"
+          - name: "ConfigMap"
+            template: "vaultwarden/configmap.yaml.j2"
+            vars:
+              app_name: "vaultwarden"
+          - name: "Service"
+            template: "vaultwarden/service.yaml.j2"
+            vars:
+              app_name: "vaultwarden"
+              service_port: "{{ applications.vaultwarden.service_port }}"
+          - name: "Deployment"
+            template: "vaultwarden/deployment.yaml.j2"
+            vars:
+              app_name: "vaultwarden"
+              image:
+                registry: "docker.io"
+                repository: "vaultwarden/server"
+                tag: "latest"
+                pullPolicy: "IfNotPresent"
+              pvc_name: "vaultwarden-data"
+              service_port: "{{ applications.vaultwarden.service_port }}"
+              smtp_host: "{{ smtp_host }}"
+              smtp_port: "{{ smtp_port }}"
+              smtp_security: "{{ smtp_security }}"
+              smtp_username: "{{ smtp_username }}"
+              smtp_password: "{{ smtp_password }}"
+              admin_token: "{{ applications.vaultwarden.secrets.admin_token }}"
+          - name: "Ingress"
+            template: "common/ingress.yaml.j2"
+            vars:
+              service_name: "vaultwarden"
+              app_url: "{{ applications.vaultwarden.app_url }}"
+              service_port: "{{ applications.vaultwarden.service_port }}"
 
-      📁 Storage:
-      - Storage: Longhorn distributed storage
-      - Size: {{ vaultwarden_data_storage_size | default('5Gi') }}
-      # 👤 Running as: {{ vault_nfs_username | default('k3s-app-user') }} ({{ dynamic_nfs_uid | default('N/A') }}:{{ dynamic_nfs_gid | default('N/A') }})
-      👤 Running as: Container default user (Longhorn storage)
+    # Apply optional secret if enabled
+    - name: Apply Vaultwarden Secret (if enabled)
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+      args:
+        stdin: "{{ lookup('template', 'vaultwarden/secret.yaml.j2') }}"
+      vars:
+        app_name: "vaultwarden"
+      when: vaultwarden_secret_enabled | default(false)
 
-      🔒 Security:
-      - Admin token configured via vault
-      - HTTPS ingress enabled
+    # Wait for deployment readiness using shared task
+    - name: Wait for Vaultwarden deployment readiness
+      include_tasks: shared/wait_for_deployment.yml
+      vars:
+        app_name: "vaultwarden"
+        k8s_namespace: "vaultwarden"
+        deployment_checks:
+          - name: "Vaultwarden deployment"
+            type: "deployment" 
+            selector: "app=vaultwarden"
+            timeout: 300
 
-      📊 Management Commands:
-      kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get all -n vaultwarden
-      kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml logs -n vaultwarden deployment/vaultwarden
+    # Final deployment information
+    - name: Display Vaultwarden deployment summary
+      debug:
+        msg: |
+          🚀 Vaultwarden Deployment Complete!
 
-      ⚠️  Next Steps:
-      1. Ensure DNS points {{ vaultwarden_app_url | regex_replace('https://') }} to your Traefik load balancer
-      2. Access admin panel at {{ vaultwarden_app_url }}/admin using the vault admin token
-      3. Configure SMTP settings in the admin panel for user invitations
-  when: inventory_hostname in groups[master_group]
+          🔗 Access Information:
+          - Application URL: {{ applications.vaultwarden.app_url }}
+          - Admin URL: {{ applications.vaultwarden.app_url }}/admin
+          - Service Port: {{ applications.vaultwarden.service_port }}
+
+          📁 Storage:
+          - Storage: Longhorn distributed storage
+          - Size: {{ applications.vaultwarden.storage.default_pvc_size | default('5Gi') }}
+          👤 Running as: Container default user (Longhorn storage)
+
+          🔒 Security:
+          - Admin token configured via vault
+          - HTTPS ingress enabled
+
+          📊 Management Commands:
+          kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get all -n vaultwarden
+          kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml logs -n vaultwarden deployment/vaultwarden
+
+          ⚠️  Next Steps:
+          1. Ensure DNS points {{ applications.vaultwarden.app_url | regex_replace('https://') }} to your Traefik load balancer
+          2. Access admin panel at {{ applications.vaultwarden.app_url }}/admin using the vault admin token
+          3. Configure SMTP settings in the admin panel for user invitations
+
+  when: 
+    - inventory_hostname == groups[master_group][0]
+    - should_deploy_vaultwarden | default(false) | bool
+
+# Show skip message when deployment is skipped
+- name: Display Vaultwarden skip message
+  debug:
+    msg: |
+      ⏭️ Vaultwarden Deployment Skipped
+      
+      📋 Reason: force_redeploy is false and Vaultwarden namespace already exists
+      📊 Current Status: Vaultwarden is already deployed
+      
+      💡 To redeploy Vaultwarden, set vaultwarden_force_redeploy: true in your group_vars
+      🔍 To check current status: kubectl get all -n vaultwarden
+  when: 
+    - inventory_hostname == groups[master_group][0]
+    - not (should_deploy_vaultwarden | default(false) | bool)
