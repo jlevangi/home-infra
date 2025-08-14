@@ -47,16 +47,72 @@ nfs_server_ip: "172.20.20.5"  # Direct NAS IP address for backup target configur
 # Override NFS path for test environment to prevent mounting main share
 nfs_path: "{{ nfs_share_root }}-test"
 
-# Test Environment - App Deployment Control
-# Enable all apps by default in test for comprehensive testing
-deploy_bookstack: true
-deploy_homepage: true
-deploy_vaultwarden: true
+# ================================================================================
+# APPLICATIONS CONFIGURATION - TEST ENVIRONMENT
+# ================================================================================
 
-# Test Environment - Force Redeploy Configuration
-bookstack_force_redeploy: false
-homepage_force_redeploy: false
-vaultwarden_force_redeploy: false
+applications:
+  bookstack:
+    # Deployment Control
+    deploy: true
+    force_redeploy: false
+    
+    # Application Settings (test-specific URLs)
+    app_url: "https://bookstack.test"
+    service_name: "bookstack"
+    service_port: 8080
+    
+    # Storage Configuration (conservative for test environment)
+    storage:
+      max_namespace_storage: "8Gi"     # Total for BookStack namespace
+      max_pvc_size: "5Gi"              # Max per individual PVC
+      default_pvc_size: "500Mi"        # Default PVC size
+      database_initial_size: "500Mi"   # Database initial size for test
+      app_initial_size: "{{ default_initial_volume_size | default('100Mi') }}"
+    
+    # Application Secrets (from vault - same as prod)
+    secrets:
+      db_password: "{{ vault_bookstack_db_password }}"
+      mysql_root_password: "{{ vault_bookstack_mysql_root_password }}"
+      app_key: "{{ vault_bookstack_app_key }}"
+
+  vaultwarden:
+    # Deployment Control
+    deploy: true
+    force_redeploy: false
+    
+    # Application Settings (test-specific URLs)
+    app_url: "https://vw.test"
+    service_name: "vaultwarden"
+    service_port: 80
+    
+    # Storage Configuration (conservative for test environment)
+    storage:
+      max_namespace_storage: "5Gi"
+      max_pvc_size: "3Gi"
+      default_pvc_size: "500Mi"
+      data_initial_size: "{{ default_initial_volume_size | default('100Mi') }}"
+    
+    # Application Secrets (from vault - same as prod)
+    secrets:
+      admin_token: "{{ vault_vaultwarden_admin_token }}"
+
+  homepage:
+    # Deployment Control
+    deploy: true
+    force_redeploy: false
+    
+    # Application Settings (test-specific URLs)
+    app_url: "https://homepage.test"
+    service_name: "homepage"
+    service_port: 3000
+    
+    # Storage Configuration (conservative for test environment)
+    storage:
+      max_namespace_storage: "2Gi"
+      max_pvc_size: "1Gi"
+      default_pvc_size: "100Mi"
+      config_initial_size: "{{ default_initial_volume_size | default('100Mi') }}"
 
 # ================================================================================
 # STORAGE CONFIGURATION - TEST ENVIRONMENT
@@ -68,21 +124,7 @@ global_min_pvc_size: "10Mi"              # Global min per PVC
 global_max_pvcs: "5"                     # Max PVCs per namespace
 default_initial_volume_size: "100Mi"     # Global initial size for all PVCs
 
-# Database-specific initial sizes (databases need more space for initialization)
-bookstack_database_initial_volume_size: "500Mi"
-
-# Per-application storage limits (maximum each app can consume)
-bookstack_max_namespace_storage: "8Gi"    # Total for BookStack namespace
-bookstack_max_pvc_size: "5Gi"             # Max per individual PVC
-bookstack_default_pvc_size: "500Mi"       # Default PVC size
-
-vaultwarden_max_namespace_storage: "5Gi"
-vaultwarden_max_pvc_size: "3Gi"
-vaultwarden_default_pvc_size: "500Mi"
-
-homepage_max_namespace_storage: "2Gi"
-homepage_max_pvc_size: "1Gi"
-homepage_default_pvc_size: "100Mi"
+# Note: Per-application storage limits are now defined in the applications section above
 
 # Longhorn Configuration for Test Cluster
 # Dynamic replica count based on available worker nodes

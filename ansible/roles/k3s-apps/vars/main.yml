@@ -1,21 +1,27 @@
 ---
-# Override sensitive values in vault files or group_vars
-
-bookstack_app_url: "https://bookstack.{{ cluster_tld }}"
-bookstack_service_name: "bookstack"
-bookstack_service_port: 8080
-bookstack_config_storage_size: "5Gi"
-bookstack_db_storage_size: "10Gi"
-bookstack_db_password: "{{ vault_bookstack_db_password }}"
-bookstack_mysql_root_password: "{{ vault_bookstack_mysql_root_password }}"
-bookstack_app_key: "{{ vault_bookstack_app_key }}"
-
-homepage_app_url: "https://homepage.{{ cluster_tld }}"
-homepage_service_name: "homepage"
-homepage_service_port: 3000
-
-vaultwarden_app_url: "https://vw.{{ cluster_tld }}"
-vaultwarden_service_name: "vaultwarden"
-vaultwarden_service_port: 80
-vaultwarden_data_storage_size: "10Gi"
-vaultwarden_admin_token: "{{ vault_vaultwarden_admin_token }}"
+# Application configuration has been moved to nested structure in group_vars
+# 
+# All application settings are now organized under the 'applications' key:
+#
+# applications:
+#   bookstack:
+#     app_url: "https://bookstack.{{ cluster_tld }}"
+#     service_name: "bookstack"
+#     service_port: 8080
+#     storage: { ... }
+#     secrets: { ... }
+#
+#   homepage:
+#     app_url: "https://homepage.{{ cluster_tld }}"
+#     service_name: "homepage"  
+#     service_port: 3000
+#     storage: { ... }
+#
+#   vaultwarden:
+#     app_url: "https://vw.{{ cluster_tld }}"
+#     service_name: "vaultwarden"
+#     service_port: 80
+#     storage: { ... }
+#     secrets: { ... }
+#
+# See group_vars/k3s_cluster.yml and group_vars/k3s_cluster_test.yml for actual configuration.

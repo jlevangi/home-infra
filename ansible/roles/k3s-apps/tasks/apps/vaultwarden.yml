@@ -6,7 +6,7 @@
     app_name: "Vaultwarden"
     k8s_namespace: "vaultwarden"
     kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
-    force_redeploy_var: "vaultwarden_force_redeploy"
+    force_redeploy_var: "applications.vaultwarden.force_redeploy"
     # PVC cleanup is now handled automatically by cleanup_task.yml
 
 # Check if Vaultwarden deployment already exists (to respect force_redeploy flag)
@@ -21,17 +21,17 @@
 # Set deployment condition: deploy if force_redeploy is true OR namespace doesn't exist
 - name: Set Vaultwarden deployment condition
   set_fact:
-    should_deploy_vaultwarden: "{{ vaultwarden_force_redeploy | default(false) | bool or vaultwarden_namespace_check.rc != 0 }}"
+    should_deploy_vaultwarden: "{{ applications.vaultwarden.force_redeploy | default(false) | bool or vaultwarden_namespace_check.rc != 0 }}"
   when: inventory_hostname == groups[master_group][0]
 
 - name: Display Vaultwarden deployment decision
   debug:
     msg: |
       📋 Vaultwarden Deployment Decision:
-      Force redeploy setting: {{ vaultwarden_force_redeploy | default(false) }}
+      Force redeploy setting: {{ applications.vaultwarden.force_redeploy | default(false) }}
       Namespace exists: {{ 'Yes' if vaultwarden_namespace_check.rc == 0 else 'No' }}
       Will deploy: {{ should_deploy_vaultwarden | default(false) }}
-      Reason: {{ 'Force redeploy enabled' if vaultwarden_force_redeploy | default(false) | bool else ('Namespace missing - first deployment' if vaultwarden_namespace_check.rc != 0 else 'Skipping - deployment exists and force_redeploy=false') }}
+      Reason: {{ 'Force redeploy enabled' if applications.vaultwarden.force_redeploy | default(false) | bool else ('Namespace missing - first deployment' if vaultwarden_namespace_check.rc != 0 else 'Skipping - deployment exists and force_redeploy=false') }}
   when: inventory_hostname == groups[master_group][0]
 
 # Deploy Vaultwarden resources (only if should_deploy_vaultwarden is true)
@@ -51,21 +51,21 @@
             template: "common/resource-quota.yaml.j2"
             vars:
               app_name: "vaultwarden"
-              max_namespace_storage: "{{ vaultwarden_max_namespace_storage | default('50Gi') }}"
+              max_namespace_storage: "{{ applications.vaultwarden.storage.max_namespace_storage | default('50Gi') }}"
               max_pvcs: "{{ global_max_pvcs | default('10') }}"
           - name: "LimitRange"
             template: "common/limit-range.yaml.j2"
             vars:
               app_name: "vaultwarden"
-              max_pvc_size: "{{ vaultwarden_max_pvc_size | default('30Gi') }}"
+              max_pvc_size: "{{ applications.vaultwarden.storage.max_pvc_size | default('30Gi') }}"
               min_pvc_size: "{{ global_min_pvc_size | default('10Mi') }}"
-              default_pvc_size: "{{ vaultwarden_default_pvc_size | default('5Gi') }}"
+              default_pvc_size: "{{ applications.vaultwarden.storage.default_pvc_size | default('5Gi') }}"
           - name: "PV/PVC (Dynamic)"
             template: "common/pv-pvc.yaml.j2"
             vars:
               app_name: "vaultwarden"
               volume_name: "data"
-              initial_volume_size: "{{ default_initial_volume_size | default('100Mi') }}"
+              initial_volume_size: "{{ applications.vaultwarden.storage.data_initial_size | default('100Mi') }}"
           - name: "ConfigMap"
             template: "vaultwarden/configmap.yaml.j2"
             vars:
@@ -74,7 +74,7 @@
             template: "vaultwarden/service.yaml.j2"
             vars:
               app_name: "vaultwarden"
-              service_port: "{{ vaultwarden_service_port }}"
+              service_port: "{{ applications.vaultwarden.service_port }}"
           - name: "Deployment"
             template: "vaultwarden/deployment.yaml.j2"
             vars:
@@ -85,19 +85,19 @@
                 tag: "latest"
                 pullPolicy: "IfNotPresent"
               pvc_name: "vaultwarden-data"
-              service_port: "{{ vaultwarden_service_port }}"
+              service_port: "{{ applications.vaultwarden.service_port }}"
               smtp_host: "{{ smtp_host }}"
               smtp_port: "{{ smtp_port }}"
               smtp_security: "{{ smtp_security }}"
               smtp_username: "{{ smtp_username }}"
               smtp_password: "{{ smtp_password }}"
-              admin_token: "{{ vaultwarden_admin_token }}"
+              admin_token: "{{ applications.vaultwarden.secrets.admin_token }}"
           - name: "Ingress"
             template: "common/ingress.yaml.j2"
             vars:
               service_name: "vaultwarden"
-              app_url: "{{ vaultwarden_app_url }}"
-              service_port: "{{ vaultwarden_service_port }}"
+              app_url: "{{ applications.vaultwarden.app_url }}"
+              service_port: "{{ applications.vaultwarden.service_port }}"
 
     # Apply optional secret if enabled
     - name: Apply Vaultwarden Secret (if enabled)
@@ -128,13 +128,13 @@
           🚀 Vaultwarden Deployment Complete!
 
           🔗 Access Information:
-          - Application URL: {{ vaultwarden_app_url }}
-          - Admin URL: {{ vaultwarden_app_url }}/admin
-          - Service Port: {{ vaultwarden_service_port }}
+          - Application URL: {{ applications.vaultwarden.app_url }}
+          - Admin URL: {{ applications.vaultwarden.app_url }}/admin
+          - Service Port: {{ applications.vaultwarden.service_port }}
 
           📁 Storage:
           - Storage: Longhorn distributed storage
-          - Size: {{ vaultwarden_data_storage_size | default('5Gi') }}
+          - Size: {{ applications.vaultwarden.storage.default_pvc_size | default('5Gi') }}
           👤 Running as: Container default user (Longhorn storage)
 
           🔒 Security:
@@ -146,8 +146,8 @@
           kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml logs -n vaultwarden deployment/vaultwarden
 
           ⚠️  Next Steps:
-          1. Ensure DNS points {{ vaultwarden_app_url | regex_replace('https://') }} to your Traefik load balancer
-          2. Access admin panel at {{ vaultwarden_app_url }}/admin using the vault admin token
+          1. Ensure DNS points {{ applications.vaultwarden.app_url | regex_replace('https://') }} to your Traefik load balancer
+          2. Access admin panel at {{ applications.vaultwarden.app_url }}/admin using the vault admin token
           3. Configure SMTP settings in the admin panel for user invitations
 
   when: 
