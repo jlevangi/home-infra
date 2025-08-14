@@ -242,6 +242,47 @@
     - inventory_hostname == groups[master_group][0]
     - longhorn_ui_ingress_enabled | default(false)
 
+- name: Create backup schedule for all volumes
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f - <<EOF
+    apiVersion: longhorn.io/v1beta2
+    kind: RecurringJob
+    metadata:
+      name: backup-daily
+      namespace: longhorn-system
+    spec:
+      cron: "{{ longhorn_backup_schedule_daily | default('0 2 * * *') }}"
+      task: "backup"
+      groups:
+        - default
+      retain: {{ longhorn_backup_retain_daily | default(7) }}
+      concurrency: 2
+      labels:
+        backup-type: daily
+        cluster: {{ cluster_environment | default('production') }}
+    ---
+    apiVersion: longhorn.io/v1beta2
+    kind: RecurringJob
+    metadata:
+      name: backup-weekly
+      namespace: longhorn-system
+    spec:
+      cron: "{{ longhorn_backup_schedule_weekly | default('0 3 * * 0') }}"
+      task: "backup"
+      groups:
+        - default
+      retain: {{ longhorn_backup_retain_weekly | default(4) }}
+      concurrency: 1
+      labels:
+        backup-type: weekly
+        cluster: {{ cluster_environment | default('production') }}
+    EOF
+  become: yes
+  when: 
+    - enable_longhorn_backup | default(true)
+    - nfs_server is defined
+    - inventory_hostname == groups[master_group][0]
+
 - name: Display Longhorn installation info
   debug:
     msg:
@@ -252,3 +293,10 @@
       - "{% if longhorn_ui_ingress_enabled | default(false) %}   🔗 Ingress: {{ longhorn_ui_app_url }}{% endif %}"
       - "🔧 Default storage class: longhorn"
       - "⚡ Using local node storage with {{ longhorn_replica_count | default(3) }} replicas"
+      - "{% if enable_longhorn_backup | default(true) and nfs_server is defined %}"
+      - "🔄 Backup Configuration:"
+      - "   📂 NFS Target: nfs://{{ nfs_server }}:{{ nfs_share_backup }}"
+      - "   📅 Daily: {{ longhorn_backup_schedule_daily | default('0 2 * * *') }} (retain {{ longhorn_backup_retain_daily | default(7) }})"
+      - "   📅 Weekly: {{ longhorn_backup_schedule_weekly | default('0 3 * * 0') }} (retain {{ longhorn_backup_retain_weekly | default(4) }})"
+      - "   ✅ Automatic recurring jobs created"
+      - "{% endif %}"
