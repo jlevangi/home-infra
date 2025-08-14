@@ -63,6 +63,7 @@ k3s_sysctl_settings:
 # Synology NFS Shared Storage Configuration
 enable_nfs_storage: true
 enable_nfs_host_mount: true
+nfs_server_ip: "172.20.20.5"  # Direct NAS IP address for backup target configuration
 nfs_server: "{{ vault_nfs_server }}"  # Your Synology NAS IP address (was nas-1)
 nfs_share_root: "{{ vault_nfs_share_root }}"  # Root path from vault (e.g., "/volume1/k3s-storage")
 nfs_path: "{{ nfs_share_root }}"  # Main NFS export path

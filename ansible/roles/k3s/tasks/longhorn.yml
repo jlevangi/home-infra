@@ -21,14 +21,29 @@
   failed_when: false
   become: yes
 
+- name: Calculate dynamic replica count for Longhorn
+  set_fact:
+    calculated_replica_count: "{{ [groups[worker_group] | length, 3] | min }}"
+  when: longhorn_replica_count is not defined
+
+- name: Display Longhorn replica count calculation
+  debug:
+    msg: |
+      🔧 Longhorn Replica Count Calculation:
+      Worker group: {{ worker_group }}
+      Worker nodes: {{ groups[worker_group] | default([]) }}
+      Worker node count: {{ groups[worker_group] | length }}
+      Configured replica count: {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}
+      Final replica count: {{ [groups[worker_group] | length, 3] | min }}
+
 - name: Install Longhorn
   ansible.builtin.shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm upgrade --install longhorn longhorn/longhorn \
       --namespace longhorn-system \
       --create-namespace \
-      --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(3) }} \
+      --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
       --set defaultSettings.defaultDataPath="/var/lib/longhorn/" \
-      {% if enable_longhorn_backup | default(true) and nfs_server is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server }}:{{ nfs_share_backup }}" \
+      {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server_ip }}{{ nfs_share_backup }}" \
       {% endif %}--wait --timeout=600s
   become: yes
   when: longhorn_check.rc != 0
@@ -56,6 +71,52 @@
   retries: 10
   delay: 30
   become: yes
+
+- name: Update Longhorn default settings to match cluster configuration
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch setting default-replica-count -n longhorn-system \
+      --type='merge' -p='{"value":"{{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}"}'
+  become: yes
+  register: setting_update_result
+  failed_when: false
+
+- name: Display Longhorn setting update result
+  debug:
+    msg: |
+      🔧 Longhorn Default Replica Count Setting Update:
+      {% if setting_update_result.rc == 0 %}
+      ✅ Successfully updated default-replica-count to {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}
+      {% else %}
+      ⚠️  Setting update failed (may not exist yet): {{ setting_update_result.stderr | default('Unknown error') }}
+      💡 This is normal for fresh installations - settings will be applied via existing volume updates below
+      {% endif %}
+
+- name: Update Longhorn backup target setting
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch setting backup-target -n longhorn-system \
+      --type='merge' -p='{"value":"nfs://{{ nfs_server_ip }}{{ nfs_share_backup }}"}'
+  become: yes
+  register: backup_target_update_result
+  failed_when: false
+  when: 
+    - enable_longhorn_backup | default(true)
+    - nfs_server_ip is defined
+    - nfs_share_backup is defined
+
+- name: Display Longhorn backup target update result
+  debug:
+    msg: |
+      🔧 Longhorn Backup Target Setting Update:
+      {% if backup_target_update_result.rc == 0 %}
+      ✅ Successfully updated backup-target to nfs://{{ nfs_server_ip }}{{ nfs_share_backup }}
+      {% else %}
+      ⚠️  Backup target update failed (may not exist yet): {{ backup_target_update_result.stderr | default('Unknown error') }}
+      💡 This is normal for fresh installations - backup target will be applied via helm values above
+      {% endif %}
+  when: 
+    - enable_longhorn_backup | default(true)
+    - nfs_server_ip is defined
+    - nfs_share_backup is defined
 
 - name: Check for any existing validation PVC
   shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pvc longhorn-validation-pvc --ignore-not-found=true
@@ -153,7 +214,7 @@
 - name: Check existing volumes with incorrect replica count
   shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get volumes -n longhorn-system -o jsonpath='{range .items[*]}{.metadata.name}:{.spec.numberOfReplicas}{"\n"}{end}' 2>/dev/null | \
-    awk -F: -v target={{ longhorn_replica_count | default(3) }} '$2 != target && NF > 0 {print $1}' || echo ""
+    awk -F: -v target={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} '$2 != target && NF > 0 {print $1}' || echo ""
   register: incorrect_replica_volumes
   become: yes
   changed_when: false
@@ -163,7 +224,7 @@
 - name: Update existing volumes to correct replica count
   shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch volume {{ item }} -n longhorn-system \
-      --type='merge' -p='{"spec":{"numberOfReplicas":{{ longhorn_replica_count | default(3) }}}}'
+      --type='merge' -p='{"spec":{"numberOfReplicas":{{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}}}'
   loop: "{{ incorrect_replica_volumes.stdout_lines }}"
   become: yes
   when: 
@@ -175,7 +236,7 @@
   debug:
     msg: |
       📊 Longhorn Replica Count Adjustment:
-      Target replica count: {{ longhorn_replica_count | default(3) }}
+      Target replica count: {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}
       Based on: min({{ groups[worker_group] | length }} worker nodes, 3)
       
       {% if volume_count.stdout | int == 0 %}
@@ -186,7 +247,7 @@
       - {{ volume }}
       {% endfor %}
       {% else %}
-      ✅ All volumes already have correct replica count ({{ longhorn_replica_count | default(3) }})
+      ✅ All volumes already have correct replica count ({{ longhorn_replica_count | default(calculated_replica_count | default(3)) }})
       {% endif %}
 
 - name: Wait for updated volumes to become healthy
@@ -280,7 +341,7 @@
   become: yes
   when: 
     - enable_longhorn_backup | default(true)
-    - nfs_server is defined
+    - nfs_server_ip is defined
     - inventory_hostname == groups[master_group][0]
 
 - name: Display Longhorn installation info
@@ -292,10 +353,10 @@
          🌐 NodePort: http://{{ ansible_default_ipv4.address }}:30080
       {% if longhorn_ui_ingress_enabled | default(false) %}   🔗 Ingress: {{ longhorn_ui_app_url }}{% endif %}
       🔧 Default storage class: longhorn
-      ⚡ Using local node storage with {{ longhorn_replica_count | default(3) }} replicas
+      ⚡ Using local node storage with {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} replicas
       
-      {% if enable_longhorn_backup | default(true) and nfs_server is defined %}🔄 Backup Configuration:
-         📂 NFS Target: nfs://{{ nfs_server }}:{{ nfs_share_backup }}
+      {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}🔄 Backup Configuration:
+         📂 NFS Target: nfs://{{ nfs_server_ip }}{{ nfs_share_backup }}
          📅 Daily: {{ longhorn_backup_schedule_daily | default('0 2 * * *') }} (retain {{ longhorn_backup_retain_daily | default(7) }})
          📅 Weekly: {{ longhorn_backup_schedule_weekly | default('0 3 * * 0') }} (retain {{ longhorn_backup_retain_weekly | default(4) }})
          ✅ Automatic recurring jobs created{% endif %}
