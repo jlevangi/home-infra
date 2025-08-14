@@ -218,11 +218,20 @@
     EOF
   become: yes
 
+- name: Wait for Longhorn to be fully ready before PVC test
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=condition=Ready pod -l app=longhorn-manager -n longhorn-system --timeout=60s
+    sleep 30  # Additional time for Longhorn to stabilize
+  become: yes
+  ignore_errors: yes
+
 - name: Wait for test PVC to be bound
   shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc/longhorn-validation-pvc --timeout=300s
   register: pvc_wait_result
   become: yes
   ignore_errors: yes
+  retries: 2
+  delay: 30
 
 - name: Show PVC status if binding failed
   shell: |
