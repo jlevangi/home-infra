@@ -1,10 +1,10 @@
 # Production Ansible Inventory for K3s Cluster
 [k3s_master]
-k3s-node-1 ansible_host=172.20.20.101 ansible_user=pierce ansible_ssh_private_key_file=~/.ssh/pierce
+k3s-prod-node-1 ansible_host=172.20.20.101 ansible_user=pierce ansible_ssh_private_key_file=~/.ssh/pierce
 
 [k3s_workers]
-k3s-node-2 ansible_host=172.20.20.102 ansible_user=pierce ansible_ssh_private_key_file=~/.ssh/pierce
-k3s-node-3 ansible_host=172.20.20.103 ansible_user=pierce ansible_ssh_private_key_file=~/.ssh/pierce
+k3s-prod-node-2 ansible_host=172.20.20.102 ansible_user=pierce ansible_ssh_private_key_file=~/.ssh/pierce
+k3s-prod-node-3 ansible_host=172.20.20.103 ansible_user=pierce ansible_ssh_private_key_file=~/.ssh/pierce
 
 [k3s_cluster:children]
 k3s_master
@@ -31,22 +31,18 @@ ansible_ssh_common_args='-o StrictHostKeyChecking=no'
 ansible_python_interpreter=/usr/bin/python3
 
 
-# Staging Ansible Inventory for K3s Cluster
-; [k3s_cluster_staging_master]
-; k3s-staging-node-1 ansible_host=172.20.20.121 ansible_user=pierce ansible_ssh_private_key_file=~/.ssh/pierce
+# Stage Ansible Inventory for K3s Cluster
+; [k3s_cluster_stage_master]
+; k3s-stage-node-1 ansible_host=172.20.20.121 ansible_user=pierce ansible_ssh_private_key_file=~/.ssh/pierce
 
-; [k3s_cluster_staging_workers]
-; k3s-staging-node-2 ansible_host=172.20.20.122 ansible_user=pierce ansible_ssh_private_key_file=~/.ssh/pierce
-; k3s-staging-node-3 ansible_host=172.20.20.123 ansible_user=pierce ansible_ssh_private_key_file=~/.ssh/pierce
+; [k3s_cluster_stage_workers]
+; k3s-stage-node-2 ansible_host=172.20.20.122 ansible_user=pierce ansible_ssh_private_key_file=~/.ssh/pierce
+; k3s-stage-node-3 ansible_host=172.20.20.123 ansible_user=pierce ansible_ssh_private_key_file=~/.ssh/pierce
 
-; [k3s_cluster_staging:children]
-; k3s_cluster_staging_master
-; k3s_cluster_staging_workers
+; [k3s_cluster_stage:children]
+; k3s_cluster_stage_master
+; k3s_cluster_stage_workers
 
-; [k3s_cluster_staging:children]
-; k3s_cluster_staging_master
-; k3s_cluster_staging_workers
-
-; [k3s_cluster_staging:vars]
+; [k3s_cluster_stage:vars]
 ; ansible_ssh_common_args='-o StrictHostKeyChecking=no'
 ; ansible_python_interpreter=/usr/bin/python3
