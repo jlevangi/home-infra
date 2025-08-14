@@ -26,9 +26,10 @@ spec:
       nodeSelector:
         kubernetes.io/os: linux
       securityContext:
-        runAsUser: {{ dynamic_nfs_uid | default('1024') }}
-        runAsGroup: {{ dynamic_nfs_gid | default('100') }}
-        fsGroup: {{ dynamic_nfs_gid | default('100') }}
+        runAsUser: 1000  # Use standard non-root user
+        runAsGroup: 1000
+        fsGroup: 1000
+        runAsNonRoot: true
       containers:
       - name: homepage
         image: ghcr.io/gethomepage/homepage:latest
@@ -69,9 +70,9 @@ spec:
           timeoutSeconds: 3
           failureThreshold: 3
         securityContext:
+          runAsUser: 1000  # Use standard non-root user
+          runAsGroup: 1000
           runAsNonRoot: true
-          runAsUser: {{ dynamic_nfs_uid | default('1024') }}
-          runAsGroup: {{ dynamic_nfs_gid | default('100') }}
           allowPrivilegeEscalation: false
           capabilities:
             drop:

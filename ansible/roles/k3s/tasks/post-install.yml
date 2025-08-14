@@ -58,17 +58,20 @@
   debug:
     msg: |
       💾 Storage Architecture:
-      {% if k3s_use_nfs_storage | default(false) %}
-      Using NFS CSI driver for dynamic provisioning
-      - NFS CSI controller will be deployed and validated
-      - Dynamic storage classes available: nfs-apps, nfs-database, nfs-shared, nfs-backup
+      {% if k3s_install_longhorn | default(true) %}
+      Using Longhorn distributed storage for dynamic provisioning
+      - Longhorn provides replicated block storage using local node storage
+      - Dynamic storage class available: longhorn (default)
+      - High availability with configurable replica count
+      - Built-in snapshots, backups, and disaster recovery
       {% else %}
       Using hostPath volumes with NFS backing
       - NFS mounted directly to /mnt/k3s-storage on all nodes
       - Applications use hostPath volumes pointing to NFS-backed storage
-      - No NFS CSI driver needed (simpler, more reliable approach)
+      - No CSI driver needed (simpler, but less resilient approach)
       {% endif %}
 
+# Legacy NFS CSI validation tasks (only run when NFS is explicitly enabled)
 - name: Check if NFS CSI controller ServiceAccount exists
   shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get serviceaccount csi-nfs-controller-sa -n kube-system
   register: csi_sa_check
@@ -144,17 +147,56 @@
   debug:
     var: cluster_info.stdout_lines
 
-- name: Display cluster access information
-  debug:
-    msg:
-      - "✅ K3s cluster is ready!"
-      - "📊 Access your cluster:"
-      - "   ssh {{ k3s_user }}@{{ ansible_default_ipv4.address }}"
-      - "   kubectl get nodes"
-      - ""
-      - "🔧 Or copy kubeconfig to your local machine:"
-      - "   scp {{ k3s_user }}@{{ ansible_default_ipv4.address }}:/etc/rancher/k3s.yaml ~/.kube/config"
-      - "   export KUBECONFIG=~/.kube/config"
-      - ""
-      - "{% if k3s_use_nfs_storage | default(false) %}💾 NFS CSI Storage is configured and validated!{% else %}💾 HostPath NFS Storage is configured at /mnt/k3s-storage/{% endif %}"
-      - "{% if k3s_use_nfs_storage | default(false) %}   Available storage classes: nfs-apps, nfs-database, nfs-shared, nfs-backup{% else %}   Applications will use hostPath volumes with NFS backing{% endif %}"
+- name: Check MetalLB deployment status
+  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -n metallb-system --no-headers 2>/dev/null | grep -c Running || echo "0"
+  register: metallb_status
+  ignore_errors: yes
+  become: yes
+
+- name: Check Traefik deployment status  
+  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -n traefik-system --no-headers 2>/dev/null | grep -c Running || echo "0"
+  register: traefik_status
+  ignore_errors: yes
+  become: yes
+
+- name: Check Longhorn deployment status
+  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -n longhorn-system --no-headers 2>/dev/null | grep -c Running || echo "0"
+  register: longhorn_status
+  ignore_errors: yes
+  become: yes
+  when: k3s_install_longhorn | default(true)
+
+- name: Check LoadBalancer services
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get svc -A --no-headers | grep LoadBalancer | while read line; do
+      namespace=$(echo "$line" | awk '{print $1}')
+      service=$(echo "$line" | awk '{print $2}')
+      external_ip=$(echo "$line" | awk '{print $5}')
+      if [ "$external_ip" = "<pending>" ]; then
+        echo "PENDING: $namespace/$service"
+      else
+        echo "READY: $namespace/$service ($external_ip)"
+      fi
+    done
+  register: loadbalancer_status
+  ignore_errors: yes
+  become: yes
+
+- name: Determine overall cluster health
+  set_fact:
+    cluster_healthy: >-
+      {{
+        (ready_nodes.stdout | int) == (groups[cluster_group] | length) and
+        (metallb_status.stdout | int) > 0 and
+        (traefik_status.stdout | int) > 0 and
+        (longhorn_status.stdout | int > 0 if k3s_install_longhorn | default(true) else true)
+      }}
+    health_issues: >-
+      {{
+        ([] +
+        (['Nodes not ready: ' + ready_nodes.stdout + '/' + (groups[cluster_group] | length | string)] if (ready_nodes.stdout | int) != (groups[cluster_group] | length) else []) +
+        (['MetalLB not running'] if (metallb_status.stdout | int) == 0 else []) +
+        (['Traefik not running'] if (traefik_status.stdout | int) == 0 else []) +
+        (['Longhorn not running'] if k3s_install_longhorn | default(true) and (longhorn_status.stdout | int) == 0 else [])
+        )
+      }}

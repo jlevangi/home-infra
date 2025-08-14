@@ -1,0 +1,14 @@
+# {{ app_name | title }} ResourceQuota - Storage Limits
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{ app_name }}-storage-quota
+  namespace: {{ app_name }}
+spec:
+  hard:
+    # Maximum total storage this namespace can consume
+    requests.storage: "{{ max_namespace_storage | default('50Gi') }}"
+    # Maximum number of PVCs in this namespace
+    persistentvolumeclaims: "{{ max_pvcs | default('10') }}"
+    # Longhorn-specific storage limits
+    longhorn.io/requests.storage: "{{ max_namespace_storage | default('50Gi') }}"

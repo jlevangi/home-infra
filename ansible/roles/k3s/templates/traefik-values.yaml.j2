@@ -5,6 +5,8 @@ deployment:
 service:
   enabled: true
   type: LoadBalancer
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: "{{ traefik_loadbalancer_ip }}"
 
 ports:
   web:

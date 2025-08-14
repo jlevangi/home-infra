@@ -1,0 +1,145 @@
+---
+# Playbook to migrate Longhorn backups from /test to /shared folder
+# This safely moves the backupstore contents and updates both clusters
+
+- name: Migrate Longhorn Backups to Shared Location
+  hosts: "{{ target_hosts | default('k3s_test_master') }}"
+  become: yes
+  gather_facts: yes
+  vars:
+    nfs_server_ip: "172.20.20.5"
+    old_backup_path: "/volume1/k3s-storage/longhorn/test"
+    new_backup_path: "/volume1/k3s-storage/longhorn/shared"
+    temp_mount_dir: "/tmp/nfs-backup-migration"
+    
+  tasks:
+    - name: Create temporary mount directory
+      file:
+        path: "{{ temp_mount_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Mount NFS share for migration
+      mount:
+        src: "{{ nfs_server_ip }}:/volume1/k3s-storage/longhorn"
+        path: "{{ temp_mount_dir }}"
+        fstype: nfs
+        opts: "rw,hard,intr,rsize=65536,wsize=65536,timeo=600,retrans=2,vers=4"
+        state: mounted
+
+    - name: Check if old backup directory exists
+      stat:
+        path: "{{ temp_mount_dir }}/test"
+      register: old_backup_dir
+
+    - name: Display migration plan
+      debug:
+        msg: |
+          🔄 Longhorn Backup Migration Plan:
+          
+          📂 Source: {{ temp_mount_dir }}/test
+          📂 Destination: {{ temp_mount_dir }}/shared
+          
+          {% if old_backup_dir.stat.exists %}
+          ✅ Source directory exists - proceeding with migration
+          {% else %}
+          ❌ Source directory not found - nothing to migrate
+          {% endif %}
+
+    - name: Create shared backup directory
+      file:
+        path: "{{ temp_mount_dir }}/shared"
+        state: directory
+        mode: '0755'
+      when: old_backup_dir.stat.exists
+
+    - name: List contents of test backup directory
+      shell: ls -la "{{ temp_mount_dir }}/test/"
+      register: test_backup_contents
+      when: old_backup_dir.stat.exists
+
+    - name: Display test backup contents
+      debug:
+        msg: |
+          📋 Current Test Backup Contents:
+          {{ test_backup_contents.stdout_lines | default(['Directory empty or not found']) | join('\n') }}
+      when: old_backup_dir.stat.exists
+
+    - name: Copy backupstore contents from test to shared
+      shell: |
+        cp -r "{{ temp_mount_dir }}/test/"* "{{ temp_mount_dir }}/shared/" 2>/dev/null || echo "No files to copy"
+      register: copy_result
+      when: old_backup_dir.stat.exists
+
+    - name: Verify copied contents
+      shell: ls -la "{{ temp_mount_dir }}/shared/"
+      register: shared_backup_contents
+      when: old_backup_dir.stat.exists
+
+    - name: Display copied contents
+      debug:
+        msg: |
+          📋 Copied to Shared Backup Directory:
+          {{ shared_backup_contents.stdout_lines | default(['Directory empty']) | join('\n') }}
+      when: old_backup_dir.stat.exists
+
+    - name: Unmount NFS share
+      mount:
+        path: "{{ temp_mount_dir }}"
+        state: unmounted
+
+    - name: Remove temporary mount directory
+      file:
+        path: "{{ temp_mount_dir }}"
+        state: absent
+
+    - name: Update test cluster backup target to shared location
+      shell: |
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch backuptarget.longhorn.io default -n longhorn-system \
+          --type='merge' -p='{"spec":{"backupTargetURL":"nfs://{{ nfs_server_ip }}:/volume1/k3s-storage/longhorn/shared"}}'
+      register: test_cluster_update
+      failed_when: false
+
+    - name: Display backup target update result
+      debug:
+        msg: |
+          🔧 Test Cluster Backup Target Update:
+          {% if test_cluster_update.rc == 0 %}
+          ✅ Successfully updated to shared location
+          {% else %}
+          ❌ Update failed: {{ test_cluster_update.stderr | default('Unknown error') }}
+          {% endif %}
+
+    - name: Wait for backup target to sync
+      pause:
+        seconds: 10
+        prompt: "Waiting for backup target to sync with new location..."
+
+    - name: Check if backups are now visible in shared location
+      shell: |
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get backups.longhorn.io -n longhorn-system
+      register: backups_check
+
+    - name: Display final backup status
+      debug:
+        msg: |
+          📊 Final Backup Migration Status:
+          
+          🎯 New Backup Target: nfs://{{ nfs_server_ip }}:/volume1/k3s-storage/longhorn/shared
+          
+          📋 Available Backups:
+          {{ backups_check.stdout_lines | default(['No backups found']) | join('\n') }}
+          
+          ✅ Migration Summary:
+          {% if old_backup_dir.stat.exists %}
+          - Backup contents copied from /test to /shared
+          - Test cluster updated to use shared location
+          - Backups should now be accessible from both clusters
+          {% else %}
+          - No backups found to migrate
+          {% endif %}
+          
+          💡 Next Steps:
+          1. Deploy Longhorn to production cluster with shared backup target
+          2. Verify cross-cluster backup access
+          3. Migrate production data from NFS mounts to Longhorn volumes

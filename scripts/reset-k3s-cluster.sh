@@ -76,15 +76,30 @@ if [[ "$SHOW_HELP" == "true" ]] || [[ -z "$TARGET_CLUSTER" ]]; then
 	fi
 fi
 
-# Set up target-specific variables
+# Determine script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Set up target-specific variables and switch kubectl context
 if [[ "$TARGET_CLUSTER" == "k3s_test_cluster" ]]; then
 	EXTRA_VARS="$EXTRA_VARS -e target_cluster=k3s_test_cluster"
 	CLUSTER_NAME="Test"
 	CLUSTER_EMOJI="🧪"
+	KUBECTL_CONTEXT="test"
 else
 	CLUSTER_NAME="Production"
 	CLUSTER_EMOJI="🚀"
+	KUBECTL_CONTEXT="prod"
 fi
+
+# Switch to the appropriate kubectl context
+echo "🔄 Switching to $CLUSTER_NAME cluster context..."
+if ! "$SCRIPT_DIR/k3s-context-manager.sh" switch "$KUBECTL_CONTEXT"; then
+	echo "⚠️  Warning: Failed to switch kubectl context to $KUBECTL_CONTEXT"
+	echo "   Continuing with reset, but you may need to switch context manually"
+else
+	echo "✅ Successfully switched to k3s-$KUBECTL_CONTEXT context"
+fi
+echo ""
 
 echo "$CLUSTER_EMOJI Resetting K3s $CLUSTER_NAME Cluster..."
 echo "📂 Using reset playbook: k3s-reset.yml"

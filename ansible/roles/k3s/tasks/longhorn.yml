@@ -1,0 +1,443 @@
+---
+# Install Longhorn distributed storage system
+- name: Add Longhorn Helm repo
+  ansible.builtin.shell: helm repo add longhorn https://charts.longhorn.io
+  args:
+    creates: /tmp/longhorn-repo-added
+
+- name: Mark Longhorn repo as added
+  ansible.builtin.file:
+    path: /tmp/longhorn-repo-added
+    state: touch
+  when: not ansible_check_mode
+
+- name: Update Helm repos
+  ansible.builtin.shell: helm repo update
+
+- name: Check if Longhorn is already installed
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm list -n longhorn-system | grep longhorn
+  register: longhorn_check
+  failed_when: false
+  become: yes
+
+- name: Calculate dynamic replica count for Longhorn
+  set_fact:
+    calculated_replica_count: "{{ [groups[worker_group] | length, 3] | min }}"
+  when: longhorn_replica_count is not defined
+
+- name: Display Longhorn replica count calculation
+  debug:
+    msg: |
+      🔧 Longhorn Replica Count Calculation:
+      Worker group: {{ worker_group }}
+      Worker nodes: {{ groups[worker_group] | default([]) }}
+      Worker node count: {{ groups[worker_group] | length }}
+      Configured replica count: {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}
+      Final replica count: {{ [groups[worker_group] | length, 3] | min }}
+
+- name: Install Longhorn
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm upgrade --install longhorn longhorn/longhorn \
+      --namespace longhorn-system \
+      --create-namespace \
+      --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
+      --set defaultSettings.defaultDataPath="/var/lib/longhorn/" \
+      {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}" \
+      {% endif %}--wait --timeout=600s
+  become: yes
+  when: longhorn_check.rc != 0
+
+- name: Wait for K3s to be fully ready before Longhorn checks
+  wait_for:
+    port: 6443
+    host: "{{ ansible_default_ipv4.address }}"
+    delay: 5
+    timeout: 120
+
+- name: Verify kubeconfig exists and is readable
+  stat:
+    path: /etc/rancher/k3s/k3s.yaml
+  register: kubeconfig_check
+
+- name: Display kubeconfig status
+  debug:
+    msg: "Kubeconfig exists: {{ kubeconfig_check.stat.exists }}, readable: {{ kubeconfig_check.stat.readable | default('unknown') }}"
+
+- name: Wait for Longhorn manager pods to be ready
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl -n longhorn-system wait --for=condition=Ready pod -l app=longhorn-manager --timeout=300s
+  register: longhorn_manager_wait
+  changed_when: false
+  become: yes
+  retries: 3
+  delay: 10
+  when: kubeconfig_check.stat.exists
+
+- name: Wait for Longhorn driver deployer to be ready
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl -n longhorn-system wait --for=condition=Ready pod -l app=longhorn-driver-deployer --timeout=300s
+  register: longhorn_driver_wait
+  changed_when: false
+  become: yes
+  ignore_errors: yes
+
+- name: Check Longhorn storage class is available
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get storageclass longhorn
+  register: longhorn_sc_check
+  until: longhorn_sc_check.rc == 0
+  retries: 10
+  delay: 30
+  become: yes
+
+- name: Update Longhorn default settings to match cluster configuration
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch setting default-replica-count -n longhorn-system \
+      --type='merge' -p='{"value":"{{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}"}'
+  become: yes
+  register: setting_update_result
+  failed_when: false
+
+- name: Display Longhorn setting update result
+  debug:
+    msg: |
+      🔧 Longhorn Default Replica Count Setting Update:
+      {% if setting_update_result.rc == 0 %}
+      ✅ Successfully updated default-replica-count to {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}
+      {% else %}
+      ⚠️  Setting update failed (may not exist yet): {{ setting_update_result.stderr | default('Unknown error') }}
+      💡 This is normal for fresh installations - settings will be applied via existing volume updates below
+      {% endif %}
+
+- name: Update Longhorn StorageClass ConfigMap to match replica count
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch configmap longhorn-storageclass -n longhorn-system \
+      --type='merge' -p='{"data":{"storageclass.yaml":"kind: StorageClass\napiVersion: storage.k8s.io/v1\nmetadata:\n  name: longhorn\n  annotations:\n    storageclass.kubernetes.io/is-default-class: \"true\"\nprovisioner: driver.longhorn.io\nallowVolumeExpansion: true\nreclaimPolicy: \"Delete\"\nvolumeBindingMode: Immediate\nparameters:\n  numberOfReplicas: \"{{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}\"\n  staleReplicaTimeout: \"30\"\n  fromBackup: \"\"\n  fsType: \"ext4\"\n  dataLocality: \"disabled\"\n  unmapMarkSnapChainRemoved: \"ignored\"\n  disableRevisionCounter: \"true\"\n  dataEngine: \"v1\"\n  backupTargetName: \"default\"\n"}}'
+  become: yes
+  register: storageclass_configmap_update_result
+  failed_when: false
+
+- name: Delete and recreate Longhorn StorageClass with correct replica count
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl delete storageclass longhorn
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f - <<EOF
+    kind: StorageClass
+    apiVersion: storage.k8s.io/v1
+    metadata:
+      name: longhorn
+      annotations:
+        storageclass.kubernetes.io/is-default-class: "true"
+    provisioner: driver.longhorn.io
+    allowVolumeExpansion: true
+    reclaimPolicy: "Delete"
+    volumeBindingMode: Immediate
+    parameters:
+      numberOfReplicas: "{{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}"
+      staleReplicaTimeout: "30"
+      fromBackup: ""
+      fsType: "ext4"
+      dataLocality: "disabled"
+      unmapMarkSnapChainRemoved: "ignored"
+      disableRevisionCounter: "true"
+      dataEngine: "v1"
+      backupTargetName: "default"
+    EOF
+  become: yes
+  register: storageclass_update_result
+  failed_when: false
+
+- name: Display StorageClass update result
+  debug:
+    msg: |
+      🔧 Longhorn StorageClass Update:
+      {% if storageclass_configmap_update_result.rc == 0 %}
+      ✅ Successfully updated StorageClass ConfigMap
+      {% else %}
+      ⚠️  ConfigMap update failed: {{ storageclass_configmap_update_result.stderr | default('Unknown error') }}
+      {% endif %}
+      {% if storageclass_update_result.rc == 0 %}
+      ✅ Successfully recreated StorageClass with {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} replicas
+      {% else %}
+      ⚠️  StorageClass recreation failed: {{ storageclass_update_result.stderr | default('Unknown error') }}
+      {% endif %}
+
+- name: Update Longhorn BackupTarget resource with correct NFS format
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch backuptarget.longhorn.io default -n longhorn-system \
+      --type='merge' -p='{"spec":{"backupTargetURL":"nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}"}}'
+  become: yes
+  register: backup_target_update_result
+  failed_when: false
+  when: 
+    - enable_longhorn_backup | default(true)
+    - nfs_server_ip is defined
+    - nfs_share_backup is defined
+
+- name: Display Longhorn backup target update result
+  debug:
+    msg: |
+      🔧 Longhorn BackupTarget Resource Update:
+      {% if backup_target_update_result.rc == 0 %}
+      ✅ Successfully updated BackupTarget resource to nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}
+      💡 Fixed NFS format with colon (:) after IP address for proper mounting
+      {% else %}
+      ⚠️  BackupTarget update failed: {{ backup_target_update_result.stderr | default('Unknown error') }}
+      💡 This is normal for fresh installations - backup target will be applied via helm values above
+      {% endif %}
+  when: 
+    - enable_longhorn_backup | default(true)
+    - nfs_server_ip is defined
+    - nfs_share_backup is defined
+
+- name: Check for any existing validation PVC
+  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pvc longhorn-validation-pvc --ignore-not-found=true
+  register: existing_pvc
+  become: yes
+
+- name: Clean up any existing validation PVC
+  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl delete pvc longhorn-validation-pvc --ignore-not-found=true
+  become: yes
+  when: existing_pvc.stdout != ""
+
+- name: Validate Longhorn storage with test PVC
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f - <<EOF
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: longhorn-validation-pvc
+      namespace: default
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 100Mi
+      storageClassName: longhorn
+    EOF
+  become: yes
+
+- name: Wait for Longhorn to be fully ready before PVC test
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=condition=Ready pod -l app=longhorn-manager -n longhorn-system --timeout=60s
+    sleep 30  # Additional time for Longhorn to stabilize
+  become: yes
+  ignore_errors: yes
+
+- name: Wait for test PVC to be bound
+  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc/longhorn-validation-pvc --timeout=300s
+  register: pvc_wait_result
+  become: yes
+  ignore_errors: yes
+  retries: 2
+  delay: 30
+
+- name: Show PVC status if binding failed
+  shell: |
+    echo "=== PVC Status ==="
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pvc longhorn-validation-pvc -o yaml
+    echo "=== Events ==="
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get events --sort-by='.lastTimestamp' | grep longhorn-validation-pvc || echo "No PVC events found"
+    echo "=== Longhorn Manager Logs ==="
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl logs -n longhorn-system -l app=longhorn-manager --tail=20 || echo "No manager logs"
+  become: yes
+  when: pvc_wait_result.rc != 0
+
+- name: Clean up test PVC
+  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl delete pvc longhorn-validation-pvc --ignore-not-found=true
+  become: yes
+
+- name: Check if master nodes are registered with Longhorn
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes.longhorn.io {{ item }} -n longhorn-system >/dev/null 2>&1
+  loop: "{{ groups[master_group] }}"
+  become: yes
+  register: master_longhorn_check
+  failed_when: false  # Don't fail - we expect this to fail
+  when: 
+    - longhorn_exclude_master_from_storage | default(true)
+    - item in groups[master_group]
+
+- name: Disable storage scheduling on masters that are in Longhorn
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch nodes.longhorn.io {{ item.item }} -n longhorn-system \
+      --type='merge' -p='{"spec":{"allowScheduling":false}}'
+  loop: "{{ master_longhorn_check.results | default([]) }}"
+  become: yes
+  when: 
+    - longhorn_exclude_master_from_storage | default(true)
+    - item.rc == 0  # Only patch if the node exists in Longhorn
+
+- name: Display master node storage exclusion status
+  debug:
+    msg: |
+      📊 Master Node Storage Exclusion Status:
+      {% for result in master_longhorn_check.results | default([]) %}
+      {% if result.rc == 0 %}
+      ⚠️  {{ result.item }}: Found in Longhorn - storage scheduling disabled
+      {% else %}
+      ✅ {{ result.item }}: Correctly excluded from Longhorn storage (best practice)
+      {% endif %}
+      {% endfor %}
+  when: 
+    - longhorn_exclude_master_from_storage | default(true)
+    - master_longhorn_check is defined
+
+- name: Check if any Longhorn volumes exist
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get volumes -n longhorn-system --no-headers 2>/dev/null | wc -l
+  register: volume_count
+  become: yes
+  changed_when: false
+  failed_when: false
+
+- name: Check existing volumes with incorrect replica count
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get volumes -n longhorn-system -o jsonpath='{range .items[*]}{.metadata.name}:{.spec.numberOfReplicas}{"\n"}{end}' 2>/dev/null | \
+    awk -F: -v target={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} '$2 != target && NF > 0 {print $1}' || echo ""
+  register: incorrect_replica_volumes
+  become: yes
+  changed_when: false
+  failed_when: false
+  when: volume_count.stdout | int > 0
+
+- name: Update existing volumes to correct replica count
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch volume {{ item }} -n longhorn-system \
+      --type='merge' -p='{"spec":{"numberOfReplicas":{{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}}}'
+  loop: "{{ incorrect_replica_volumes.stdout_lines }}"
+  become: yes
+  when: 
+    - volume_count.stdout | int > 0
+    - incorrect_replica_volumes is defined
+    - incorrect_replica_volumes.stdout_lines | length > 0
+
+- name: Display replica count adjustment status
+  debug:
+    msg: |
+      📊 Longhorn Replica Count Adjustment:
+      Target replica count: {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}
+      Based on: min({{ groups[worker_group] | length }} worker nodes, 3)
+      
+      {% if volume_count.stdout | int == 0 %}
+      ℹ️  No existing volumes found - new volumes will use correct replica count
+      {% elif incorrect_replica_volumes is defined and incorrect_replica_volumes.stdout_lines | length > 0 %}
+      ✅ Updated {{ incorrect_replica_volumes.stdout_lines | length }} volume(s) to correct replica count:
+      {% for volume in incorrect_replica_volumes.stdout_lines %}
+      - {{ volume }}
+      {% endfor %}
+      {% else %}
+      ✅ All volumes already have correct replica count ({{ longhorn_replica_count | default(calculated_replica_count | default(3)) }})
+      {% endif %}
+
+- name: Wait for updated volumes to become healthy
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get volume {{ item }} -n longhorn-system -o jsonpath='{.status.robustness}' | grep -q 'healthy\|unknown'
+  loop: "{{ incorrect_replica_volumes.stdout_lines }}"
+  become: yes
+  register: volume_health_check
+  until: volume_health_check.rc == 0
+  retries: 12
+  delay: 10
+  when: 
+    - volume_count.stdout | int > 0
+    - incorrect_replica_volumes is defined
+    - incorrect_replica_volumes.stdout_lines | length > 0
+  ignore_errors: yes
+
+- name: Patch Longhorn frontend service to NodePort
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch svc longhorn-frontend -n longhorn-system \
+      -p '{"spec":{"type":"NodePort","ports":[{"port":80,"nodePort":30080,"targetPort":8000}]}}'
+  become: yes
+  when: inventory_hostname == groups[master_group][0]
+
+- name: Deploy Longhorn UI Ingress
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f - <<EOF
+    ---
+    # Longhorn UI Ingress (using common pattern, TLS handled by Caddy)
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: longhorn-frontend-ingress
+      namespace: longhorn-system
+      annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: web
+    spec:
+      ingressClassName: traefik
+      rules:
+      - host: {{ longhorn_ui_app_url | regex_replace('https?://','') }}
+        http:
+          paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: longhorn-frontend
+                port:
+                  number: 80
+    EOF
+  become: yes
+  when: 
+    - inventory_hostname == groups[master_group][0]
+    - longhorn_ui_ingress_enabled | default(false)
+
+- name: Create backup schedule for all volumes
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f - <<EOF
+    apiVersion: longhorn.io/v1beta2
+    kind: RecurringJob
+    metadata:
+      name: backup-daily
+      namespace: longhorn-system
+    spec:
+      cron: "{{ longhorn_backup_schedule_daily | default('0 2 * * *') }}"
+      task: "backup"
+      groups:
+        - default
+      retain: {{ longhorn_backup_retain_daily | default(7) }}
+      concurrency: 2
+      labels:
+        backup-type: daily
+        cluster: {{ cluster_environment | default('production') }}
+    ---
+    apiVersion: longhorn.io/v1beta2
+    kind: RecurringJob
+    metadata:
+      name: backup-weekly
+      namespace: longhorn-system
+    spec:
+      cron: "{{ longhorn_backup_schedule_weekly | default('0 3 * * 0') }}"
+      task: "backup"
+      groups:
+        - default
+      retain: {{ longhorn_backup_retain_weekly | default(4) }}
+      concurrency: 1
+      labels:
+        backup-type: weekly
+        cluster: {{ cluster_environment | default('production') }}
+    EOF
+  become: yes
+  when: 
+    - enable_longhorn_backup | default(true)
+    - nfs_server_ip is defined
+    - inventory_hostname == groups[master_group][0]
+
+- name: Display Longhorn installation info
+  debug:
+    msg: |
+      ✅ Longhorn distributed storage is ready!
+      💾 Storage Architecture: Longhorn distributed block storage
+      📊 Access Longhorn UI:
+         🌐 NodePort: http://{{ ansible_default_ipv4.address }}:30080
+      {% if longhorn_ui_ingress_enabled | default(false) %}   🔗 Ingress: {{ longhorn_ui_app_url }}{% endif %}
+      🔧 Default storage class: longhorn
+      ⚡ Using local node storage with {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} replicas
+      
+      {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}🔄 Backup Configuration:
+         📂 NFS Target: nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}
+         📅 Daily: {{ longhorn_backup_schedule_daily | default('0 2 * * *') }} (retain {{ longhorn_backup_retain_daily | default(7) }})
+         📅 Weekly: {{ longhorn_backup_schedule_weekly | default('0 3 * * 0') }} (retain {{ longhorn_backup_retain_weekly | default(4) }})
+         ✅ Automatic recurring jobs created{% endif %}
