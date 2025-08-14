@@ -41,6 +41,9 @@ cluster_environment: "test"
 # Base storage mount path for this cluster  
 base_storage_path: "/mnt/k3s-storage-test"
 
+# Direct NFS server IP (same as production)
+nfs_server_ip: "172.20.20.5"  # Direct NAS IP address for backup target configuration
+
 # Override NFS path for test environment to prevent mounting main share
 nfs_path: "{{ nfs_share_root }}-test"
 
