@@ -1,0 +1,23 @@
+---
+# Plex Media Server Deployment using Reusable Helm Template
+# This demonstrates the new streamlined approach
+
+- name: Deploy Plex Media Server using reusable Helm template
+  include_tasks: ../shared/helm_app_deployment.yml
+  vars:
+    app_name: "plex"
+    helm_config:
+      repo_name: "{{ applications.plex.helm.repo_name }}"
+      repo_url: "{{ applications.plex.helm.repo_url }}"
+      chart_name: "{{ applications.plex.helm.chart_name }}"
+      release_name: "{{ applications.plex.helm.release_name }}"
+      namespace: "{{ applications.plex.helm.namespace }}"
+      chart_version: "{{ applications.plex.helm.chart_version | default(omit) }}"
+      values_template: "plex/helm-values.yaml.j2"
+    app_config:
+      force_redeploy: "{{ applications.plex.force_redeploy | default(false) }}"
+      service_name: "{{ applications.plex.service_name }}"
+      app_url: "{{ applications.plex.app_url }}"
+      service_port: "{{ applications.plex.service_port }}"
+      storage: "{{ applications.plex.storage }}"
+      pod_selector: "app.kubernetes.io/name=plex-media-server"  # Plex-specific selector

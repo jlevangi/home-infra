@@ -169,6 +169,48 @@ applications:
       default_pvc_size: "1Gi"
       config_initial_size: "{{ default_initial_volume_size | default('500Mi') }}"
 
+  plex:
+    # Deployment Control
+    deploy: true
+    force_redeploy: true
+    
+    # Application Settings
+    app_url: "https://plexx.{{ cluster_tld }}"
+    service_name: "plex-media-server"
+    service_port: 32400
+    
+    # Helm Configuration
+    helm:
+      repo_name: "plex"
+      repo_url: "https://raw.githubusercontent.com/plexinc/pms-docker/gh-pages"
+      chart_name: "plex/plex-media-server"
+      chart_version: ""  # Use latest, or specify version
+      release_name: "plex"
+      namespace: "plex"
+    
+    # Storage Configuration
+    storage:
+      max_namespace_storage: "100Gi"   # Generous for media metadata and config
+      max_pvc_size: "50Gi"             # Large PVC for config and metadata
+      default_pvc_size: "20Gi"         # Config storage size
+      config_initial_size: "2Gi"       # Plex config storage
+    
+    # Plex-specific Configuration
+    config:
+      # Optional: Plex claim token (get from https://plex.tv/claim)
+      # claim_token: ""  # Set this in vault if needed
+      timezone: "{{ application_timezone | default('America/New_York') }}"
+      # GPU support (set to true if you have NVIDIA GPU)
+      gpu_enabled: false
+      # Resource limits
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "512Mi"
+        limits:
+          cpu: "2000m"
+          memory: "4Gi"
+
 # ================================================================================
 # STORAGE CONFIGURATION - PRODUCTION ENVIRONMENT
 # ================================================================================
