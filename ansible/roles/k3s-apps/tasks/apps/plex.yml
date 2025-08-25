@@ -1,0 +1,212 @@
+---
+# Plex Media Server Deployment using Helm Chart
+# Official Plex Helm chart from plexinc/pms-docker
+
+# Optional cleanup task - only runs when plex_force_redeploy is true
+- name: Include cleanup task for Plex
+  include_tasks: cleanup_task.yml
+  vars:
+    app_name: "Plex"
+    k8s_namespace: "plex"
+    kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
+    force_redeploy_var: "applications.plex.force_redeploy"
+    additional_cleanup_tasks:
+      - name: "Remove Helm release"
+        command: "helm uninstall {{ applications.plex.helm.release_name }} -n {{ applications.plex.helm.namespace }} --ignore-not-found"
+
+# Check if Plex deployment already exists (to respect force_redeploy flag)
+- name: Check if Plex namespace exists
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get namespace plex
+  register: plex_namespace_check
+  failed_when: false
+  changed_when: false
+  when: inventory_hostname == groups[master_group][0]
+
+# Set deployment condition: deploy if force_redeploy is true OR namespace doesn't exist
+- name: Set Plex deployment condition
+  set_fact:
+    should_deploy_plex: "{{ applications.plex.force_redeploy | default(false) | bool or plex_namespace_check.rc != 0 }}"
+  when: inventory_hostname == groups[master_group][0]
+
+# Debug the deployment decision
+- name: Debug Plex deployment variables
+  debug:
+    msg: |
+      force_redeploy setting: {{ applications.plex.force_redeploy | default(false) }}
+      namespace check result: {{ plex_namespace_check.rc | default('not run') }}
+      should_deploy_plex: {{ should_deploy_plex | default('not set') }}
+  when: inventory_hostname == groups[master_group][0]
+
+- name: Display Plex deployment decision
+  debug:
+    msg: |
+      📋 Plex Deployment Decision:
+      Force redeploy setting: {{ applications.plex.force_redeploy | default(false) }}
+      Namespace exists: {{ 'Yes' if plex_namespace_check.rc == 0 else 'No' }}
+      Will deploy: {{ should_deploy_plex | default(false) }}
+      Reason: {{ 'Force redeploy enabled' if applications.plex.force_redeploy | default(false) | bool else ('Namespace missing - first deployment' if plex_namespace_check.rc != 0 else 'Skipping - deployment exists and force_redeploy=false') }}
+  when: inventory_hostname == groups[master_group][0]
+
+# Deploy Plex resources (only if should_deploy_plex is true)
+- name: Deploy Plex Media Server using Helm
+  block:
+    # Create namespace first
+    - name: Create Plex namespace
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml create namespace {{ applications.plex.helm.namespace }} --dry-run=client -o yaml | kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+
+    # Apply namespace-level resource limits
+    - name: Apply Plex storage limits (ResourceQuota)
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+      args:
+        stdin: "{{ lookup('template', 'common/resource-quota.yaml.j2') }}"
+      vars:
+        app_name: plex
+        max_namespace_storage: "{{ applications.plex.storage.max_namespace_storage | default('100Gi') }}"
+        max_pvcs: "{{ global_max_pvcs | default('10') }}"
+
+    - name: Apply Plex PVC size limits (LimitRange)
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+      args:
+        stdin: "{{ lookup('template', 'common/limit-range.yaml.j2') }}"
+      vars:
+        app_name: plex
+        max_pvc_size: "{{ applications.plex.storage.max_pvc_size | default('50Gi') }}"
+        min_pvc_size: "{{ global_min_pvc_size | default('10Mi') }}"
+        default_pvc_size: "{{ applications.plex.storage.default_pvc_size | default('20Gi') }}"
+
+    # Add Helm repository
+    - name: Add Plex Helm repository
+      shell: |
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm repo add {{ applications.plex.helm.repo_name }} {{ applications.plex.helm.repo_url }}
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm repo update
+
+    # Create values file for Helm deployment
+    - name: Generate Plex Helm values
+      template:
+        src: plex/helm-values.yaml.j2
+        dest: /tmp/plex-values.yaml
+      vars:
+        plex_config: "{{ applications.plex }}"
+
+    # Deploy Plex using Helm
+    - name: Deploy Plex Media Server with Helm
+      shell: |
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm upgrade --install {{ applications.plex.helm.release_name }} {{ applications.plex.helm.chart_name }} \
+          --namespace {{ applications.plex.helm.namespace }} \
+          --values /tmp/plex-values.yaml \
+          {% if applications.plex.helm.chart_version %}--version {{ applications.plex.helm.chart_version }}{% endif %} \
+          --wait --timeout=600s
+      register: helm_deploy_result
+
+    # Clean up temporary values file
+    - name: Clean up temporary Helm values file
+      file:
+        path: /tmp/plex-values.yaml
+        state: absent
+
+    # Apply Traefik ingress
+    - name: Apply Plex Ingress
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+      args:
+        stdin: "{{ lookup('template', 'common/ingress.yaml.j2') }}"
+      vars:
+        service_name: "{{ applications.plex.service_name }}"
+        app_url: "{{ applications.plex.app_url }}"
+        service_port: "{{ applications.plex.service_port }}"
+        k8s_namespace: "{{ applications.plex.helm.namespace }}"
+
+    # Wait for Plex deployment to be ready
+    - name: Wait for Plex pods to be ready
+      shell: |
+        echo "Waiting for Plex pods to be ready..."
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml wait --for=condition=Ready pod -l app.kubernetes.io/name=plex-media-server -n {{ applications.plex.helm.namespace }} --timeout=600s
+      register: wait_result
+      ignore_errors: yes
+
+    - name: Show Plex pod status if wait failed
+      shell: |
+        echo "Current Plex pod status:"
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get pods -n {{ applications.plex.helm.namespace }} -l app.kubernetes.io/name=plex-media-server
+        echo "Recent events:"
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get events -n {{ applications.plex.helm.namespace }} --sort-by='.lastTimestamp' | tail -10
+        echo "Container logs (last 20 lines):"
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml logs -n {{ applications.plex.helm.namespace }} -l app.kubernetes.io/name=plex-media-server --tail=20
+      when: wait_result.rc != 0
+
+    # Get final deployment status
+    - name: Get final Plex deployment status
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get pods -n {{ applications.plex.helm.namespace }}
+      register: final_status
+      ignore_errors: yes
+
+    - name: Get Plex service information
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get svc -n {{ applications.plex.helm.namespace }} -l app.kubernetes.io/name=plex-media-server -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo 'No service found'
+      register: plex_service_info
+
+    - name: Get Plex ingress information
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get ingress -n {{ applications.plex.helm.namespace }} -o jsonpath='{.items[0].spec.rules[0].host}' 2>/dev/null || echo 'No ingress found'
+      register: ingress_host
+
+    - name: Display Plex deployment information
+      debug:
+        msg: |
+          🎬 Plex Media Server Deployment Complete!
+          
+          📊 Final Pod Status:
+          {{ final_status.stdout if final_status.rc == 0 else 'No pods found' }}
+          
+          🔗 Service: {{ plex_service_info.stdout }}
+          🌐 Ingress Host: {{ ingress_host.stdout }}
+          🌐 Access URL: {{ applications.plex.app_url }}
+          
+          ✅ Readiness Status:
+          Plex: {{ 'Ready' if wait_result.rc == 0 else 'Not Ready - Check logs' }}
+          
+          💾 Storage:
+          - Storage: Longhorn distributed storage
+          - Config Size: {{ applications.plex.storage.config_initial_size }}
+          - Max Storage: {{ applications.plex.storage.max_namespace_storage }}
+          
+          🎯 Next Steps:
+          1. Access Plex at {{ applications.plex.app_url }}
+          2. Complete Plex setup and claim your server
+          3. Add media libraries pointing to your media storage
+          4. Configure remote access if needed
+          
+          📝 Management Commands:
+          kubectl get all -n {{ applications.plex.helm.namespace }}
+          kubectl logs -n {{ applications.plex.helm.namespace }} deployment/{{ applications.plex.helm.release_name }}-plex-media-server
+          helm status {{ applications.plex.helm.release_name }} -n {{ applications.plex.helm.namespace }}
+          
+          💡 Media Storage:
+          - Configure additional storage volumes for your media
+          - Use NFS mounts or additional PVCs for large media libraries
+          - Consider hardware acceleration if available
+
+  when: 
+    - inventory_hostname == groups[master_group][0]
+    - should_deploy_plex | default(false) | bool
+
+# Show skip message when deployment is skipped
+- name: Display Plex skip message
+  debug:
+    msg: |
+      ⏭️ Plex Media Server Deployment Skipped
+      
+      📋 Reason: force_redeploy is false and Plex namespace already exists
+      📊 Current Status: Plex is already deployed
+      
+      💡 To redeploy Plex, set applications.plex.force_redeploy: true in your group_vars
+      🔍 To check current status: kubectl get all -n plex
+      📊 To check Helm status: helm status {{ applications.plex.helm.release_name }} -n {{ applications.plex.helm.namespace }}
+  when: 
+    - inventory_hostname == groups[master_group][0]
+    - not (should_deploy_plex | default(false) | bool)

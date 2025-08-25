@@ -1,0 +1,196 @@
+---
+# Reusable Helm Application Deployment Template
+# This template handles common patterns for deploying Helm charts with proper kubeconfig, namespace management, and ingress setup
+#
+# Required variables:
+#   - app_name: Name of the application (e.g., "plex")
+#   - helm_config: Object containing helm configuration
+#   - app_config: Object containing application configuration
+#
+# Expected structure:
+# helm_config:
+#   repo_name: "chart-repo"
+#   repo_url: "https://..."
+#   chart_name: "chart-repo/chart"
+#   release_name: "app-release"
+#   namespace: "app-namespace"
+#   chart_version: "1.0.0" (optional)
+#   values_template: "app/helm-values.yaml.j2"
+#
+# app_config:
+#   force_redeploy: false
+#   service_name: "service-name"
+#   app_url: "https://app.domain.com"
+#   service_port: 8080
+#   storage: {...}
+
+# Optional cleanup task - only runs when force_redeploy is true
+- name: "Include cleanup task for {{ app_name }}"
+  include_tasks: cleanup_task.yml
+  vars:
+    k8s_namespace: "{{ helm_config.namespace }}"
+    kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
+    force_redeploy_var: "{{ app_name }}_force_redeploy"
+    additional_cleanup_tasks:
+      - name: "Remove Helm release"
+        command: "helm uninstall {{ helm_config.release_name }} -n {{ helm_config.namespace }} --ignore-not-found"
+
+# Check if deployment already exists (to respect force_redeploy flag)
+- name: "Check if {{ app_name }} namespace exists"
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get namespace {{ helm_config.namespace }}
+  register: namespace_check
+  failed_when: false
+  changed_when: false
+  when: inventory_hostname == groups[master_group][0]
+
+# Set deployment condition: deploy if force_redeploy is true OR namespace doesn't exist
+- name: "Set {{ app_name }} deployment condition"
+  set_fact:
+    should_deploy_app: "{{ app_config.force_redeploy | default(false) | bool or namespace_check.rc != 0 }}"
+  when: inventory_hostname == groups[master_group][0]
+
+- name: "Display {{ app_name }} deployment decision"
+  debug:
+    msg: |
+      📋 {{ app_name | title }} Deployment Decision:
+      Force redeploy setting: {{ app_config.force_redeploy | default(false) }}
+      Namespace exists: {{ 'Yes' if namespace_check.rc == 0 else 'No' }}
+      Will deploy: {{ should_deploy_app | default(false) }}
+      Reason: {{ 'Force redeploy enabled' if app_config.force_redeploy | default(false) | bool else ('Namespace missing - first deployment' if namespace_check.rc != 0 else 'Skipping - deployment exists and force_redeploy=false') }}
+  when: inventory_hostname == groups[master_group][0]
+
+# Deploy application resources (only if should_deploy_app is true)
+- name: "Deploy {{ app_name }} using Helm"
+  block:
+    # Create namespace first
+    - name: "Create {{ app_name }} namespace"
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml create namespace {{ helm_config.namespace }} --dry-run=client -o yaml | kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+
+    # Apply namespace-level resource limits (if storage config provided)
+    - name: "Apply {{ app_name }} storage limits (ResourceQuota)"
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+      args:
+        stdin: "{{ lookup('template', 'common/resource-quota.yaml.j2') }}"
+      vars:
+        max_namespace_storage: "{{ app_config.storage.max_namespace_storage | default('100Gi') }}"
+        max_pvcs: "{{ global_max_pvcs | default('10') }}"
+      when: app_config.storage is defined
+
+    - name: "Apply {{ app_name }} PVC size limits (LimitRange)"
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+      args:
+        stdin: "{{ lookup('template', 'common/limit-range.yaml.j2') }}"
+      vars:
+        max_pvc_size: "{{ app_config.storage.max_pvc_size | default('50Gi') }}"
+        min_pvc_size: "{{ global_min_pvc_size | default('10Mi') }}"
+        default_pvc_size: "{{ app_config.storage.default_pvc_size | default('20Gi') }}"
+      when: app_config.storage is defined
+
+    # Add Helm repository
+    - name: "Add {{ app_name }} Helm repository"
+      shell: |
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm repo add {{ helm_config.repo_name }} {{ helm_config.repo_url }}
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm repo update
+
+    # Create values file for Helm deployment
+    - name: "Generate {{ app_name }} Helm values"
+      template:
+        src: "{{ helm_config.values_template }}"
+        dest: "/tmp/{{ app_name }}-values.yaml"
+      vars:
+        app_config: "{{ app_config }}"
+
+    # Deploy using Helm
+    - name: "Deploy {{ app_name }} with Helm"
+      shell: |
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm upgrade --install {{ helm_config.release_name }} {{ helm_config.chart_name }} \
+          --namespace {{ helm_config.namespace }} \
+          --values /tmp/{{ app_name }}-values.yaml \
+          {% if helm_config.chart_version %}--version {{ helm_config.chart_version }}{% endif %} \
+          --wait --timeout=600s
+      register: helm_deploy_result
+
+    # Clean up temporary values file
+    - name: "Clean up temporary {{ app_name }} Helm values file"
+      file:
+        path: "/tmp/{{ app_name }}-values.yaml"
+        state: absent
+
+    # Apply ingress (if app_url provided)
+    - name: "Apply {{ app_name }} Ingress"
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml apply -f -
+      args:
+        stdin: "{{ lookup('template', 'common/ingress.yaml.j2') }}"
+      vars:
+        service_name: "{{ app_config.service_name }}"
+        app_url: "{{ app_config.app_url }}"
+        service_port: "{{ app_config.service_port }}"
+        k8s_namespace: "{{ helm_config.namespace }}"
+      when: app_config.app_url is defined
+
+    # Wait for deployment to be ready
+    - name: "Wait for {{ app_name }} pods to be ready"
+      shell: |
+        echo "Waiting for {{ app_name }} pods to be ready..."
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml wait --for=condition=Ready pod -l {{ app_config.pod_selector | default('app.kubernetes.io/name=' + app_name) }} -n {{ helm_config.namespace }} --timeout=600s
+      register: wait_result
+      ignore_errors: yes
+
+    - name: "Show {{ app_name }} pod status if wait failed"
+      shell: |
+        echo "Current {{ app_name }} pod status:"
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get pods -n {{ helm_config.namespace }}
+        echo "Recent events:"
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get events -n {{ helm_config.namespace }} --sort-by='.lastTimestamp' | tail -10
+        echo "Container logs (last 20 lines):"
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml logs -n {{ helm_config.namespace }} -l {{ app_config.pod_selector | default('app.kubernetes.io/name=' + app_name) }} --tail=20 || echo "No logs available"
+      when: wait_result.rc != 0
+
+    # Get deployment status
+    - name: "Get {{ app_name }} deployment status"
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get pods,svc,ingress -n {{ helm_config.namespace }}
+      register: final_status
+      ignore_errors: yes
+
+    - name: "Display {{ app_name }} deployment information"
+      debug:
+        msg: |
+          🚀 {{ app_name | title }} Deployment Complete!
+          
+          📊 Status: {{ final_status.stdout if final_status.rc == 0 else 'Error getting status' }}
+          
+          🌐 Access URL: {{ app_config.app_url | default('Not configured') }}
+          
+          ✅ Readiness: {{ 'Ready' if wait_result.rc == 0 else 'Not Ready - Check logs above' }}
+          
+          💾 Storage: {{ app_config.storage.max_namespace_storage | default('Not configured') }}
+          
+          📝 Management Commands:
+          kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get all -n {{ helm_config.namespace }}
+          helm status {{ helm_config.release_name }} -n {{ helm_config.namespace }}
+
+  when: 
+    - inventory_hostname == groups[master_group][0]
+    - should_deploy_app | default(false) | bool
+
+# Show skip message when deployment is skipped
+- name: "Display {{ app_name }} skip message"
+  debug:
+    msg: |
+      ⏭️ {{ app_name | title }} Deployment Skipped
+      
+      📋 Reason: force_redeploy is false and {{ app_name }} namespace already exists
+      📊 Current Status: {{ app_name }} is already deployed
+      
+      💡 To redeploy, set {{ app_name }}.force_redeploy: true in your group_vars
+      🔍 To check status: kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get all -n {{ helm_config.namespace }}
+      📊 Helm status: helm status {{ helm_config.release_name }} -n {{ helm_config.namespace }}
+  when: 
+    - inventory_hostname == groups[master_group][0]
+    - not (should_deploy_app | default(false) | bool)

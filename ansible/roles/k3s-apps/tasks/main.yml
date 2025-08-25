@@ -1,13 +1,19 @@
 ---
 # Main task file for applications deployment
+# Using nested applications configuration
+
 - name: Include BookStack deployment
   include_tasks: apps/bookstack.yml
-  when: deploy_bookstack | default(true)
+  when: applications.bookstack.deploy | default(false)
 
 - name: Include Homepage Dashboard deployment
   include_tasks: apps/homepage.yml
-  when: deploy_homepage | default(true)
+  when: applications.homepage.deploy | default(false)
 
 - name: Include Vaultwarden deployment
   include_tasks: apps/vaultwarden.yml
-  when: deploy_vaultwarden | default(true)
+  when: applications.vaultwarden.deploy | default(false)
+
+- name: Include Plex Media Server deployment
+  include_tasks: apps/plex.yml
+  when: applications.plex.deploy | default(false)

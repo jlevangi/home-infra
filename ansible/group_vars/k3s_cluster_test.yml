@@ -11,9 +11,9 @@ cluster_group: "k3s_cluster_test"
 cluster_tld: "test"
 
 # Override app URLs for test cluster to use .test TLDs
-bookstack_app_url: "https://bookstack.test"
-homepage_app_url: "https://homepage.test"
-vaultwarden_app_url: "https://vw.test"
+bookstack_app_url: "https://bookstack.{{ cluster_tld }}"
+homepage_app_url: "https://homepage.{{ cluster_tld }}"
+vaultwarden_app_url: "https://vw.{{ cluster_tld }}"
 
 # Example: Different version for testing
 # k3s_version: "v1.29.0+k3s1"  # Uncomment to test newer version
@@ -58,7 +58,7 @@ applications:
     force_redeploy: false
     
     # Application Settings (test-specific URLs)
-    app_url: "https://bookstack.test"
+    app_url: "https://bookstack.{{ cluster_tld }}"
     service_name: "bookstack"
     service_port: 8080
     
@@ -82,7 +82,7 @@ applications:
     force_redeploy: false
     
     # Application Settings (test-specific URLs)
-    app_url: "https://vw.test"
+    app_url: "https://vw.{{ cluster_tld }}"
     service_name: "vaultwarden"
     service_port: 80
     
@@ -103,7 +103,7 @@ applications:
     force_redeploy: false
     
     # Application Settings (test-specific URLs)
-    app_url: "https://homepage.test"
+    app_url: "https://homepage.{{ cluster_tld }}"
     service_name: "homepage"
     service_port: 3000
     
@@ -113,6 +113,47 @@ applications:
       max_pvc_size: "1Gi"
       default_pvc_size: "100Mi"
       config_initial_size: "{{ default_initial_volume_size | default('100Mi') }}"
+
+  plex:
+    # Deployment Control
+    deploy: true
+    force_redeploy: true
+    
+    # Application Settings (test-specific URLs)
+    app_url: "https://plex.{{ cluster_tld }}"
+    service_name: "plex-media-server"
+    service_port: 32400
+    
+    # Helm Configuration (same as prod)
+    helm:
+      repo_name: "plex"
+      repo_url: "https://raw.githubusercontent.com/plexinc/pms-docker/gh-pages"
+      chart_name: "plex/plex-media-server"
+      chart_version: ""  # Use latest, or specify version
+      release_name: "plex"
+      namespace: "plex"
+    
+    # Storage Configuration (conservative for test environment)
+    storage:
+      max_namespace_storage: "20Gi"    # Smaller for test
+      max_pvc_size: "10Gi"             # Conservative PVC limits
+      default_pvc_size: "5Gi"          # Smaller config storage
+      config_initial_size: "1Gi"       # Minimal config storage for testing
+    
+    # Plex-specific Configuration (test settings)
+    config:
+      # Test environment timezone
+      timezone: "{{ application_timezone | default('America/New_York') }}"
+      # GPU disabled for testing
+      gpu_enabled: false
+      # Conservative resource limits for test
+      resources:
+        requests:
+          cpu: "50m"
+          memory: "256Mi"
+        limits:
+          cpu: "1000m"
+          memory: "2Gi"
 
 # ================================================================================
 # STORAGE CONFIGURATION - TEST ENVIRONMENT
@@ -133,7 +174,7 @@ longhorn_exclude_master_from_storage: true
 
 # Longhorn UI Access Configuration
 longhorn_ui_ingress_enabled: true
-longhorn_ui_app_url: "http://longhorn.test"
+longhorn_ui_app_url: "http://longhorn.{{ cluster_tld }}"
 
 # Longhorn Backup Configuration (Test environment)
 enable_longhorn_backup: true  # Enable backups in test for validation
