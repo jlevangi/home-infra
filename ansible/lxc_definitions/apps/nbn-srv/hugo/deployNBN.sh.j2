@@ -1,0 +1,52 @@
+#!/bin/bash
+# Auto-generated deploy script for {{ website_domain }}
+# Builds Hugo site and syncs to /srv
+
+# Exit on error
+set -e
+
+# Change to the project root directory
+cd "$(dirname "$0")/.."
+
+echo "🚀 Starting Hugo build..."
+
+# Download the Google Calendar ICS file to static/events.ics
+echo "📅 Downloading Google Calendar events..."
+mkdir -p static
+curl -s -L "{{ google_calendar_ics_url }}" -o static/events.ics
+
+# Workaround for broken submodules (missing .gitmodules)
+echo "🔍 Checking themes..."
+if [ ! -d "themes/persian" ] || [ -z "$(ls -A themes/persian)" ]; then
+    echo "⚠️ Theme 'persian' is missing or empty. Cloning manually..."
+    rm -rf themes/persian
+    # Updated URL to gethugothemes/persian-hugo as somrat/persian-hugo seems inaccessible/private
+    git clone https://github.com/gethugothemes/persian-hugo.git themes/persian
+fi
+
+if [ ! -d "themes/longteng" ] || [ -z "$(ls -A themes/longteng)" ]; then
+    echo "⚠️ Theme 'longteng' is missing or empty. Cloning manually..."
+    rm -rf themes/longteng
+    git clone https://github.com/mdfriday/theme-long-teng.git themes/longteng
+fi
+
+# Clean up any existing builder container to avoid conflicts
+echo "🧹 Cleaning up old builder container..."
+docker rm -f nbn-hugo-builder 2>/dev/null || true
+
+# Build the hugo site using the builder container
+echo "🔨 Building site..."
+docker run --rm --name nbn-hugo-builder \
+  -v "$(pwd):/src" \
+  -u "{{ app_user_uid }}:{{ app_user_gid }}" \
+  docker.io/hugomods/hugo:latest \
+  hugo --minify
+
+echo "✅ Build complete."
+echo "--------------------------"
+echo "🚚 Syncing files to the server..."
+
+# Sync the public directory to the serve path
+rsync -avz --delete ./public/ {{ website_serve_path }}
+
+echo "🎉 Deployment successful!"

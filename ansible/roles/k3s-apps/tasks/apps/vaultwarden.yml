@@ -86,12 +86,6 @@
                 pullPolicy: "IfNotPresent"
               pvc_name: "vaultwarden-data"
               service_port: "{{ applications.vaultwarden.service_port }}"
-              smtp_host: "{{ smtp_host }}"
-              smtp_port: "{{ smtp_port }}"
-              smtp_security: "{{ smtp_security }}"
-              smtp_username: "{{ smtp_username }}"
-              smtp_password: "{{ smtp_password }}"
-              admin_token: "{{ applications.vaultwarden.secrets.admin_token }}"
           - name: "Ingress"
             template: "common/ingress.yaml.j2"
             vars:

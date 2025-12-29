@@ -1,0 +1,49 @@
+---
+# LXC Group Variables
+# Shared configuration for all LXC containers
+
+# Proxmox connection settings (from vault)
+proxmox_api_host: "{{ vault_proxmox_api_host }}"
+proxmox_api_user: "{{ vault_proxmox_api_user }}"
+proxmox_api_token_id: "{{ vault_proxmox_api_token_id }}"
+proxmox_api_token_secret: "{{ vault_proxmox_api_token_secret }}"
+
+# Default Proxmox node for LXC containers
+lxc_default_node: pve1
+
+# Default LXC resource settings
+lxc_default_storage: local-lvm
+lxc_default_bridge: vmbr0
+lxc_default_cores: 2
+lxc_default_memory: 2048
+lxc_default_swap: 512
+lxc_default_disk_size: 16
+
+# Default container features
+lxc_default_unprivileged: true
+lxc_default_nesting: true
+
+# Network defaults
+lxc_gateway: 172.20.20.1
+lxc_nameservers:
+  - 172.20.20.4
+  - 172.20.20.5
+
+# Template storage on Proxmox
+lxc_template_storage: local
+
+# User configuration
+lxc_users:
+  - name: pierce
+    groups: sudo
+    shell: /bin/bash
+    create_home: true
+  - name: ansible
+    groups: sudo
+    shell: /bin/bash
+    create_home: true
+
+lxc_ssh_public_key: "{{ vault_ssh_public_key }}"
+
+# Definitions path (relative to playbook directory)
+lxc_definitions_path: "{{ playbook_dir }}/../lxc_definitions"

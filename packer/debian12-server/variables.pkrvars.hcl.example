@@ -1,0 +1,19 @@
+# Packer variables for Debian 12 template
+# Copy this file to variables.pkrvars.hcl and fill in your values
+
+proxmox_url      = "https://proxmox.local:8006/api2/json"
+proxmox_username = "root@pam!packer"
+proxmox_token    = "your-api-token-here"
+proxmox_node     = "pve1"
+
+# ISO must be uploaded to Proxmox first
+iso_file = "local:iso/debian-12.8.0-amd64-netinst.iso"
+
+# Template settings
+vm_id         = 9000
+template_name = "debian12-server-template"
+storage_pool  = "local-lvm"
+
+# Provisioning credentials (temporary, removed after template creation)
+ssh_username = "packer"
+ssh_password = "packer"

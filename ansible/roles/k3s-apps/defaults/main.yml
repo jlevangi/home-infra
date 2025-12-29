@@ -4,7 +4,6 @@
 
 # Default application configurations (fallback only)
 # Primary values should be set in group_vars for each environment
-application_timezone: "America/New_York"
 
 # Note: The following variables are managed in group_vars for each environment:
 # - deploy_bookstack/homepage/vaultwarden: Controls which apps to deploy

@@ -1,0 +1,15 @@
+---
+# LXC Role - Main Task Orchestration
+# This file is called when the role is applied to a host (the container itself)
+
+- name: Run container configuration
+  ansible.builtin.include_tasks: configure.yml
+  when: configure_container | default(true)
+
+- name: Install Docker if enabled
+  ansible.builtin.include_tasks: docker.yml
+  when: container.applications.docker_installed | default(false)
+
+- name: Deploy applications if enabled
+  ansible.builtin.include_tasks: apps.yml
+  when: container.applications.deploy_apps | default(false)

@@ -1,0 +1,39 @@
+---
+# DNS Management for Applications
+# This task file creates DNS records for application deployments
+# Usage: include this task with app_name variable set
+
+- name: Validate application DNS variables
+  assert:
+    that:
+      - app_name is defined
+      - applications[app_name] is defined
+      - applications[app_name].app_url is defined
+    fail_msg: "app_name must be defined and exist in applications configuration"
+    success_msg: "Application DNS variables validated for {{ app_name }}"
+
+- name: Extract application hostname from URL
+  set_fact:
+    app_hostname: "{{ applications[app_name].app_url | regex_replace('https?://', '') | regex_replace('/.*', '') }}"
+
+- name: Extract DNS record name from hostname
+  set_fact:
+    app_dns_name: "{{ app_hostname | regex_replace('\\.' + cluster_tld + '$', '') }}"
+
+- name: Create DNS CNAME record for application
+  include_tasks: ../../k3s/tasks/shared/dns_management.yml
+  vars:
+    dns_record_name: "{{ app_dns_name }}"
+    dns_record_type: "CNAME"
+    dns_record_target: "{{ cluster_dns_name }}"
+    dns_record_action: "create"
+
+- name: Display application DNS info
+  debug:
+    msg: |
+      🌐 Application DNS Configuration:
+      Application: {{ app_name }}
+      Full URL: {{ applications[app_name].app_url }}
+      DNS Record: {{ app_dns_name }}.{{ cluster_tld }} → {{ cluster_dns_name }} (CNAME)
+      Cluster DNS: {{ cluster_dns_name }} → {{ traefik_loadbalancer_ip }} (A record)
+  when: manage_dns_records | default(false)

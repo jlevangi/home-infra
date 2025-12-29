@@ -1,0 +1,164 @@
+---
+# LXC Role - Container Creation
+# Run on localhost to create container on Proxmox
+
+- name: Set container defaults
+  ansible.builtin.set_fact:
+    container_node: "{{ container.node | default(lxc_default_node) }}"
+    container_cores: "{{ container.resources.cores | default(lxc_default_cores) }}"
+    container_memory: "{{ container.resources.memory | default(lxc_default_memory) }}"
+    container_swap: "{{ container.resources.swap | default(lxc_default_swap) }}"
+    container_disk_size: "{{ container.resources.disk_size | default(lxc_default_disk_size) }}"
+    container_storage: "{{ container.resources.storage | default(lxc_default_storage) }}"
+    container_bridge: "{{ container.network.bridge | default(lxc_default_bridge) }}"
+    container_unprivileged: "{{ container.features.unprivileged | default(lxc_default_unprivileged) }}"
+    container_nesting: "{{ container.features.nesting | default(lxc_default_nesting) }}"
+    container_keyctl: "{{ container.features.keyctl | default(false) }}"
+
+- name: Set API token name (extract from full token ID)
+  ansible.builtin.set_fact:
+    api_token_name: "{{ proxmox_api_token_id.split('!')[-1] }}"
+
+- name: Check if container already exists via API
+  ansible.builtin.uri:
+    url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ container_node }}/lxc/{{ container.container_id }}/status/current"
+    method: GET
+    headers:
+      Authorization: "PVEAPIToken={{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
+    validate_certs: false
+    status_code: [200, 500]
+  register: container_check
+  delegate_to: localhost
+
+- name: Set container exists fact
+  ansible.builtin.set_fact:
+    container_exists: "{{ container_check.status == 200 }}"
+
+- name: Create LXC container
+  community.general.proxmox:
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_token_id: "{{ api_token_name }}"
+    api_token_secret: "{{ proxmox_api_token_secret }}"
+    vmid: "{{ container.container_id }}"
+    node: "{{ container_node }}"
+    hostname: "{{ container.container_name }}"
+    ostemplate: "{{ template.storage | default(lxc_template_storage) }}:vztmpl/{{ template.template_file }}"
+    storage: "{{ container_storage }}"
+    disk: "{{ container_storage }}:{{ container_disk_size }}"
+    cores: "{{ container_cores }}"
+    memory: "{{ container_memory }}"
+    swap: "{{ container_swap }}"
+    netif: '{"net0":"name=eth0,bridge={{ container_bridge }},ip=dhcp"}'
+    unprivileged: "{{ container_unprivileged }}"
+    features:
+      - "nesting={{ '1' if container_nesting else '0' }}"
+    nameserver: "{{ lxc_nameservers | join(' ') }}"
+    searchdomain: "local"
+    onboot: true
+    state: present
+  register: container_created
+  when: not container_exists
+
+- name: Start container
+  community.general.proxmox:
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_token_id: "{{ api_token_name }}"
+    api_token_secret: "{{ proxmox_api_token_secret }}"
+    vmid: "{{ container.container_id }}"
+    node: "{{ container_node }}"
+    state: started
+  register: container_started
+
+- name: Wait for container to be ready
+  ansible.builtin.pause:
+    seconds: 10
+  when: (container_created is defined and container_created.changed) or (container_started is defined and container_started.changed)
+
+- name: Get container network interfaces via API
+  ansible.builtin.uri:
+    url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ container_node }}/lxc/{{ container.container_id }}/interfaces"
+    method: GET
+    headers:
+      Authorization: "PVEAPIToken={{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
+    validate_certs: false
+  register: container_interfaces
+  retries: 24
+  delay: 5
+  until: >
+    container_interfaces.status == 200 and
+    container_interfaces.json.data | selectattr('name', 'equalto', 'eth0') | list | length > 0 and
+    (container_interfaces.json.data | selectattr('name', 'equalto', 'eth0') | first).inet is defined
+  delegate_to: localhost
+
+- name: Extract container IP address
+  ansible.builtin.set_fact:
+    container_ip_address: "{{ (container_interfaces.json.data | selectattr('name', 'equalto', 'eth0') | first).inet | regex_replace('/.*', '') }}"
+
+- name: Display container information
+  ansible.builtin.debug:
+    msg: |
+      Container {{ container.container_name }} (ID: {{ container.container_id }}) created successfully
+      IP Address: {{ container_ip_address }}
+      Node: {{ container_node }}
+
+- name: Bootstrap SSH access via Proxmox API - Create .ssh directory
+  ansible.builtin.uri:
+    url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ container_node }}/lxc/{{ container.container_id }}/status/current"
+    method: POST
+    headers:
+      Authorization: "PVEAPIToken={{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
+    body_format: form-urlencoded
+    body:
+      command: "mkdir -p /root/.ssh && chmod 700 /root/.ssh"
+    validate_certs: false
+    status_code: [200, 500]
+  delegate_to: localhost
+  failed_when: false
+
+# Use pct exec via SSH to Proxmox host to set up SSH keys
+# This requires SSH access to the Proxmox host
+- name: Setup SSH key in container via Proxmox host
+  ansible.builtin.shell: |
+    ssh -o StrictHostKeyChecking=no root@{{ proxmox_api_host }} "pct exec {{ container.container_id }} -- bash -c 'mkdir -p /root/.ssh && chmod 700 /root/.ssh && echo \"{{ lxc_ssh_public_key }}\" >> /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys'"
+  delegate_to: localhost
+  register: ssh_setup
+  failed_when: false
+
+- name: Alternative - display manual SSH setup instructions if automated setup failed
+  ansible.builtin.debug:
+    msg: |
+      ⚠️  Automated SSH key setup failed.
+
+      To manually setup SSH access, run on Proxmox host:
+        pct exec {{ container.container_id }} -- bash -c 'mkdir -p /root/.ssh && echo "{{ lxc_ssh_public_key }}" >> /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys'
+
+      Or via Proxmox console, add your SSH key to /root/.ssh/authorized_keys
+  when: ssh_setup.rc != 0
+
+- name: Wait for SSH to be available
+  ansible.builtin.wait_for:
+    host: "{{ container_ip_address }}"
+    port: 22
+    delay: 5
+    timeout: 60
+  delegate_to: localhost
+  when: ssh_setup.rc == 0
+
+- name: Add host key to known_hosts
+  ansible.builtin.shell: |
+    ssh-keyscan -H {{ container_ip_address }} >> ~/.ssh/known_hosts 2>/dev/null
+  delegate_to: localhost
+  when: ssh_setup.rc == 0
+  changed_when: true
+
+- name: Add container to in-memory inventory
+  ansible.builtin.add_host:
+    name: "{{ container.container_name }}"
+    ansible_host: "{{ container_ip_address }}"
+    ansible_user: root
+    ansible_python_interpreter: /usr/bin/python3
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    groups:
+      - lxc_containers

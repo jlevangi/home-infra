@@ -125,6 +125,12 @@
         app_url: "{{ applications.bookstack.app_url }}"
         service_port: "{{ applications.bookstack.service_port }}"
 
+    # Create DNS record for BookStack
+    - name: Create DNS record for BookStack
+      include_tasks: ../shared/dns_app_management.yml
+      vars:
+        app_name: "bookstack"
+
     - name: Display apply results
       debug:
         msg: |

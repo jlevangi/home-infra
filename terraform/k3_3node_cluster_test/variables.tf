@@ -79,3 +79,34 @@ variable "vault_password" {
   sensitive   = true
   # No default - terraform will prompt for this when running apply
 }
+
+# Network configuration
+variable "ip_base" {
+  description = "Base IP address for the environment (e.g., '172.20.20.12' for test)"
+  type        = string
+  # No default - must be set in terraform.tfvars
+}
+
+variable "subnet_mask" {
+  description = "Subnet mask for the VMs"
+  type        = string
+  # No default - must be set in terraform.tfvars
+}
+
+variable "gateway" {
+  description = "Gateway IP address"
+  type        = string
+  # No default - must be set in terraform.tfvars
+}
+
+variable "nameserver" {
+  description = "DNS nameserver"
+  type        = string
+  # No default - must be set in terraform.tfvars
+}
+
+variable "search_domain" {
+  description = "DNS search domain"
+  type        = string
+  # No default - must be set in terraform.tfvars
+}

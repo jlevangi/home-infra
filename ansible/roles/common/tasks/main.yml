@@ -6,7 +6,8 @@
 
 - name: Install initial packages
   apt:
-    name: 
+    name:
+      - qemu-guest-agent  # Proxmox guest agent for VM management
       - cron          # Daemon to execute scheduled commands
       - cockpit       # Web-based server management interface
       - tmux          # Terminal multiplexer
@@ -20,6 +21,12 @@
 #      - neofetch      # Displays system information
 #      - cowsay        # Fun command-line utility that generates ASCII pictures of a cow with a message
     state: present
+
+- name: Enable and start qemu-guest-agent
+  ansible.builtin.systemd:
+    name: qemu-guest-agent
+    enabled: yes
+    state: started
 
 - name: Copy bash_aliases to the user's home directory
   ansible.builtin.copy:

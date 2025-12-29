@@ -1,0 +1,23 @@
+---
+# Ubuntu 24.04 LTS LXC Template Definition
+
+template_name: ubuntu-24.04
+template_id: 9001
+description: "Ubuntu 24.04 LTS (Noble Numbat) LXC Template"
+
+# Template source configuration
+# Uses official Linux Containers image server
+source:
+  distribution: ubuntu
+  release: noble
+  architecture: amd64
+
+# Proxmox template storage location
+storage: local
+
+# Template filename (auto-constructed if not specified)
+# Format: <distribution>-<release>-<arch>.tar.xz
+template_file: "ubuntu-24.04-standard_24.04-2_amd64.tar.zst"
+
+# Alternative: Direct download URL (optional override)
+# download_url: "http://download.proxmox.com/images/system/ubuntu-24.04-standard_24.04-2_amd64.tar.zst"

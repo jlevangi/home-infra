@@ -1,6 +1,29 @@
-# Simple Traefik 2 Configuration - Production Ready
+# Traefik 2 Configuration with SSL/ACME
 deployment:
   replicas: 1
+  strategy:
+    type: Recreate
+{% if traefik_acme_enabled | default(false) %}
+  # Init containers for ACME file permissions
+  initContainers:
+    - name: acme-init
+      image: busybox:1.35
+      command: 
+        - sh
+        - -c
+        - |
+          touch /data/acme.json
+          chmod 600 /data/acme.json
+          ls -la /data/acme.json
+      securityContext:
+        runAsUser: 65532
+        runAsGroup: 65532
+        runAsNonRoot: true
+        allowPrivilegeEscalation: false
+      volumeMounts:
+        - name: traefik-certs
+          mountPath: /data
+{% endif %}
 
 service:
   enabled: true
@@ -29,7 +52,7 @@ ports:
 
 api:
   dashboard: true
-  insecure: true
+  insecure: {{ traefik_dashboard_insecure | default(true) | lower }}
 
 providers:
   kubernetesCRD:
@@ -44,3 +67,83 @@ globalArguments:
 additionalArguments:
   - "--providers.kubernetesingress.ingressclass=traefik"
   - "--metrics.prometheus=true"
+{% if traefik_tls_enabled | default(false) %}
+  - "--entrypoints.websecure.http.tls=true"
+{% if traefik_acme_enabled | default(false) %}
+  - "--certificatesresolvers.letsencrypt.acme.dnschallenge=true"
+  - "--certificatesresolvers.letsencrypt.acme.dnschallenge.provider={{ traefik_acme_dns_provider | default('cloudflare') }}"
+  - "--certificatesresolvers.letsencrypt.acme.email={{ traefik_acme_email | default('admin@levangie.dev') }}"
+  - "--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json"
+  - "--certificatesresolvers.letsencrypt.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"
+{% else %}
+  - "--providers.file.directory=/data/dynamic"
+  - "--providers.file.watch=true"
+{% endif %}
+{% endif %}
+
+{% if traefik_persistence_enabled | default(false) %}
+persistence:
+  enabled: true
+  name: traefik-certs
+  size: 1Gi
+  storageClass: longhorn
+  path: /data
+  annotations: {}
+{% endif %}
+
+{% if traefik_acme_enabled | default(false) %}
+# External DNS resolution for ACME validation
+dnsPolicy: "{{ traefik_dns_policy | default('None') }}"
+dnsConfig:
+  nameservers:
+{% for nameserver in traefik_external_nameservers | default(['1.1.1.1', '8.8.8.8']) %}
+  - "{{ nameserver }}"
+{% endfor %}
+  options:
+  - name: ndots
+    value: "{{ traefik_dns_ndots | default('2') }}"
+
+# Environment variables for DNS provider
+env:
+{% if traefik_acme_dns_provider == 'cloudflare' %}
+  - name: CF_API_EMAIL
+    valueFrom:
+      secretKeyRef:
+        name: traefik-dns-secret
+        key: email
+  - name: CF_DNS_API_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: traefik-dns-secret
+        key: api-token
+{% elif traefik_acme_dns_provider == 'route53' %}
+  - name: AWS_ACCESS_KEY_ID
+    valueFrom:
+      secretKeyRef:
+        name: traefik-dns-secret
+        key: access-key-id
+  - name: AWS_SECRET_ACCESS_KEY
+    valueFrom:
+      secretKeyRef:
+        name: traefik-dns-secret
+        key: secret-access-key
+{% endif %}
+
+# Security context for ACME file management
+securityContext:
+  runAsUser: 65532
+  runAsGroup: 65532
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+# Pod security context for ACME file permissions
+podSecurityContext:
+  runAsNonRoot: true
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+{% endif %}

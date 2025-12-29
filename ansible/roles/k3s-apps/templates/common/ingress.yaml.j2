@@ -1,20 +1,23 @@
 ---
-# Generic Ingress Template (TLS handled by Caddy)
+# Generic Ingress Template with Traefik TLS/Let's Encrypt
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ service_name }}-ingress
   namespace: {{ k8s_namespace | default(service_name) }}
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.tls: "true"
-    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+{% if traefik_acme_enabled | default(false) %}
+    traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+{% endif %}
 spec:
   ingressClassName: traefik
+{% if traefik_acme_enabled | default(false) %}
   tls:
   - hosts:
     - {{ app_url | regex_replace('https?://','') }}
     secretName: {{ service_name }}-tls
+{% endif %}
   rules:
   - host: {{ app_url | regex_replace('https?://','') }}
     http:

@@ -14,12 +14,114 @@
 - name: Update Helm repos
   ansible.builtin.shell: helm repo update
 
-- name: Check if Longhorn is already installed
+- name: Wait for K3s API server to be fully ready
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes --no-headers
+  register: api_server_check
+  until: api_server_check.rc == 0
+  retries: 60  # Increased from 30 to 60 (10 minutes total)
+  delay: 10
+  become: yes
+
+- name: Wait for core system pods to be ready
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -n kube-system --no-headers | grep -v Running | grep -v Completed | wc -l
+  register: pending_pods_check
+  until: pending_pods_check.stdout | int == 0
+  retries: 30  # 5 minutes for system pods
+  delay: 10
+  become: yes
+
+- name: Test API server health endpoint
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get --raw /healthz
+  register: api_health_check
+  until: api_health_check.rc == 0 and api_health_check.stdout == "ok"
+  retries: 20  # Reduced to avoid long waits
+  delay: 5
+  become: yes
+  ignore_errors: yes  # Don't fail if health check doesn't work
+
+- name: Fallback API functionality test
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get namespaces default -o name
+  register: api_fallback_check
+  until: api_fallback_check.rc == 0
+  retries: 10
+  delay: 5
+  become: yes
+  when: api_health_check.rc != 0 or api_health_check.stdout != "ok"
+
+- name: Display comprehensive API server status
+  debug:
+    msg: |
+      🔍 K3s API Server Readiness Status:
+      ✅ Nodes accessible: {{ 'Yes' if api_server_check.rc == 0 else 'No' }}
+      ✅ System pods ready: {{ 'Yes' if pending_pods_check.stdout | int == 0 else 'No (' + pending_pods_check.stdout + ' pending)' }}
+      ✅ Health endpoint: {{ 'Healthy' if api_health_check.rc == 0 and api_health_check.stdout == 'ok' else ('Fallback OK' if api_fallback_check is defined and api_fallback_check.rc == 0 else 'Not responding') }}
+      
+      🚀 Ready for Longhorn installation: {{ api_server_check.rc == 0 and pending_pods_check.stdout | int == 0 and (api_health_check.rc == 0 or (api_fallback_check is defined and api_fallback_check.rc == 0)) }}
+
+- name: Additional stability wait before Longhorn installation
+  pause:
+    seconds: 30
+    prompt: "Waiting 30 seconds for API server to fully stabilize before Longhorn installation..."
+
+- name: Check if Longhorn namespace exists
   ansible.builtin.shell: |
-    KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm list -n longhorn-system | grep longhorn
-  register: longhorn_check
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get namespace longhorn-system
+  register: longhorn_namespace_check
   failed_when: false
   become: yes
+
+- name: Check if Longhorn pods are running
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -n longhorn-system --no-headers 2>/dev/null | grep -v "0/" | wc -l
+  register: longhorn_pods_check
+  failed_when: false
+  become: yes
+  when: longhorn_namespace_check.rc == 0
+
+- name: Check if Longhorn Helm release exists
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm list -n longhorn-system | grep longhorn
+  register: longhorn_helm_check
+  failed_when: false
+  become: yes
+
+- name: Check for any pending Helm operations
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm list --pending -A
+  register: helm_pending_check
+  failed_when: false
+  become: yes
+
+- name: Display Longhorn installation status
+  debug:
+    msg: |
+      🔍 Current Longhorn Status:
+      Namespace exists: {{ 'Yes' if longhorn_namespace_check.rc == 0 else 'No' }}
+      Running pods: {{ longhorn_pods_check.stdout | default('0') if longhorn_namespace_check.rc == 0 else '0' }}
+      Helm release: {{ 'Yes' if longhorn_helm_check.rc == 0 else 'No' }}
+      Pending operations: {{ 'Yes' if helm_pending_check.stdout_lines | length > 1 else 'No' }}
+      
+      Action needed: {{ 'Fresh install' if longhorn_namespace_check.rc != 0 else ('Update config' if longhorn_helm_check.rc == 0 else 'Repair installation') }}
+
+- name: Display Longhorn operation result
+  debug:
+    msg: |
+      🔧 Longhorn Operation Result:
+      {% if longhorn_install_result is defined and longhorn_install_result.changed %}
+      ✅ Fresh installation completed successfully
+      {% elif longhorn_update_result is defined and longhorn_update_result.changed %}
+      ✅ Configuration updated successfully
+      {% elif longhorn_repair_result is defined and longhorn_repair_result.changed %}
+      ✅ Installation repaired (Helm release created for existing deployment)
+      {% elif longhorn_namespace_check.rc == 0 and longhorn_helm_check.rc == 0 %}
+      ℹ️  Longhorn already properly installed - no changes needed
+      {% else %}
+      ⚠️  Longhorn operation skipped or failed
+      {% endif %}
 
 - name: Calculate dynamic replica count for Longhorn
   set_fact:
@@ -36,24 +138,61 @@
       Configured replica count: {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}
       Final replica count: {{ [groups[worker_group] | length, 3] | min }}
 
-- name: Install Longhorn
+- name: Clean up any stuck Helm operations for Longhorn
   ansible.builtin.shell: |
-    KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm upgrade --install longhorn longhorn/longhorn \
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl delete secret -n longhorn-system -l name=longhorn,owner=helm --ignore-not-found=true
+  become: yes
+  when: 
+    - helm_pending_check.stdout_lines | length > 1
+  ignore_errors: yes
+
+- name: Install Longhorn (fresh installation only)
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm install longhorn longhorn/longhorn \
       --namespace longhorn-system \
       --create-namespace \
       --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
       --set defaultSettings.defaultDataPath="/var/lib/longhorn/" \
       {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}" \
+      {% endif %}--wait --timeout=1200s
+  become: yes
+  when: 
+    - longhorn_namespace_check.rc != 0 or (longhorn_pods_check.stdout | default('0') | int) == 0
+    - longhorn_helm_check.rc != 0
+  register: longhorn_install_result
+
+- name: Update Longhorn configuration (existing installation)
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm upgrade longhorn longhorn/longhorn \
+      --namespace longhorn-system \
+      --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
+      --set defaultSettings.defaultDataPath="/var/lib/longhorn/" \
+      {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}" \
       {% endif %}--wait --timeout=600s
   become: yes
-  when: longhorn_check.rc != 0
+  when: 
+    - longhorn_namespace_check.rc == 0
+    - longhorn_helm_check.rc == 0
+    - (longhorn_pods_check.stdout | default('0') | int) >= 10
+  register: longhorn_update_result
+  ignore_errors: yes
 
-- name: Wait for K3s to be fully ready before Longhorn checks
-  wait_for:
-    port: 6443
-    host: "{{ ansible_default_ipv4.address }}"
-    delay: 5
-    timeout: 120
+- name: Repair broken Longhorn installation (missing Helm release or incomplete)
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm upgrade --install longhorn longhorn/longhorn \
+      --namespace longhorn-system \
+      --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
+      --set defaultSettings.defaultDataPath="/var/lib/longhorn/" \
+      {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}" \
+      {% endif %}--wait --timeout=1200s --force
+  become: yes
+  when: 
+    - longhorn_namespace_check.rc == 0
+    - longhorn_helm_check.rc != 0
+    - (longhorn_pods_check.stdout | default('0') | int) < 10
+  register: longhorn_repair_result
+
+# Removed duplicate API readiness check - already done above before Longhorn installation
 
 - name: Verify kubeconfig exists and is readable
   stat:
@@ -64,15 +203,26 @@
   debug:
     msg: "Kubeconfig exists: {{ kubeconfig_check.stat.exists }}, readable: {{ kubeconfig_check.stat.readable | default('unknown') }}"
 
+- name: Check if Longhorn manager pods exist before waiting
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -n longhorn-system -l app=longhorn-manager --no-headers 2>/dev/null | wc -l
+  register: longhorn_manager_pods_exist
+  failed_when: false
+  become: yes
+  when: kubeconfig_check.stat.exists
+
 - name: Wait for Longhorn manager pods to be ready
   ansible.builtin.shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl -n longhorn-system wait --for=condition=Ready pod -l app=longhorn-manager --timeout=300s
   register: longhorn_manager_wait
   changed_when: false
   become: yes
-  retries: 3
-  delay: 10
-  when: kubeconfig_check.stat.exists
+  retries: 5
+  delay: 30
+  until: longhorn_manager_wait.rc == 0
+  when: 
+    - kubeconfig_check.stat.exists
+    - longhorn_manager_pods_exist.stdout | int > 0
 
 - name: Wait for Longhorn driver deployer to be ready
   ansible.builtin.shell: |
@@ -90,6 +240,10 @@
   retries: 10
   delay: 30
   become: yes
+
+- name: Wait for API server before settings update
+  pause:
+    seconds: 3
 
 - name: Update Longhorn default settings to match cluster configuration
   ansible.builtin.shell: |
@@ -118,9 +272,14 @@
   register: storageclass_configmap_update_result
   failed_when: false
 
+- name: Wait for API server before StorageClass recreation
+  pause:
+    seconds: 10
+
 - name: Delete and recreate Longhorn StorageClass with correct replica count
   ansible.builtin.shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl delete storageclass longhorn
+    sleep 5
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f - <<EOF
     kind: StorageClass
     apiVersion: storage.k8s.io/v1
@@ -162,6 +321,14 @@
       ⚠️  StorageClass recreation failed: {{ storageclass_update_result.stderr | default('Unknown error') }}
       {% endif %}
 
+- name: Wait for API server before BackupTarget update
+  pause:
+    seconds: 10
+  when: 
+    - enable_longhorn_backup | default(true)
+    - nfs_server_ip is defined
+    - nfs_share_backup is defined
+
 - name: Update Longhorn BackupTarget resource with correct NFS format
   ansible.builtin.shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch backuptarget.longhorn.io default -n longhorn-system \
@@ -190,10 +357,18 @@
     - nfs_server_ip is defined
     - nfs_share_backup is defined
 
+- name: Wait for API server before PVC operations
+  pause:
+    seconds: 3
+
 - name: Check for any existing validation PVC
   shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pvc longhorn-validation-pvc --ignore-not-found=true
   register: existing_pvc
   become: yes
+  retries: 3
+  delay: 10
+  until: existing_pvc.rc == 0
+  failed_when: false
 
 - name: Clean up any existing validation PVC
   shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl delete pvc longhorn-validation-pvc --ignore-not-found=true
@@ -217,21 +392,31 @@
       storageClassName: longhorn
     EOF
   become: yes
+  retries: 3
+  delay: 15
+  register: longhorn_validation_result
 
 - name: Wait for Longhorn to be fully ready before PVC test
   shell: |
-    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=condition=Ready pod -l app=longhorn-manager -n longhorn-system --timeout=60s
-    sleep 30  # Additional time for Longhorn to stabilize
+    echo "Waiting for Longhorn manager pods..."
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=condition=Ready pod -l app=longhorn-manager -n longhorn-system --timeout=120s
+    echo "Waiting for CSI driver pods..."
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=condition=Ready pod -l app=csi-attacher -n longhorn-system --timeout=60s
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=condition=Ready pod -l app=csi-provisioner -n longhorn-system --timeout=60s
+    echo "Allowing additional time for API server and CSI driver to stabilize..."
+    sleep 60  # Extended time for API server and CSI to be fully ready for PVC operations
   become: yes
   ignore_errors: yes
 
 - name: Wait for test PVC to be bound
-  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc/longhorn-validation-pvc --timeout=300s
+  shell: |
+    echo "Waiting for PVC to be bound (may take several minutes for first PVC)..."
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc/longhorn-validation-pvc --timeout=600s
   register: pvc_wait_result
   become: yes
   ignore_errors: yes
-  retries: 2
-  delay: 30
+  retries: 3
+  delay: 45
 
 - name: Show PVC status if binding failed
   shell: |
@@ -353,20 +538,54 @@
   become: yes
   when: inventory_hostname == groups[master_group][0]
 
+- name: Debug DNS management conditions
+  debug:
+    msg: |
+      🔍 DNS Management Debug Info:
+      - Current host: {{ inventory_hostname }}
+      - Master group: {{ master_group }}
+      - First master: {{ groups[master_group][0] if groups[master_group] is defined else 'UNDEFINED' }}
+      - Is first master: {{ inventory_hostname == groups[master_group][0] if groups[master_group] is defined else false }}
+      - Longhorn UI enabled: {{ longhorn_ui_ingress_enabled | default(false) }}
+      - DNS management enabled: {{ manage_dns_records | default(false) }}
+      - Environment prefix: "{{ environment_prefix | default('UNDEFINED') }}"
+      - Traefik IP: {{ traefik_loadbalancer_ip | default('UNDEFINED') }}
+
+- name: Create DNS CNAME record for Longhorn UI
+  include_tasks: shared/dns_management.yml
+  vars:
+    dns_record_name: "{{ environment_prefix }}longhorn"
+    dns_record_type: "CNAME"
+    dns_record_target: "{{ cluster_dns_name }}"
+    dns_record_action: "create"
+  when: 
+    - inventory_hostname == groups[master_group][0]
+    - longhorn_ui_ingress_enabled | default(false)
+    - manage_dns_records | default(false)
+
 - name: Deploy Longhorn UI Ingress
   shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f - <<EOF
     ---
-    # Longhorn UI Ingress (using common pattern, TLS handled by Caddy)
+    # Longhorn UI Ingress with SSL support
     apiVersion: networking.k8s.io/v1
     kind: Ingress
     metadata:
       name: longhorn-frontend-ingress
       namespace: longhorn-system
       annotations:
-        traefik.ingress.kubernetes.io/router.entrypoints: web
+        traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    {% if traefik_acme_enabled | default(false) %}
+        traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+    {% endif %}
     spec:
       ingressClassName: traefik
+    {% if traefik_acme_enabled | default(false) %}
+      tls:
+      - hosts:
+        - {{ longhorn_ui_app_url | regex_replace('https?://','') }}
+        secretName: longhorn-ui-tls
+    {% endif %}
       rules:
       - host: {{ longhorn_ui_app_url | regex_replace('https?://','') }}
         http:

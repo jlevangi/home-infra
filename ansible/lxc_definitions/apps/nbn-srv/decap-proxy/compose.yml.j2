@@ -1,0 +1,29 @@
+services:
+  decap-proxy:
+    image: node:18-alpine
+    container_name: decap-proxy-{{ website_name }}
+    working_dir: /hugo/{{ website_domain }}
+    volumes:
+      - {{ hugo_source_path }}:/hugo/{{ website_domain }}
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /srv:/srv
+    ports:
+      - 8081:8081
+    command: >
+      sh -c "
+      echo 'Installing dependencies...' &&
+      apk add --no-cache git docker-cli docker-cli-compose inotify-tools bash curl rsync &&
+      git config --global --add safe.directory /hugo/{{ website_domain }} &&
+      echo 'Dependencies installed.' &&
+      npm install -g netlify-cms-proxy-server &&
+      echo 'Starting Netlify CMS Proxy Server...' &&
+      HOST=0.0.0.0 PORT=8081 nohup netlify-cms-proxy-server &
+      echo 'Starting File Watcher...' &&
+      while true; do
+        inotifywait -r -e modify,create,delete,move ./content ./static --exclude '\.git';
+        echo 'Change detected! Running deploy script...';
+        bash ./scripts/deployNBN.sh;
+        sleep 5;
+      done
+      "
+    restart: unless-stopped

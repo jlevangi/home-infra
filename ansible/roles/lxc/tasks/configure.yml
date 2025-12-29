@@ -1,0 +1,84 @@
+---
+# LXC Role - Container Configuration
+# Run on the container itself to configure users, SSH, and base packages
+
+- name: Wait for apt locks to be released
+  ansible.builtin.shell: |
+    while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
+      sleep 5
+    done
+  changed_when: false
+  timeout: 300
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name:
+      - sudo
+      - curl
+      - wget
+      - gnupg
+      - ca-certificates
+      - apt-transport-https
+      - software-properties-common
+      - python3
+      - python3-pip
+      - vim
+      - htop
+      - net-tools
+      - openssh-server
+      - git
+      - rsync
+    state: present
+
+- name: Ensure SSH service is running
+  ansible.builtin.service:
+    name: ssh
+    state: started
+    enabled: true
+
+- name: Create users
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    groups: "{{ item.groups }}"
+    shell: "{{ item.shell | default('/bin/bash') }}"
+    create_home: "{{ item.create_home | default(true) }}"
+    state: present
+  loop: "{{ lxc_users }}"
+
+- name: Set up SSH authorized keys for users
+  ansible.posix.authorized_key:
+    user: "{{ item.name }}"
+    key: "{{ lxc_ssh_public_key }}"
+    state: present
+  loop: "{{ lxc_users }}"
+
+- name: Configure passwordless sudo for ansible user
+  ansible.builtin.copy:
+    content: "ansible ALL=(ALL) NOPASSWD: ALL\n"
+    dest: /etc/sudoers.d/ansible
+    owner: root
+    group: root
+    mode: '0440'
+    validate: 'visudo -cf %s'
+
+- name: Configure sudo for pierce user
+  ansible.builtin.copy:
+    content: "pierce ALL=(ALL) NOPASSWD: ALL\n"
+    dest: /etc/sudoers.d/pierce
+    owner: root
+    group: root
+    mode: '0440'
+    validate: 'visudo -cf %s'
+
+- name: Set timezone
+  community.general.timezone:
+    name: America/Halifax
+
+- name: Display configuration complete message
+  ansible.builtin.debug:
+    msg: "Container {{ container.container_name }} base configuration complete"

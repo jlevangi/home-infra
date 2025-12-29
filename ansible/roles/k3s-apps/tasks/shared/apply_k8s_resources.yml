@@ -40,3 +40,10 @@
       {{ loop.index }}. {{ resource.name }}: Applied
       {% endfor %}
   when: inventory_hostname == groups[master_group][0]
+
+- name: Create DNS record for {{ app_name }}
+  include_tasks: dns_app_management.yml
+  when: 
+    - inventory_hostname == groups[master_group][0]
+    - applications[app_name] is defined
+    - applications[app_name].app_url is defined

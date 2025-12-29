@@ -1,0 +1,18 @@
+---
+# LXC Role Handlers
+
+- name: Restart container
+  community.general.proxmox:
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_token_id: "{{ proxmox_api_token_id }}"
+    api_token_secret: "{{ proxmox_api_token_secret }}"
+    vmid: "{{ container.container_id }}"
+    node: "{{ container.node | default(lxc_default_node) }}"
+    state: restarted
+  delegate_to: localhost
+
+- name: Restart docker
+  ansible.builtin.service:
+    name: docker
+    state: restarted

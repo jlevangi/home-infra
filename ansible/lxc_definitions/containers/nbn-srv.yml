@@ -1,0 +1,40 @@
+---
+# nbn-srv Container Definition
+# Hugo website hosting via Docker
+
+# Container identification
+container_name: nbn-srv
+container_id: 200
+description: "Hugo website hosting via Docker - naturallybynature.com"
+
+# Proxmox settings
+node: pve1
+template: ubuntu-24.04
+
+# Resource allocation
+resources:
+  cores: 2
+  memory: 2048      # MB
+  swap: 512         # MB
+  disk_size: 16     # GB
+  storage: vm_data
+
+# Network configuration
+network:
+  bridge: vmbr0
+  dhcp: true
+  # Optional static IP configuration (uncomment to use)
+  # ip: 172.20.20.50/24
+  # gateway: 172.20.20.1
+
+# Container features
+features:
+  unprivileged: false
+  nesting: true           # Required for Docker           # Required for Docker
+
+# Application features (controls what gets installed)
+applications:
+  docker_installed: true
+  # Deploy applications defined in apps/nbn-srv/
+  deploy_apps: true
+  app_config: nbn-srv

@@ -1,0 +1,80 @@
+---
+# nbn-srv Application Configuration
+# This defines all applications and their settings for the nbn-srv container
+
+# Application user (owns directories and runs services)
+app_user: pierce
+app_user_uid: 1000
+app_user_gid: 1000
+
+# Website configuration
+website_name: nbn
+website_domain: naturallybynature.com
+
+# Hugo source repository
+hugo_repo: "git@github.com:jlevangi/naturallybynature-website.git"
+hugo_source_path: /home/pierce/hugo/naturallybynature-website
+
+# Website serve path
+website_serve_path: /srv/naturallybynature.com
+
+# Caddy configuration
+caddy_acme_email: "pierce@levangie.org"
+caddy_basic_auth_user: "kelly"
+# Note: caddy_basic_auth_hash will be set in apps.yml from vault
+
+# Google Calendar ICS URL for events
+google_calendar_ics_url: "https://calendar.google.com/calendar/ical/f2421f9f3c034f50086ff1293075cfa7f722c128f462e22013d5707d600ffd6e%40group.calendar.google.com/public/basic.ics"
+
+# Application directories
+app_directories:
+  - name: caddy
+    path: /home/pierce/caddy-nbn
+    files:
+      - src: caddy/compose.yml.j2
+        dest: compose.yml
+        template: true
+      - src: caddy/Dockerfile
+        dest: Dockerfile
+      - src: caddy/Caddyfile.j2
+        dest: Caddyfile
+        template: true
+      - src: caddy/env.j2
+        dest: .env
+        template: true
+        mode: "0600"
+    build: true
+    start: true
+
+  - name: decap-proxy
+    path: /home/pierce/decap-proxy-nbn
+    files:
+      - src: decap-proxy/compose.yml.j2
+        dest: compose.yml
+        template: true
+    start: true
+
+  - name: hugo
+    path: /home/pierce/hugo/naturallybynature-website
+    git_repo: "git@github.com:jlevangi/naturallybynature-website.git"
+    git_branch: master
+    files:
+      - src: hugo/compose.yml.j2
+        dest: compose.build.yml
+        template: true
+      - src: hugo/deployNBN.sh.j2
+        dest: scripts/deployNBN.sh
+        template: true
+        mode: "0755"
+    # Hugo builder runs on-demand, not started as a service
+
+# Services start order (dependencies)
+service_start_order:
+  - caddy
+  - decap-proxy
+
+# Future: Cloudflare Pages deployment
+# cloudflare_pages:
+#   enabled: false
+#   project_name: naturallybynature
+#   branch: main

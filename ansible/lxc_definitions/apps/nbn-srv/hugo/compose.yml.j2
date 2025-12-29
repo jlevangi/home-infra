@@ -1,0 +1,10 @@
+services:
+  hugo-builder:
+    image: docker.io/hugomods/hugo:latest
+    container_name: {{ website_name }}-hugo-builder
+    command: hugo --minify
+    user: "{{ app_user_uid }}:{{ app_user_gid }}"
+    working_dir: /src
+    volumes:
+      - {{ hugo_source_path }}:/src
+    # This container runs on-demand for builds, not continuously

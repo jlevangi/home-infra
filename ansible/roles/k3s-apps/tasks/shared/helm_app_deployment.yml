@@ -133,6 +133,12 @@
         k8s_namespace: "{{ helm_config.namespace }}"
       when: app_config.app_url is defined
 
+    # Create DNS record for the application
+    - name: "Create DNS record for {{ app_name }}"
+      include_tasks: dns_app_management.yml
+      when: 
+        - app_config.app_url is defined
+
     # Wait for deployment to be ready
     - name: "Wait for {{ app_name }} pods to be ready"
       shell: |

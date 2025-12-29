@@ -1,0 +1,131 @@
+---
+# LXC Container Deployment Playbook
+# Deploys and configures LXC containers on Proxmox
+#
+# Usage:
+#   ansible-playbook -i inventories/lxc/hosts.yml playbooks/lxc-deploy.yml \
+#     -e container_name=nbn-srv --vault-password-file ~/.ansible_vault_pass
+
+- name: Prepare LXC Container Deployment
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../group_vars/lxc_vault.yml
+    - ../group_vars/lxc.yml
+
+  tasks:
+    - name: Validate container_name is provided
+      ansible.builtin.fail:
+        msg: "container_name must be specified. Use -e container_name=<name>"
+      when: container_name is not defined
+
+    - name: Check if container definition exists
+      ansible.builtin.stat:
+        path: "{{ lxc_definitions_path }}/containers/{{ container_name }}.yml"
+      register: container_def_file
+
+    - name: Fail if container definition not found
+      ansible.builtin.fail:
+        msg: "Container definition not found: {{ lxc_definitions_path }}/containers/{{ container_name }}.yml"
+      when: not container_def_file.stat.exists
+
+    - name: Load container definition
+      ansible.builtin.include_vars:
+        file: "{{ lxc_definitions_path }}/containers/{{ container_name }}.yml"
+        name: container
+
+    - name: Load template definition
+      ansible.builtin.include_vars:
+        file: "{{ lxc_definitions_path }}/templates/{{ container.template }}.yml"
+        name: template
+
+    - name: Display deployment information
+      ansible.builtin.debug:
+        msg: |
+          Deploying container: {{ container.container_name }}
+          Container ID: {{ container.container_id }}
+          Template: {{ template.template_name }}
+          Node: {{ container.node | default(lxc_default_node) }}
+          Docker: {{ container.applications.docker_installed | default(false) }}
+
+- name: Ensure LXC Template Exists
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../group_vars/lxc_vault.yml
+    - ../group_vars/lxc.yml
+
+  tasks:
+    - name: Load container definition
+      ansible.builtin.include_vars:
+        file: "{{ lxc_definitions_path }}/containers/{{ container_name }}.yml"
+        name: container
+
+    - name: Load template definition
+      ansible.builtin.include_vars:
+        file: "{{ lxc_definitions_path }}/templates/{{ container.template }}.yml"
+        name: template
+
+    - name: Ensure template exists on Proxmox
+      ansible.builtin.include_role:
+        name: ../roles/lxc
+        tasks_from: template.yml
+      when: not (skip_template | default(false))
+
+- name: Create LXC Container
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../group_vars/lxc_vault.yml
+    - ../group_vars/lxc.yml
+
+  tasks:
+    - name: Load container definition
+      ansible.builtin.include_vars:
+        file: "{{ lxc_definitions_path }}/containers/{{ container_name }}.yml"
+        name: container
+
+    - name: Load template definition
+      ansible.builtin.include_vars:
+        file: "{{ lxc_definitions_path }}/templates/{{ container.template }}.yml"
+        name: template
+
+    - name: Create container on Proxmox
+      ansible.builtin.include_role:
+        name: ../roles/lxc
+        tasks_from: create.yml
+
+- name: Configure LXC Container
+  hosts: "{{ container_name }}"
+  gather_facts: true
+  become: true
+  vars_files:
+    - ../group_vars/lxc_vault.yml
+    - ../group_vars/lxc.yml
+
+  pre_tasks:
+    - name: Load container definition
+      ansible.builtin.include_vars:
+        file: "{{ lxc_definitions_path }}/containers/{{ container_name }}.yml"
+        name: container
+      delegate_to: localhost
+
+  roles:
+    - role: ../roles/lxc
+
+  post_tasks:
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: |
+          ============================================
+          Container deployment complete!
+          ============================================
+          Name: {{ container.container_name }}
+          ID: {{ container.container_id }}
+          IP: {{ ansible_host }}
+          Docker: {{ 'Installed' if container.applications.docker_installed | default(false) else 'Not installed' }}
+
+          SSH access:
+            ssh pierce@{{ ansible_host }}
+            ssh ansible@{{ ansible_host }}
+          ============================================

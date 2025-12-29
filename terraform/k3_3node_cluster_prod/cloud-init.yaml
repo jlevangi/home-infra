@@ -8,6 +8,7 @@ package_upgrade: true
 
 # Essential packages for K3s
 packages:
+  - qemu-guest-agent
   - curl
   - wget
   - unzip
