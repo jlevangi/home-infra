@@ -60,7 +60,7 @@
       when: inventory_hostname in groups[worker_group | default('k3s_test_workers')]
 
     # === K3s Directory Cleanup ===
-    - name: Remove K3s directories (preserving Longhorn data)
+    - name: Remove K3s directories (preserving Longhorn data by default)
       file:
         path: "{{ item }}"
         state: absent
@@ -70,6 +70,33 @@
         - /var/lib/kubelet
         - /etc/kubernetes
       failed_when: false
+
+    # === Complete Longhorn Data Cleanup (Optional) ===
+    - name: WARNING - Remove ALL Longhorn data (if force cleanup enabled)
+      debug:
+        msg: |
+          🚨 DESTROYING ALL LONGHORN DATA
+          💥 This will permanently delete all persistent volumes and data
+          📁 Removing: /var/lib/longhorn/
+      when: k3s_force_longhorn_cleanup | default(false)
+
+    - name: Remove Longhorn storage directory (DESTRUCTIVE)
+      file:
+        path: /var/lib/longhorn
+        state: absent
+      failed_when: false
+      when: k3s_force_longhorn_cleanup | default(false)
+
+    - name: Remove additional Longhorn mount points
+      shell: |
+        # Unmount any Longhorn device mounts
+        umount /var/lib/longhorn/replicas/* 2>/dev/null || true
+        umount /dev/longhorn/* 2>/dev/null || true
+        # Remove device mapper entries
+        dmsetup remove_all 2>/dev/null || true
+        echo "✅ Longhorn mount cleanup completed"
+      failed_when: false
+      when: k3s_force_longhorn_cleanup | default(false)
 
     # === System Services Cleanup ===
     - name: Stop and disable storage-related services
@@ -102,6 +129,33 @@
         - /tmp/metallb-config.yaml
         - /tmp/longhorn-repo-added
         - /tmp/k3s-*  # Any other k3s temp files
+      failed_when: false
+
+    # === Enhanced Configuration Cleanup ===
+    - name: Remove additional configuration artifacts
+      shell: |
+        echo "🧹 Cleaning up additional configuration artifacts..."
+        # Remove any Helm chart cache
+        rm -rf /root/.cache/helm/ 2>/dev/null || true
+        rm -rf /home/*//.cache/helm/ 2>/dev/null || true
+        
+        # Remove Traefik configuration artifacts
+        rm -rf /var/lib/traefik/ 2>/dev/null || true
+        rm -rf /etc/traefik/ 2>/dev/null || true
+        
+        # Remove MetalLB configuration artifacts  
+        rm -rf /var/lib/metallb/ 2>/dev/null || true
+        
+        # Remove any leftover CNI configurations
+        rm -rf /etc/cni/ 2>/dev/null || true
+        rm -rf /var/lib/cni/ 2>/dev/null || true
+        rm -rf /opt/cni/ 2>/dev/null || true
+        
+        # Remove any containerd configuration
+        rm -rf /var/lib/containerd/ 2>/dev/null || true
+        rm -rf /etc/containerd/ 2>/dev/null || true
+        
+        echo "✅ Additional configuration cleanup completed"
       failed_when: false
 
     - name: Unmount NFS shares (if mounted)
@@ -192,7 +246,30 @@
         # Clean up iptables rules that might be left behind
         iptables -t nat -F 2>/dev/null || echo "iptables nat table flush failed"
         iptables -t filter -F 2>/dev/null || echo "iptables filter table flush failed"
+        iptables -t mangle -F 2>/dev/null || echo "iptables mangle table flush failed"
+        # Remove custom chains
+        iptables -t nat -X 2>/dev/null || echo "iptables nat chain cleanup failed"
+        iptables -t filter -X 2>/dev/null || echo "iptables filter chain cleanup failed"
         echo "✅ Container runtime cleanup completed"
+      failed_when: false
+
+    # === Network Interface Cleanup ===
+    - name: Clean up K3s network interfaces
+      shell: |
+        echo "🧹 Cleaning up K3s network interfaces..."
+        # Remove flannel interfaces
+        ip link delete flannel.1 2>/dev/null || echo "flannel.1 interface not found"
+        ip link delete cni0 2>/dev/null || echo "cni0 interface not found"
+        # Remove any veth pairs left behind
+        for veth in $(ip link show | grep veth | awk '{print $2}' | cut -d: -f1); do
+          ip link delete "$veth" 2>/dev/null || echo "Failed to remove $veth"
+        done
+        # Remove bridge interfaces
+        for br in $(brctl show 2>/dev/null | grep -v "bridge name" | awk '{print $1}' | grep -E "(cni|docker)"); do
+          ip link set "$br" down 2>/dev/null || true
+          brctl delbr "$br" 2>/dev/null || echo "Failed to remove bridge $br"
+        done
+        echo "✅ Network interface cleanup completed"
       failed_when: false
 
     # === Final Status Display ===
@@ -218,7 +295,7 @@
           - Utility packages: {{ 'Removed' if k3s_remove_utility_packages | default(false) else 'Left Installed' }}
           
           💾 PRESERVED:
-          - Longhorn storage data (/var/lib/longhorn/)
+          - Longhorn storage data: {{ 'DESTROYED' if k3s_force_longhorn_cleanup | default(false) else 'Preserved (/var/lib/longhorn/)' }}
           - Core system packages (curl, wget, etc.)
           - SSH access and basic system functionality
           

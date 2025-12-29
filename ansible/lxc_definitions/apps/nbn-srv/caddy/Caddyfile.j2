@@ -1,0 +1,37 @@
+{{ website_domain }} {
+	tls {
+		dns cloudflare {env.CF_API_TOKEN}
+		resolvers 1.1.1.1 9.9.9.9
+	}
+
+	# Use route to ensure proper ordering of handlers
+	route {
+		# Decap CMS Admin - Protected with Basic Auth
+		handle /admin/* {
+			basic_auth {
+				{{ caddy_basic_auth_user }} {{ caddy_basic_auth_hash }}
+			}
+			# Prevent browser caching of admin files
+			header Cache-Control "no-cache, no-store, must-revalidate"
+			header Pragma "no-cache"
+			header Expires "0"
+			root * /srv/{{ website_domain }}
+			file_server
+		}
+
+		# Proxy API requests to the local Decap CMS Backend - Protected with Basic Auth
+		handle /api/* {
+			basic_auth {
+				{{ caddy_basic_auth_user }} {{ caddy_basic_auth_hash }}
+			}
+			reverse_proxy 127.0.0.1:8081
+		}
+
+		# Everything else - Public access
+		handle {
+			root * /srv/{{ website_domain }}
+			encode zstd gzip
+			file_server
+		}
+	}
+}

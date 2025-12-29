@@ -9,3 +9,6 @@ alias bashreload="source ~/.bashrc && echo Bash config reloaded"
 alias dprune="docker image prune"
 alias dcporph="docker-compose -f ~/docker-compose.yaml --remove-orphans"
 alias dprunesys="docker system prune --all"
+
+# K3s SSH Host Management
+alias ssh-hosts='~/git/home-infra/scripts/manage-ssh-hosts.sh'

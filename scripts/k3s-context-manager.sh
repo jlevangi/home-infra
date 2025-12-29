@@ -14,7 +14,8 @@ NC='\033[0m' # No Color
 # Configuration
 CLUSTERS=(
     "prod:172.20.20.101:pierce"
-    "test:172.20.20.111:pierce"
+    "stage:172.20.20.111:pierce"
+    "test:172.20.20.121:pierce"
 )
 
 LOCAL_KUBECONFIG_DIR="$HOME/.kube"
@@ -34,7 +35,7 @@ function show_usage() {
     echo "  status      - Show current context and cluster info"
     echo "  cleanup     - Clean up SSH known_hosts for all cluster nodes"
     echo ""
-    echo "Available clusters: prod, test"
+    echo "Available clusters: prod, stage, test"
 }
 
 function cleanup_known_hosts() {
@@ -171,16 +172,23 @@ master['contexts'].extend(new.get('contexts', []))
 with open(master_config, 'w') as f:
     yaml.dump(master, f, default_flow_style=False)
 EOF
-            python3 /tmp/merge_kubeconfig.py "$cluster_name" "$MASTER_KUBECONFIG" "$temp_config" 2>/dev/null || {
-                # Fallback to simple replacement if python/yaml not available
-                echo -e "${YELLOW}⚠️ Python yaml not available, using simple append method${NC}"
-                cat "$temp_config" >> "$MASTER_KUBECONFIG"
-            }
+            if python3 /tmp/merge_kubeconfig.py "$cluster_name" "$MASTER_KUBECONFIG" "$temp_config" 2>/dev/null; then
+                echo -e "${GREEN}✅ Successfully merged using Python YAML${NC}"
+            else
+                echo -e "${YELLOW}⚠️ Python yaml not available, using kubectl merge${NC}"
+                # Use kubectl to properly merge configs instead of simple append
+                export KUBECONFIG="$MASTER_KUBECONFIG:$temp_config"
+                kubectl config view --flatten > "/tmp/merged_config"
+                mv "/tmp/merged_config" "$MASTER_KUBECONFIG"
+                unset KUBECONFIG
+            fi
         else
             echo -e "${YELLOW}➕ Adding new k3s-$cluster_name context...${NC}"
-            # Simply append the new config
-            echo "" >> "$MASTER_KUBECONFIG"
-            cat "$temp_config" >> "$MASTER_KUBECONFIG"
+            # Use kubectl to properly merge configs instead of simple append
+            export KUBECONFIG="$MASTER_KUBECONFIG:$temp_config"
+            kubectl config view --flatten > "/tmp/merged_config"
+            mv "/tmp/merged_config" "$MASTER_KUBECONFIG"
+            unset KUBECONFIG
         fi
     else
         echo -e "${YELLOW}📄 Creating new kubeconfig...${NC}"

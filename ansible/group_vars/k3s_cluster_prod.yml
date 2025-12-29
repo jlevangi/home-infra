@@ -1,0 +1,283 @@
+---
+# Cluster environment identifier
+cluster_environment: "prod"
+
+# TLD for production cluster
+cluster_tld: "levangie.dev"
+environment_prefix: ""  # No prefix for production
+
+# Cluster DNS name for CNAME records
+cluster_dns_name: "k3s-prod.{{ cluster_tld }}"
+
+# Group mappings for production cluster
+master_group: "k3s_cluster_prod_master"
+worker_group: "k3s_cluster_prod_workers" 
+cluster_group: "k3s_cluster_prod"
+
+# Variables for all K3s cluster nodes
+k3s_version: "v1.28.5+k3s1"
+k3s_token: "{{ vault_k3s_token }}"
+kubectl_version: "v1.28.4"
+
+# Base storage mount path for this cluster
+base_storage_path: "/mnt/k3s-storage{{ '-' + cluster_environment if cluster_environment != 'prod' else '' }}"
+
+# User configuration
+k3s_user: "{{ ansible_user }}"
+k3s_group: "{{ ansible_user }}"
+
+# Network configuration
+k3s_cluster_cidr: "10.42.0.0/16"
+k3s_service_cidr: "10.43.0.0/16"
+metallb_ip_range: "172.20.20.200-172.20.20.210"
+
+# Traefik LoadBalancer Configuration
+traefik_loadbalancer_ip: "172.20.20.200"  # Fixed IP for Traefik LoadBalancer
+
+# Traefik SSL/TLS Configuration (Let's Encrypt automatic certificates)
+traefik_tls_enabled: true  # Enable TLS termination 
+traefik_dashboard_insecure: false  # Secure dashboard for production use
+traefik_persistence_enabled: true  # Enable for SSL cert persistence
+
+# Let's Encrypt ACME Configuration
+traefik_acme_enabled: true  # Enable automatic Let's Encrypt certificates
+traefik_acme_email: "admin@levangie.dev"  # Email for Let's Encrypt notifications
+traefik_acme_dns_provider: "cloudflare"  # DNS provider for DNS-01 challenge
+traefik_custom_domain: "*.{{ environment_prefix }}levangie.dev"  # Custom domain pattern for prod
+force_traefik_redeploy: true  # Force redeploy to apply ACME settings
+
+# DNS Management Configuration
+manage_dns_records: true
+technitium_dns_server: "{{ vault_technitium_dns_server }}"
+technitium_api_token: "{{ vault_technitium_api_token }}"
+dns_record_ttl: 3600  # 1 hour TTL for DNS records
+
+# Tech Tim's HA configuration options
+# Uncomment and configure these for true HA deployment:
+# load_balancer_ip: "172.20.20.100"  # IP of your load balancer
+# k3s_datastore_endpoint: "mysql://k3s:password@tcp(172.20.20.10:3306)/k3s"  # External database
+
+# Features
+k3s_install_kubectl: true
+k3s_setup_kubeconfig: true
+k3s_install_bash_completion: true
+k3s_enable_auto_deploy: true
+
+# Enhanced kernel modules for better networking support
+k3s_kernel_modules:
+  - br_netfilter
+  - overlay
+  - ip_vs
+  - ip_vs_rr
+  - ip_vs_wrr
+  - ip_vs_sh
+  - nf_conntrack
+
+# Enhanced sysctl settings for production
+k3s_sysctl_settings:
+  - { name: 'net.bridge.bridge-nf-call-iptables', value: '1' }
+  - { name: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
+  - { name: 'net.ipv4.ip_forward', value: '1' }
+  - { name: 'net.ipv4.conf.all.forwarding', value: '1' }
+  - { name: 'net.ipv6.conf.all.forwarding', value: '1' }
+  - { name: 'net.netfilter.nf_conntrack_max', value: '131072' }
+
+# Synology NFS Shared Storage Configuration
+enable_nfs_storage: true
+enable_nfs_host_mount: true
+nfs_server_ip: "172.20.20.5"  # Direct NAS IP address for backup target configuration
+nfs_server: "{{ vault_nfs_server }}"  # Your Synology NAS IP address (was nas-1)
+nfs_share_root: "{{ vault_nfs_share_root }}"  # Root path from vault (e.g., "/volume1/k3s-storage")
+nfs_path: "{{ nfs_share_root }}"  # Main NFS export path
+nfs_user: "{{ vault_nfs_username }}"  # From vault file
+nfs_password: "{{ vault_nfs_password }}"  # From vault file
+nfs_uid: "{{ vault_nfs_uid }}"  # Service user UID from vault
+nfs_gid: "{{ vault_nfs_gid }}"  # Service user GID from vault
+
+# NFS mount options for Synology - simplified and compatible
+nfs_mount_options: "rw,hard,intr,rsize=65536,wsize=65536,timeo=600,retrans=2,vers=4"
+
+# NFS subdirectories (non-sensitive, can be in regular vars)
+nfs_share_apps: "{{ nfs_share_root }}/apps"
+nfs_share_database: "{{ nfs_share_root }}/database"
+nfs_share_backup: "{{ vault_nfs_share_backup_root }}"
+nfs_share_shared: "{{ nfs_share_root }}/shared"
+
+# Storage Classes
+storage_classes:
+  nfs_database: "nfs-database"
+  nfs_apps: "nfs-apps"
+  nfs_shared: "nfs-shared"
+  nfs_backup: "nfs-backup"
+
+# Global SMTP Configuration for Applications
+# These settings can be used by any application that needs email functionality
+smtp_host: "{{ vault_smtp_host }}"
+smtp_port: 587
+smtp_from: "lab@levangie.org"
+smtp_from_name: "LeVangie Home Lab"
+smtp_username: "{{ vault_smtp_username }}"
+smtp_password: "{{ vault_smtp_password }}"
+smtp_security: "starttls"  # Options: starttls, ssl, none
+smtp_auth_mechanism: "Login"  # Default auth mechanism
+
+# Application-specific SMTP overrides (when needed)
+application_timezone: "America/New_York"  # Default timezone for all apps
+
+# ================================================================================
+# STORAGE CONFIGURATION - PRODUCTION ENVIRONMENT
+# ================================================================================
+
+# Global Storage Limits (generous for production large nodes)
+global_max_pvc_size: "10Gi"              # Global max per PVC
+global_min_pvc_size: "100Mi"             # Global min per PVC
+global_max_pvcs: "20"                    # Max PVCs per namespace
+default_initial_volume_size: "500Mi"     # Global initial size for all PVCs
+
+# Note: Per-application storage limits are now defined in the applications section above
+
+# Longhorn Configuration for Production Cluster
+# Dynamic replica count based on available worker nodes
+longhorn_replica_count: "{{ [groups[worker_group] | length, 3] | min }}"
+longhorn_exclude_master_from_storage: true
+
+# Longhorn UI Access Configuration
+longhorn_ui_ingress_enabled: true  # Temporarily enabled for UI access
+longhorn_ui_app_url: "https://{{ environment_prefix }}longhorn.{{ cluster_tld }}"
+
+# Longhorn Backup Configuration
+enable_longhorn_backup: true  # Enable automatic backups to NFS
+longhorn_backup_shared_across_clusters: true   # Use shared backup location for cross-cluster restore
+longhorn_backup_schedule_daily: "0 2 * * *"    # Daily at 2 AM
+longhorn_backup_schedule_weekly: "0 3 * * 0"   # Weekly on Sunday at 3 AM
+longhorn_backup_retain_daily: 7                # Keep 7 daily backups
+longhorn_backup_retain_weekly: 4               # Keep 4 weekly backups
+
+# ================================================================================
+# APPLICATIONS CONFIGURATION - PRODUCTION ENVIRONMENT
+# ================================================================================
+
+applications:
+  bookstack:
+    # Deployment Control
+    deploy: true
+    force_redeploy: false
+    
+    # Application Settings
+    app_url: "https://{{ environment_prefix }}bookstack.{{ cluster_tld }}"
+    service_name: "bookstack"
+    service_port: 8080
+    
+    # Storage Configuration
+    storage:
+      max_namespace_storage: "15Gi"    # Total for BookStack namespace
+      max_pvc_size: "10Gi"             # Max per individual PVC
+      default_pvc_size: "5Gi"          # Default PVC size
+      database_initial_size: "1Gi"     # Database needs more space for initialization
+      app_initial_size: "{{ default_initial_volume_size | default('500Mi') }}"
+    
+    # Application Secrets (from vault)
+    secrets:
+      db_password: "{{ vault_bookstack_db_password }}"
+      mysql_root_password: "{{ vault_bookstack_mysql_root_password }}"
+      app_key: "{{ vault_bookstack_app_key }}"
+
+  vaultwarden:
+    # Deployment Control
+    deploy: true
+    force_redeploy: false
+    
+    # Application Settings
+    app_url: "https://{{ environment_prefix }}vw.{{ cluster_tld }}"
+    service_name: "vaultwarden"
+    service_port: 80
+    
+    # Storage Configuration
+    storage:
+      max_namespace_storage: "15Gi"
+      max_pvc_size: "10Gi"
+      default_pvc_size: "5Gi"
+      data_initial_size: "{{ default_initial_volume_size | default('500Mi') }}"
+    
+    # Application Secrets (from vault)
+    secrets:
+      admin_token: "{{ vault_vaultwarden_admin_token }}"
+
+  homepage:
+    # Deployment Control
+    deploy: true
+    force_redeploy: true
+    
+    # Application Settings
+    app_url: "https://{{ environment_prefix }}homepage.{{ cluster_tld }}"
+    service_name: "homepage"
+    service_port: 3000
+    
+    # Helm Configuration
+    helm:
+      repo_name: "jameswynn"
+      repo_url: "https://jameswynn.github.io/helm-charts"
+      chart_name: "jameswynn/homepage"
+      chart_version: ""  # Use latest, or specify version
+      release_name: "homepage"
+      namespace: "homepage"
+    
+    # Storage Configuration
+    storage:
+      max_namespace_storage: "3Gi"
+      max_pvc_size: "2Gi"
+      default_pvc_size: "1Gi"
+      config_initial_size: "{{ default_initial_volume_size | default('500Mi') }}"
+    
+    # Application Configuration
+    config:
+      timezone: "{{ application_timezone | default('America/New_York') }}"
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "128Mi"
+        limits:
+          cpu: "500m"
+          memory: "512Mi"
+
+  plex:
+    # Deployment Control
+    deploy: false
+    force_redeploy: false
+    
+    # Application Settings
+    app_url: "https://{{ environment_prefix }}plex.{{ cluster_tld }}"
+    service_name: "plex-media-server"
+    service_port: 32400
+    
+    # Helm Configuration
+    helm:
+      repo_name: "plex"
+      repo_url: "https://raw.githubusercontent.com/plexinc/pms-docker/gh-pages"
+      chart_name: "plex/plex-media-server"
+      chart_version: ""  # Use latest, or specify version
+      release_name: "plex"
+      namespace: "plex"
+    
+    # Storage Configuration
+    storage:
+      max_namespace_storage: "100Gi"   # Generous for media metadata and config
+      max_pvc_size: "50Gi"             # Large PVC for config and metadata
+      default_pvc_size: "30Gi"         # Config storage size
+      config_initial_size: "2Gi"       # Plex config storage
+    
+    # Plex-specific Configuration
+    config:
+      # Optional: Plex claim token (get from https://plex.tv/claim)
+      # claim_token: ""  # Set this in vault if needed
+      timezone: "{{ application_timezone | default('America/New_York') }}"
+      # GPU support (set to true if you have NVIDIA GPU)
+      gpu_enabled: false
+      # Resource limits
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "512Mi"
+        limits:
+          cpu: "2000m"
+          memory: "4Gi"

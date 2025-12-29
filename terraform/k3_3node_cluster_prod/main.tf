@@ -55,20 +55,20 @@ resource "proxmox_vm_qemu" "terraform" {
   scsihw = "virtio-scsi-pci"
   bootdisk = "scsi0"
   
-  disk {
-    slot = "scsi0"  # Must be string format like 'scsi0' not numeric
-    size = "20G"    # Reduced size for K3s
-    type = "disk"   # Must be 'disk', 'cdrom', 'cloudinit', or 'ignore'
-    storage = "vm_data" # Name of storage local to the host you are spinning the VM up on
-    # SSD and discard options may not be available in v3.x - removed for compatibility
-    #iothread = 1
-  }
-
-  # Cloud-init drive - required for cloud-init to work properly
+  # Cloud-init drive - must come first to avoid slot conflicts
   disk {
     slot = "ide2"
     type = "cloudinit"
     storage = "vm_data"
+  }
+
+  disk {
+    slot = "scsi0"  # Must be string format like 'scsi0' not numeric
+    size = "30G"    # Reduced size for K3s
+    type = "disk"   # Must be 'disk', 'cdrom', 'cloudinit', or 'ignore'
+    storage = "vm_data" # Name of storage local to the host you are spinning the VM up on
+    # SSD and discard options may not be available in v3.x - removed for compatibility
+    #iothread = 1
   }
 
   network {
@@ -80,9 +80,9 @@ resource "proxmox_vm_qemu" "terraform" {
   }
 
   # Updated IP configuration for K3s cluster
-  ipconfig0 = "ip=172.20.20.10${count.index + 1}/24,gw=172.20.20.1"
-  nameserver = "172.20.20.4"
-  searchdomain = "local"
+  ipconfig0 = "ip=${var.ip_base}${count.index + 1}/${var.subnet_mask},gw=${var.gateway}"
+  nameserver = var.nameserver
+  searchdomain = var.search_domain
 
   # Cloud-init configuration
   sshkeys = var.ssh_key
@@ -94,10 +94,19 @@ resource "proxmox_vm_qemu" "terraform" {
   # Enable automatic package upgrades via cloud-init
   ciupgrade = true
 
+  # Timeout configuration to handle slow VM cloning
+  timeouts {
+    create = "30m"
+    update = "15m"
+    delete = "10m"
+  }
+
   lifecycle {
     ignore_changes = [
       network,
     ]
+    # Prevent unnecessary recreations due to disk reordering
+    replace_triggered_by = []
   }
 }
 

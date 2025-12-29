@@ -1,0 +1,85 @@
+---
+# LXC Role - Deploy Single Application Directory
+# Called by apps.yml for each app_dir
+
+- name: "{{ app_dir.name }} - Create application directory"
+  ansible.builtin.file:
+    path: "{{ app_dir.path }}"
+    state: directory
+    owner: "{{ app_config.app_user }}"
+    group: "{{ app_config.app_user }}"
+    mode: '0755'
+
+- name: "{{ app_dir.name }} - Check if git repository already exists"
+  ansible.builtin.stat:
+    path: "{{ app_dir.path }}/.git"
+  register: git_repo_exists
+  when: app_dir.git_repo is defined
+
+- name: "{{ app_dir.name }} - Clone git repository"
+  ansible.builtin.git:
+    repo: "{{ app_dir.git_repo }}"
+    dest: "{{ app_dir.path }}"
+    recursive: true
+    accept_hostkey: true
+  become: true
+  become_user: "{{ app_config.app_user }}"
+  when: app_dir.git_repo is defined and not (git_repo_exists.stat.exists | default(false))
+
+- name: "{{ app_dir.name }} - Git repository already exists"
+  ansible.builtin.debug:
+    msg: "Git repository already exists at {{ app_dir.path }}, skipping clone"
+  when: app_dir.git_repo is defined and (git_repo_exists.stat.exists | default(false))
+
+- name: "{{ app_dir.name }} - Create scripts directory if needed"
+  ansible.builtin.file:
+    path: "{{ app_dir.path }}/scripts"
+    state: directory
+    owner: "{{ app_config.app_user }}"
+    group: "{{ app_config.app_user }}"
+    mode: '0755'
+  when: app_dir.files | selectattr('dest', 'search', 'scripts/') | list | length > 0
+
+- name: "{{ app_dir.name }} - Copy static files"
+  ansible.builtin.copy:
+    src: "{{ lxc_definitions_path }}/apps/{{ container.applications.app_config }}/{{ item.src }}"
+    dest: "{{ app_dir.path }}/{{ item.dest }}"
+    owner: "{{ app_config.app_user }}"
+    group: "{{ app_config.app_user }}"
+    mode: "{{ item.mode | default('0644') }}"
+  loop: "{{ app_dir.files | rejectattr('template', 'defined') | list }}"
+  when: app_dir.files is defined
+
+- name: "{{ app_dir.name }} - Deploy templated files"
+  ansible.builtin.template:
+    src: "{{ lxc_definitions_path }}/apps/{{ container.applications.app_config }}/{{ item.src }}"
+    dest: "{{ app_dir.path }}/{{ item.dest }}"
+    owner: "{{ app_config.app_user }}"
+    group: "{{ app_config.app_user }}"
+    mode: "{{ item.mode | default('0644') }}"
+  loop: "{{ app_dir.files | selectattr('template', 'defined') | selectattr('template', 'equalto', true) | list }}"
+  when: app_dir.files is defined
+
+- name: "{{ app_dir.name }} - Build Docker image"
+  ansible.builtin.shell: |
+    cd {{ app_dir.path }} && docker compose build
+  become: true
+  become_user: "{{ app_config.app_user }}"
+  when: app_dir.build | default(false)
+  register: docker_build
+  changed_when: "'Successfully built' in docker_build.stdout or 'exporting to image' in docker_build.stdout"
+
+- name: "{{ app_dir.name }} - Execute custom build command"
+  ansible.builtin.shell: |
+    cd {{ app_dir.path }} && {{ app_dir.build_command }}
+  become: true
+  become_user: "{{ app_config.app_user }}"
+  when: app_dir.build_command is defined
+
+- name: "{{ app_dir.name }} - Setup cron job for updates"
+  ansible.builtin.cron:
+    name: "Update {{ app_dir.name }} site"
+    minute: "*/30"
+    user: "{{ app_config.app_user }}"
+    job: "cd {{ app_dir.path }} && {{ app_dir.build_command }} >> /tmp/{{ app_dir.name }}_build.log 2>&1"
+  when: app_dir.cron_update | default(false) and app_dir.build_command is defined

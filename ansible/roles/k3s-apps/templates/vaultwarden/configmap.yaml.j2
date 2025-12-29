@@ -6,8 +6,11 @@ metadata:
   name: vaultwarden-config
   namespace: vaultwarden
 data:
-  DOMAIN: "{{ vaultwarden_app_url }}"
-  ADMIN_TOKEN: "{{ vaultwarden_admin_token }}"
+  DOMAIN: "{{ applications.vaultwarden.app_url }}"
+  ADMIN_TOKEN: "{{ applications.vaultwarden.secrets.admin_token }}"
+  # Reverse proxy configuration - Caddy terminates SSL and forwards HTTP to Traefik
+  ROCKET_TLS: "{disabled=true}"
+  ROCKET_PORT: "80"
   DB_TYPE: "default"
   STORAGE_CLAIM: "vaultwarden-data-pvc"
   # PUID: "{{ dynamic_nfs_uid | default('1024') }}"  # NFS-related, commented out for Longhorn

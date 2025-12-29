@@ -1,0 +1,31 @@
+services:
+  caddy:
+    build: .
+    image: caddy-nbn-caddy
+    container_name: caddy-nbn-caddy-1
+    restart: unless-stopped
+    network_mode: host
+    ports:
+      - 80:80
+      - 443:443
+      - 443:443/udp
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - ACME_EMAIL={{ caddy_acme_email }}
+      - ACME_AGREE=true
+      - CF_API_TOKEN=${CF_API_TOKEN}
+      - CROWDSEC_LAPI_KEY=${CROWDSEC_LAPI_KEY}
+      - ZEROSSL_EAB_KID=${ZEROSSL_EAB_KID}
+      - ZEROSSL_EAB_HMAC_KEY=${ZEROSSL_EAB_HMAC_KEY}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+      - {{ website_serve_path }}:/srv/{{ website_domain }}
+      - caddy_logs:/var/log/caddy/
+
+volumes:
+  caddy_data:
+  caddy_config:
+  caddy_logs:

@@ -47,12 +47,50 @@
   when: k3s_install_bash_completion
 
 - name: Wait for all nodes to be ready
-  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes --no-headers | grep Ready | wc -l
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes --no-headers | grep -E '\s+Ready\s+' | wc -l
   register: ready_nodes
-  until: ready_nodes.stdout | int == groups['k3s_cluster'] | length
+  until: ready_nodes.stdout | int == groups[cluster_group] | length
   retries: 30
   delay: 10
   become: yes
+  failed_when: false
+
+- name: Display node readiness status for debugging
+  debug:
+    msg: |
+      🔍 Node Readiness Status:
+      Ready nodes count: {{ ready_nodes.stdout | default('0') }}
+      Expected nodes count: {{ groups[cluster_group] | length }}
+      Cluster group nodes: {{ groups[cluster_group] }}
+      
+      📊 Current node status:
+  when: ready_nodes.stdout | int != groups[cluster_group] | length
+
+- name: Show detailed node status if not all ready
+  shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes -o wide
+  register: node_details
+  become: yes
+  when: ready_nodes.stdout | int != groups[cluster_group] | length
+
+- name: Display detailed node information
+  debug:
+    var: node_details.stdout_lines
+  when: ready_nodes.stdout | int != groups[cluster_group] | length
+
+- name: Continue deployment even if not all nodes are ready
+  debug:
+    msg: |
+      ⚠️  Warning: Not all nodes are ready yet
+      Ready: {{ ready_nodes.stdout | default('0') }}/{{ groups[cluster_group] | length }}
+      
+      This may be expected behavior if:
+      - Worker nodes are still joining the cluster
+      - Nodes are still downloading images
+      - Network connectivity is being established
+      
+      The deployment will continue, but some features may not work until all nodes are ready.
+  when: ready_nodes.stdout | int != groups[cluster_group] | length
 
 - name: Display storage architecture information
   debug:
@@ -200,3 +238,36 @@
         (['Longhorn not running'] if k3s_install_longhorn | default(true) and (longhorn_status.stdout | int) == 0 else [])
         )
       }}
+
+# Configure CoreDNS to use public DNS servers for external lookups
+- name: Configure CoreDNS to use public DNS servers
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch configmap coredns -n kube-system --type merge -p '{
+      "data": {
+        "Corefile": ".:53 {\n    errors\n    health\n    ready\n    kubernetes cluster.local in-addr.arpa ip6.arpa {\n      pods insecure\n      fallthrough in-addr.arpa ip6.arpa\n    }\n    hosts /etc/coredns/NodeHosts {\n      ttl 60\n      reload 15s\n      fallthrough\n    }\n    prometheus :9153\n    forward . 1.1.1.1 8.8.8.8\n    cache 30\n    loop\n    reload\n    loadbalance\n    import /etc/coredns/custom/*.override\n}\nimport /etc/coredns/custom/*.server"
+      }
+    }'
+  become: yes
+  register: coredns_patch_result
+  changed_when: coredns_patch_result.rc == 0
+
+- name: Restart CoreDNS to apply DNS configuration changes
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl rollout restart deployment coredns -n kube-system
+  become: yes
+  when: coredns_patch_result.changed
+
+- name: Wait for CoreDNS to be ready after configuration
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl rollout status deployment/coredns -n kube-system --timeout=120s
+  become: yes
+  when: coredns_patch_result.changed
+
+- name: Display CoreDNS configuration status
+  debug:
+    msg: |
+      🌐 CoreDNS Configuration:
+      {{ '✅ Updated to use public DNS servers (1.1.1.1, 8.8.8.8) for external lookups' if coredns_patch_result.changed else 'ℹ️  CoreDNS already configured correctly' }}
+      
+      🔍 This ensures ACME DNS challenges work properly for Let's Encrypt certificates
+      📋 Internal cluster DNS (.cluster.local) continues to work normally

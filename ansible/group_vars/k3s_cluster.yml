@@ -30,6 +30,22 @@ metallb_ip_range: "172.20.20.200-172.20.20.210"
 # Traefik LoadBalancer Configuration
 traefik_loadbalancer_ip: "172.20.20.200"  # Fixed IP for Traefik LoadBalancer
 
+# Traefik SSL/ACME Configuration
+traefik_tls_enabled: true                 # Enable TLS support
+traefik_acme_enabled: true                # Enable Let's Encrypt ACME
+traefik_acme_dns_provider: "cloudflare"   # DNS provider for ACME challenge
+traefik_acme_email: "admin@levangie.org"  # Email for Let's Encrypt registration
+traefik_persistence_enabled: true         # Enable persistent storage for certificates
+traefik_dashboard_enabled: true           # Enable Traefik dashboard
+traefik_dashboard_insecure: false         # Secure dashboard access
+
+# Critical DNS Configuration for ACME validation
+traefik_dns_policy: "None"                # Override cluster DNS for ACME
+traefik_external_nameservers:              # External DNS servers for ACME validation
+  - "1.1.1.1"
+  - "8.8.8.8"
+traefik_dns_ndots: "2"                    # DNS search optimization
+
 # Tech Tim's HA configuration options
 # Uncomment and configure these for true HA deployment:
 # load_balancer_ip: "172.20.20.100"  # IP of your load balancer
@@ -109,7 +125,7 @@ application_timezone: "America/New_York"  # Default timezone for all apps
 applications:
   bookstack:
     # Deployment Control
-    deploy: true
+    deploy: false
     force_redeploy: false
     
     # Application Settings
@@ -171,8 +187,8 @@ applications:
 
   plex:
     # Deployment Control
-    deploy: true
-    force_redeploy: true
+    deploy: false
+    force_redeploy: false
     
     # Application Settings
     app_url: "https://plexx.{{ cluster_tld }}"

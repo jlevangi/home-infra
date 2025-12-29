@@ -6,23 +6,43 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Source environment functions
+source "$SCRIPT_DIR/environment-functions.sh"
+
 # Default values
+TARGET_ENV=""
 TARGET_CLUSTER=""
 EXTRA_VARS=""
 VERBOSITY=""
-DEPLOY_APPS="true"
+DEPLOY_APPS="false"
 SHOW_HELP=false
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
   case $1 in
     --prod|--production)
-      TARGET_CLUSTER="k3s_cluster"
+      TARGET_ENV="prod"
       shift
       ;;
     --test)
-      TARGET_CLUSTER="k3s_cluster_test"
-      VERBOSITY="-v"  # Default verbose for test
+      TARGET_ENV="test"
+      shift
+      ;;
+    --stage|--staging)
+      TARGET_ENV="stage"
+      shift
+      ;;
+    --env)
+      if [[ -n "$2" && "$2" != -* ]]; then
+        TARGET_ENV="$2"
+        shift 2
+      else
+        echo "❌ Error: --env requires an environment name"
+        exit 1
+      fi
+      ;;
+    --env=*)
+      TARGET_ENV="${1#--env=}"
       shift
       ;;
     --no-apps)
@@ -59,13 +79,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Show help if requested or no target specified
-if [[ "$SHOW_HELP" == "true" ]] || [[ -z "$TARGET_CLUSTER" ]]; then
-  echo "Usage: $0 --prod|--test [OPTIONS]"
+if [[ "$SHOW_HELP" == "true" ]] || [[ -z "$TARGET_ENV" ]]; then
+  echo "Usage: $0 [ENVIRONMENT] [OPTIONS]"
   echo ""
-  echo "Target Selection (required):"
-  echo "  --prod, --production   Deploy to production cluster (k3s_cluster)"
-  echo "  --test                 Deploy to test cluster (k3s_cluster_test)"
-  echo ""
+  show_environment_help "$0"
   echo "Options:"
   echo "  --no-apps              Deploy only infrastructure, skip applications"
   echo "  -v, --verbose          Enable verbose output"
@@ -73,44 +90,36 @@ if [[ "$SHOW_HELP" == "true" ]] || [[ -z "$TARGET_CLUSTER" ]]; then
   echo "  -q, --quiet            Disable verbose output"
   echo "  -h, --help             Show this help message"
   echo ""
-  echo "Examples:"
-  echo "  $0 --prod              # Deploy full production cluster"
-  echo "  $0 --test --no-apps    # Deploy test infrastructure only"
-  echo "  $0 --prod -v           # Deploy production with verbose output"
-  echo "  $0 --test -q           # Deploy test cluster quietly"
-  echo ""
-  echo "Legacy Scripts (still available):"
-  echo "  ./redeploy_k3s_roles.sh                    # Production deployment"
-  echo "  ./redeploy_k3s_roles_cluster_test.sh       # Test deployment"
   
-  if [[ -z "$TARGET_CLUSTER" ]]; then
+  if [[ -z "$TARGET_ENV" ]]; then
     echo ""
-    echo "❌ Error: Target cluster must be specified (--prod or --test)"
+    echo "❌ Error: Target environment must be specified"
     exit 1
   else
     exit 0
   fi
 fi
 
-# Set up target-specific variables and switch kubectl context
-if [[ "$TARGET_CLUSTER" == "k3s_cluster_test" ]]; then
-  EXTRA_VARS="$EXTRA_VARS -e target_cluster=k3s_cluster_test"
-  CLUSTER_NAME="Test"
-  CLUSTER_EMOJI="🧪"
-  KUBECTL_CONTEXT="test"
-else
-  CLUSTER_NAME="Production"
-  CLUSTER_EMOJI="🚀"
-  KUBECTL_CONTEXT="prod"
+# Set up target-specific variables using environment functions
+if ! setup_environment_vars "$TARGET_ENV"; then
+  exit 1
 fi
 
-# Switch to the appropriate kubectl context
-echo "🔄 Switching to $CLUSTER_NAME cluster context..."
-if ! "$SCRIPT_DIR/k3s-context-manager.sh" switch "$KUBECTL_CONTEXT"; then
-  echo "⚠️  Warning: Failed to switch kubectl context to $KUBECTL_CONTEXT"
-  echo "   Continuing with deployment, but you may need to switch context manually"
-else
+# Set up Ansible extra vars for target cluster
+EXTRA_VARS="$EXTRA_VARS -e target_cluster=$TARGET_CLUSTER"
+
+# Apply default verbosity if not explicitly set and environment has a default
+if [[ -z "$VERBOSITY" && -n "$DEFAULT_VERBOSITY" ]]; then
+  VERBOSITY="$DEFAULT_VERBOSITY"
+fi
+
+# Switch to the appropriate kubectl context (non-blocking for initial deployments)
+echo "🔄 Attempting to switch to $CLUSTER_NAME cluster context..."
+if "$SCRIPT_DIR/k3s-context-manager.sh" switch "$KUBECTL_CONTEXT" 2>/dev/null; then
   echo "✅ Successfully switched to k3s-$KUBECTL_CONTEXT context"
+else
+  echo "ℹ️  Context k3s-$KUBECTL_CONTEXT not found (expected for initial deployment)"
+  echo "   Context will be configured after cluster deployment completes"
 fi
 echo ""
 
@@ -130,10 +139,24 @@ else
 fi
 echo ""
 
-ansible-playbook -i "$PROJECT_ROOT/ansible/k3s-inventory" "$PROJECT_ROOT/ansible/playbooks/k3s-deploy-cluster.yml" \
-  --vault-password-file ~/.ansible_vault_pass \
-  $VERBOSITY \
-  $EXTRA_VARS
+# Get the appropriate inventory path for this environment
+INVENTORY_PATH=$(get_inventory_path "$TARGET_ENV" "$PROJECT_ROOT")
+
+# Build ansible command with proper argument handling
+ANSIBLE_CMD=(ansible-playbook -i "$INVENTORY_PATH" "$PROJECT_ROOT/ansible/playbooks/k3s-deploy-cluster.yml" --vault-password-file ~/.ansible_vault_pass)
+
+# Add verbosity if set
+if [[ -n "$VERBOSITY" ]]; then
+  ANSIBLE_CMD+=("$VERBOSITY")
+fi
+
+# Add extra vars if set
+if [[ -n "$EXTRA_VARS" ]]; then
+  ANSIBLE_CMD+=($EXTRA_VARS)
+fi
+
+# Execute the command
+"${ANSIBLE_CMD[@]}"
 
 RESULT=$?
 

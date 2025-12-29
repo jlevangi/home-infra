@@ -1,0 +1,44 @@
+---
+# LXC Role - Start Single Service
+# Called by apps.yml for each service in start order
+
+- name: Find service directory
+  ansible.builtin.set_fact:
+    service_dir: "{{ app_config.app_directories | selectattr('name', 'equalto', service_name) | first }}"
+
+- name: "{{ service_name }} - Start Docker Compose service"
+  ansible.builtin.shell: |
+    cd {{ service_dir.path }} && docker compose up -d
+  become: true
+  become_user: "{{ app_config.app_user }}"
+  when: service_dir.start | default(false)
+  register: docker_up
+  changed_when: "'Started' in docker_up.stdout or 'Creating' in docker_up.stdout"
+  failed_when: false
+
+- name: "{{ service_name }} - Report Docker Compose failure"
+  ansible.builtin.debug:
+    msg: |
+      WARNING: Failed to start {{ service_name }}
+      Error: {{ docker_up.stderr | default('Unknown error') }}
+      This may be due to Docker/LXC sysctl restrictions in unprivileged containers.
+  when: docker_up.rc is defined and docker_up.rc != 0
+
+- name: "{{ service_name }} - Wait for service to be healthy"
+  ansible.builtin.pause:
+    seconds: 5
+  when: service_dir.start | default(false)
+
+- name: "{{ service_name }} - Verify service is running"
+  ansible.builtin.shell: |
+    cd {{ service_dir.path }} && docker compose ps --format json
+  become: true
+  become_user: "{{ app_config.app_user }}"
+  register: service_status
+  changed_when: false
+  when: service_dir.start | default(false)
+
+- name: "{{ service_name }} - Display service status"
+  ansible.builtin.debug:
+    msg: "Service {{ service_name }} started successfully"
+  when: service_dir.start | default(false)

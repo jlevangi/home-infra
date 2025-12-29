@@ -1,129 +1,22 @@
 ---
-# Homepage Dashboard Deployment
-# Converted from Docker Compose using Kompose as base, enhanced for production K3s
+# Homepage Dashboard Deployment using Reusable Helm Template
 
-# Optional cleanup task
-- name: Include cleanup task for Homepage
-  include_tasks: cleanup_task.yml
+- name: Deploy Homepage Dashboard using reusable Helm template
+  include_tasks: ../shared/helm_app_deployment.yml
   vars:
-    app_name: "Homepage"
-    k8s_namespace: "homepage"
-    kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
-    force_redeploy_var: "applications.homepage.force_redeploy"
-
-# Check if Homepage deployment already exists (to respect force_redeploy flag)
-- name: Check if Homepage namespace exists
-  shell: |
-    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get namespace homepage
-  register: homepage_namespace_check
-  failed_when: false
-  changed_when: false
-  when: inventory_hostname == groups[master_group][0]
-
-# Set deployment condition: deploy if force_redeploy is true OR namespace doesn't exist
-- name: Set Homepage deployment condition
-  set_fact:
-    should_deploy_homepage: "{{ applications.homepage.force_redeploy | default(false) | bool or homepage_namespace_check.rc != 0 }}"
-  when: inventory_hostname == groups[master_group][0]
-
-- name: Display Homepage deployment decision
-  debug:
-    msg: |
-      📋 Homepage Deployment Decision:
-      Force redeploy setting: {{ applications.homepage.force_redeploy | default(false) }}
-      Namespace exists: {{ 'Yes' if homepage_namespace_check.rc == 0 else 'No' }}
-      Will deploy: {{ should_deploy_homepage | default(false) }}
-      Reason: {{ 'Force redeploy enabled' if applications.homepage.force_redeploy | default(false) | bool else ('Namespace missing - first deployment' if homepage_namespace_check.rc != 0 else 'Skipping - deployment exists and force_redeploy=false') }}
-  when: inventory_hostname == groups[master_group][0]
-
-# Deploy Homepage resources (only if should_deploy_homepage is true)
-- name: Deploy Homepage Kubernetes resources
-  block:
-    # Apply Kubernetes resources using shared task
-    - name: Apply Homepage Kubernetes resources
-      include_tasks: shared/apply_k8s_resources.yml
-      vars:
-        app_name: "homepage"
-        k8s_resources:
-          - name: "Namespace"
-            template: "common/namespace.yaml.j2"
-            vars:
-              app_name: homepage
-          - name: "ResourceQuota"
-            template: "common/resource-quota.yaml.j2"
-            vars:
-              app_name: homepage
-              max_namespace_storage: "{{ applications.homepage.storage.max_namespace_storage | default('10Gi') }}"
-              max_pvcs: "{{ global_max_pvcs | default('10') }}"
-          - name: "LimitRange"
-            template: "common/limit-range.yaml.j2"
-            vars:
-              app_name: homepage
-              max_pvc_size: "{{ applications.homepage.storage.max_pvc_size | default('5Gi') }}"
-              min_pvc_size: "{{ global_min_pvc_size | default('10Mi') }}"
-              default_pvc_size: "{{ applications.homepage.storage.default_pvc_size | default('1Gi') }}"
-          - name: "ConfigMap"
-            template: "homepage/configmap.yaml.j2"
-          - name: "PV/PVC (Dynamic)"
-            template: "common/pv-pvc.yaml.j2"
-            vars:
-              app_name: homepage
-              volume_name: config
-              initial_volume_size: "{{ applications.homepage.storage.config_initial_size | default('100Mi') }}"
-          - name: "Deployment"
-            template: "homepage/deployment.yaml.j2"
-          - name: "Service"
-            template: "homepage/service.yaml.j2"
-          - name: "Ingress"
-            template: "common/ingress.yaml.j2"
-            vars:
-              service_name: "homepage"
-              app_url: "{{ applications.homepage.app_url }}"
-              service_port: "{{ applications.homepage.service_port }}"
-
-    # Wait for deployment readiness using shared task
-    - name: Wait for Homepage deployment readiness
-      include_tasks: shared/wait_for_deployment.yml
-      vars:
-        app_name: "homepage"
-        k8s_namespace: "homepage"
-        deployment_checks:
-          - name: "Homepage deployment"
-            type: "deployment"
-            selector: "app=homepage"
-            timeout: 300
-
-    # Final deployment information
-    - name: Display Homepage deployment summary
-      debug:
-        msg: |
-          🏠 Homepage Dashboard Deployment Complete!
-          
-          📝 Namespace: homepage
-          🌐 Service URL: {{ applications.homepage.app_url }}
-          📦 Storage: Longhorn distributed storage
-          👤 Running as: Container default user (Longhorn storage)
-          
-          📊 Management Commands:
-          kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get all -n homepage
-          kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml logs -n homepage deployment/homepage
-          kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml port-forward -n homepage svc/homepage 8080:3000
-
-  when: 
-    - inventory_hostname == groups[master_group][0]
-    - should_deploy_homepage | default(false) | bool
-
-# Show skip message when deployment is skipped
-- name: Display Homepage skip message
-  debug:
-    msg: |
-      ⏭️ Homepage Deployment Skipped
-      
-      📋 Reason: force_redeploy is false and Homepage namespace already exists
-      📊 Current Status: Homepage is already deployed
-      
-      💡 To redeploy Homepage, set homepage_force_redeploy: true in your group_vars
-      🔍 To check current status: kubectl get all -n homepage
-  when: 
-    - inventory_hostname == groups[master_group][0]
-    - not (should_deploy_homepage | default(false) | bool)
+    app_name: "homepage"
+    helm_config:
+      repo_name: "{{ applications.homepage.helm.repo_name }}"
+      repo_url: "{{ applications.homepage.helm.repo_url }}"
+      chart_name: "{{ applications.homepage.helm.chart_name }}"
+      release_name: "{{ applications.homepage.helm.release_name }}"
+      namespace: "{{ applications.homepage.helm.namespace }}"
+      chart_version: "{{ applications.homepage.helm.chart_version | default(omit) }}"
+      values_template: "homepage/helm-values.yaml.j2"
+    app_config:
+      force_redeploy: "{{ applications.homepage.force_redeploy | default(false) }}"
+      service_name: "{{ applications.homepage.service_name }}"
+      app_url: "{{ applications.homepage.app_url }}"
+      service_port: "{{ applications.homepage.service_port }}"
+      storage: "{{ applications.homepage.storage }}"
+      pod_selector: "app.kubernetes.io/name=homepage"  # Homepage-specific selector

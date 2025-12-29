@@ -55,6 +55,13 @@ resource "proxmox_vm_qemu" "terraform" {
   scsihw = "virtio-scsi-pci"
   bootdisk = "scsi0"
   
+  # Cloud-init drive - must come first to avoid slot conflicts
+  disk {
+    slot = "ide2"
+    type = "cloudinit"
+    storage = "vm_data"
+  }
+
   disk {
     slot = "scsi0"  # Must be string format like 'scsi0' not numeric
     size = "20G"    # Reduced size for K3s
@@ -64,25 +71,18 @@ resource "proxmox_vm_qemu" "terraform" {
     #iothread = 1
   }
 
-  # Cloud-init drive - required for cloud-init to work properly
-  disk {
-    slot = "ide2"
-    type = "cloudinit"
-    storage = "vm_data"
-  }
-
   network {
     id = 0  # Required network ID for v3.x
     model = "virtio"
     bridge = var.nic_name
 #    tag = var.vlan_num # This tag can be left off if you are not taking advantage of VLANs
-    macaddr  = "76:5A:F2:57:5B:0${count.index + 1}"  # Updated MAC address pattern
+#    macaddr  = "76:5A:F2:57:5B:0${count.index + 1}"  # Updated MAC address pattern
   }
 
   # Updated IP configuration for K3s cluster
-  ipconfig0 = "ip=172.20.20.11${count.index + 1}/24,gw=172.20.20.1"
-  nameserver = "172.20.20.4"
-  searchdomain = "local"
+  ipconfig0 = "ip=${var.ip_base}${count.index + 1}/${var.subnet_mask},gw=${var.gateway}"
+  nameserver = var.nameserver
+  searchdomain = var.search_domain
 
   # Cloud-init configuration
   sshkeys = var.ssh_key
@@ -94,10 +94,19 @@ resource "proxmox_vm_qemu" "terraform" {
   # Enable automatic package upgrades via cloud-init
   ciupgrade = true
 
+  # Timeout configuration to handle slow VM cloning
+  timeouts {
+    create = "30m"
+    update = "15m"
+    delete = "10m"
+  }
+
   lifecycle {
     ignore_changes = [
       network,
     ]
+    # Prevent unnecessary recreations due to disk reordering
+    replace_triggered_by = []
   }
 }
 

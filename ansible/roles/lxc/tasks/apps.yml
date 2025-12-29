@@ -1,0 +1,125 @@
+---
+# LXC Role - Application Deployment
+# Deploys Docker Compose applications to the container
+
+- name: Load app configuration
+  ansible.builtin.include_vars:
+    file: "{{ lxc_definitions_path }}/apps/{{ container.applications.app_config }}/config.yml"
+    name: app_config
+
+- name: Set template variables from app config
+  ansible.builtin.set_fact:
+    # App user settings
+    app_user: "{{ app_config.app_user }}"
+    app_user_uid: "{{ app_config.app_user_uid }}"
+    app_user_gid: "{{ app_config.app_user_gid }}"
+    # Website settings
+    website_name: "{{ app_config.website_name }}"
+    website_domain: "{{ app_config.website_domain }}"
+    hugo_source_path: "{{ app_config.hugo_source_path }}"
+    website_serve_path: "{{ app_config.website_serve_path }}"
+    # Caddy settings
+    caddy_acme_email: "{{ app_config.caddy_acme_email }}"
+    caddy_basic_auth_user: "{{ app_config.caddy_basic_auth_user }}"
+    caddy_basic_auth_hash: "{{ vault_nbn_caddy_basic_auth_hash }}"
+    # Other settings
+    google_calendar_ics_url: "{{ app_config.google_calendar_ics_url }}"
+
+- name: Ensure app user exists
+  ansible.builtin.user:
+    name: "{{ app_config.app_user }}"
+    uid: "{{ app_config.app_user_uid }}"
+    group: "{{ app_config.app_user }}"
+    shell: /bin/bash
+    create_home: true
+    state: present
+
+- name: Add app user to docker group
+  ansible.builtin.user:
+    name: "{{ app_config.app_user }}"
+    groups: docker
+    append: true
+
+- name: Create app user .ssh directory
+  ansible.builtin.file:
+    path: "/home/{{ app_config.app_user }}/.ssh"
+    state: directory
+    owner: "{{ app_config.app_user }}"
+    group: "{{ app_config.app_user }}"
+    mode: '0700'
+
+- name: Deploy SSH private key from vault (if defined)
+  ansible.builtin.copy:
+    content: "{{ vault_app_ssh_private_key }}"
+    dest: "/home/{{ app_config.app_user }}/.ssh/id_ed25519"
+    owner: "{{ app_config.app_user }}"
+    group: "{{ app_config.app_user }}"
+    mode: '0600'
+  when: vault_app_ssh_private_key is defined
+
+- name: Generate SSH key pair if missing
+  community.crypto.openssh_keypair:
+    path: "/home/{{ app_config.app_user }}/.ssh/id_ed25519"
+    type: ed25519
+    owner: "{{ app_config.app_user }}"
+    group: "{{ app_config.app_user }}"
+  register: ssh_key_generated
+  when: vault_app_ssh_private_key is not defined
+
+- name: Get public SSH key
+  ansible.builtin.slurp:
+    src: "/home/{{ app_config.app_user }}/.ssh/id_ed25519.pub"
+  register: ssh_public_key
+
+- name: Display public SSH key (Add this to GitHub/GitLab deploy keys)
+  ansible.builtin.debug:
+    msg: |
+      ================================================================
+      PUBLIC SSH KEY FOR GIT ACCESS
+      Add this key to your repository's Deploy Keys or your User Keys:
+      
+      {{ ssh_public_key.content | b64decode | trim }}
+      ================================================================
+
+- name: Add github.com to known_hosts
+  ansible.builtin.shell: |
+    ssh-keyscan -H github.com >> /home/{{ app_config.app_user }}/.ssh/known_hosts
+  changed_when: false
+  become: true
+  become_user: "{{ app_config.app_user }}"
+
+- name: Create website serve directory
+  ansible.builtin.file:
+    path: "{{ app_config.website_serve_path }}"
+    state: directory
+    owner: "{{ app_config.app_user }}"
+    group: "{{ app_config.app_user }}"
+    mode: '0755'
+
+- name: Deploy application directories
+  ansible.builtin.include_tasks: apps_deploy_dir.yml
+  loop: "{{ app_config.app_directories }}"
+  loop_control:
+    loop_var: app_dir
+
+- name: Start services in order
+  ansible.builtin.include_tasks: apps_start_service.yml
+  loop: "{{ app_config.service_start_order }}"
+  loop_control:
+    loop_var: service_name
+
+- name: Display application deployment summary
+  ansible.builtin.debug:
+    msg: |
+      ============================================
+      Application Deployment Complete
+      ============================================
+      Website: {{ app_config.website_domain }}
+      Serve Path: {{ app_config.website_serve_path }}
+      Hugo Source: {{ app_config.hugo_source_path }}
+
+      Services Started:
+      {% for svc in app_config.service_start_order %}
+        - {{ svc }}
+      {% endfor %}
+      ============================================
