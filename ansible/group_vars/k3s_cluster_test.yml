@@ -1,6 +1,7 @@
 ---
 # Cluster environment identifier
 cluster_environment: "test"
+environment_prefix: "test."  # Used for DNS records: {prefix}{app}.{tld} = test.app.levangie.dev
 
 # Override TLD for {{ cluster_environment }} cluster
 cluster_tld: "levangie.dev"
@@ -42,6 +43,13 @@ traefik_custom_domain: "*.{{ environment_domain }}"  # Custom domain pattern for
 # Wildcard Certificate Configuration
 traefik_wildcard_cert_enabled: true  # Use wildcard cert to reduce ACME TXT records
 traefik_wildcard_domain: "*.{{ cluster_environment }}.{{ cluster_tld }}"  # e.g., *.test.levangie.dev
+
+# Critical DNS Configuration for ACME validation (required for DNS challenges)
+traefik_dns_policy: "None"                # Override cluster DNS for ACME
+traefik_external_nameservers:              # External DNS servers for ACME validation
+  - "1.1.1.1"
+  - "8.8.8.8"
+traefik_dns_ndots: "2"                    # DNS search optimization
 
 # DNS Management Configuration
 manage_dns_records: true
