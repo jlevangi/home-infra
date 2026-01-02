@@ -7,14 +7,14 @@
   assert:
     that:
       - app_name is defined
-      - applications[app_name] is defined
-      - applications[app_name].app_url is defined
-    fail_msg: "app_name must be defined and exist in applications configuration"
+      - app_definitions[app_name] is defined
+      - app_definitions[app_name].app_url is defined
+    fail_msg: "app_name must be defined and exist in app_definitions"
     success_msg: "Application DNS variables validated for {{ app_name }}"
 
 - name: Extract application hostname from URL
   set_fact:
-    app_hostname: "{{ applications[app_name].app_url | regex_replace('https?://', '') | regex_replace('/.*', '') }}"
+    app_hostname: "{{ app_definitions[app_name].app_url | regex_replace('https?://', '') | regex_replace('/.*', '') }}"
 
 - name: Extract DNS record name from hostname
   set_fact:
@@ -33,7 +33,7 @@
     msg: |
       🌐 Application DNS Configuration:
       Application: {{ app_name }}
-      Full URL: {{ applications[app_name].app_url }}
+      Full URL: {{ app_definitions[app_name].app_url }}
       DNS Record: {{ app_dns_name }}.{{ cluster_tld }} → {{ cluster_dns_name }} (CNAME)
       Cluster DNS: {{ cluster_dns_name }} → {{ traefik_loadbalancer_ip }} (A record)
   when: manage_dns_records | default(false)
