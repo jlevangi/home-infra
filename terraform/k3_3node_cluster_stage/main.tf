@@ -64,7 +64,7 @@ resource "proxmox_vm_qemu" "terraform" {
 
   disk {
     slot = "scsi0"  # Must be string format like 'scsi0' not numeric
-    size = "20G"    # Reduced size for K3s
+    size = "30G"    # Disk size for K3s nodes
     type = "disk"   # Must be 'disk', 'cdrom', 'cloudinit', or 'ignore'
     storage = "vm_data" # Name of storage local to the host you are spinning the VM up on
     # SSD and discard options may not be available in v3.x - removed for compatibility
