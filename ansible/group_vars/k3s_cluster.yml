@@ -15,6 +15,12 @@ kubectl_version: "v1.28.4"
 # Cluster environment identifier
 cluster_environment: "prod"
 
+# Domain structure: {appname}.{domain} e.g., homepage.levangie.dev (no "prod" subdomain)
+environment_domain: "{{ cluster_tld }}"
+
+# Cluster DNS name for CNAME records
+cluster_dns_name: "k3s-{{ cluster_environment }}.{{ cluster_tld }}"
+
 # Base storage mount path for this cluster
 base_storage_path: "/mnt/k3s-storage"
 
@@ -38,6 +44,11 @@ traefik_acme_email: "admin@levangie.org"  # Email for Let's Encrypt registration
 traefik_persistence_enabled: true         # Enable persistent storage for certificates
 traefik_dashboard_enabled: true           # Enable Traefik dashboard
 traefik_dashboard_insecure: false         # Secure dashboard access
+traefik_custom_domain: "*.{{ environment_domain }}"  # Custom domain pattern for prod
+
+# Wildcard Certificate Configuration
+traefik_wildcard_cert_enabled: true  # Use wildcard cert to reduce ACME TXT records
+traefik_wildcard_domain: "*.{{ cluster_tld }}"  # e.g., *.levangie.dev (no "prod" subdomain)
 
 # Critical DNS Configuration for ACME validation
 traefik_dns_policy: "None"                # Override cluster DNS for ACME
@@ -45,6 +56,12 @@ traefik_external_nameservers:              # External DNS servers for ACME valid
   - "1.1.1.1"
   - "8.8.8.8"
 traefik_dns_ndots: "2"                    # DNS search optimization
+
+# DNS Management Configuration
+manage_dns_records: true
+technitium_dns_server: "{{ vault_technitium_dns_server }}"
+technitium_api_token: "{{ vault_technitium_api_token }}"
+dns_record_ttl: 3600  # 1 hour TTL for DNS records
 
 # Tech Tim's HA configuration options
 # Uncomment and configure these for true HA deployment:
@@ -127,12 +144,12 @@ applications:
     # Deployment Control
     deploy: false
     force_redeploy: false
-    
-    # Application Settings
-    app_url: "https://bookstack.{{ cluster_tld }}"
+
+    # Application Settings (prod-specific URLs)
+    app_url: "https://bookstack.{{ environment_domain }}"
     service_name: "bookstack"
     service_port: 8080
-    
+
     # Storage Configuration
     storage:
       max_namespace_storage: "15Gi"    # Total for BookStack namespace
@@ -140,7 +157,7 @@ applications:
       default_pvc_size: "5Gi"          # Default PVC size
       database_initial_size: "1Gi"     # Database needs more space for initialization
       app_initial_size: "{{ default_initial_volume_size | default('500Mi') }}"
-    
+
     # Application Secrets (from vault)
     secrets:
       db_password: "{{ vault_bookstack_db_password }}"
@@ -151,19 +168,19 @@ applications:
     # Deployment Control
     deploy: true
     force_redeploy: false
-    
-    # Application Settings
-    app_url: "https://vw.{{ cluster_tld }}"
+
+    # Application Settings (prod-specific URLs)
+    app_url: "https://vw.{{ environment_domain }}"
     service_name: "vaultwarden"
     service_port: 80
-    
+
     # Storage Configuration
     storage:
       max_namespace_storage: "15Gi"
       max_pvc_size: "10Gi"
       default_pvc_size: "5Gi"
       data_initial_size: "{{ default_initial_volume_size | default('500Mi') }}"
-    
+
     # Application Secrets (from vault)
     secrets:
       admin_token: "{{ vault_vaultwarden_admin_token }}"
@@ -172,12 +189,21 @@ applications:
     # Deployment Control
     deploy: true
     force_redeploy: false
-    
-    # Application Settings
-    app_url: "https://homepage.{{ cluster_tld }}"
+
+    # Application Settings (prod-specific URLs)
+    app_url: "https://homepage.{{ environment_domain }}"
     service_name: "homepage"
     service_port: 3000
-    
+
+    # Helm Configuration (same as stage)
+    helm:
+      repo_name: "jameswynn"
+      repo_url: "https://jameswynn.github.io/helm-charts"
+      chart_name: "jameswynn/homepage"
+      chart_version: ""  # Use latest, or specify version
+      release_name: "homepage"
+      namespace: "homepage"
+
     # Storage Configuration
     storage:
       max_namespace_storage: "3Gi"
@@ -189,13 +215,13 @@ applications:
     # Deployment Control
     deploy: false
     force_redeploy: false
-    
-    # Application Settings
-    app_url: "https://plexx.{{ cluster_tld }}"
+
+    # Application Settings (prod-specific URLs)
+    app_url: "https://plex.{{ environment_domain }}"
     service_name: "plex-media-server"
     service_port: 32400
-    
-    # Helm Configuration
+
+    # Helm Configuration (same as stage)
     helm:
       repo_name: "plex"
       repo_url: "https://raw.githubusercontent.com/plexinc/pms-docker/gh-pages"
@@ -203,22 +229,18 @@ applications:
       chart_version: ""  # Use latest, or specify version
       release_name: "plex"
       namespace: "plex"
-    
+
     # Storage Configuration
     storage:
       max_namespace_storage: "100Gi"   # Generous for media metadata and config
       max_pvc_size: "50Gi"             # Large PVC for config and metadata
       default_pvc_size: "20Gi"         # Config storage size
       config_initial_size: "2Gi"       # Plex config storage
-    
+
     # Plex-specific Configuration
     config:
-      # Optional: Plex claim token (get from https://plex.tv/claim)
-      # claim_token: ""  # Set this in vault if needed
       timezone: "{{ application_timezone | default('America/New_York') }}"
-      # GPU support (set to true if you have NVIDIA GPU)
       gpu_enabled: false
-      # Resource limits
       resources:
         requests:
           cpu: "100m"
@@ -227,11 +249,47 @@ applications:
           cpu: "2000m"
           memory: "4Gi"
 
+  pocketid:
+    # Deployment Control
+    deploy: false
+    force_redeploy: false
+
+    # Application Settings (prod-specific URLs)
+    app_url: "https://pocketid.{{ environment_domain }}"
+    service_name: "pocketid"
+    service_port: 1411
+
+    # Storage Configuration (aligned with stage)
+    storage:
+      max_namespace_storage: "10Gi"
+      max_pvc_size: "5Gi"
+      default_pvc_size: "1Gi"
+      data_initial_size: "500Mi"
+
+    # Application Configuration
+    config:
+      timezone: "{{ application_timezone | default('America/New_York') }}"
+      trust_proxy: "true"
+      allow_user_signups: "disabled"
+      puid: "1000"
+      pgid: "1000"
+      resources:
+        requests:
+          cpu: "50m"
+          memory: "128Mi"
+        limits:
+          cpu: "500m"
+          memory: "512Mi"
+
+    # Application Secrets (from vault)
+    secrets:
+      encryption_key: "{{ vault_pocketid_encryption_key }}"
+
 # ================================================================================
 # STORAGE CONFIGURATION - PRODUCTION ENVIRONMENT
 # ================================================================================
 
-# Global Storage Limits (generous for production large nodes)
+# Global Storage Limits (generous for production)
 global_max_pvc_size: "10Gi"              # Global max per PVC
 global_min_pvc_size: "100Mi"             # Global min per PVC
 global_max_pvcs: "20"                    # Max PVCs per namespace
@@ -245,8 +303,8 @@ longhorn_replica_count: "{{ [groups[worker_group] | length, 3] | min }}"
 longhorn_exclude_master_from_storage: true
 
 # Longhorn UI Access Configuration
-longhorn_ui_ingress_enabled: true  # Temporarily enabled for UI access
-longhorn_ui_app_url: "https://longhorn.levangie.dev"
+longhorn_ui_ingress_enabled: true
+longhorn_ui_app_url: "https://longhorn.{{ environment_domain }}"
 
 # Longhorn Backup Configuration
 enable_longhorn_backup: true  # Enable automatic backups to NFS
