@@ -14,6 +14,7 @@ kubectl_version: "v1.28.4"
 
 # Cluster environment identifier
 cluster_environment: "prod"
+environment_prefix: ""  # Empty for prod - apps resolve to {app}.levangie.dev (no subdomain)
 
 # Domain structure: {appname}.{domain} e.g., homepage.levangie.dev (no "prod" subdomain)
 environment_domain: "{{ cluster_tld }}"
