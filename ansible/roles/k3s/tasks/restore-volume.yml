@@ -1,0 +1,185 @@
+---
+# =============================================================================
+# Restore a single Longhorn volume from backup
+# =============================================================================
+# This task file is included from k3s-restore-from-backup.yml
+#
+# Required variables:
+#   restore_volume:
+#     volume_name: Name of the volume to restore
+#     volume_id: Longhorn volume ID
+#     backup_id: Backup ID to restore from
+#     backup_time: Timestamp of the backup
+# =============================================================================
+
+- name: "Restore {{ restore_volume.volume_name }}"
+  block:
+    - name: "Display restore info for {{ restore_volume.volume_name }}"
+      debug:
+        msg: |
+          Restoring volume: {{ restore_volume.volume_name }}
+          From backup: {{ restore_volume.backup_id }}
+          Backup time: {{ restore_volume.backup_time }}
+
+    # Determine namespace and PVC name from volume name
+    - name: Parse volume info
+      set_fact:
+        restore_namespace: "{{ restore_volume.volume_name.split('-')[0] }}"
+        restore_pvc_name: "{{ restore_volume.volume_name }}-pvc"
+
+    # Check if this is a known application volume
+    - name: Match volume to known app PVCs
+      set_fact:
+        matched_pvc: "{{ item.1 }}"
+      loop: "{{ app_pvc_mapping | dict2items | subelements('value') }}"
+      when: item.1.volume_name == restore_volume.volume_name
+      loop_control:
+        label: "{{ item.1.volume_name | default('unknown') }}"
+
+    - name: Set restore target from matched PVC
+      set_fact:
+        restore_namespace: "{{ matched_pvc.namespace }}"
+        restore_pvc_name: "{{ matched_pvc.name }}"
+      when: matched_pvc is defined
+
+    - name: Display restore target
+      debug:
+        msg: |
+          Target namespace: {{ restore_namespace }}
+          Target PVC: {{ restore_pvc_name }}
+
+    # Scale down deployments using this PVC
+    - name: Find deployments using this PVC
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl get deployments -n {{ restore_namespace }} -o json | \
+        jq -r '.items[] | select(.spec.template.spec.volumes[]?.persistentVolumeClaim.claimName == "{{ restore_pvc_name }}") | .metadata.name'
+      register: affected_deployments
+      failed_when: false
+      changed_when: false
+
+    - name: Scale down affected deployments
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl scale deployment {{ item }} -n {{ restore_namespace }} --replicas=0
+      loop: "{{ affected_deployments.stdout_lines | default([]) }}"
+      when: affected_deployments.stdout_lines | length > 0
+
+    - name: Wait for pods to terminate
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl wait --for=delete pod -l app={{ restore_namespace }} -n {{ restore_namespace }} --timeout=120s
+      failed_when: false
+      when: affected_deployments.stdout_lines | length > 0
+
+    # Get current PVC info before deletion
+    - name: Get current PVC details
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl get pvc {{ restore_pvc_name }} -n {{ restore_namespace }} -o json 2>/dev/null
+      register: current_pvc
+      failed_when: false
+      changed_when: false
+
+    - name: Parse PVC size
+      set_fact:
+        pvc_size: "{{ (current_pvc.stdout | from_json).spec.resources.requests.storage | default('1Gi') }}"
+      when: current_pvc.rc == 0
+
+    - name: Set default PVC size
+      set_fact:
+        pvc_size: "1Gi"
+      when: current_pvc.rc != 0
+
+    # Delete existing PVC
+    - name: Delete existing PVC
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl delete pvc {{ restore_pvc_name }} -n {{ restore_namespace }} --wait=true
+      when: current_pvc.rc == 0
+      register: pvc_deleted
+
+    - name: Wait for PV cleanup
+      pause:
+        seconds: 10
+      when: pvc_deleted is changed
+
+    # Build backup URL for Longhorn
+    - name: Build backup URL
+      set_fact:
+        backup_url: "nfs://{{ nfs_server }}:{{ nfs_backup_path }}?backup={{ restore_volume.backup_id }}&volume={{ restore_volume.volume_id }}"
+
+    # Create new PVC from backup
+    - name: Create PVC from backup
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl apply -f - <<EOF
+        apiVersion: v1
+        kind: PersistentVolumeClaim
+        metadata:
+          name: {{ restore_pvc_name }}
+          namespace: {{ restore_namespace }}
+          annotations:
+            # Tell Longhorn to restore from this backup
+            longhorn.io/backup-url: "{{ backup_url }}"
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: {{ pvc_size }}
+          storageClassName: longhorn
+          dataSource:
+            name: {{ restore_volume.backup_id }}
+            kind: Backup
+            apiGroup: longhorn.io
+        EOF
+      register: pvc_created
+
+    # Alternative: Use Longhorn's native restore via kubectl
+    - name: Create volume restore via Longhorn CRD
+      shell: |
+        # First, get the backup info
+        BACKUP_NAME="backup-{{ restore_volume.volume_id | truncate(8, true, '') }}-{{ restore_volume.backup_id | truncate(8, true, '') }}"
+
+        KUBECONFIG={{ kubeconfig }} kubectl apply -f - <<EOF
+        apiVersion: longhorn.io/v1beta2
+        kind: Volume
+        metadata:
+          name: {{ restore_volume.volume_name }}-restored
+          namespace: longhorn-system
+        spec:
+          frontend: blockdev
+          fromBackup: "s3://{{ nfs_backup_path }}@/backupstore?backup={{ restore_volume.backup_id }}&volume={{ restore_volume.volume_id }}"
+          numberOfReplicas: {{ longhorn_replica_count | default(2) }}
+        EOF
+      failed_when: false
+      when: pvc_created.rc != 0
+
+    # Wait for PVC to be bound
+    - name: Wait for restored PVC to be bound
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc/{{ restore_pvc_name }} -n {{ restore_namespace }} --timeout=300s
+      register: pvc_bound
+      retries: 3
+      delay: 30
+      until: pvc_bound.rc == 0
+
+    # Scale deployments back up
+    - name: Scale up affected deployments
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl scale deployment {{ item }} -n {{ restore_namespace }} --replicas=1
+      loop: "{{ affected_deployments.stdout_lines | default([]) }}"
+      when: affected_deployments.stdout_lines | length > 0
+
+    - name: Wait for pods to be ready
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl wait --for=condition=Ready pod -l app={{ restore_namespace }} -n {{ restore_namespace }} --timeout=300s
+      failed_when: false
+      when: affected_deployments.stdout_lines | length > 0
+
+    - name: "Restore complete for {{ restore_volume.volume_name }}"
+      debug:
+        msg: |
+          ====================================================
+          Volume Restored Successfully
+          ====================================================
+          Volume: {{ restore_volume.volume_name }}
+          PVC: {{ restore_pvc_name }}
+          Namespace: {{ restore_namespace }}
+          From Backup: {{ restore_volume.backup_id }}
+          ====================================================

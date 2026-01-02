@@ -39,11 +39,8 @@ global_min_pvc_size: "10Mi"
 global_max_pvcs: "5"
 default_initial_volume_size: "100Mi"
 
-# Reduced backup retention for test
-longhorn_backup_schedule_daily: "0 1 * * *"
-longhorn_backup_schedule_weekly: "0 2 * * 6"
-longhorn_backup_retain_daily: 3
-longhorn_backup_retain_weekly: 2
+# Disable backups for test environment (ephemeral data)
+enable_longhorn_backup: false
 
 # Shorter DNS TTL for test (faster iteration)
 dns_record_ttl: 300
