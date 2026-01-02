@@ -90,6 +90,24 @@ ansible-playbook -i ansible/inventories/production/hosts.yml ansible/playbooks/k
 ansible-playbook -i ansible/inventories/production/hosts.yml ansible/playbooks/k3s-deploy-apps.yml --vault-password-file ~/.ansible_vault_pass
 ```
 
+### Backup and Restore
+```bash
+# List available backups
+./scripts/list_backups.sh
+
+# Full disaster recovery for production
+./scripts/restore_cluster.sh --prod
+
+# Clone production data to staging
+./scripts/restore_cluster.sh --stage --from prod
+
+# Restore data only (no VM rebuild)
+./scripts/restore_cluster.sh --prod --restore-only
+
+# Restore specific app only
+./scripts/restore_cluster.sh --stage --from prod --app bookstack --restore-only
+```
+
 ### Vault Management
 ```bash
 # Edit K3s vault file
@@ -167,28 +185,52 @@ The repository supports three environments:
 
 ## Application Configuration
 
-Applications are configured in `ansible/group_vars/k3s_cluster*.yml` files using a standardized structure:
+Applications are configured using a two-layer approach:
+
+1. **Base config** (`k3s_cluster.yml`): Contains `app_definitions` with full app configurations
+2. **Environment overrides** (`k3s_cluster_{env}.yml`): Contains `enabled_apps` list and overrides
 
 ```yaml
-applications:
-  app_name:
-    deploy: true/false
-    force_redeploy: true/false
-    app_url: "https://app.domain.com"
-    service_name: "app-service"
-    service_port: 80
+# Base config - app_definitions (full configs, no deploy flags)
+app_definitions:
+  bookstack:
+    app_url: "https://bookstack.{{ environment_domain }}"
+    service_name: "bookstack"
+    service_port: 8080
     storage:
-      max_namespace_storage: "10Gi"
+      max_namespace_storage: "15Gi"
       default_pvc_size: "5Gi"
     secrets:
-      key: "{{ vault_secret }}"
+      db_password: "{{ vault_bookstack_db_password }}"
+
+# Environment override - control what gets deployed
+enabled_apps:
+  - bookstack
+  - vaultwarden
+  - homepage
+
+force_redeploy_apps:
+  - homepage
 ```
 
 Available applications:
 - **BookStack**: Documentation platform
-- **Vaultwarden**: Password manager  
+- **Vaultwarden**: Password manager
 - **Homepage**: Dashboard
+- **PocketID**: Identity provider
 - **Plex**: Media server (Helm-based)
+
+## Backup Strategy
+
+Backups are managed per-environment:
+
+| Environment | Backups | Restore From |
+|-------------|---------|--------------|
+| **Prod** | Enabled (daily/weekly to NFS) | Own backups |
+| **Stage** | Disabled | Prod backups |
+| **Test** | Disabled | None (ephemeral) |
+
+All backups are stored on NFS at a shared location, enabling cross-cluster restore.
 
 ## Vault Password Management
 

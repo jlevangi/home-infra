@@ -33,8 +33,5 @@ force_redeploy_apps:
 # -----------------------------------------------------------------------------
 # STAGING-SPECIFIC OVERRIDES
 # -----------------------------------------------------------------------------
-# Offset backup schedules from prod
-longhorn_backup_schedule_daily: "0 1 * * *"
-longhorn_backup_schedule_weekly: "0 2 * * 6"
-longhorn_backup_retain_daily: 3
-longhorn_backup_retain_weekly: 2
+# Disable backups for stage (restores from prod backups for testing)
+enable_longhorn_backup: false
