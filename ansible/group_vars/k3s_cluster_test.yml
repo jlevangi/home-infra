@@ -2,9 +2,10 @@
 # Cluster environment identifier
 cluster_environment: "test"
 
-# Override TLD for {{ cluster_environment }} cluster  
+# Override TLD for {{ cluster_environment }} cluster
 cluster_tld: "levangie.dev"
-environment_prefix: "{{ cluster_environment }}."
+# Domain structure: {appname}.{environment}.{domain} e.g., homepage.test.levangie.dev
+environment_domain: "{{ cluster_environment }}.{{ cluster_tld }}"
 
 # Cluster DNS name for CNAME records
 cluster_dns_name: "k3s-{{ cluster_environment }}.{{ cluster_tld }}"
@@ -36,7 +37,11 @@ traefik_persistence_enabled: true  # Enable for SSL cert persistence
 traefik_acme_enabled: true  # Enable automatic Let's Encrypt certificates
 traefik_acme_email: "admin@levangie.dev"  # Email for Let's Encrypt notifications
 traefik_acme_dns_provider: "cloudflare"  # DNS provider for DNS-01 challenge
-traefik_custom_domain: "*.{{ environment_prefix }}levangie.dev"  # Custom domain pattern for test
+traefik_custom_domain: "*.{{ environment_domain }}"  # Custom domain pattern for test
+
+# Wildcard Certificate Configuration
+traefik_wildcard_cert_enabled: true  # Use wildcard cert to reduce ACME TXT records
+traefik_wildcard_domain: "*.{{ cluster_environment }}.{{ cluster_tld }}"  # e.g., *.test.levangie.dev
 
 # DNS Management Configuration
 manage_dns_records: true
@@ -71,7 +76,7 @@ applications:
     force_redeploy: true
     
     # Application Settings ({{ cluster_environment }}-specific URLs)
-    app_url: "https://{{ environment_prefix }}bookstack.{{ cluster_tld }}"
+    app_url: "https://bookstack.{{ environment_domain }}"
     service_name: "bookstack"
     service_port: 8080
     
@@ -95,7 +100,7 @@ applications:
     force_redeploy: true
     
     # Application Settings ({{ cluster_environment }}-specific URLs)
-    app_url: "https://{{ environment_prefix }}vw.{{ cluster_tld }}"
+    app_url: "https://vw.{{ environment_domain }}"
     service_name: "vaultwarden"
     service_port: 80
     
@@ -114,9 +119,9 @@ applications:
     # Deployment Control
     deploy: true
     force_redeploy: true
-    
+
     # Application Settings ({{ cluster_environment }}-specific URLs)
-    app_url: "https://{{ environment_prefix }}homepage.{{ cluster_tld }}"
+    app_url: "https://homepage.{{ environment_domain }}"
     service_name: "homepage"
     service_port: 3000
     
@@ -147,13 +152,50 @@ applications:
           cpu: "500m"
           memory: "512Mi"
 
-  plex:
+  pocketid:
     # Deployment Control
     deploy: true
     force_redeploy: true
-    
+
     # Application Settings ({{ cluster_environment }}-specific URLs)
-    app_url: "https://{{ environment_prefix }}plex.{{ cluster_tld }}"
+    app_url: "https://pocketid.{{ environment_domain }}"
+    service_name: "pocketid"
+    service_port: 1411
+
+    # Storage Configuration
+    storage:
+      max_namespace_storage: "5Gi"
+      max_pvc_size: "3Gi"
+      default_pvc_size: "500Mi"
+      data_initial_size: "{{ default_initial_volume_size | default('100Mi') }}"
+      key_initial_size: "1Mi"
+
+    # Application Configuration
+    config:
+      timezone: "{{ application_timezone | default('America/New_York') }}"
+      trust_proxy: "true"
+      allow_user_signups: "disabled"
+      puid: "1000"
+      pgid: "1000"
+      resources:
+        requests:
+          cpu: "50m"
+          memory: "128Mi"
+        limits:
+          cpu: "500m"
+          memory: "512Mi"
+
+    # Application Secrets (from vault)
+    secrets:
+      encryption_key: "{{ vault_pocketid_encryption_key }}"
+
+  plex:
+    # Deployment Control
+    deploy: false
+    force_redeploy: false
+
+    # Application Settings ({{ cluster_environment }}-specific URLs)
+    app_url: "https://plex.{{ environment_domain }}"
     service_name: "plex-media-server"
     service_port: 32400
     
@@ -207,7 +249,7 @@ longhorn_exclude_master_from_storage: true
 
 # Longhorn UI Access Configuration
 longhorn_ui_ingress_enabled: true
-longhorn_ui_app_url: "https://{{ environment_prefix }}longhorn.{{ cluster_tld }}"
+longhorn_ui_app_url: "https://longhorn.{{ environment_domain }}"
 
 # Longhorn Backup Configuration ({{ cluster_environment | title }} environment)
 enable_longhorn_backup: true  # Enable backups in {{ cluster_environment }} for validation
