@@ -58,8 +58,7 @@ traefik_external_nameservers:              # External DNS servers for ACME valid
 traefik_dns_ndots: "2"                    # DNS search optimization
 
 # DNS Management Configuration
-# Temporarily disabled until DNS task is fixed for new domain structure
-manage_dns_records: false
+manage_dns_records: true
 technitium_dns_server: "{{ vault_technitium_dns_server }}"
 technitium_api_token: "{{ vault_technitium_api_token }}"
 dns_record_ttl: 3600  # 1 hour TTL for DNS records
