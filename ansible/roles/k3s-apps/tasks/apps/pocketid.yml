@@ -1,0 +1,157 @@
+---
+# Optional cleanup task - only runs when pocketid_force_redeploy is true
+- name: Include cleanup task for Pocket ID
+  include_tasks: cleanup_task.yml
+  vars:
+    app_name: "Pocket ID"
+    k8s_namespace: "pocketid"
+    kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
+    force_redeploy_var: "applications.pocketid.force_redeploy"
+
+# Check if Pocket ID deployment already exists (to respect force_redeploy flag)
+- name: Check if Pocket ID namespace exists
+  shell: |
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get namespace pocketid
+  register: pocketid_namespace_check
+  failed_when: false
+  changed_when: false
+  when: inventory_hostname == groups[master_group][0]
+
+# Set deployment condition: deploy if force_redeploy is true OR namespace doesn't exist
+- name: Set Pocket ID deployment condition
+  set_fact:
+    should_deploy_pocketid: "{{ applications.pocketid.force_redeploy | default(false) | bool or pocketid_namespace_check.rc != 0 }}"
+  when: inventory_hostname == groups[master_group][0]
+
+- name: Display Pocket ID deployment decision
+  debug:
+    msg: |
+      Pocket ID Deployment Decision:
+      Force redeploy setting: {{ applications.pocketid.force_redeploy | default(false) }}
+      Namespace exists: {{ 'Yes' if pocketid_namespace_check.rc == 0 else 'No' }}
+      Will deploy: {{ should_deploy_pocketid | default(false) }}
+      Reason: {{ 'Force redeploy enabled' if applications.pocketid.force_redeploy | default(false) | bool else ('Namespace missing - first deployment' if pocketid_namespace_check.rc != 0 else 'Skipping - deployment exists and force_redeploy=false') }}
+  when: inventory_hostname == groups[master_group][0]
+
+# Deploy Pocket ID resources (only if should_deploy_pocketid is true)
+- name: Deploy Pocket ID Kubernetes resources
+  block:
+    # Apply Kubernetes resources using shared task
+    - name: Apply Pocket ID Kubernetes resources
+      include_tasks: shared/apply_k8s_resources.yml
+      vars:
+        app_name: "pocketid"
+        k8s_resources:
+          - name: "Namespace"
+            template: "common/namespace.yaml.j2"
+            vars:
+              app_name: "pocketid"
+          - name: "ResourceQuota"
+            template: "common/resource-quota.yaml.j2"
+            vars:
+              app_name: "pocketid"
+              max_namespace_storage: "{{ applications.pocketid.storage.max_namespace_storage | default('5Gi') }}"
+              max_pvcs: "{{ global_max_pvcs | default('10') }}"
+          - name: "LimitRange"
+            template: "common/limit-range.yaml.j2"
+            vars:
+              app_name: "pocketid"
+              max_pvc_size: "{{ applications.pocketid.storage.max_pvc_size | default('3Gi') }}"
+              min_pvc_size: "{{ global_min_pvc_size | default('10Mi') }}"
+              default_pvc_size: "{{ applications.pocketid.storage.default_pvc_size | default('500Mi') }}"
+          - name: "PV/PVC (Data)"
+            template: "common/pv-pvc.yaml.j2"
+            vars:
+              app_name: "pocketid"
+              volume_name: "data"
+              initial_volume_size: "{{ applications.pocketid.storage.data_initial_size | default('100Mi') }}"
+          - name: "ConfigMap"
+            template: "pocketid/configmap.yaml.j2"
+            vars:
+              app_name: "pocketid"
+          - name: "Secret"
+            template: "pocketid/secret.yaml.j2"
+            vars:
+              app_name: "pocketid"
+          - name: "Service"
+            template: "pocketid/service.yaml.j2"
+            vars:
+              app_name: "pocketid"
+              service_port: "{{ applications.pocketid.service_port }}"
+          - name: "Deployment"
+            template: "pocketid/deployment.yaml.j2"
+            vars:
+              app_name: "pocketid"
+              image:
+                registry: "ghcr.io"
+                repository: "pocket-id/pocket-id"
+                tag: "v1"
+                pullPolicy: "IfNotPresent"
+              pvc_name: "pocketid-data"
+              service_port: "{{ applications.pocketid.service_port }}"
+              resources: "{{ applications.pocketid.config.resources }}"
+          - name: "Ingress"
+            template: "common/ingress.yaml.j2"
+            vars:
+              service_name: "pocketid"
+              app_url: "{{ applications.pocketid.app_url }}"
+              service_port: "{{ applications.pocketid.service_port }}"
+
+    # Wait for deployment readiness using shared task
+    - name: Wait for Pocket ID deployment readiness
+      include_tasks: shared/wait_for_deployment.yml
+      vars:
+        app_name: "pocketid"
+        k8s_namespace: "pocketid"
+        deployment_checks:
+          - name: "Pocket ID deployment"
+            type: "deployment"
+            selector: "app=pocketid"
+            timeout: 300
+
+    # Final deployment information
+    - name: Display Pocket ID deployment summary
+      debug:
+        msg: |
+          Pocket ID Deployment Complete!
+
+          Access Information:
+          - Application URL: {{ applications.pocketid.app_url }}
+          - Service Port: {{ applications.pocketid.service_port }}
+
+          Storage:
+          - Storage: Longhorn distributed storage
+          - Size: {{ applications.pocketid.storage.default_pvc_size | default('500Mi') }}
+
+          Security:
+          - Encryption key configured via vault secret
+          - HTTPS ingress enabled
+          - User signups: {{ applications.pocketid.config.allow_user_signups | default('disabled') }}
+
+          Management Commands:
+          kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get all -n pocketid
+          kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml logs -n pocketid deployment/pocketid
+
+          Next Steps:
+          1. Ensure DNS points {{ applications.pocketid.app_url | regex_replace('https://') }} to your Traefik load balancer
+          2. Access the application at {{ applications.pocketid.app_url }}
+          3. Create your admin account on first login
+
+  when:
+    - inventory_hostname == groups[master_group][0]
+    - should_deploy_pocketid | default(false) | bool
+
+# Show skip message when deployment is skipped
+- name: Display Pocket ID skip message
+  debug:
+    msg: |
+      Pocket ID Deployment Skipped
+
+      Reason: force_redeploy is false and Pocket ID namespace already exists
+      Current Status: Pocket ID is already deployed
+
+      To redeploy Pocket ID, set applications.pocketid.force_redeploy: true in your group_vars
+      To check current status: kubectl get all -n pocketid
+  when:
+    - inventory_hostname == groups[master_group][0]
+    - not (should_deploy_pocketid | default(false) | bool)

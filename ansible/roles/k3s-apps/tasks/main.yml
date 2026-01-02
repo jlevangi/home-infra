@@ -14,6 +14,10 @@
   include_tasks: apps/vaultwarden.yml
   when: applications.vaultwarden.deploy | default(false)
 
+- name: Include Pocket ID deployment
+  include_tasks: apps/pocketid.yml
+  when: applications.pocketid.deploy | default(false)
+
 - name: Include Plex Media Server deployment
   include_tasks: apps/plex.yml
   when: applications.plex.deploy | default(false)
