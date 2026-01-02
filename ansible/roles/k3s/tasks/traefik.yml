@@ -225,6 +225,21 @@
   retries: 3
   delay: 10
 
+- name: Create DNS CNAME record for Traefik dashboard
+  include_tasks: shared/dns_management.yml
+  vars:
+    # Build full dashboard hostname and strip cluster_tld to get record name
+    # Stage: traefik.stage.levangie.dev -> traefik.stage
+    # Prod: traefik.levangie.dev -> traefik
+    dns_record_name: "{{ ('traefik.' + environment_domain) | regex_replace('\\.' + cluster_tld + '$', '') }}"
+    dns_record_type: "CNAME"
+    dns_record_target: "{{ cluster_dns_name }}"
+    dns_record_action: "create"
+  when:
+    - inventory_hostname == groups[master_group][0]
+    - traefik_dashboard_enabled | default(true)
+    - manage_dns_records | default(false)
+
 - name: Create TLSStore for wildcard certificate (if enabled)
   template:
     src: traefik-tlsstore.yaml.j2
