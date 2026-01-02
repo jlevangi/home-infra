@@ -3,8 +3,8 @@ output "vm_ips" {
   description = "IP addresses of the K3s nodes"
   sensitive   = true  # Mark as sensitive since it references VM resources
   value = [
-    for vm in proxmox_vm_qemu.terraform : 
-    "172.20.20.22${index(proxmox_vm_qemu.terraform, vm) + 1}"
+    for vm in proxmox_vm_qemu.terraform :
+    "172.20.20.11${index(proxmox_vm_qemu.terraform, vm) + 1}"
   ]
 }
 
@@ -23,7 +23,7 @@ output "ansible_inventory" {
     k3s_master = {
       hosts = {
         (proxmox_vm_qemu.terraform[0].name) = {
-          ansible_host = "172.20.20.121"
+          ansible_host = "172.20.20.111"
           ansible_user = "var.ci_user"
         }
       }
@@ -32,7 +32,7 @@ output "ansible_inventory" {
       hosts = {
         for i, vm in slice(proxmox_vm_qemu.terraform, 1, length(proxmox_vm_qemu.terraform)) :
         vm.name => {
-          ansible_host = "172.20.20.12${i + 2}"
+          ansible_host = "172.20.20.11${i + 2}"
           ansible_user = "var.ci_user"
         }
       }
