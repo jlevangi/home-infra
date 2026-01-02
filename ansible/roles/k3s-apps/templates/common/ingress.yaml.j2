@@ -7,12 +7,12 @@ metadata:
   namespace: {{ k8s_namespace | default(service_name) }}
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-{% if traefik_acme_enabled | default(false) %}
+{% if traefik_acme_enabled | default(false) and not traefik_wildcard_cert_enabled | default(false) %}
     traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
 {% endif %}
 spec:
   ingressClassName: traefik
-{% if traefik_acme_enabled | default(false) %}
+{% if traefik_acme_enabled | default(false) and not traefik_wildcard_cert_enabled | default(false) %}
   tls:
   - hosts:
     - {{ app_url | regex_replace('https?://','') }}
