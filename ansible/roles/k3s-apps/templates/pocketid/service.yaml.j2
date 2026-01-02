@@ -9,7 +9,7 @@ spec:
   selector:
     app: pocketid
   ports:
-  - port: {{ applications.pocketid.service_port }}
+  - port: {{ app_definitions.pocketid.service_port }}
     targetPort: 1411
     protocol: TCP
   type: ClusterIP

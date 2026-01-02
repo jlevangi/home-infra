@@ -1,23 +1,24 @@
 ---
 # Main task file for applications deployment
-# Using nested applications configuration
+# Apps are enabled via `enabled_apps` list in environment config
+# App definitions are in `app_definitions` dict in base config
 
 - name: Include BookStack deployment
   include_tasks: apps/bookstack.yml
-  when: applications.bookstack.deploy | default(false)
+  when: "'bookstack' in enabled_apps"
 
 - name: Include Homepage Dashboard deployment
   include_tasks: apps/homepage.yml
-  when: applications.homepage.deploy | default(false)
+  when: "'homepage' in enabled_apps"
 
 - name: Include Vaultwarden deployment
   include_tasks: apps/vaultwarden.yml
-  when: applications.vaultwarden.deploy | default(false)
+  when: "'vaultwarden' in enabled_apps"
 
 - name: Include Pocket ID deployment
   include_tasks: apps/pocketid.yml
-  when: applications.pocketid.deploy | default(false)
+  when: "'pocketid' in enabled_apps"
 
 - name: Include Plex Media Server deployment
   include_tasks: apps/plex.yml
-  when: applications.plex.deploy | default(false)
+  when: "'plex' in enabled_apps"
