@@ -3,6 +3,8 @@
 # K3s Cluster Restore from Longhorn Backup
 # =============================================================================
 # This playbook restores Longhorn volumes from backups stored on NFS.
+# It queries the source cluster's Longhorn API to get backup URLs, ensuring
+# the restore operation is READ-ONLY on the backup storage.
 #
 # Use Cases:
 #   1. Disaster Recovery: Rebuild prod cluster and restore all data
@@ -10,21 +12,21 @@
 #   3. Single App Restore: Restore specific application volumes
 #
 # Usage:
-#   # List available backups
+#   # List available backups (queries prod cluster)
 #   ansible-playbook k3s-restore-from-backup.yml -e "restore_action=list"
 #
 #   # Restore all apps to stage from prod backups
-#   ansible-playbook k3s-restore-from-backup.yml -e "restore_action=restore target_env=stage source_env=prod"
+#   ansible-playbook k3s-restore-from-backup.yml -e "restore_action=restore target_env=stage"
 #
 #   # Restore specific app
-#   ansible-playbook k3s-restore-from-backup.yml -e "restore_action=restore target_env=stage source_env=prod app=bookstack"
+#   ansible-playbook k3s-restore-from-backup.yml -e "restore_action=restore target_env=stage app=bookstack"
 #
 #   # Disaster recovery - restore prod from its own backups
-#   ansible-playbook k3s-restore-from-backup.yml -e "restore_action=restore target_env=prod source_env=prod"
+#   ansible-playbook k3s-restore-from-backup.yml -e "restore_action=restore target_env=prod"
 # =============================================================================
 
 - name: K3s Cluster Restore from Longhorn Backup
-  hosts: "{{ target_hosts | default('k3s_cluster_' + target_env + '_master') }}"
+  hosts: "{{ 'k3s_cluster_' + target_env + '_master' }}"
   become: yes
   gather_facts: yes
 
@@ -32,7 +34,7 @@
     # Default restore_action: list, restore
     restore_action: "list"
 
-    # Source environment for backups (prod is the source of truth)
+    # Source environment for backups (prod is always the source of truth)
     source_env: "prod"
 
     # Target environment to restore to
@@ -41,37 +43,47 @@
     # Specific app to restore (empty = all apps)
     app: ""
 
-    # NFS backup location
-    nfs_server: "{{ vault_nfs_server | default('172.20.20.5') }}"
-    nfs_backup_path: "{{ vault_nfs_share_backup_root | default('/volume1/k3s-storage/longhorn') }}/shared"
-
-    # Temp mount point for backup inspection
-    backup_mount_point: "/tmp/longhorn-backup-restore"
-
-    # Kubeconfig path
+    # Kubeconfig paths
     kubeconfig: "/etc/rancher/k3s/k3s.yaml"
+    source_kubeconfig: "/etc/rancher/k3s/k3s.yaml"
 
-    # App to PVC mapping
-    app_pvc_mapping:
-      bookstack:
-        - name: "bookstack-app-data-pvc"
-          namespace: "bookstack"
-          volume_name: "bookstack-app-data"
-        - name: "bookstack-db-data-pvc"
-          namespace: "bookstack"
-          volume_name: "bookstack-db-data"
-      vaultwarden:
-        - name: "vaultwarden-data-pvc"
-          namespace: "vaultwarden"
-          volume_name: "vaultwarden-data"
+    # SSH to source cluster for backup info (when target != source)
+    source_cluster_host: "k3s-prod-node-1"
+
+    # Mapping from backup volume names to target PVC configurations
+    # Key: pattern to match in backup volume name
+    # Value: target PVC details
+    backup_to_pvc_mapping:
+      bookstack-app:
+        pvc_name: "bookstack-app-data-pvc"
+        namespace: "bookstack"
+        size: "500Mi"
+        size_bytes: 536870912
+      bookstack-db:
+        pvc_name: "bookstack-db-data-pvc"
+        namespace: "bookstack"
+        size: "1Gi"
+        size_bytes: 1073741824
       homepage:
-        - name: "homepage-config-pvc"
-          namespace: "homepage"
-          volume_name: "homepage-config"
+        pvc_name: "homepage-config"
+        namespace: "homepage"
+        size: "500Mi"
+        size_bytes: 536870912
+      vaultwarden:
+        pvc_name: "vaultwarden-data-pvc"
+        namespace: "vaultwarden"
+        size: "500Mi"
+        size_bytes: 536870912
       pocketid:
-        - name: "pocketid-data-pvc"
-          namespace: "pocketid"
-          volume_name: "pocketid-data"
+        pvc_name: "pocketid-data-pvc"
+        namespace: "pocketid"
+        size: "500Mi"
+        size_bytes: 536870912
+      traefik:
+        pvc_name: "traefik"
+        namespace: "traefik-system"
+        size: "1Gi"
+        size_bytes: 1073741824
 
   tasks:
     # =========================================================================
@@ -82,7 +94,6 @@
         that:
           - restore_action in ['list', 'restore']
           - target_env in ['prod', 'stage', 'test']
-          - source_env in ['prod', 'stage', 'test']
         fail_msg: "Invalid restore_action or environment specified"
 
     - name: Display operation info
@@ -92,140 +103,104 @@
           Longhorn Backup {{ 'Listing' if restore_action == 'list' else 'Restore' }} Operation
           ====================================================
           Action: {{ restore_action }}
-          Source Environment: {{ source_env }}
+          Source Environment: {{ source_env }} (always prod)
           Target Environment: {{ target_env }}
           Specific App: {{ app | default('ALL APPS', true) }}
-          NFS Server: {{ nfs_server }}
-          Backup Path: {{ nfs_backup_path }}
           ====================================================
 
     # =========================================================================
-    # MOUNT NFS BACKUP SHARE
+    # GET BACKUP INFORMATION FROM SOURCE CLUSTER
     # =========================================================================
-    - name: Create backup mount directory
-      file:
-        path: "{{ backup_mount_point }}"
-        state: directory
-        mode: '0755'
+    - name: Get backup information from prod cluster
+      block:
+        - name: Query Longhorn backups from prod
+          shell: |
+            {% if target_env == 'prod' %}
+            KUBECONFIG={{ kubeconfig }} kubectl get backups -n longhorn-system -o json
+            {% else %}
+            ssh {{ source_cluster_host }} "KUBECONFIG={{ source_kubeconfig }} kubectl get backups -n longhorn-system -o json"
+            {% endif %}
+          register: backups_json
+          changed_when: false
 
-    - name: Mount NFS backup share
-      mount:
-        src: "{{ nfs_server }}:{{ nfs_backup_path }}"
-        path: "{{ backup_mount_point }}"
-        fstype: nfs
-        opts: "ro,hard,intr,rsize=65536,wsize=65536,timeo=600,retrans=2,vers=4"
-        state: mounted
+        - name: Parse backup information
+          set_fact:
+            all_backups: "{{ backups_json.stdout | from_json }}"
+
+        - name: Build backup list with latest per volume
+          set_fact:
+            backup_volumes: >-
+              {{
+                all_backups.items
+                | map(attribute='status')
+                | selectattr('volumeName', 'defined')
+                | selectattr('url', 'defined')
+                | list
+                | groupby('volumeName')
+                | map('last')
+                | map('sort', attribute='backupCreatedAt', reverse=true)
+                | map('first')
+                | list
+              }}
 
     # =========================================================================
     # LIST BACKUPS
     # =========================================================================
-    - name: Discover available backups
-      block:
-        - name: List backup volumes directory
-          find:
-            paths: "{{ backup_mount_point }}/backupstore/volumes"
-            file_type: directory
-            recurse: no
-          register: backup_volumes
-          failed_when: false
+    - name: Display available backups
+      debug:
+        msg: |
+          ====================================================
+          Available Longhorn Backups (from {{ source_env }})
+          ====================================================
+          {% for backup in backup_volumes %}
+          Volume: {{ backup.volumeName }}
+            Latest Backup: {{ backup.backupName | default('unknown') }}
+            Created: {{ backup.backupCreatedAt | default('unknown') }}
+            Size: {{ ((backup.size | default('0') | int) / 1024 / 1024) | round(2) }} MB
+            URL: {{ backup.url }}
+          {% endfor %}
+          ====================================================
 
-        - name: Get backup details for each volume
-          shell: |
-            cd "{{ backup_mount_point }}/backupstore/volumes/{{ item.path | basename }}/backups" 2>/dev/null && \
-            for backup_dir in */; do
-              backup_name=$(basename "$backup_dir")
-              if [ -f "${backup_dir}backup.cfg" ]; then
-                created=$(grep -o '"Created":"[^"]*"' "${backup_dir}backup.cfg" | cut -d'"' -f4 | head -1)
-                size=$(grep -o '"Size":[0-9]*' "${backup_dir}backup.cfg" | cut -d':' -f2 | head -1)
-                echo "${backup_name}|${created}|${size}"
-              fi
-            done
-          loop: "{{ backup_volumes.files | default([]) }}"
-          register: backup_details
-          failed_when: false
-          changed_when: false
-
-        - name: Parse volume names from backup config
-          shell: |
-            if [ -f "{{ backup_mount_point }}/backupstore/volumes/{{ item.path | basename }}/volume.cfg" ]; then
-              grep -o '"Name":"[^"]*"' "{{ backup_mount_point }}/backupstore/volumes/{{ item.path | basename }}/volume.cfg" | cut -d'"' -f4
-            else
-              echo "{{ item.path | basename }}"
-            fi
-          loop: "{{ backup_volumes.files | default([]) }}"
-          register: volume_names
-          failed_when: false
-          changed_when: false
-
-        - name: Display available backups
-          debug:
-            msg: |
-              ====================================================
-              Available Longhorn Backups
-              ====================================================
-              {% for vol in backup_volumes.files | default([]) %}
-              {% set vol_idx = loop.index0 %}
-              {% set vol_name = volume_names.results[vol_idx].stdout | default(vol.path | basename) %}
-
-              Volume: {{ vol_name }}
-              ID: {{ vol.path | basename }}
-              {% if backup_details.results[vol_idx].stdout_lines is defined %}
-              Backups:
-              {% for backup_line in backup_details.results[vol_idx].stdout_lines %}
-              {% set parts = backup_line.split('|') %}
-                - {{ parts[0] }}
-                  Created: {{ parts[1] | default('unknown') }}
-                  Size: {{ ((parts[2] | default('0') | int) / 1024 / 1024) | round(2) }} MB
-              {% endfor %}
-              {% else %}
-                (No backups found)
-              {% endif %}
-              {% endfor %}
-              ====================================================
-          when: restore_action == 'list'
-
-      when: restore_action == 'list' or restore_action == 'restore'
+          Total: {{ backup_volumes | length }} volumes with backups
+      when: restore_action == 'list'
 
     # =========================================================================
     # RESTORE BACKUPS
     # =========================================================================
     - name: Restore from backups
       block:
-        - name: Get latest backup for each volume
-          shell: |
-            VOLUME_DIR="{{ backup_mount_point }}/backupstore/volumes/{{ item.path | basename }}"
-            VOLUME_NAME=$(grep -o '"Name":"[^"]*"' "${VOLUME_DIR}/volume.cfg" 2>/dev/null | cut -d'"' -f4 || echo "{{ item.path | basename }}")
-
-            # Find the most recent backup
-            LATEST_BACKUP=""
-            LATEST_TIME=""
-
-            if [ -d "${VOLUME_DIR}/backups" ]; then
-              for backup_dir in ${VOLUME_DIR}/backups/*/; do
-                if [ -f "${backup_dir}backup.cfg" ]; then
-                  CREATED=$(grep -o '"Created":"[^"]*"' "${backup_dir}backup.cfg" | cut -d'"' -f4)
-                  if [ -z "$LATEST_TIME" ] || [ "$CREATED" \> "$LATEST_TIME" ]; then
-                    LATEST_TIME="$CREATED"
-                    LATEST_BACKUP=$(basename "$backup_dir")
-                  fi
-                fi
-              done
-            fi
-
-            echo "${VOLUME_NAME}|{{ item.path | basename }}|${LATEST_BACKUP}|${LATEST_TIME}"
-          loop: "{{ backup_volumes.files | default([]) }}"
-          register: latest_backups
-          failed_when: false
-          changed_when: false
-
-        - name: Build restore list
+        - name: Build restore list with PVC mappings
           set_fact:
-            volumes_to_restore: "{{ volumes_to_restore | default([]) + [{'volume_name': item.stdout.split('|')[0], 'volume_id': item.stdout.split('|')[1], 'backup_id': item.stdout.split('|')[2], 'backup_time': item.stdout.split('|')[3]}] }}"
-          loop: "{{ latest_backups.results }}"
+            volumes_to_restore: []
+
+        - name: Match backups to target PVCs
+          set_fact:
+            volumes_to_restore: >-
+              {{
+                volumes_to_restore + [{
+                  'volume_name': item.volumeName,
+                  'backup_id': item.backupName | default(item.url | regex_search('backup=([^&]+)', '\1') | first),
+                  'backup_url': item.url,
+                  'backup_time': item.backupCreatedAt,
+                  'target_pvc': matched_pvc.pvc_name,
+                  'target_namespace': matched_pvc.namespace,
+                  'target_size': matched_pvc.size,
+                  'target_size_bytes': matched_pvc.size_bytes
+                }]
+              }}
+          loop: "{{ backup_volumes }}"
+          vars:
+            matched_pvc: >-
+              {{
+                backup_to_pvc_mapping | dict2items
+                | selectattr('key', 'in', item.volumeName)
+                | map(attribute='value')
+                | first
+                | default({'pvc_name': item.volumeName + '-pvc', 'namespace': 'default', 'size': '1Gi', 'size_bytes': 1073741824})
+              }}
           when:
-            - item.stdout is defined
-            - item.stdout.split('|')[2] | length > 0
-            - app == '' or item.stdout.split('|')[0] is search(app)
+            - app == '' or app in item.volumeName
+            - backup_to_pvc_mapping | dict2items | selectattr('key', 'in', item.volumeName) | list | length > 0
 
         - name: Display volumes to restore
           debug:
@@ -233,50 +208,51 @@
               ====================================================
               Volumes to Restore
               ====================================================
-              {% for vol in volumes_to_restore | default([]) %}
-              - {{ vol.volume_name }}
+              {% for vol in volumes_to_restore %}
+              - Source: {{ vol.volume_name }}
                 Backup: {{ vol.backup_id }}
                 Time: {{ vol.backup_time }}
+                Target PVC: {{ vol.target_namespace }}/{{ vol.target_pvc }}
+                Size: {{ vol.target_size }}
               {% endfor %}
               ====================================================
+
+              Total: {{ volumes_to_restore | length }} volume(s) to restore
 
         - name: Confirm restore operation
           pause:
             prompt: |
 
-              WARNING: This will restore {{ volumes_to_restore | length }} volume(s) to {{ target_env }}.
+              ⚠️  WARNING: This will restore {{ volumes_to_restore | length }} volume(s) to {{ target_env }}.
 
               This operation will:
               1. Scale down applications using these volumes
-              2. Delete existing PVCs (data will be lost!)
-              3. Create new PVCs from backups
-              4. Scale applications back up
+              2. Delete existing PVCs (existing data will be replaced!)
+              3. Create new volumes from {{ source_env }} backups (READ-ONLY on backup storage)
+              4. Create new PV/PVC bindings
+              5. Scale applications back up
 
               Press ENTER to continue or Ctrl+C to abort
           when: volumes_to_restore | length > 0
 
         - name: Restore each volume
           include_tasks: ../roles/k3s/tasks/restore-volume.yml
-          loop: "{{ volumes_to_restore | default([]) }}"
+          vars:
+            restore_namespace: "{{ item.target_namespace }}"
+            restore_pvc_name: "{{ item.target_pvc }}"
+            pvc_size: "{{ item.target_size }}"
+            pvc_size_bytes: "{{ item.target_size_bytes }}"
+          loop: "{{ volumes_to_restore }}"
           loop_control:
             loop_var: restore_volume
+            label: "{{ item.volume_name }} -> {{ item.target_namespace }}/{{ item.target_pvc }}"
           when: volumes_to_restore | length > 0
 
       when: restore_action == 'restore'
 
     # =========================================================================
-    # CLEANUP
+    # SUMMARY
     # =========================================================================
-    - name: Unmount NFS backup share
-      mount:
-        path: "{{ backup_mount_point }}"
-        state: unmounted
-
-    - name: Remove mount directory
-      file:
-        path: "{{ backup_mount_point }}"
-        state: absent
-
     - name: Display completion message
       debug:
         msg: |
@@ -284,11 +260,26 @@
           {{ 'Backup Listing' if restore_action == 'list' else 'Restore Operation' }} Complete
           ====================================================
           {% if restore_action == 'restore' %}
-          Restored {{ volumes_to_restore | default([]) | length }} volume(s)
+          Restored {{ volumes_to_restore | default([]) | length }} volume(s) from {{ source_env }} to {{ target_env }}
 
           Next Steps:
           1. Verify applications are running: kubectl get pods -A
           2. Check Longhorn UI for volume health
           3. Test application functionality
+
+          Application URLs ({{ target_env }}):
+          {% if target_env == 'prod' %}
+            - https://bookstack.levangie.dev
+            - https://vw.levangie.dev
+            - https://homepage.levangie.dev
+          {% elif target_env == 'stage' %}
+            - https://bookstack.stage.levangie.dev
+            - https://vw.stage.levangie.dev
+            - https://homepage.stage.levangie.dev
+          {% else %}
+            - https://bookstack.test.levangie.dev
+            - https://vw.test.levangie.dev
+            - https://homepage.test.levangie.dev
+          {% endif %}
           {% endif %}
           ====================================================
