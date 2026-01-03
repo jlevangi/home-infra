@@ -143,6 +143,7 @@ ansible-vault view ansible/group_vars/lxc_vault.yml
 │   ├── playbooks/               # Ansible playbooks
 │   │   ├── k3s-deploy-cluster.yml
 │   │   ├── k3s-deploy-apps.yml
+│   │   ├── k3s-restore-from-backup.yml  # Longhorn backup restore
 │   │   └── lxc-deploy.yml       # LXC deployment playbook
 │   └── roles/                   # Ansible roles
 │       ├── common/
@@ -158,6 +159,8 @@ ansible-vault view ansible/group_vars/lxc_vault.yml
 │   ├── deploy_k3s_apps.sh       # K3s application deployment
 │   ├── deploy_lxc.sh            # LXC container deployment
 │   ├── k3s-context-manager.sh   # Context switching
+│   ├── list_backups.sh          # List Longhorn backups from NFS
+│   ├── restore_cluster.sh       # Disaster recovery script
 │   └── environment-functions.sh # Environment helpers
 └── docs/                        # Additional documentation
 ```
@@ -220,17 +223,83 @@ Available applications:
 - **PocketID**: Identity provider
 - **Plex**: Media server (Helm-based)
 
-## Backup Strategy
+## Backup and Restore Strategy
 
-Backups are managed per-environment:
+### Backup Configuration
 
-| Environment | Backups | Restore From |
-|-------------|---------|--------------|
-| **Prod** | Enabled (daily/weekly to NFS) | Own backups |
-| **Stage** | Disabled | Prod backups |
-| **Test** | Disabled | None (ephemeral) |
+Backups are managed per-environment using Longhorn RecurringJobs:
 
-All backups are stored on NFS at a shared location, enabling cross-cluster restore.
+| Environment | Backups | Restore From | Config Variable |
+|-------------|---------|--------------|-----------------|
+| **Prod** | Enabled (daily/weekly to NFS) | Own backups | `enable_longhorn_backup: true` |
+| **Stage** | Disabled | Prod backups | `enable_longhorn_backup: false` |
+| **Test** | Disabled | None (ephemeral) | `enable_longhorn_backup: false` |
+
+All backups are stored on a shared NFS path (`172.20.20.5:/volume1/k3s-storage/longhorn/shared`), enabling cross-cluster restore.
+
+### Backup Storage Structure
+
+Longhorn stores backups in a nested directory structure on NFS:
+```
+/backupstore/volumes/XX/YY/<volume-name>/
+├── volume.cfg          # Volume metadata with KubernetesStatus (namespace, pvcName)
+└── backups/
+    └── backup_*.cfg    # Individual backup metadata
+```
+
+### Restore Process (Technical Details)
+
+The restore process uses Longhorn's native backup restoration. Key technical notes:
+
+1. **Volume Creation**: Use Longhorn Volume CRD with `fromBackup` field (NOT PVC `dataSource` with `kind: Backup`)
+2. **PV/PVC Binding**: Must create a PV with CSI `volumeHandle` pointing to the Longhorn volume, then PVC with `volumeName`
+3. **Size Format**: Longhorn Volume CRD requires size in bytes (e.g., `536870912`), not human-readable (`500Mi`)
+4. **Backup URL Format**: NFS backups use `nfs://` URLs (e.g., `nfs://172.20.20.5:/volume1/k3s-storage/longhorn/shared?backup=backup-xxx&volume=yyy`)
+
+### Restore Commands
+
+```bash
+# List available backups from NFS
+./scripts/list_backups.sh
+./scripts/list_backups.sh --detailed   # Show individual backup timestamps
+./scripts/list_backups.sh --all        # Show all volume instances
+
+# Full disaster recovery (rebuild VMs + restore data)
+./scripts/restore_cluster.sh --prod
+
+# Clone production data to staging
+./scripts/restore_cluster.sh --stage --from prod
+
+# Restore data only to existing cluster
+./scripts/restore_cluster.sh --prod --restore-only
+
+# Restore specific application
+./scripts/restore_cluster.sh --stage --from prod --app bookstack --restore-only
+
+# Using Ansible playbook directly
+ansible-playbook -i ansible/inventories/staging/hosts.yml \
+  ansible/playbooks/k3s-restore-from-backup.yml \
+  -e "restore_action=list" \
+  --vault-password-file ~/.ansible_vault_pass
+
+ansible-playbook -i ansible/inventories/staging/hosts.yml \
+  ansible/playbooks/k3s-restore-from-backup.yml \
+  -e "restore_action=restore target_env=stage app=bookstack" \
+  --vault-password-file ~/.ansible_vault_pass
+```
+
+### Adding New Applications to Restore Mapping
+
+When adding a new application with persistent storage, update the `backup_to_pvc_mapping` in `ansible/playbooks/k3s-restore-from-backup.yml`:
+
+```yaml
+backup_to_pvc_mapping:
+  new-app:
+    pvc_name: "new-app-data-pvc"
+    namespace: "new-app"
+    size: "500Mi"
+    size_bytes: 536870912  # Must match size in bytes
+```
 
 ## Vault Password Management
 
@@ -303,9 +372,19 @@ The `ansible/group_vars/lxc_vault.yml` contains:
 
 ## Troubleshooting
 
+### General Issues
 - **Context issues**: Run `./scripts/k3s-context-manager.sh setup` to refresh contexts
 - **Vault errors**: Ensure `~/.ansible_vault_pass` contains the correct password
 - **Deployment failures**: Check cluster connectivity and vault credentials
 - **Storage issues**: Verify NFS server accessibility and Longhorn status
+
+### LXC Issues
 - **LXC template missing**: Run `./scripts/deploy_lxc.sh --template-only` to download template
 - **LXC container unreachable**: Check Proxmox console for container IP (DHCP assigned)
+
+### Backup/Restore Issues
+- **Script won't execute**: Run `dos2unix scripts/list_backups.sh scripts/restore_cluster.sh` (Windows CRLF issue)
+- **Backups showing wrong names**: The list_backups.sh script parses nested JSON in `volume.cfg` - ensure Python3 is available on the cluster node
+- **Restore fails with "volume not found"**: Ensure the backup URL uses `nfs://` format, not `s3://`
+- **PVC stuck in Pending after restore**: Check that PV was created with correct `volumeHandle` matching the Longhorn volume name
+- **Multiple clusters creating backups**: Only prod should have `enable_longhorn_backup: true`; stage/test should have it set to `false` (this auto-deletes RecurringJobs)
