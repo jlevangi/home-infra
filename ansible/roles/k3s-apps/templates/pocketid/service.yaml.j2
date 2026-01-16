@@ -1,0 +1,15 @@
+---
+# Pocket ID Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: pocketid
+  namespace: pocketid
+spec:
+  selector:
+    app: pocketid
+  ports:
+  - port: {{ app_definitions.pocketid.service_port }}
+    targetPort: 1411
+    protocol: TCP
+  type: ClusterIP

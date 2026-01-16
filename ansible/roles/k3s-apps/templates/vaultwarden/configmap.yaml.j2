@@ -6,8 +6,8 @@ metadata:
   name: vaultwarden-config
   namespace: vaultwarden
 data:
-  DOMAIN: "{{ applications.vaultwarden.app_url }}"
-  ADMIN_TOKEN: "{{ applications.vaultwarden.secrets.admin_token }}"
+  DOMAIN: "{{ app_definitions.vaultwarden.app_url }}"
+  ADMIN_TOKEN: "{{ app_definitions.vaultwarden.secrets.admin_token }}"
   # Reverse proxy configuration - Caddy terminates SSL and forwards HTTP to Traefik
   ROCKET_TLS: "{disabled=true}"
   ROCKET_PORT: "80"

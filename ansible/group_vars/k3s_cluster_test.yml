@@ -1,218 +1,46 @@
 ---
-# Cluster environment identifier
+# =============================================================================
+# TEST ENVIRONMENT OVERRIDES
+# =============================================================================
+# Only settings that DIFFER from the base k3s_cluster.yml
+# =============================================================================
+
 cluster_environment: "test"
 
-# Override TLD for {{ cluster_environment }} cluster  
-cluster_tld: "levangie.dev"
-environment_prefix: "{{ cluster_environment }}."
-
-# Cluster DNS name for CNAME records
-cluster_dns_name: "k3s-{{ cluster_environment }}.{{ cluster_tld }}"
-
-# Group mappings for {{ cluster_environment }} cluster
-master_group: "k3s_cluster_{{ cluster_environment }}_master"
-worker_group: "k3s_cluster_{{ cluster_environment }}_workers"
-cluster_group: "k3s_cluster_{{ cluster_environment }}"
-
-# Example: Different version for {{ cluster_environment }}
-# k3s_version: "v1.29.0+k3s1"  # Uncomment to {{ cluster_environment }} newer version
-
-# Example: Different network ranges to avoid conflicts
-k3s_cluster_cidr: "10.46.0.0/16"  # Different from prod: 10.42.0.0/16
-k3s_service_cidr: "10.47.0.0/16"  # Different from prod: 10.43.0.0/16
-
-# MetalLB Configuration
+# -----------------------------------------------------------------------------
+# NETWORK CONFIGURATION
+# -----------------------------------------------------------------------------
+k3s_cluster_cidr: "10.46.0.0/16"
+k3s_service_cidr: "10.47.0.0/16"
 metallb_ip_range: "172.20.20.230-172.20.20.240"
+traefik_loadbalancer_ip: "172.20.20.230"
 
-# Traefik LoadBalancer Configuration  
-traefik_loadbalancer_ip: "172.20.20.230"  # Fixed IP for Traefik LoadBalancer
+# -----------------------------------------------------------------------------
+# APPLICATIONS TO DEPLOY
+# -----------------------------------------------------------------------------
+enabled_apps:
+  - bookstack
+  - vaultwarden
+  - homepage
+  - pocketid
 
-# Traefik SSL/TLS Configuration (Let's Encrypt automatic certificates)
-traefik_tls_enabled: true  # Enable TLS termination 
-traefik_dashboard_insecure: false  # Secure dashboard for production use
-traefik_persistence_enabled: true  # Enable for SSL cert persistence
+force_redeploy_apps:
+  - bookstack
+  - vaultwarden
+  - homepage
+  - pocketid
 
-# Let's Encrypt ACME Configuration
-traefik_acme_enabled: true  # Enable automatic Let's Encrypt certificates
-traefik_acme_email: "admin@levangie.dev"  # Email for Let's Encrypt notifications
-traefik_acme_dns_provider: "cloudflare"  # DNS provider for DNS-01 challenge
-traefik_custom_domain: "*.{{ environment_prefix }}levangie.dev"  # Custom domain pattern for test
+# -----------------------------------------------------------------------------
+# TEST-SPECIFIC OVERRIDES
+# -----------------------------------------------------------------------------
+# Conservative storage limits for test environment
+global_max_pvc_size: "5Gi"
+global_min_pvc_size: "10Mi"
+global_max_pvcs: "5"
+default_initial_volume_size: "100Mi"
 
-# DNS Management Configuration
-manage_dns_records: true
-technitium_dns_server: "{{ vault_technitium_dns_server }}"
-technitium_api_token: "{{ vault_technitium_api_token }}"
+# Disable backups for test environment (ephemeral data)
+enable_longhorn_backup: false
+
+# Shorter DNS TTL for test (faster iteration)
 dns_record_ttl: 300
-
-# {{ cluster_environment | title }}-specific NFS paths (optional)
-# You might want {{ cluster_environment }} apps to use different NFS subdirectories
-nfs_share_apps: "{{ nfs_share_root }}/{{ cluster_environment }}-apps"
-nfs_share_database: "{{ nfs_share_root }}/{{ cluster_environment }}-database" 
-nfs_share_backup: "{{ vault_nfs_share_backup_root }}/test"
-nfs_share_shared: "{{ nfs_share_root }}/test"
-
-# Base storage mount path for this cluster  
-base_storage_path: "/mnt/k3s-storage-{{ cluster_environment }}"
-
-# Direct NFS server IP (same as production)
-nfs_server_ip: "172.20.20.5"  # Direct NAS IP address for backup target configuration
-
-# Override NFS path for {{ cluster_environment }} environment to prevent mounting main share
-nfs_path: "{{ nfs_share_root }}-{{ cluster_environment }}"
-
-# ================================================================================
-# APPLICATIONS CONFIGURATION - {{ cluster_environment | upper }} ENVIRONMENT
-# ================================================================================
-
-applications:
-  bookstack:
-    # Deployment Control
-    deploy: true
-    force_redeploy: true
-    
-    # Application Settings ({{ cluster_environment }}-specific URLs)
-    app_url: "https://{{ environment_prefix }}bookstack.{{ cluster_tld }}"
-    service_name: "bookstack"
-    service_port: 8080
-    
-    # Storage Configuration (conservative for {{ cluster_environment }} environment)
-    storage:
-      max_namespace_storage: "8Gi"     # Total for BookStack namespace
-      max_pvc_size: "5Gi"              # Max per individual PVC
-      default_pvc_size: "500Mi"        # Default PVC size
-      database_initial_size: "500Mi"   # Database initial size for {{ cluster_environment }}
-      app_initial_size: "{{ default_initial_volume_size | default('100Mi') }}"
-    
-    # Application Secrets (from vault - same as prod)
-    secrets:
-      db_password: "{{ vault_bookstack_db_password }}"
-      mysql_root_password: "{{ vault_bookstack_mysql_root_password }}"
-      app_key: "{{ vault_bookstack_app_key }}"
-
-  vaultwarden:
-    # Deployment Control
-    deploy: true
-    force_redeploy: true
-    
-    # Application Settings ({{ cluster_environment }}-specific URLs)
-    app_url: "https://{{ environment_prefix }}vw.{{ cluster_tld }}"
-    service_name: "vaultwarden"
-    service_port: 80
-    
-    # Storage Configuration (conservative for {{ cluster_environment }} environment)
-    storage:
-      max_namespace_storage: "5Gi"
-      max_pvc_size: "3Gi"
-      default_pvc_size: "500Mi"
-      data_initial_size: "{{ default_initial_volume_size | default('100Mi') }}"
-    
-    # Application Secrets (from vault - same as prod)
-    secrets:
-      admin_token: "{{ vault_vaultwarden_admin_token }}"
-
-  homepage:
-    # Deployment Control
-    deploy: true
-    force_redeploy: true
-    
-    # Application Settings ({{ cluster_environment }}-specific URLs)
-    app_url: "https://{{ environment_prefix }}homepage.{{ cluster_tld }}"
-    service_name: "homepage"
-    service_port: 3000
-    
-    # Helm Configuration (same as prod)
-    helm:
-      repo_name: "jameswynn"
-      repo_url: "https://jameswynn.github.io/helm-charts"
-      chart_name: "jameswynn/homepage"
-      chart_version: ""  # Use latest, or specify version
-      release_name: "homepage"
-      namespace: "homepage"
-    
-    # Storage Configuration (conservative for {{ cluster_environment }} environment)
-    storage:
-      max_namespace_storage: "2Gi"
-      max_pvc_size: "1Gi"
-      default_pvc_size: "100Mi"
-      config_initial_size: "{{ default_initial_volume_size | default('100Mi') }}"
-    
-    # Application Configuration
-    config:
-      timezone: "{{ application_timezone | default('America/New_York') }}"
-      resources:
-        requests:
-          cpu: "100m"
-          memory: "128Mi"
-        limits:
-          cpu: "500m"
-          memory: "512Mi"
-
-  plex:
-    # Deployment Control
-    deploy: true
-    force_redeploy: true
-    
-    # Application Settings ({{ cluster_environment }}-specific URLs)
-    app_url: "https://{{ environment_prefix }}plex.{{ cluster_tld }}"
-    service_name: "plex-media-server"
-    service_port: 32400
-    
-    # Helm Configuration (same as prod)
-    helm:
-      repo_name: "plex"
-      repo_url: "https://raw.githubusercontent.com/plexinc/pms-docker/gh-pages"
-      chart_name: "plex/plex-media-server"
-      chart_version: ""  # Use latest, or specify version
-      release_name: "plex"
-      namespace: "plex"
-    
-    # Storage Configuration (conservative for {{ cluster_environment }} environment)
-    storage:
-      max_namespace_storage: "20Gi"    # Smaller for {{ cluster_environment }}
-      max_pvc_size: "10Gi"             # Conservative PVC limits
-      default_pvc_size: "5Gi"          # Smaller config storage
-      config_initial_size: "1Gi"       # Minimal config storage for {{ cluster_environment }}
-    
-    # Plex-specific Configuration ({{ cluster_environment }} settings)
-    config:
-      # {{ cluster_environment | title }} environment timezone
-      timezone: "{{ application_timezone | default('America/New_York') }}"
-      # GPU disabled for {{ cluster_environment }}
-      gpu_enabled: false
-      # Conservative resource limits for {{ cluster_environment }}
-      resources:
-        requests:
-          cpu: "50m"
-          memory: "256Mi"
-        limits:
-          cpu: "1000m"
-          memory: "2Gi"
-
-# ================================================================================
-# STORAGE CONFIGURATION - TEST ENVIRONMENT
-# ================================================================================
-
-# Global Storage Limits (conservative for {{ cluster_environment }} environment small nodes)
-global_max_pvc_size: "5Gi"               # Global max per PVC
-global_min_pvc_size: "10Mi"              # Global min per PVC  
-global_max_pvcs: "5"                     # Max PVCs per namespace
-default_initial_volume_size: "100Mi"     # Global initial size for all PVCs
-
-# Note: Per-application storage limits are now defined in the applications section above
-
-# Longhorn Configuration for {{ cluster_environment | title }} Cluster
-# Dynamic replica count based on available worker nodes
-longhorn_replica_count: "{{ [groups[worker_group] | length, 3] | min }}"
-longhorn_exclude_master_from_storage: true
-
-# Longhorn UI Access Configuration
-longhorn_ui_ingress_enabled: true
-longhorn_ui_app_url: "https://{{ environment_prefix }}longhorn.{{ cluster_tld }}"
-
-# Longhorn Backup Configuration ({{ cluster_environment | title }} environment)
-enable_longhorn_backup: true  # Enable backups in {{ cluster_environment }} for validation
-longhorn_backup_shared_across_clusters: true   # Use shared backup location for cross-cluster restore
-longhorn_backup_schedule_daily: "0 1 * * *"    # Daily at 1 AM (offset from prod)
-longhorn_backup_schedule_weekly: "0 2 * * 6"   # Weekly on Saturday at 2 AM
-longhorn_backup_retain_daily: 3                # Keep 3 daily backups (less for {{ cluster_environment }})
-longhorn_backup_retain_weekly: 2               # Keep 2 weekly backups

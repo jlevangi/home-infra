@@ -10,7 +10,7 @@ data:
   DB_PORT: "3306"
   DB_USER: "bookstack"
   DB_DATABASE: "bookstack"
-  APP_URL: "{{ applications.bookstack.app_url }}"
+  APP_URL: "{{ app_definitions.bookstack.app_url }}"
   SESSION_LIFETIME: "7200"
   # PUID: "{{ dynamic_nfs_uid | default('1024') }}"  # NFS-related, commented out for Longhorn
   # PGID: "{{ dynamic_nfs_gid | default('100') }}"   # NFS-related, commented out for Longhorn

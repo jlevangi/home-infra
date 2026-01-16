@@ -603,6 +603,22 @@
     - inventory_hostname == groups[master_group][0]
     - longhorn_ui_ingress_enabled | default(false)
 
+- name: Delete backup recurring jobs when backups are disabled
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl delete recurringjob -n longhorn-system --all --ignore-not-found=true
+  become: yes
+  when:
+    - not (enable_longhorn_backup | default(true))
+    - inventory_hostname == groups[master_group][0]
+  register: backup_jobs_deleted
+
+- name: Display backup jobs deletion status
+  debug:
+    msg: "🗑️  Longhorn backup recurring jobs deleted (backups disabled for this environment)"
+  when:
+    - backup_jobs_deleted is defined
+    - backup_jobs_deleted.changed
+
 - name: Create backup schedule for all volumes
   shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f - <<EOF
@@ -659,4 +675,6 @@
          📂 NFS Target: nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}
          📅 Daily: {{ longhorn_backup_schedule_daily | default('0 2 * * *') }} (retain {{ longhorn_backup_retain_daily | default(7) }})
          📅 Weekly: {{ longhorn_backup_schedule_weekly | default('0 3 * * 0') }} (retain {{ longhorn_backup_retain_weekly | default(4) }})
-         ✅ Automatic recurring jobs created{% endif %}
+         ✅ Automatic recurring jobs created
+      {% else %}⏸️  Backups: DISABLED (this environment restores from prod backups)
+      {% endif %}

@@ -6,17 +6,17 @@
   vars:
     app_name: "homepage"
     helm_config:
-      repo_name: "{{ applications.homepage.helm.repo_name }}"
-      repo_url: "{{ applications.homepage.helm.repo_url }}"
-      chart_name: "{{ applications.homepage.helm.chart_name }}"
-      release_name: "{{ applications.homepage.helm.release_name }}"
-      namespace: "{{ applications.homepage.helm.namespace }}"
-      chart_version: "{{ applications.homepage.helm.chart_version | default(omit) }}"
+      repo_name: "{{ app_definitions.homepage.helm.repo_name }}"
+      repo_url: "{{ app_definitions.homepage.helm.repo_url }}"
+      chart_name: "{{ app_definitions.homepage.helm.chart_name }}"
+      release_name: "{{ app_definitions.homepage.helm.release_name }}"
+      namespace: "{{ app_definitions.homepage.helm.namespace }}"
+      chart_version: "{{ app_definitions.homepage.helm.chart_version | default(omit) }}"
       values_template: "homepage/helm-values.yaml.j2"
     app_config:
-      force_redeploy: "{{ applications.homepage.force_redeploy | default(false) }}"
-      service_name: "{{ applications.homepage.service_name }}"
-      app_url: "{{ applications.homepage.app_url }}"
-      service_port: "{{ applications.homepage.service_port }}"
-      storage: "{{ applications.homepage.storage }}"
+      force_redeploy: "{{ 'homepage' in force_redeploy_apps }}"
+      service_name: "{{ app_definitions.homepage.service_name }}"
+      app_url: "{{ app_definitions.homepage.app_url }}"
+      service_port: "{{ app_definitions.homepage.service_port }}"
+      storage: "{{ app_definitions.homepage.storage }}"
       pod_selector: "app.kubernetes.io/name=homepage"  # Homepage-specific selector

@@ -1,0 +1,217 @@
+---
+# =============================================================================
+# Restore a single Longhorn volume from backup
+# =============================================================================
+# This task file is included from k3s-restore-from-backup.yml
+#
+# Required variables:
+#   restore_volume:
+#     volume_name: Name of the volume in the backup (e.g., bookstack-app-restored-volume)
+#     backup_id: Backup ID to restore from (e.g., backup-3b243ab8bef24d36)
+#     backup_url: Full backup URL from Longhorn
+#   restore_namespace: Target namespace for the PVC
+#   restore_pvc_name: Target PVC name
+#   pvc_size: Size of the PVC (e.g., "500Mi", "1Gi")
+#   pvc_size_bytes: Size in bytes for Longhorn Volume CRD
+# =============================================================================
+
+- name: "Restore {{ restore_volume.volume_name }}"
+  block:
+    - name: "Display restore info for {{ restore_volume.volume_name }}"
+      debug:
+        msg: |
+          Restoring volume: {{ restore_volume.volume_name }}
+          From backup: {{ restore_volume.backup_id }}
+          Target namespace: {{ restore_namespace }}
+          Target PVC: {{ restore_pvc_name }}
+          Size: {{ pvc_size }} ({{ pvc_size_bytes }} bytes)
+
+    # ==========================================================================
+    # STEP 1: Scale down deployments using this PVC
+    # ==========================================================================
+    - name: Find deployments using this PVC
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl get deployments -n {{ restore_namespace }} -o json | \
+        jq -r '.items[] | select(.spec.template.spec.volumes[]?.persistentVolumeClaim.claimName == "{{ restore_pvc_name }}") | .metadata.name'
+      register: affected_deployments
+      failed_when: false
+      changed_when: false
+
+    - name: Display affected deployments
+      debug:
+        msg: "Deployments to scale down: {{ affected_deployments.stdout_lines | default([]) }}"
+
+    - name: Scale down affected deployments
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl scale deployment {{ item }} -n {{ restore_namespace }} --replicas=0
+      loop: "{{ affected_deployments.stdout_lines | default([]) }}"
+      when: affected_deployments.stdout_lines | length > 0
+
+    - name: Wait for pods to terminate
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl get pods -n {{ restore_namespace }} -o name 2>/dev/null | wc -l
+      register: pod_count
+      until: pod_count.stdout | int == 0
+      retries: 24
+      delay: 5
+      failed_when: false
+      when: affected_deployments.stdout_lines | length > 0
+
+    # ==========================================================================
+    # STEP 2: Delete existing PVC and PV
+    # ==========================================================================
+    - name: Check if PVC exists
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl get pvc {{ restore_pvc_name }} -n {{ restore_namespace }} -o jsonpath='{.spec.volumeName}' 2>/dev/null
+      register: existing_pv_name
+      failed_when: false
+      changed_when: false
+
+    - name: Delete existing PVC
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl delete pvc {{ restore_pvc_name }} -n {{ restore_namespace }} --wait=true --timeout=60s
+      when: existing_pv_name.rc == 0
+      register: pvc_deleted
+      failed_when: false
+
+    - name: Delete existing PV if it was manually created
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl delete pv {{ restore_pvc_name | regex_replace('-pvc$', '-pv') }} --wait=true --timeout=60s 2>/dev/null || true
+      when: pvc_deleted is changed
+      failed_when: false
+
+    - name: Wait for volume cleanup
+      pause:
+        seconds: 10
+      when: pvc_deleted is changed
+
+    # ==========================================================================
+    # STEP 3: Create Longhorn Volume from backup (READ-ONLY on NFS)
+    # ==========================================================================
+    - name: Generate restored volume name
+      set_fact:
+        restored_volume_name: "{{ restore_pvc_name | regex_replace('-pvc$', '') }}-restored"
+
+    - name: Delete any existing restored volume with same name
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl delete volume {{ restored_volume_name }} -n longhorn-system --wait=true --timeout=60s 2>/dev/null || true
+      failed_when: false
+
+    - name: Create Longhorn Volume from backup
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl apply -f - <<'EOF'
+        apiVersion: longhorn.io/v1beta2
+        kind: Volume
+        metadata:
+          name: {{ restored_volume_name }}
+          namespace: longhorn-system
+        spec:
+          frontend: blockdev
+          size: "{{ pvc_size_bytes }}"
+          numberOfReplicas: {{ longhorn_replica_count | default(2) }}
+          fromBackup: "{{ restore_volume.backup_url }}"
+        EOF
+      register: volume_created
+
+    - name: Wait for Longhorn volume to be ready
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl get volume {{ restored_volume_name }} -n longhorn-system -o jsonpath='{.status.state}' 2>/dev/null
+      register: volume_state
+      until: volume_state.stdout in ['attached', 'detached']
+      retries: 60
+      delay: 5
+
+    - name: Verify volume is healthy
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl get volume {{ restored_volume_name }} -n longhorn-system -o jsonpath='{.status.robustness}' 2>/dev/null
+      register: volume_health
+      until: volume_health.stdout == 'healthy'
+      retries: 30
+      delay: 10
+      failed_when: false
+
+    # ==========================================================================
+    # STEP 4: Create PV and PVC bound to the restored volume
+    # ==========================================================================
+    - name: Generate PV name
+      set_fact:
+        restored_pv_name: "{{ restore_pvc_name | regex_replace('-pvc$', '-pv') }}"
+
+    - name: Create PV for restored volume
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl apply -f - <<'EOF'
+        apiVersion: v1
+        kind: PersistentVolume
+        metadata:
+          name: {{ restored_pv_name }}
+        spec:
+          capacity:
+            storage: {{ pvc_size }}
+          volumeMode: Filesystem
+          accessModes:
+            - ReadWriteOnce
+          persistentVolumeReclaimPolicy: Delete
+          storageClassName: longhorn
+          csi:
+            driver: driver.longhorn.io
+            fsType: ext4
+            volumeHandle: {{ restored_volume_name }}
+        EOF
+      register: pv_created
+
+    - name: Create PVC bound to restored PV
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl apply -f - <<'EOF'
+        apiVersion: v1
+        kind: PersistentVolumeClaim
+        metadata:
+          name: {{ restore_pvc_name }}
+          namespace: {{ restore_namespace }}
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: {{ pvc_size }}
+          storageClassName: longhorn
+          volumeName: {{ restored_pv_name }}
+        EOF
+      register: pvc_created
+
+    - name: Wait for PVC to be bound
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl get pvc {{ restore_pvc_name }} -n {{ restore_namespace }} -o jsonpath='{.status.phase}'
+      register: pvc_phase
+      until: pvc_phase.stdout == 'Bound'
+      retries: 30
+      delay: 5
+
+    # ==========================================================================
+    # STEP 5: Scale deployments back up
+    # ==========================================================================
+    - name: Scale up affected deployments
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl scale deployment {{ item }} -n {{ restore_namespace }} --replicas=1
+      loop: "{{ affected_deployments.stdout_lines | default([]) }}"
+      when: affected_deployments.stdout_lines | length > 0
+
+    - name: Wait for deployments to be ready
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl rollout status deployment/{{ item }} -n {{ restore_namespace }} --timeout=300s
+      loop: "{{ affected_deployments.stdout_lines | default([]) }}"
+      when: affected_deployments.stdout_lines | length > 0
+      failed_when: false
+
+    - name: "Restore complete for {{ restore_volume.volume_name }}"
+      debug:
+        msg: |
+          ====================================================
+          Volume Restored Successfully
+          ====================================================
+          Source Volume: {{ restore_volume.volume_name }}
+          Source Backup: {{ restore_volume.backup_id }}
+          Restored Volume: {{ restored_volume_name }}
+          Target PV: {{ restored_pv_name }}
+          Target PVC: {{ restore_pvc_name }}
+          Namespace: {{ restore_namespace }}
+          ====================================================

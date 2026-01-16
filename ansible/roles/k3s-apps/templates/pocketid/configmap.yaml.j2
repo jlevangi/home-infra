@@ -1,0 +1,14 @@
+---
+# Pocket ID ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pocketid-config
+  namespace: pocketid
+data:
+  APP_URL: "{{ app_definitions.pocketid.app_url }}"
+  TRUST_PROXY: "{{ app_definitions.pocketid.config.trust_proxy | default('true') }}"
+  ALLOW_USER_SIGNUPS: "{{ app_definitions.pocketid.config.allow_user_signups | default('disabled') }}"
+  PUID: "{{ app_definitions.pocketid.config.puid | default('1000') }}"
+  PGID: "{{ app_definitions.pocketid.config.pgid | default('1000') }}"
+  TZ: "{{ app_definitions.pocketid.config.timezone | default('America/New_York') }}"

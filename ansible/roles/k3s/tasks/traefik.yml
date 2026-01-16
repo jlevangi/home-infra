@@ -219,9 +219,42 @@
 - name: Apply Traefik Dashboard configuration
   shell: |
     kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml apply -f /tmp/traefik-dashboard.yaml
-  when: 
+  when:
     - inventory_hostname == groups[master_group][0]
     - traefik_dashboard_enabled | default(true)
+  retries: 3
+  delay: 10
+
+- name: Create DNS CNAME record for Traefik dashboard
+  include_tasks: shared/dns_management.yml
+  vars:
+    # Build full dashboard hostname and strip cluster_tld to get record name
+    # Stage: traefik.stage.levangie.dev -> traefik.stage
+    # Prod: traefik.levangie.dev -> traefik
+    dns_record_name: "{{ ('traefik.' + environment_domain) | regex_replace('\\.' + cluster_tld + '$', '') }}"
+    dns_record_type: "CNAME"
+    dns_record_target: "{{ cluster_dns_name }}"
+    dns_record_action: "create"
+  when:
+    - inventory_hostname == groups[master_group][0]
+    - traefik_dashboard_enabled | default(true)
+    - manage_dns_records | default(false)
+
+- name: Create TLSStore for wildcard certificate (if enabled)
+  template:
+    src: traefik-tlsstore.yaml.j2
+    dest: /tmp/traefik-tlsstore.yaml
+    mode: '0644'
+  when:
+    - inventory_hostname == groups[master_group][0]
+    - traefik_wildcard_cert_enabled | default(false)
+
+- name: Apply TLSStore for wildcard certificate
+  shell: |
+    kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml apply -f /tmp/traefik-tlsstore.yaml
+  when:
+    - inventory_hostname == groups[master_group][0]
+    - traefik_wildcard_cert_enabled | default(false)
   retries: 3
   delay: 10
 

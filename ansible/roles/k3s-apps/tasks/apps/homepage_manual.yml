@@ -9,7 +9,7 @@
     app_name: "Homepage"
     k8s_namespace: "homepage"
     kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
-    force_redeploy_var: "applications.homepage.force_redeploy"
+    force_redeploy_var: "'homepage' in force_redeploy_apps"
 
 # Check if Homepage deployment already exists (to respect force_redeploy flag)
 - name: Check if Homepage namespace exists
@@ -23,17 +23,17 @@
 # Set deployment condition: deploy if force_redeploy is true OR namespace doesn't exist
 - name: Set Homepage deployment condition
   set_fact:
-    should_deploy_homepage: "{{ applications.homepage.force_redeploy | default(false) | bool or homepage_namespace_check.rc != 0 }}"
+    should_deploy_homepage: "{{ 'homepage' in force_redeploy_apps or homepage_namespace_check.rc != 0 }}"
   when: inventory_hostname == groups[master_group][0]
 
 - name: Display Homepage deployment decision
   debug:
     msg: |
       📋 Homepage Deployment Decision:
-      Force redeploy setting: {{ applications.homepage.force_redeploy | default(false) }}
+      Force redeploy setting: {{ 'homepage' in force_redeploy_apps }}
       Namespace exists: {{ 'Yes' if homepage_namespace_check.rc == 0 else 'No' }}
       Will deploy: {{ should_deploy_homepage | default(false) }}
-      Reason: {{ 'Force redeploy enabled' if applications.homepage.force_redeploy | default(false) | bool else ('Namespace missing - first deployment' if homepage_namespace_check.rc != 0 else 'Skipping - deployment exists and force_redeploy=false') }}
+      Reason: {{ 'Force redeploy enabled' if 'homepage' in force_redeploy_apps else ('Namespace missing - first deployment' if homepage_namespace_check.rc != 0 else 'Skipping - deployment exists and force_redeploy=false') }}
   when: inventory_hostname == groups[master_group][0]
 
 # Deploy Homepage resources (only if should_deploy_homepage is true)
@@ -53,15 +53,15 @@
             template: "common/resource-quota.yaml.j2"
             vars:
               app_name: homepage
-              max_namespace_storage: "{{ applications.homepage.storage.max_namespace_storage | default('10Gi') }}"
+              max_namespace_storage: "{{ app_definitions.homepage.storage.max_namespace_storage | default('10Gi') }}"
               max_pvcs: "{{ global_max_pvcs | default('10') }}"
           - name: "LimitRange"
             template: "common/limit-range.yaml.j2"
             vars:
               app_name: homepage
-              max_pvc_size: "{{ applications.homepage.storage.max_pvc_size | default('5Gi') }}"
+              max_pvc_size: "{{ app_definitions.homepage.storage.max_pvc_size | default('5Gi') }}"
               min_pvc_size: "{{ global_min_pvc_size | default('10Mi') }}"
-              default_pvc_size: "{{ applications.homepage.storage.default_pvc_size | default('1Gi') }}"
+              default_pvc_size: "{{ app_definitions.homepage.storage.default_pvc_size | default('1Gi') }}"
           - name: "ConfigMap"
             template: "homepage/configmap.yaml.j2"
           - name: "PV/PVC (Dynamic)"
@@ -69,7 +69,7 @@
             vars:
               app_name: homepage
               volume_name: config
-              initial_volume_size: "{{ applications.homepage.storage.config_initial_size | default('100Mi') }}"
+              initial_volume_size: "{{ app_definitions.homepage.storage.config_initial_size | default('100Mi') }}"
           - name: "Deployment"
             template: "homepage/deployment.yaml.j2"
           - name: "Service"
@@ -78,8 +78,8 @@
             template: "common/ingress.yaml.j2"
             vars:
               service_name: "homepage"
-              app_url: "{{ applications.homepage.app_url }}"
-              service_port: "{{ applications.homepage.service_port }}"
+              app_url: "{{ app_definitions.homepage.app_url }}"
+              service_port: "{{ app_definitions.homepage.service_port }}"
 
     # Wait for deployment readiness using shared task
     - name: Wait for Homepage deployment readiness
@@ -100,7 +100,7 @@
           🏠 Homepage Dashboard Deployment Complete!
           
           📝 Namespace: homepage
-          🌐 Service URL: {{ applications.homepage.app_url }}
+          🌐 Service URL: {{ app_definitions.homepage.app_url }}
           📦 Storage: Longhorn distributed storage
           👤 Running as: Container default user (Longhorn storage)
           
