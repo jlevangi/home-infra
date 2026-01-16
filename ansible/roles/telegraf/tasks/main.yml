@@ -90,10 +90,15 @@
     daemon_reload: yes
   become: yes
 
+- name: Wait for Telegraf service to stabilize
+  pause:
+    seconds: 3
+
 - name: Verify Telegraf service status
   command: systemctl is-active telegraf
   register: telegraf_status
   changed_when: false
+  failed_when: false
   become: yes
 
 - name: Display Telegraf status
@@ -102,16 +107,15 @@
       📈 Telegraf Status: {{ telegraf_status.stdout }}
       Configuration: {{ telegraf_config_path }}
       Service: {{ telegraf_service_name }}
-      
+
       🔍 Monitoring:
       - System metrics (CPU, Memory, Disk, Network)
-      - K3s containers via containerd socket
       - K3s systemd services
       - Kubernetes API metrics {% if k3s_monitoring_token | default('') %}(enabled){% else %}(disabled - no token){% endif %}
-      
+
       📊 Data sent to: {{ telegraf_influxdb_url }}
       Database: {{ telegraf_database }}
-      
+
       🔧 Management commands:
       sudo systemctl status telegraf
       sudo journalctl -u telegraf -f

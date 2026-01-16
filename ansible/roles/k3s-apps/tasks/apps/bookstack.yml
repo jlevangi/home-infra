@@ -6,7 +6,7 @@
     app_name: "BookStack"
     k8s_namespace: "bookstack"
     kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
-    force_redeploy_var: "applications.bookstack.force_redeploy"
+    force_redeploy_var: "'bookstack' in force_redeploy_apps"
 
 # Check if BookStack deployment already exists (to respect force_redeploy flag)
 - name: Check if BookStack namespace exists
@@ -20,17 +20,17 @@
 # Set deployment condition: deploy if force_redeploy is true OR namespace doesn't exist
 - name: Set BookStack deployment condition
   set_fact:
-    should_deploy_bookstack: "{{ applications.bookstack.force_redeploy | default(false) | bool or bookstack_namespace_check.rc != 0 }}"
+    should_deploy_bookstack: "{{ 'bookstack' in force_redeploy_apps or bookstack_namespace_check.rc != 0 }}"
   when: inventory_hostname == groups[master_group][0]
 
 - name: Display BookStack deployment decision
   debug:
     msg: |
       📋 BookStack Deployment Decision:
-      Force redeploy setting: {{ applications.bookstack.force_redeploy | default(false) }}
+      Force redeploy setting: {{ 'bookstack' in force_redeploy_apps }}
       Namespace exists: {{ 'Yes' if bookstack_namespace_check.rc == 0 else 'No' }}
       Will deploy: {{ should_deploy_bookstack | default(false) }}
-      Reason: {{ 'Force redeploy enabled' if applications.bookstack.force_redeploy | default(false) | bool else ('Namespace missing - first deployment' if bookstack_namespace_check.rc != 0 else 'Skipping - deployment exists and force_redeploy=false') }}
+      Reason: {{ 'Force redeploy enabled' if 'bookstack' in force_redeploy_apps else ('Namespace missing - first deployment' if bookstack_namespace_check.rc != 0 else 'Skipping - deployment exists and force_redeploy=false') }}
   when: inventory_hostname == groups[master_group][0]
 
 # Deploy BookStack resources (only if should_deploy_bookstack is true)
@@ -51,7 +51,7 @@
         stdin: "{{ lookup('template', 'common/resource-quota.yaml.j2') }}"
       vars:
         app_name: bookstack
-        max_namespace_storage: "{{ applications.bookstack.storage.max_namespace_storage | default('50Gi') }}"
+        max_namespace_storage: "{{ app_definitions.bookstack.storage.max_namespace_storage | default('50Gi') }}"
         max_pvcs: "{{ global_max_pvcs | default('10') }}"
 
     - name: Apply BookStack PVC size limits (LimitRange)
@@ -61,9 +61,9 @@
         stdin: "{{ lookup('template', 'common/limit-range.yaml.j2') }}"
       vars:
         app_name: bookstack
-        max_pvc_size: "{{ applications.bookstack.storage.max_pvc_size | default('20Gi') }}"
+        max_pvc_size: "{{ app_definitions.bookstack.storage.max_pvc_size | default('20Gi') }}"
         min_pvc_size: "{{ global_min_pvc_size | default('10Mi') }}"
-        default_pvc_size: "{{ applications.bookstack.storage.default_pvc_size | default('1Gi') }}"
+        default_pvc_size: "{{ app_definitions.bookstack.storage.default_pvc_size | default('1Gi') }}"
 
     - name: Apply BookStack App PVC (dynamic sizing)
       shell: |
@@ -73,7 +73,7 @@
       vars:
         app_name: bookstack
         volume_name: app-data
-        initial_volume_size: "{{ applications.bookstack.storage.app_initial_size | default('100Mi') }}"
+        initial_volume_size: "{{ app_definitions.bookstack.storage.app_initial_size | default('100Mi') }}"
 
     - name: Apply BookStack Database PVC (dynamic sizing)
       shell: |
@@ -83,7 +83,7 @@
       vars:
         app_name: bookstack
         volume_name: db-data
-        initial_volume_size: "{{ applications.bookstack.storage.database_initial_size | default('500Mi') }}"
+        initial_volume_size: "{{ app_definitions.bookstack.storage.database_initial_size | default('500Mi') }}"
 
     - name: Apply BookStack ConfigMap
       shell: |
@@ -122,8 +122,8 @@
         stdin: "{{ lookup('template', 'common/ingress.yaml.j2') }}"
       vars:
         service_name: "bookstack"
-        app_url: "{{ applications.bookstack.app_url }}"
-        service_port: "{{ applications.bookstack.service_port }}"
+        app_url: "{{ app_definitions.bookstack.app_url }}"
+        service_port: "{{ app_definitions.bookstack.service_port }}"
 
     # Create DNS record for BookStack
     - name: Create DNS record for BookStack
@@ -191,7 +191,7 @@
           
           🔗 Service: {{ bookstack_service_info.stdout }}
           🌐 Ingress Host: {{ ingress_host.stdout }}
-          🌐 Access URL: {{ applications.bookstack.app_url }}
+          🌐 Access URL: {{ app_definitions.bookstack.app_url }}
           
           ✅ Readiness Status:
           BookStack: {{ 'Ready' if wait_result.rc == 0 else 'Not Ready - Check logs' }}

@@ -54,10 +54,12 @@
   response_timeout = "5s"
 {% endif %}
 
-# Monitor containerd (K3s container runtime)
+# Container monitoring (only enabled when Docker is available, not K3s/containerd)
+{% if telegraf_enable_docker_input | default(false) %}
 [[inputs.docker]]
-  endpoint = "unix:///run/containerd/containerd.sock"
+  endpoint = "unix:///var/run/docker.sock"
   timeout = "5s"
+{% endif %}
 
 # Monitor systemd services
 [[inputs.systemd_units]]

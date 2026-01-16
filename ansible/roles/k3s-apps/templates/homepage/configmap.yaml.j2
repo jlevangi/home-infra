@@ -6,7 +6,7 @@ metadata:
   name: homepage-config
   namespace: homepage
 data:
-  HOMEPAGE_ALLOWED_HOSTS: "{{ applications.homepage.app_url | regex_replace('^https?://') }}"
+  HOMEPAGE_ALLOWED_HOSTS: "{{ app_definitions.homepage.app_url | regex_replace('^https?://') }}"
   TZ: "{{ application_timezone | default('America/New_York') }}"
   # PUID: "{{ dynamic_nfs_uid | default('1024') }}"  # NFS-related, commented out for Longhorn
   # PGID: "{{ dynamic_nfs_gid | default('100') }}"   # NFS-related, commented out for Longhorn
