@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: factorio
+  labels:
+    app.kubernetes.io/name: factorio
+    app.kubernetes.io/managed-by: argocd
