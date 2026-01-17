@@ -1,0 +1,127 @@
+# ArgoCD Helm Values for K3s with Traefik Ingress
+# SSL is terminated at Traefik, ArgoCD runs in insecure mode
+
+global:
+  domain: argocd.{{ environment_domain }}
+
+# Configure ArgoCD to run in insecure mode
+# CRITICAL: Required when TLS is terminated at the ingress controller (Traefik)
+configs:
+  params:
+    # Run server without TLS since Traefik handles SSL termination
+    server.insecure: true
+{% if argocd_repo_server_exec_timeout is defined %}
+    reposerver.default.timeout: {{ argocd_repo_server_exec_timeout }}
+{% endif %}
+
+  cm:
+    # Application controller settings
+    application.instanceLabelKey: argocd.argoproj.io/instance
+    exec.enabled: "true"
+    admin.enabled: "true"
+{% if argocd_resource_tracking is defined %}
+    resource.tracking.method: {{ argocd_resource_tracking }}
+{% endif %}
+
+  # RBAC configuration
+  rbac:
+    policy.default: role:readonly
+{% if argocd_admin_policy is defined %}
+    policy.csv: |
+{{ argocd_admin_policy | indent(6, true) }}
+{% endif %}
+
+# ArgoCD Server configuration
+server:
+  replicas: {{ argocd_server_replicas | default(1) }}
+
+  # We use Traefik IngressRoute, so disable built-in ingress
+  ingress:
+    enabled: false
+
+  # Resource limits
+  resources:
+    limits:
+      cpu: {{ argocd_server_cpu_limit | default('500m') }}
+      memory: {{ argocd_server_memory_limit | default('512Mi') }}
+    requests:
+      cpu: {{ argocd_server_cpu_request | default('100m') }}
+      memory: {{ argocd_server_memory_request | default('256Mi') }}
+
+# ArgoCD Repo Server configuration
+repoServer:
+  replicas: {{ argocd_reposerver_replicas | default(1) }}
+
+  resources:
+    limits:
+      cpu: {{ argocd_reposerver_cpu_limit | default('500m') }}
+      memory: {{ argocd_reposerver_memory_limit | default('512Mi') }}
+    requests:
+      cpu: {{ argocd_reposerver_cpu_request | default('100m') }}
+      memory: {{ argocd_reposerver_memory_request | default('256Mi') }}
+
+# ArgoCD Application Controller configuration
+controller:
+  replicas: {{ argocd_controller_replicas | default(1) }}
+
+  resources:
+    limits:
+      cpu: {{ argocd_controller_cpu_limit | default('1000m') }}
+      memory: {{ argocd_controller_memory_limit | default('1Gi') }}
+    requests:
+      cpu: {{ argocd_controller_cpu_request | default('250m') }}
+      memory: {{ argocd_controller_memory_request | default('512Mi') }}
+
+# Redis configuration (for caching)
+redis:
+  enabled: true
+  resources:
+    limits:
+      cpu: {{ argocd_redis_cpu_limit | default('200m') }}
+      memory: {{ argocd_redis_memory_limit | default('256Mi') }}
+    requests:
+      cpu: {{ argocd_redis_cpu_request | default('50m') }}
+      memory: {{ argocd_redis_memory_request | default('128Mi') }}
+
+# Disable Redis HA for homelab (simpler setup)
+redis-ha:
+  enabled: false
+
+# Dex (OIDC provider) - disabled by default, enable if SSO needed
+dex:
+  enabled: {{ argocd_dex_enabled | default(false) | lower }}
+{% if argocd_dex_enabled | default(false) %}
+  resources:
+    limits:
+      cpu: {{ argocd_dex_cpu_limit | default('200m') }}
+      memory: {{ argocd_dex_memory_limit | default('256Mi') }}
+    requests:
+      cpu: {{ argocd_dex_cpu_request | default('50m') }}
+      memory: {{ argocd_dex_memory_request | default('128Mi') }}
+{% endif %}
+
+# ApplicationSet Controller
+applicationSet:
+  enabled: true
+  replicas: {{ argocd_appset_replicas | default(1) }}
+
+  resources:
+    limits:
+      cpu: {{ argocd_appset_cpu_limit | default('200m') }}
+      memory: {{ argocd_appset_memory_limit | default('256Mi') }}
+    requests:
+      cpu: {{ argocd_appset_cpu_request | default('50m') }}
+      memory: {{ argocd_appset_memory_request | default('128Mi') }}
+
+# Notifications Controller
+notifications:
+  enabled: {{ argocd_notifications_enabled | default(false) | lower }}
+{% if argocd_notifications_enabled | default(false) %}
+  resources:
+    limits:
+      cpu: {{ argocd_notifications_cpu_limit | default('100m') }}
+      memory: {{ argocd_notifications_memory_limit | default('128Mi') }}
+    requests:
+      cpu: {{ argocd_notifications_cpu_request | default('50m') }}
+      memory: {{ argocd_notifications_memory_request | default('64Mi') }}
+{% endif %}

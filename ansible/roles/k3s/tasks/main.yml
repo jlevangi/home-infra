@@ -44,19 +44,42 @@
 # Storage Setup - Longhorn installation on master only
 - name: Include Longhorn storage installation
   include_tasks: longhorn.yml
-  when: 
+  tags:
+    - longhorn
+    - storage
+    - infrastructure
+  when:
     - inventory_hostname in groups[master_group]
     - k3s_install_longhorn | default(true)
 
 # LoadBalancer and Ingress Setup
 - name: Include MetalLB installation
   include_tasks: metallb.yml
-  when: 
+  tags:
+    - metallb
+    - loadbalancer
+    - infrastructure
+  when:
     - inventory_hostname in groups[master_group]
     - k3s_install_metallb | default(true)
 
 - name: Include Traefik 2 installation
   include_tasks: traefik.yml
-  when: 
+  tags:
+    - traefik
+    - ingress
+    - infrastructure
+  when:
     - inventory_hostname in groups[master_group]
     - k3s_install_traefik | default(true)
+
+# ArgoCD GitOps Controller
+- name: Include ArgoCD installation
+  include_tasks: argocd.yml
+  tags:
+    - argocd
+    - gitops
+    - infrastructure
+  when:
+    - inventory_hostname in groups[master_group]
+    - k3s_install_argocd | default(true)

@@ -40,6 +40,30 @@ This is a **home infrastructure automation repository** that provides infrastruc
 ./scripts/deploy_k3s_apps.sh --test
 ```
 
+### Component Deployment
+```bash
+# Deploy individual infrastructure components
+./scripts/deploy_component.sh --prod traefik
+./scripts/deploy_component.sh --prod metallb
+./scripts/deploy_component.sh --prod longhorn
+
+# Deploy individual applications
+./scripts/deploy_component.sh --prod bookstack
+./scripts/deploy_component.sh --prod vaultwarden
+./scripts/deploy_component.sh --prod homepage
+
+# Force redeploy (cleanup and reinstall)
+./scripts/deploy_component.sh --prod traefik --force
+
+# Dry run (show commands without executing)
+./scripts/deploy_component.sh --prod traefik --dry-run
+
+# List available components
+./scripts/deploy_component.sh --list
+```
+
+For detailed troubleshooting and manual operations, see [docs/CLUSTER_MANAGEMENT.md](docs/CLUSTER_MANAGEMENT.md).
+
 ### Context Management
 ```bash
 # Setup all cluster contexts
@@ -143,6 +167,7 @@ ansible-vault view ansible/group_vars/lxc_vault.yml
 │   ├── playbooks/               # Ansible playbooks
 │   │   ├── k3s-deploy-cluster.yml
 │   │   ├── k3s-deploy-apps.yml
+│   │   ├── k3s-deploy-component.yml     # Single component deployment
 │   │   ├── k3s-restore-from-backup.yml  # Longhorn backup restore
 │   │   └── lxc-deploy.yml       # LXC deployment playbook
 │   └── roles/                   # Ansible roles
@@ -157,12 +182,14 @@ ansible-vault view ansible/group_vars/lxc_vault.yml
 ├── scripts/                     # Management scripts
 │   ├── deploy_k3s_cluster.sh    # K3s cluster deployment
 │   ├── deploy_k3s_apps.sh       # K3s application deployment
+│   ├── deploy_component.sh      # Single component deployment
 │   ├── deploy_lxc.sh            # LXC container deployment
 │   ├── k3s-context-manager.sh   # Context switching
 │   ├── list_backups.sh          # List Longhorn backups from NFS
 │   ├── restore_cluster.sh       # Disaster recovery script
 │   └── environment-functions.sh # Environment helpers
 └── docs/                        # Additional documentation
+    └── CLUSTER_MANAGEMENT.md    # Operational runbook
 ```
 
 ## Multi-Environment Architecture
