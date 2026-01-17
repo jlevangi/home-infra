@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: factorio
+  namespace: factorio
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: factorio
+  template:
+    metadata:
+      labels:
+        app: factorio
+    spec:
+      securityContext:
+        runAsUser: 845
+        runAsGroup: 845
+        fsGroup: 845
+      containers:
+        - name: factorio
+          image: factoriotools/factorio:stable
+          ports:
+            - containerPort: 34197
+              protocol: UDP
+              name: game
+            - containerPort: 27015
+              protocol: TCP
+              name: rcon
+          env:
+            - name: LOAD_LATEST_SAVE
+              value: "true"
+            - name: GENERATE_NEW_SAVE
+              value: "true"
+          volumeMounts:
+            - name: data
+              mountPath: /factorio
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "2000m"
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: factorio-data
