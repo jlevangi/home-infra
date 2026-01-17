@@ -34,6 +34,8 @@ spec:
               value: "true"
             - name: GENERATE_NEW_SAVE
               value: "true"
+            - name: SAVE_NAME
+              value: "world"
           volumeMounts:
             - name: data
               mountPath: /factorio
