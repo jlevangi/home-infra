@@ -36,6 +36,8 @@ spec:
               value: "true"
             - name: SAVE_NAME
               value: "world"
+            - name: DLC_SPACE_AGE
+              value: "false"
           volumeMounts:
             - name: data
               mountPath: /factorio
