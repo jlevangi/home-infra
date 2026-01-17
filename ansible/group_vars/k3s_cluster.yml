@@ -102,6 +102,47 @@ technitium_api_token: "{{ vault_technitium_api_token }}"
 dns_record_ttl: 3600
 
 # -----------------------------------------------------------------------------
+# ARGOCD GITOPS CONFIGURATION
+# -----------------------------------------------------------------------------
+argocd_ingress_enabled: true
+argocd_app_url: "https://argocd.{{ environment_domain }}"
+
+# ArgoCD component replicas (single instance for homelab)
+argocd_server_replicas: 1
+argocd_reposerver_replicas: 1
+argocd_controller_replicas: 1
+argocd_appset_replicas: 1
+
+# ArgoCD optional features
+argocd_dex_enabled: false           # SSO/OIDC provider
+argocd_notifications_enabled: false  # Notification controller
+argocd_grpc_ingress_enabled: false  # gRPC ingress for external CLI
+
+# ArgoCD server resource limits (homelab-appropriate)
+argocd_server_cpu_limit: "500m"
+argocd_server_memory_limit: "512Mi"
+argocd_server_cpu_request: "100m"
+argocd_server_memory_request: "256Mi"
+
+# ArgoCD repo server resource limits
+argocd_reposerver_cpu_limit: "500m"
+argocd_reposerver_memory_limit: "512Mi"
+argocd_reposerver_cpu_request: "100m"
+argocd_reposerver_memory_request: "256Mi"
+
+# ArgoCD controller resource limits
+argocd_controller_cpu_limit: "1000m"
+argocd_controller_memory_limit: "1Gi"
+argocd_controller_cpu_request: "250m"
+argocd_controller_memory_request: "512Mi"
+
+# ArgoCD redis resource limits
+argocd_redis_cpu_limit: "200m"
+argocd_redis_memory_limit: "256Mi"
+argocd_redis_cpu_request: "50m"
+argocd_redis_memory_request: "128Mi"
+
+# -----------------------------------------------------------------------------
 # NFS STORAGE CONFIGURATION
 # -----------------------------------------------------------------------------
 enable_nfs_storage: true

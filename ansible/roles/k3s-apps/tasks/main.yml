@@ -2,23 +2,51 @@
 # Main task file for applications deployment
 # Apps are enabled via `enabled_apps` list in environment config
 # App definitions are in `app_definitions` dict in base config
+#
+# Single app deployment is supported via `deploy_single_app` extra var:
+#   ansible-playbook ... -e deploy_single_app=bookstack
 
 - name: Include BookStack deployment
   include_tasks: apps/bookstack.yml
-  when: "'bookstack' in enabled_apps"
+  tags:
+    - bookstack
+    - apps
+  when: >
+    ('bookstack' in enabled_apps and deploy_single_app is not defined) or
+    (deploy_single_app is defined and deploy_single_app == 'bookstack')
 
 - name: Include Homepage Dashboard deployment
   include_tasks: apps/homepage.yml
-  when: "'homepage' in enabled_apps"
+  tags:
+    - homepage
+    - apps
+  when: >
+    ('homepage' in enabled_apps and deploy_single_app is not defined) or
+    (deploy_single_app is defined and deploy_single_app == 'homepage')
 
 - name: Include Vaultwarden deployment
   include_tasks: apps/vaultwarden.yml
-  when: "'vaultwarden' in enabled_apps"
+  tags:
+    - vaultwarden
+    - apps
+  when: >
+    ('vaultwarden' in enabled_apps and deploy_single_app is not defined) or
+    (deploy_single_app is defined and deploy_single_app == 'vaultwarden')
 
 - name: Include Pocket ID deployment
   include_tasks: apps/pocketid.yml
-  when: "'pocketid' in enabled_apps"
+  tags:
+    - pocketid
+    - apps
+  when: >
+    ('pocketid' in enabled_apps and deploy_single_app is not defined) or
+    (deploy_single_app is defined and deploy_single_app == 'pocketid')
 
 - name: Include Plex Media Server deployment
   include_tasks: apps/plex.yml
-  when: "'plex' in enabled_apps"
+  tags:
+    - plex
+    - apps
+  when: >
+    ('plex' in enabled_apps and deploy_single_app is not defined) or
+    (deploy_single_app is defined and deploy_single_app == 'plex')

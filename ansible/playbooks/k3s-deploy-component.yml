@@ -1,0 +1,133 @@
+---
+# K3s Component Deployment Playbook
+#
+# This playbook allows deploying individual infrastructure components or applications.
+# It's designed to be used with the deploy_component.sh script or directly via ansible-playbook.
+#
+# INFRASTRUCTURE COMPONENTS (use -e deploy_component):
+#   ansible-playbook k3s-deploy-component.yml -e deploy_component=traefik -e target_cluster=k3s_cluster_prod
+#   ansible-playbook k3s-deploy-component.yml -e deploy_component=metallb -e target_cluster=k3s_cluster_prod
+#   ansible-playbook k3s-deploy-component.yml -e deploy_component=longhorn -e target_cluster=k3s_cluster_prod
+#   ansible-playbook k3s-deploy-component.yml -e deploy_component=argocd -e target_cluster=k3s_cluster_prod
+#
+# APPLICATIONS (use -e deploy_single_app):
+#   ansible-playbook k3s-deploy-component.yml -e deploy_single_app=bookstack -e target_cluster=k3s_cluster_prod
+#   ansible-playbook k3s-deploy-component.yml -e deploy_single_app=vaultwarden -e target_cluster=k3s_cluster_prod
+#
+# FORCE REDEPLOY:
+#   # For infrastructure - use component-specific force variables
+#   ansible-playbook k3s-deploy-component.yml -e deploy_component=traefik -e force_traefik_redeploy=true
+#
+#   # For applications - use force_redeploy_apps list
+#   ansible-playbook k3s-deploy-component.yml -e deploy_single_app=bookstack -e "force_redeploy_apps=['bookstack']"
+
+- name: Deploy K3s Component
+  hosts: "{{ target_cluster | default('k3s_cluster') }}"
+  become: yes
+  gather_facts: yes
+
+  vars_files:
+    - ../group_vars/k3s_cluster_vault.yml
+    - ../group_vars/k3s_cluster.yml
+    - "../group_vars/{{ target_cluster | default('k3s_cluster') }}.yml"
+
+  # Master/worker group names derived from target cluster
+  vars:
+    master_group: "{{ target_cluster }}_master"
+    worker_group: "{{ target_cluster }}_worker"
+
+  pre_tasks:
+    - name: Display deployment target information
+      ansible.builtin.debug:
+        msg: |
+          ═══════════════════════════════════════════════════════════════
+          K3s Component Deployment
+          ═══════════════════════════════════════════════════════════════
+          Cluster:     {{ target_cluster | default('k3s_cluster') }}
+          Environment: {{ cluster_environment | default('unknown') }}
+          Domain:      {{ environment_domain | default('unknown') }}
+          {% if deploy_single_app is defined %}
+          Target App:  {{ deploy_single_app }}
+          Force:       {{ 'yes' if deploy_single_app in (force_redeploy_apps | default([])) else 'no' }}
+          {% elif deploy_component is defined %}
+          Component:   {{ deploy_component }}
+          {% else %}
+          ERROR: Must specify deploy_component or deploy_single_app
+          {% endif %}
+          ═══════════════════════════════════════════════════════════════
+      run_once: true
+      delegate_to: localhost
+
+    - name: Validate deployment target
+      ansible.builtin.fail:
+        msg: "You must specify either -e deploy_component=<component> or -e deploy_single_app=<app>"
+      when: deploy_component is not defined and deploy_single_app is not defined
+
+  tasks:
+    # Infrastructure components - use include_role with tasks_from to get role defaults
+    - name: Deploy Longhorn storage
+      ansible.builtin.include_role:
+        name: ../roles/k3s
+        tasks_from: longhorn.yml
+      when:
+        - deploy_component is defined
+        - deploy_component == 'longhorn'
+        - inventory_hostname in groups[master_group]
+
+    - name: Deploy MetalLB load balancer
+      ansible.builtin.include_role:
+        name: ../roles/k3s
+        tasks_from: metallb.yml
+      when:
+        - deploy_component is defined
+        - deploy_component == 'metallb'
+        - inventory_hostname in groups[master_group]
+
+    - name: Deploy Traefik ingress controller
+      ansible.builtin.include_role:
+        name: ../roles/k3s
+        tasks_from: traefik.yml
+      when:
+        - deploy_component is defined
+        - deploy_component == 'traefik'
+        - inventory_hostname in groups[master_group]
+
+    - name: Deploy ArgoCD GitOps controller
+      ansible.builtin.include_role:
+        name: ../roles/k3s
+        tasks_from: argocd.yml
+      when:
+        - deploy_component is defined
+        - deploy_component == 'argocd'
+        - inventory_hostname in groups[master_group]
+
+    # Application components - use the k3s-apps role with deploy_single_app
+    - name: Deploy application
+      ansible.builtin.include_role:
+        name: ../roles/k3s-apps
+      when: deploy_single_app is defined
+
+  post_tasks:
+    - name: Display completion summary
+      ansible.builtin.debug:
+        msg: |
+          ═══════════════════════════════════════════════════════════════
+          Deployment Complete
+          ═══════════════════════════════════════════════════════════════
+          {% if deploy_single_app is defined %}
+          Application '{{ deploy_single_app }}' deployment finished.
+
+          Verify with:
+            kubectl get pods -n {{ deploy_single_app }}
+            kubectl get svc -n {{ deploy_single_app }}
+            kubectl get ingress -n {{ deploy_single_app }}
+          {% else %}
+          Component '{{ deploy_component }}' deployment finished.
+
+          Verify with:
+            kubectl get pods -A
+            kubectl get svc -A | grep LoadBalancer
+          {% endif %}
+          ═══════════════════════════════════════════════════════════════
+      run_once: true
+      delegate_to: localhost
