@@ -52,6 +52,25 @@
   become: yes
   when: api_health_check.rc != 0 or api_health_check.stdout != "ok"
 
+- name: Verify CRD API is ready (critical for Helm chart installation)
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl api-resources --api-group=apiextensions.k8s.io 2>/dev/null | grep -q customresourcedefinitions
+  register: crd_api_check
+  until: crd_api_check.rc == 0
+  retries: 30
+  delay: 10
+  become: yes
+
+- name: Test CRD creation capability
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get crd --no-headers 2>/dev/null | head -1
+  register: crd_list_check
+  until: crd_list_check.rc == 0
+  retries: 20
+  delay: 5
+  become: yes
+  failed_when: false
+
 - name: Display comprehensive API server status
   debug:
     msg: |
@@ -59,13 +78,14 @@
       ✅ Nodes accessible: {{ 'Yes' if api_server_check.rc == 0 else 'No' }}
       ✅ System pods ready: {{ 'Yes' if pending_pods_check.stdout | int == 0 else 'No (' + pending_pods_check.stdout + ' pending)' }}
       ✅ Health endpoint: {{ 'Healthy' if api_health_check.rc == 0 and api_health_check.stdout == 'ok' else ('Fallback OK' if api_fallback_check is defined and api_fallback_check.rc == 0 else 'Not responding') }}
-      
-      🚀 Ready for Longhorn installation: {{ api_server_check.rc == 0 and pending_pods_check.stdout | int == 0 and (api_health_check.rc == 0 or (api_fallback_check is defined and api_fallback_check.rc == 0)) }}
+      ✅ CRD API ready: {{ 'Yes' if crd_api_check.rc == 0 else 'No - Helm install may fail' }}
+
+      🚀 Ready for Longhorn installation: {{ api_server_check.rc == 0 and pending_pods_check.stdout | int == 0 and crd_api_check.rc == 0 }}
 
 - name: Additional stability wait before Longhorn installation
   pause:
-    seconds: 30
-    prompt: "Waiting 30 seconds for API server to fully stabilize before Longhorn installation..."
+    seconds: 60
+    prompt: "Waiting 60 seconds for API server and CRD subsystem to fully stabilize before Longhorn installation..."
 
 - name: Check if Longhorn namespace exists
   ansible.builtin.shell: |
@@ -142,9 +162,42 @@
   ansible.builtin.shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl delete secret -n longhorn-system -l name=longhorn,owner=helm --ignore-not-found=true
   become: yes
-  when: 
+  when:
     - helm_pending_check.stdout_lines | length > 1
   ignore_errors: yes
+
+- name: Clean up failed Longhorn Helm release if exists
+  ansible.builtin.shell: |
+    # Check for failed release and uninstall it
+    if KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm status longhorn -n longhorn-system 2>/dev/null | grep -q "STATUS: failed"; then
+      echo "Found failed Longhorn release, uninstalling..."
+      KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm uninstall longhorn -n longhorn-system --wait
+      # Clean up any leftover CRDs that might block reinstall
+      KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl delete crd -l app.kubernetes.io/name=longhorn --ignore-not-found=true
+      sleep 30
+    fi
+  become: yes
+  when:
+    - longhorn_namespace_check.rc != 0 or (longhorn_pods_check.stdout | default('0') | int) == 0
+    - longhorn_helm_check.rc != 0
+  ignore_errors: yes
+
+- name: Final CRD API readiness check before Helm install
+  shell: |
+    for i in {1..10}; do
+      if KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get crd --request-timeout=10s >/dev/null 2>&1; then
+        echo "CRD API ready"
+        exit 0
+      fi
+      echo "Waiting for CRD API... attempt $i"
+      sleep 10
+    done
+    echo "CRD API check failed after 10 attempts"
+    exit 1
+  become: yes
+  when:
+    - longhorn_namespace_check.rc != 0 or (longhorn_pods_check.stdout | default('0') | int) == 0
+    - longhorn_helm_check.rc != 0
 
 - name: Install Longhorn (fresh installation only)
   ansible.builtin.shell: |
@@ -156,10 +209,13 @@
       {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}" \
       {% endif %}--wait --timeout=1200s
   become: yes
-  when: 
+  when:
     - longhorn_namespace_check.rc != 0 or (longhorn_pods_check.stdout | default('0') | int) == 0
     - longhorn_helm_check.rc != 0
   register: longhorn_install_result
+  retries: 3
+  delay: 60
+  until: longhorn_install_result.rc == 0
 
 - name: Update Longhorn configuration (existing installation)
   ansible.builtin.shell: |
