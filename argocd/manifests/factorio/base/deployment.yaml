@@ -31,11 +31,11 @@ spec:
               name: rcon
           env:
             - name: LOAD_LATEST_SAVE
-              value: "true"
+              value: "false"
             - name: GENERATE_NEW_SAVE
-              value: "true"
+              value: "false"
             - name: SAVE_NAME
-              value: "world"
+              value: "squidboi"
             - name: DLC_SPACE_AGE
               value: "false"
           volumeMounts:
