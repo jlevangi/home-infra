@@ -92,7 +92,7 @@ resource "proxmox_vm_qemu" "terraform" {
   cipassword = var.ci_password
   
   # Enable automatic package upgrades via cloud-init
-  ciupgrade = true
+  ciupgrade = false
 
   # Timeout configuration to handle slow VM cloning
   timeouts {

@@ -240,6 +240,14 @@
       }}
 
 # Configure CoreDNS to use public DNS servers for external lookups
+- name: Get current CoreDNS Corefile
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get configmap coredns -n kube-system -o jsonpath='{.data.Corefile}'
+  register: current_corefile
+  become: yes
+  changed_when: false
+  failed_when: false
+
 - name: Configure CoreDNS to use public DNS servers
   shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch configmap coredns -n kube-system --type merge -p '{
@@ -249,25 +257,35 @@
     }'
   become: yes
   register: coredns_patch_result
+  when: "'forward . 1.1.1.1 8.8.8.8' not in (current_corefile.stdout | default(''))"
   changed_when: coredns_patch_result.rc == 0
 
 - name: Restart CoreDNS to apply DNS configuration changes
   shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl rollout restart deployment coredns -n kube-system
   become: yes
-  when: coredns_patch_result.changed
+  when: coredns_patch_result.changed | default(false)
 
 - name: Wait for CoreDNS to be ready after configuration
   shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl rollout status deployment/coredns -n kube-system --timeout=120s
   become: yes
-  when: coredns_patch_result.changed
+  when: coredns_patch_result.changed | default(false)
+  register: coredns_rollout
+  failed_when: false
+
+- name: Display CoreDNS rollout warning if failed
+  debug:
+    msg: "⚠️ CoreDNS rollout timed out - cluster may need manual intervention"
+  when:
+    - coredns_patch_result.changed | default(false)
+    - coredns_rollout.rc | default(0) != 0
 
 - name: Display CoreDNS configuration status
   debug:
     msg: |
       🌐 CoreDNS Configuration:
-      {{ '✅ Updated to use public DNS servers (1.1.1.1, 8.8.8.8) for external lookups' if coredns_patch_result.changed else 'ℹ️  CoreDNS already configured correctly' }}
-      
+      {{ '✅ Updated to use public DNS servers (1.1.1.1, 8.8.8.8) for external lookups' if coredns_patch_result.changed | default(false) else 'ℹ️  CoreDNS already configured correctly' }}
+
       🔍 This ensures ACME DNS challenges work properly for Let's Encrypt certificates
       📋 Internal cluster DNS (.cluster.local) continues to work normally
