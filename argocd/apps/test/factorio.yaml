@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: git@github.com:jlevangi/home-infra.git
     targetRevision: argo-cd
-    path: argocd/manifests/factorio/overlays/stage
+    path: argocd/manifests/factorio/overlays/test
   destination:
     server: https://kubernetes.default.svc
     namespace: factorio

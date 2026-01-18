@@ -7,3 +7,4 @@ resources:
   - service.yaml
   - resource-quota.yaml
   - limit-range.yaml
+  - dns-hook.yaml

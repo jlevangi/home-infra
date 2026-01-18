@@ -24,9 +24,11 @@ spec:
           image: factoriotools/factorio:stable
           ports:
             - containerPort: 34197
+              hostPort: 34197
               protocol: UDP
               name: game
             - containerPort: 27015
+              hostPort: 27015
               protocol: TCP
               name: rcon
           env:
