@@ -24,15 +24,36 @@
     state: present
   become: yes
 
-- name: Add InfluxData GPG key
-  apt_key:
+- name: Create keyrings directory
+  file:
+    path: /usr/share/keyrings
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Download InfluxData GPG key
+  get_url:
     url: "{{ telegraf_apt_repo_key }}"
-    state: present
+    dest: /tmp/influxdata-archive_compat.key
+    mode: '0644'
+  become: yes
+
+- name: Dearmor and install InfluxData GPG key
+  shell: |
+    cat /tmp/influxdata-archive_compat.key | gpg --dearmor -o /usr/share/keyrings/influxdata-archive-keyring.gpg
+  args:
+    creates: /usr/share/keyrings/influxdata-archive-keyring.gpg
+  become: yes
+
+- name: Clean up downloaded key
+  file:
+    path: /tmp/influxdata-archive_compat.key
+    state: absent
   become: yes
 
 - name: Add InfluxData repository
   apt_repository:
-    repo: "deb {{ telegraf_apt_repo_url }} {{ ansible_distribution_release }} stable"
+    repo: "deb [signed-by=/usr/share/keyrings/influxdata-archive-keyring.gpg] {{ telegraf_apt_repo_url }} {{ ansible_distribution_release }} stable"
     state: present
     update_cache: yes
   become: yes
