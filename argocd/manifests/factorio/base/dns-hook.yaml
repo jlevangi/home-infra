@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: factorio-dns-record
+  namespace: factorio
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: dns-create
+          image: curlimages/curl:8.5.0
+          env:
+            - name: TECHNITIUM_SERVER
+              valueFrom:
+                secretKeyRef:
+                  name: technitium-api-credentials
+                  key: server
+            - name: TECHNITIUM_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: technitium-api-credentials
+                  key: token
+            - name: TECHNITIUM_TLD
+              valueFrom:
+                secretKeyRef:
+                  name: technitium-api-credentials
+                  key: tld
+            # These will be overridden per environment
+            - name: DNS_HOSTNAME
+              value: "factorio"
+            - name: DNS_TARGET
+              value: "k3s-prod"
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Creating DNS CNAME record: ${DNS_HOSTNAME}.${TECHNITIUM_TLD} -> ${DNS_TARGET}.${TECHNITIUM_TLD}"
+              curl -sf -X POST "http://${TECHNITIUM_SERVER}:5380/api/zones/records/add" \
+                -d "token=${TECHNITIUM_TOKEN}" \
+                -d "domain=${DNS_HOSTNAME}.${TECHNITIUM_TLD}" \
+                -d "type=CNAME" \
+                -d "cname=${DNS_TARGET}.${TECHNITIUM_TLD}" \
+                -d "ttl=3600" \
+                -d "overwrite=true" && echo "DNS record created successfully" || echo "Failed to create DNS record"

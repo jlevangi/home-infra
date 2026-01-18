@@ -4,7 +4,7 @@ resources:
   - ../../base
 patches:
   # Pin Factorio to a specific node for stable hostPort access
-  # Port forward on router: external 34197 -> 172.20.20.112:34197 (UDP)
+  # Port forward on router: external 34197 -> 172.20.20.122:34197 (UDP)
   - target:
       kind: Deployment
       name: factorio
@@ -12,17 +12,17 @@ patches:
       - op: add
         path: /spec/template/spec/nodeSelector
         value:
-          kubernetes.io/hostname: k3s-stage-node-2
-  # DNS hook - creates factorio.stage.levangie.dev -> k3s-stage.levangie.dev
+          kubernetes.io/hostname: k3s-test-node-2
+  # DNS hook - creates factorio.test.levangie.dev -> k3s-test.levangie.dev
   - target:
       kind: Job
       name: factorio-dns-record
     patch: |
       - op: replace
         path: /spec/template/spec/containers/0/env/3/value
-        value: "factorio.stage"
+        value: "factorio.test"
       - op: replace
         path: /spec/template/spec/containers/0/env/4/value
-        value: "k3s-stage"
+        value: "k3s-test"
 commonLabels:
-  environment: stage
+  environment: test

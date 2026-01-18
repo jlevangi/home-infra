@@ -3,13 +3,26 @@ kind: Kustomization
 resources:
   - ../../base
 patches:
+  # Pin Factorio to a specific node for stable hostPort access
+  # Port forward on router: external 34197 -> 172.20.20.102:34197 (UDP)
   - target:
-      kind: Service
+      kind: Deployment
       name: factorio
     patch: |
       - op: add
-        path: /metadata/annotations
+        path: /spec/template/spec/nodeSelector
         value:
-          metallb.universe.tf/loadBalancerIPs: "172.20.20.205"
+          kubernetes.io/hostname: k3s-prod-node-2
+  # DNS hook - creates factorio.levangie.dev -> k3s-prod.levangie.dev
+  - target:
+      kind: Job
+      name: factorio-dns-record
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env/3/value
+        value: "factorio"
+      - op: replace
+        path: /spec/template/spec/containers/0/env/4/value
+        value: "k3s-prod"
 commonLabels:
   environment: prod

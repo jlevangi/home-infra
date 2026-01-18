@@ -35,3 +35,6 @@ force_redeploy_apps:
 # -----------------------------------------------------------------------------
 # Disable backups for stage (restores from prod backups for testing)
 enable_longhorn_backup: false
+
+# ArgoCD tracks the 'stage' branch for staging environment
+argocd_target_revision: "stage"

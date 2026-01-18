@@ -118,6 +118,14 @@ argocd_dex_enabled: false           # SSO/OIDC provider
 argocd_notifications_enabled: false  # Notification controller
 argocd_grpc_ingress_enabled: false  # gRPC ingress for external CLI
 
+# ArgoCD GitOps branch configuration
+# Each environment tracks a different branch for promotion workflow:
+#   test:  argo-cd branch (development/testing)
+#   stage: stage branch (pre-production validation)
+#   prod:  main branch (production releases)
+argocd_target_revision: "main"       # Default for prod, override per environment
+argocd_deploy_root_app: true         # Deploy root app-of-apps Application
+
 # ArgoCD server resource limits (homelab-appropriate)
 argocd_server_cpu_limit: "500m"
 argocd_server_memory_limit: "512Mi"
