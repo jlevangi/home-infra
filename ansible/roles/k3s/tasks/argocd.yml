@@ -177,25 +177,28 @@
     - argocd_ingress_enabled | default(true)
     - manage_dns_records | default(false)
 
+- name: Write SSH private key to temp file
+  copy:
+    content: "{{ vault_argocd_ssh_private_key }}"
+    dest: /tmp/argocd_ssh_key
+    mode: '0600'
+  when:
+    - inventory_hostname == groups[master_group][0]
+    - vault_argocd_ssh_private_key is defined
+  no_log: true
+
 - name: Create ArgoCD repository credentials secret
   shell: |
     export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
-    # Create the secret with SSH private key for Git repository access
-    cat <<'EOF' | kubectl apply -f -
-    apiVersion: v1
-    kind: Secret
-    metadata:
-      name: home-infra-repo-creds
-      namespace: argocd
-      labels:
-        argocd.argoproj.io/secret-type: repository
-    type: Opaque
-    stringData:
-      type: git
-      url: git@github.com:jlevangi/home-infra.git
-      sshPrivateKey: |
-    {{ vault_argocd_ssh_private_key | indent(8) }}
-    EOF
+    kubectl create secret generic home-infra-repo-creds \
+      --namespace argocd \
+      --from-file=sshPrivateKey=/tmp/argocd_ssh_key \
+      --from-literal=type=git \
+      --from-literal=url=git@github.com:jlevangi/home-infra.git \
+      --dry-run=client -o yaml | kubectl apply -f -
+    kubectl label secret home-infra-repo-creds -n argocd \
+      argocd.argoproj.io/secret-type=repository --overwrite
+    rm -f /tmp/argocd_ssh_key
   when:
     - inventory_hostname == groups[master_group][0]
     - vault_argocd_ssh_private_key is defined
