@@ -45,5 +45,5 @@ enable_longhorn_backup: false
 # Shorter DNS TTL for test (faster iteration)
 dns_record_ttl: 300
 
-# ArgoCD tracks the 'argo-cd' branch for test/development environment
-argocd_target_revision: "argo-cd"
+# ArgoCD tracks the 'test' branch for test/development environment
+argocd_target_revision: "test"
