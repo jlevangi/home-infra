@@ -13,7 +13,7 @@ patches:
         path: /spec/template/spec/nodeSelector
         value:
           kubernetes.io/hostname: k3s-stage-node-2
-  # DNS hook - creates factorio.stage.levangie.dev -> k3s-stage.levangie.dev
+  # DNS hook - creates factorio.stage.levangie.dev -> 172.20.20.112 (node IP)
   - target:
       kind: Job
       name: factorio-dns-record
@@ -23,6 +23,6 @@ patches:
         value: "factorio.stage"
       - op: replace
         path: /spec/template/spec/containers/0/env/4/value
-        value: "k3s-stage"
+        value: "172.20.20.112"
 commonLabels:
   environment: stage

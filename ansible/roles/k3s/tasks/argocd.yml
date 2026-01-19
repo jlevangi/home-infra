@@ -218,6 +218,25 @@
     - manage_dns_records | default(false)
   no_log: true
 
+- name: Create Technitium DNS credentials in app namespaces
+  shell: |
+    export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
+    # Create namespace if it doesn't exist
+    kubectl create namespace {{ item }} --dry-run=client -o yaml | kubectl apply -f -
+    # Create the DNS credentials secret
+    kubectl create secret generic technitium-api-credentials \
+      --namespace {{ item }} \
+      --from-literal=server="{{ technitium_dns_server }}" \
+      --from-literal=token="{{ technitium_api_token }}" \
+      --from-literal=tld="{{ cluster_tld }}" \
+      --dry-run=client -o yaml | kubectl apply -f -
+  loop:
+    - factorio
+  when:
+    - inventory_hostname == groups[master_group][0]
+    - manage_dns_records | default(false)
+  no_log: true
+
 - name: Get ArgoCD initial admin password
   shell: |
     kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d
