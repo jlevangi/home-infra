@@ -34,16 +34,17 @@ spec:
             # These will be overridden per environment
             - name: DNS_HOSTNAME
               value: "factorio"
-            - name: DNS_TARGET
-              value: "k3s-prod"
+            # For hostPort apps, use A record with node IP
+            - name: DNS_IP
+              value: "172.20.20.102"
           command: ["/bin/sh", "-c"]
           args:
             - |
-              echo "Creating DNS CNAME record: ${DNS_HOSTNAME}.${TECHNITIUM_TLD} -> ${DNS_TARGET}.${TECHNITIUM_TLD}"
+              echo "Creating DNS A record: ${DNS_HOSTNAME}.${TECHNITIUM_TLD} -> ${DNS_IP}"
               curl -sf -X POST "http://${TECHNITIUM_SERVER}:5380/api/zones/records/add" \
                 -d "token=${TECHNITIUM_TOKEN}" \
                 -d "domain=${DNS_HOSTNAME}.${TECHNITIUM_TLD}" \
-                -d "type=CNAME" \
-                -d "cname=${DNS_TARGET}.${TECHNITIUM_TLD}" \
+                -d "type=A" \
+                -d "ipAddress=${DNS_IP}" \
                 -d "ttl=3600" \
                 -d "overwrite=true" && echo "DNS record created successfully" || echo "Failed to create DNS record"

@@ -13,7 +13,7 @@ patches:
         path: /spec/template/spec/nodeSelector
         value:
           kubernetes.io/hostname: k3s-prod-node-2
-  # DNS hook - creates factorio.levangie.dev -> k3s-prod.levangie.dev
+  # DNS hook - creates factorio.levangie.dev -> 172.20.20.102 (node IP)
   - target:
       kind: Job
       name: factorio-dns-record
@@ -23,6 +23,6 @@ patches:
         value: "factorio"
       - op: replace
         path: /spec/template/spec/containers/0/env/4/value
-        value: "k3s-prod"
+        value: "172.20.20.102"
 commonLabels:
   environment: prod
