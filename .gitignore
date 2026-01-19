@@ -131,3 +131,4 @@ coverage/
 
 # Claude
 *.claude
+.aider*
