@@ -29,12 +29,7 @@
 
 - name: Determine if ArgoCD needs deployment
   set_fact:
-    argocd_needs_deployment: "{{
-      force_argocd_redeploy | default(false) or
-      argocd_service_check.stdout == '' or
-      argocd_pod_check.stdout != 'Running' or
-      argocd_helm_check.rc != 0
-    }}"
+    argocd_needs_deployment: "{{ force_argocd_redeploy | default(false) or argocd_service_check.stdout == '' or argocd_pod_check.stdout != 'Running' or argocd_helm_check.rc != 0 }}"
   when: inventory_hostname == groups[master_group][0]
 
 - name: Display ArgoCD status
@@ -177,10 +172,20 @@
     - argocd_ingress_enabled | default(true)
     - manage_dns_records | default(false)
 
+- name: Create temporary file for SSH key
+  tempfile:
+    state: file
+    suffix: .key
+  register: ssh_key_tempfile
+  when:
+    - inventory_hostname == groups[master_group][0]
+    - vault_argocd_ssh_private_key is defined
+  no_log: true
+
 - name: Write SSH private key to temp file
   copy:
     content: "{{ vault_argocd_ssh_private_key }}"
-    dest: /tmp/argocd_ssh_key
+    dest: "{{ ssh_key_tempfile.path }}"
     mode: '0600'
   when:
     - inventory_hostname == groups[master_group][0]
@@ -192,17 +197,24 @@
     export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
     kubectl create secret generic home-infra-repo-creds \
       --namespace argocd \
-      --from-file=sshPrivateKey=/tmp/argocd_ssh_key \
+      --from-file=sshPrivateKey={{ ssh_key_tempfile.path }} \
       --from-literal=type=git \
       --from-literal=url=git@github.com:jlevangi/home-infra.git \
       --dry-run=client -o yaml | kubectl apply -f -
     kubectl label secret home-infra-repo-creds -n argocd \
       argocd.argoproj.io/secret-type=repository --overwrite
-    rm -f /tmp/argocd_ssh_key
   when:
     - inventory_hostname == groups[master_group][0]
     - vault_argocd_ssh_private_key is defined
   no_log: true
+
+- name: Remove temporary SSH key file
+  file:
+    path: "{{ ssh_key_tempfile.path }}"
+    state: absent
+  when:
+    - inventory_hostname == groups[master_group][0]
+    - vault_argocd_ssh_private_key is defined
 
 - name: Create Technitium DNS credentials for ArgoCD hooks
   shell: |
@@ -221,9 +233,7 @@
 - name: Create Technitium DNS credentials in app namespaces
   shell: |
     export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
-    # Create namespace if it doesn't exist
     kubectl create namespace {{ item }} --dry-run=client -o yaml | kubectl apply -f -
-    # Create the DNS credentials secret
     kubectl create secret generic technitium-api-credentials \
       --namespace {{ item }} \
       --from-literal=server="{{ technitium_dns_server }}" \
@@ -240,9 +250,7 @@
 - name: Create vaultwarden secrets for ArgoCD-managed deployment
   shell: |
     export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
-    # Create namespace if it doesn't exist
     kubectl create namespace vaultwarden --dry-run=client -o yaml | kubectl apply -f -
-    # Create the secrets
     kubectl create secret generic vaultwarden-secrets \
       --namespace vaultwarden \
       --from-literal=ADMIN_TOKEN="{{ vault_vaultwarden_admin_token }}" \
@@ -258,9 +266,7 @@
 - name: Create bookstack secrets for ArgoCD-managed deployment
   shell: |
     export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
-    # Create namespace if it doesn't exist
     kubectl create namespace bookstack --dry-run=client -o yaml | kubectl apply -f -
-    # Create the secrets
     kubectl create secret generic bookstack-secrets \
       --namespace bookstack \
       --from-literal=DB_PASS="{{ vault_bookstack_db_password }}" \
