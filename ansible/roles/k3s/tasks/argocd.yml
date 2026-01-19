@@ -237,6 +237,42 @@
     - manage_dns_records | default(false)
   no_log: true
 
+- name: Create vaultwarden secrets for ArgoCD-managed deployment
+  shell: |
+    export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
+    # Create namespace if it doesn't exist
+    kubectl create namespace vaultwarden --dry-run=client -o yaml | kubectl apply -f -
+    # Create the secrets
+    kubectl create secret generic vaultwarden-secrets \
+      --namespace vaultwarden \
+      --from-literal=ADMIN_TOKEN="{{ vault_vaultwarden_admin_token }}" \
+      --from-literal=SMTP_HOST="{{ vault_smtp_host }}" \
+      --from-literal=SMTP_USERNAME="{{ vault_smtp_username }}" \
+      --from-literal=SMTP_PASSWORD="{{ vault_smtp_password }}" \
+      --dry-run=client -o yaml | kubectl apply -f -
+  when:
+    - inventory_hostname == groups[master_group][0]
+    - vault_vaultwarden_admin_token is defined
+  no_log: true
+
+- name: Create bookstack secrets for ArgoCD-managed deployment
+  shell: |
+    export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
+    # Create namespace if it doesn't exist
+    kubectl create namespace bookstack --dry-run=client -o yaml | kubectl apply -f -
+    # Create the secrets
+    kubectl create secret generic bookstack-secrets \
+      --namespace bookstack \
+      --from-literal=DB_PASS="{{ vault_bookstack_db_password }}" \
+      --from-literal=MYSQL_ROOT_PASSWORD="{{ vault_bookstack_mysql_root_password }}" \
+      --from-literal=MYSQL_PASSWORD="{{ vault_bookstack_db_password }}" \
+      --from-literal=APP_KEY="{{ vault_bookstack_app_key }}" \
+      --dry-run=client -o yaml | kubectl apply -f -
+  when:
+    - inventory_hostname == groups[master_group][0]
+    - vault_bookstack_db_password is defined
+  no_log: true
+
 - name: Get ArgoCD initial admin password
   shell: |
     kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d

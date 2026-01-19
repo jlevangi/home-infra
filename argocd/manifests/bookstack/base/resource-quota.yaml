@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: bookstack-storage-quota
+  namespace: bookstack
+spec:
+  hard:
+    requests.storage: "15Gi"
+    persistentvolumeclaims: "10"
+    longhorn.io/requests.storage: "15Gi"

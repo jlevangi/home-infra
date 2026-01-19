@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bookstack
+  labels:
+    app.kubernetes.io/name: bookstack
+    app.kubernetes.io/managed-by: argocd
