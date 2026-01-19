@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: git@github.com:jlevangi/home-infra.git
-    targetRevision: argo-cd
+    targetRevision: test
     path: argocd/apps/test
   destination:
     server: https://kubernetes.default.svc
