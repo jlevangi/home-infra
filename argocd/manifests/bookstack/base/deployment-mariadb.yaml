@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bookstack-mariadb
+  namespace: bookstack
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: bookstack-mariadb
+  template:
+    metadata:
+      labels:
+        app: bookstack-mariadb
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      containers:
+        - name: mariadb
+          image: linuxserver/mariadb:latest
+          env:
+            - name: TZ
+              valueFrom:
+                configMapKeyRef:
+                  name: bookstack-config
+                  key: TZ
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: bookstack-secrets
+                  key: MYSQL_ROOT_PASSWORD
+            - name: MYSQL_DATABASE
+              value: "bookstack"
+            - name: MYSQL_USER
+              value: "bookstack"
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: bookstack-secrets
+                  key: MYSQL_PASSWORD
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - name: db-storage
+              mountPath: /config
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: db-storage
+          persistentVolumeClaim:
+            claimName: bookstack-db-data-pvc

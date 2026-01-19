@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+patches:
+  # Patch ConfigMap DOMAIN for stage environment
+  - target:
+      kind: ConfigMap
+      name: vaultwarden-config
+    patch: |
+      - op: replace
+        path: /data/DOMAIN
+        value: "https://vw.stage.levangie.dev"
+  # Patch Ingress host for stage environment
+  - target:
+      kind: Ingress
+      name: vaultwarden-ingress
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: "vw.stage.levangie.dev"
+commonLabels:
+  environment: stage

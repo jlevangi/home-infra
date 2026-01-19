@@ -18,17 +18,9 @@ traefik_loadbalancer_ip: "172.20.20.230"
 # -----------------------------------------------------------------------------
 # APPLICATIONS TO DEPLOY
 # -----------------------------------------------------------------------------
-enabled_apps:
-  - bookstack
-  - vaultwarden
-  - homepage
-  - pocketid
-
-force_redeploy_apps:
-  - bookstack
-  - vaultwarden
-  - homepage
-  - pocketid
+# Apps are now managed by ArgoCD - disable Ansible deployment
+enabled_apps: []
+force_redeploy_apps: []
 
 # -----------------------------------------------------------------------------
 # TEST-SPECIFIC OVERRIDES

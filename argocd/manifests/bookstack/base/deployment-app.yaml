@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bookstack
+  namespace: bookstack
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: bookstack
+  template:
+    metadata:
+      labels:
+        app: bookstack
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      initContainers:
+        - name: wait-for-db
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for MariaDB to be ready..."
+              until nc -z bookstack-mariadb 3306; do
+                echo "MariaDB not ready, waiting..."
+                sleep 10
+              done
+              echo "MariaDB is ready!"
+              sleep 10
+      containers:
+        - name: bookstack
+          image: linuxserver/bookstack:latest
+          env:
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: bookstack-config
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: bookstack-config
+                  key: DB_PORT
+            - name: DB_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: bookstack-config
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: bookstack-secrets
+                  key: DB_PASS
+            - name: DB_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: bookstack-config
+                  key: DB_DATABASE
+            - name: APP_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bookstack-config
+                  key: APP_URL
+            - name: SESSION_LIFETIME
+              valueFrom:
+                configMapKeyRef:
+                  name: bookstack-config
+                  key: SESSION_LIFETIME
+            - name: APP_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: bookstack-secrets
+                  key: APP_KEY
+            - name: TZ
+              valueFrom:
+                configMapKeyRef:
+                  name: bookstack-config
+                  key: TZ
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: config-storage
+              mountPath: /config
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 90
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 3
+      volumes:
+        - name: config-storage
+          persistentVolumeClaim:
+            claimName: bookstack-app-data-pvc
