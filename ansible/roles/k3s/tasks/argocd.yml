@@ -281,6 +281,19 @@
     - vault_bookstack_db_password is defined
   no_log: true
 
+- name: Create pocketid secrets for ArgoCD-managed deployment
+  shell: |
+    export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
+    kubectl create namespace pocketid --dry-run=client -o yaml | kubectl apply -f -
+    kubectl create secret generic pocketid-secret \
+      --namespace pocketid \
+      --from-literal=encryption-key='{{ vault_pocketid_encryption_key }}' \
+      --dry-run=client -o yaml | kubectl apply -f -
+  when:
+    - inventory_hostname == groups[master_group][0]
+    - vault_pocketid_encryption_key is defined
+  no_log: true
+
 - name: Get ArgoCD initial admin password
   shell: |
     kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d
