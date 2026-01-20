@@ -5,6 +5,7 @@ resources:
   - pvc-app-data.yaml
   - pvc-db-data.yaml
   - configmap.yaml
+  - external-secret.yaml
   - deployment-mariadb.yaml
   - deployment-app.yaml
   - service-mariadb.yaml

@@ -83,3 +83,14 @@
   when:
     - inventory_hostname in groups[master_group]
     - k3s_install_argocd | default(true)
+
+# Vault + External Secrets bootstrap (ArgoCD-managed apps)
+- name: Include Vault bootstrap
+  include_tasks: vault.yml
+  tags:
+    - vault
+    - secrets
+    - gitops
+  when:
+    - inventory_hostname in groups[master_group]
+    - k3s_configure_vault | default(true)

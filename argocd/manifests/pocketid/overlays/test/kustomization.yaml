@@ -17,5 +17,12 @@ patches:
       - op: replace
         path: /spec/rules/0/host
         value: "pocketid.test.levangie.dev"
+  - target:
+      kind: ExternalSecret
+      name: pocketid-secret
+    patch: |
+      - op: replace
+        path: /spec/dataFrom/0/extract/key
+        value: "test/pocketid"
 commonLabels:
   environment: test
