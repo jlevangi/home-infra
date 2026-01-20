@@ -251,12 +251,13 @@
   shell: |
     export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
     kubectl create namespace vaultwarden --dry-run=client -o yaml | kubectl apply -f -
+    # Use single quotes to prevent shell expansion of $ in argon2 hash
     kubectl create secret generic vaultwarden-secrets \
       --namespace vaultwarden \
-      --from-literal=ADMIN_TOKEN="{{ vault_vaultwarden_admin_token }}" \
-      --from-literal=SMTP_HOST="{{ vault_smtp_host }}" \
-      --from-literal=SMTP_USERNAME="{{ vault_smtp_username }}" \
-      --from-literal=SMTP_PASSWORD="{{ vault_smtp_password }}" \
+      --from-literal=ADMIN_TOKEN='{{ vault_vaultwarden_admin_token }}' \
+      --from-literal=SMTP_HOST='{{ vault_smtp_host }}' \
+      --from-literal=SMTP_USERNAME='{{ vault_smtp_username }}' \
+      --from-literal=SMTP_PASSWORD='{{ vault_smtp_password }}' \
       --dry-run=client -o yaml | kubectl apply -f -
   when:
     - inventory_hostname == groups[master_group][0]
@@ -267,12 +268,13 @@
   shell: |
     export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
     kubectl create namespace bookstack --dry-run=client -o yaml | kubectl apply -f -
+    # Use single quotes to prevent shell expansion of special characters
     kubectl create secret generic bookstack-secrets \
       --namespace bookstack \
-      --from-literal=DB_PASS="{{ vault_bookstack_db_password }}" \
-      --from-literal=MYSQL_ROOT_PASSWORD="{{ vault_bookstack_mysql_root_password }}" \
-      --from-literal=MYSQL_PASSWORD="{{ vault_bookstack_db_password }}" \
-      --from-literal=APP_KEY="{{ vault_bookstack_app_key }}" \
+      --from-literal=DB_PASS='{{ vault_bookstack_db_password }}' \
+      --from-literal=MYSQL_ROOT_PASSWORD='{{ vault_bookstack_mysql_root_password }}' \
+      --from-literal=MYSQL_PASSWORD='{{ vault_bookstack_db_password }}' \
+      --from-literal=APP_KEY='{{ vault_bookstack_app_key }}' \
       --dry-run=client -o yaml | kubectl apply -f -
   when:
     - inventory_hostname == groups[master_group][0]
