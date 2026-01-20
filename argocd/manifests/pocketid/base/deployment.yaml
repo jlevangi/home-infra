@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pocketid
+  namespace: pocketid
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pocketid
+  template:
+    metadata:
+      labels:
+        app: pocketid
+    spec:
+      containers:
+        - name: pocketid
+          image: ghcr.io/pocket-id/pocket-id:v1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 1411
+              protocol: TCP
+          env:
+            - name: APP_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: pocketid-config
+                  key: APP_URL
+            - name: TRUST_PROXY
+              valueFrom:
+                configMapKeyRef:
+                  name: pocketid-config
+                  key: TRUST_PROXY
+            - name: ALLOW_USER_SIGNUPS
+              valueFrom:
+                configMapKeyRef:
+                  name: pocketid-config
+                  key: ALLOW_USER_SIGNUPS
+            - name: PUID
+              valueFrom:
+                configMapKeyRef:
+                  name: pocketid-config
+                  key: PUID
+            - name: PGID
+              valueFrom:
+                configMapKeyRef:
+                  name: pocketid-config
+                  key: PGID
+            - name: TZ
+              valueFrom:
+                configMapKeyRef:
+                  name: pocketid-config
+                  key: TZ
+            - name: ENCRYPTION_KEY_FILE
+              value: "/app/key"
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 50m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+            - name: key
+              mountPath: /app/key
+              subPath: encryption-key
+              readOnly: true
+          livenessProbe:
+            exec:
+              command:
+                - /app/pocket-id
+                - healthcheck
+            initialDelaySeconds: 10
+            periodSeconds: 90
+            timeoutSeconds: 5
+            failureThreshold: 2
+          readinessProbe:
+            exec:
+              command:
+                - /app/pocket-id
+                - healthcheck
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 2
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: pocketid-data-pvc
+        - name: key
+          secret:
+            secretName: pocketid-secret
+            items:
+              - key: encryption-key
+                path: encryption-key

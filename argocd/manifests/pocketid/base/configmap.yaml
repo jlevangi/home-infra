@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pocketid-config
+  namespace: pocketid
+data:
+  APP_URL: "https://pocketid.levangie.dev"
+  TRUST_PROXY: "true"
+  ALLOW_USER_SIGNUPS: "disabled"
+  PUID: "1000"
+  PGID: "1000"
+  TZ: "America/New_York"

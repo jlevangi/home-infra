@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+patches:
+  - target:
+      kind: ConfigMap
+      name: homepage-config
+    patch: |
+      - op: replace
+        path: /data/HOMEPAGE_ALLOWED_HOSTS
+        value: "homepage.test.levangie.dev"
+  - target:
+      kind: Ingress
+      name: homepage-ingress
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: "homepage.test.levangie.dev"
+commonLabels:
+  environment: test
