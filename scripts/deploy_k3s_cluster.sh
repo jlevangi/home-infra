@@ -142,6 +142,20 @@ echo ""
 # Get the appropriate inventory path for this environment
 INVENTORY_PATH=$(get_inventory_path "$TARGET_ENV" "$PROJECT_ROOT")
 
+# Preflight SSH connectivity check
+echo "🔍 Preflight: Checking SSH connectivity to all nodes in $TARGET_CLUSTER..."
+PING_CMD=(ansible -i "$INVENTORY_PATH" "$TARGET_CLUSTER" -m ping)
+if [[ -n "$VERBOSITY" ]]; then
+  PING_CMD+=("$VERBOSITY")
+fi
+if ! "${PING_CMD[@]}"; then
+  echo ""
+  echo "❌ Preflight failed: one or more nodes are unreachable. Aborting deployment."
+  exit 1
+fi
+echo "✅ Preflight SSH check passed"
+echo ""
+
 # Build ansible command with proper argument handling
 ANSIBLE_CMD=(ansible-playbook -i "$INVENTORY_PATH" "$PROJECT_ROOT/ansible/playbooks/k3s-deploy-cluster.yml" --vault-password-file ~/.ansible_vault_pass)
 

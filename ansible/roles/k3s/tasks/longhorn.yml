@@ -184,7 +184,7 @@
 
 - name: Final CRD API readiness check before Helm install
   shell: |
-    for i in {1..10}; do
+    for i in $(seq 1 10); do
       if KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get crd --request-timeout=10s >/dev/null 2>&1; then
         echo "CRD API ready"
         exit 0
@@ -195,6 +195,8 @@
     echo "CRD API check failed after 10 attempts"
     exit 1
   become: yes
+  args:
+    executable: /bin/bash
   when:
     - longhorn_namespace_check.rc != 0 or (longhorn_pods_check.stdout | default('0') | int) == 0
     - longhorn_helm_check.rc != 0

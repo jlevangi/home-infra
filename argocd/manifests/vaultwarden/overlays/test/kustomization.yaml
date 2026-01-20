@@ -19,5 +19,12 @@ patches:
       - op: replace
         path: /spec/rules/0/host
         value: "vw.test.levangie.dev"
+  - target:
+      kind: ExternalSecret
+      name: vaultwarden-secrets
+    patch: |
+      - op: replace
+        path: /spec/dataFrom/0/extract/key
+        value: "test/vaultwarden"
 commonLabels:
   environment: test

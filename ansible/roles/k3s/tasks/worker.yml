@@ -5,7 +5,7 @@
   shell: |
     systemctl is-active k3s-agent && k3s --version | head -1
   register: k3s_agent_status_check
-  ignore_errors: yes
+  failed_when: false
   changed_when: false
 
 - name: Determine if reinstall is needed

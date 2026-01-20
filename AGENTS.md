@@ -15,6 +15,7 @@
 - `scripts/setup-local-kubeconfig.sh` fetches kubeconfig and validates access.
 - `scripts/deploy_k3s_apps.sh` deploys app workloads after cluster setup.
 - `scripts/k3s-context-manager.sh setup` installs multi-cluster kubeconfig contexts.
+- When running Ansible here, use `ANSIBLE_CONFIG=/tmp/ansible.cfg` and `--vault-password-file ~/.ansible_vault_pass`.
 
 ## Coding Style & Naming Conventions
 - Use 2-space indentation for YAML and keep Ansible variables in `snake_case`.

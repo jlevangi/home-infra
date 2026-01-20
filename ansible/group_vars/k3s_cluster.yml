@@ -126,6 +126,20 @@ argocd_grpc_ingress_enabled: false  # gRPC ingress for external CLI
 argocd_target_revision: "main"       # Default for prod, override per environment
 argocd_deploy_root_app: true         # Deploy root app-of-apps Application
 
+# -----------------------------------------------------------------------------
+# VAULT / EXTERNAL SECRETS CONFIGURATION
+# -----------------------------------------------------------------------------
+k3s_configure_vault: true
+vault_namespace: "vault"
+vault_statefulset_name: "vault"
+vault_pod_name: "vault-0"
+vault_kv_path: "kv"
+vault_init_secret_name: "vault-init"
+external_secrets_namespace: "external-secrets"
+external_secrets_service_account: "external-secrets"
+vault_external_secrets_policy: "external-secrets"
+vault_external_secrets_role: "external-secrets"
+
 # ArgoCD server resource limits (homelab-appropriate)
 argocd_server_cpu_limit: "500m"
 argocd_server_memory_limit: "512Mi"
