@@ -7,7 +7,7 @@ data:
   # Domain will be patched per environment
   DOMAIN: "https://vw.levangie.dev"
   # Reverse proxy configuration - Traefik terminates SSL
-  ROCKET_TLS: "{disabled=true}"
+  # Note: ROCKET_TLS is not set because Traefik handles TLS termination
   ROCKET_PORT: "80"
   # Database configuration
   DB_TYPE: "default"
