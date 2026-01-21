@@ -15,6 +15,7 @@ This document provides operational guidance for managing K3s clusters, including
 ---
 
 ## Quick Reference
+Production changes should follow `docs/PROD_CUTOVER_CHECKLIST.md` before syncing ArgoCD.
 
 ### Common Operations
 
