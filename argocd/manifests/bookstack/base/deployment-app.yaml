@@ -92,20 +92,18 @@ spec:
               memory: "1Gi"
               cpu: "500m"
           readinessProbe:
-            httpGet:
-              path: /
+            tcpSocket:
               port: 80
             initialDelaySeconds: 60
             periodSeconds: 30
-            timeoutSeconds: 10
+            timeoutSeconds: 5
             failureThreshold: 5
           livenessProbe:
-            httpGet:
-              path: /
+            tcpSocket:
               port: 80
             initialDelaySeconds: 90
             periodSeconds: 60
-            timeoutSeconds: 10
+            timeoutSeconds: 5
             failureThreshold: 3
       volumes:
         - name: config-storage
