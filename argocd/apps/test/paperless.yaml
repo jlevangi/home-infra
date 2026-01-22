@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: homepage
+  name: paperless
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -10,10 +10,10 @@ spec:
   source:
     repoURL: git@github.com:jlevangi/home-infra.git
     targetRevision: test
-    path: argocd/manifests/homepage/overlays/test
+    path: argocd/manifests/paperless/overlays/test
   destination:
     server: https://kubernetes.default.svc
-    namespace: homepage
+    namespace: paperless
   syncPolicy:
     automated:
       prune: true
