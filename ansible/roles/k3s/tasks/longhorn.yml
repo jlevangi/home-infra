@@ -104,7 +104,7 @@
 
 - name: Check if Longhorn Helm release exists
   ansible.builtin.shell: |
-    KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm list -n longhorn-system | grep longhorn
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm status longhorn -n longhorn-system >/dev/null 2>&1
   register: longhorn_helm_check
   failed_when: false
   become: yes
