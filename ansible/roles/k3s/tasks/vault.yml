@@ -249,11 +249,30 @@
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
   
+  - name: Get token reviewer JWT from external-secrets service account
+    shell: |
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml -n external-secrets create token external-secrets
+    register: vault_token_reviewer_jwt_cmd
+    changed_when: false
+    failed_when: false
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+
+  - name: Set token reviewer JWT
+    set_fact:
+      vault_token_reviewer_jwt: "{{ vault_token_reviewer_jwt_cmd.stdout }}"
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+      - vault_token_reviewer_jwt_cmd.stdout is defined
+      - vault_token_reviewer_jwt_cmd.stdout | length > 0
+
   - name: Configure Kubernetes auth
     shell: |
       kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- \
         vault write auth/kubernetes/config \
-          token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+          token_reviewer_jwt="{{ vault_token_reviewer_jwt }}" \
           kubernetes_host="https://kubernetes.default.svc:443" \
           kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
     register: vault_auth_config
@@ -261,6 +280,8 @@
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
+      - not (vault_sealed | default(true))
+      - vault_token_reviewer_jwt is defined
   
   - name: Create ESO policy
     shell: |
