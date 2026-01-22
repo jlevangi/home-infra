@@ -202,6 +202,7 @@
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
       - vault_root_token is not defined
+      - vault_init_secret_raw is defined
       - vault_init_secret_raw.stdout | length > 0
     no_log: true
   
