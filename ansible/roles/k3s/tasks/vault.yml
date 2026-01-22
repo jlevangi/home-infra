@@ -354,6 +354,7 @@
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
+      - not (vault_sealed | default(true))
       - vault_pocketid_encryption_key is defined
     no_log: true
   tags:
