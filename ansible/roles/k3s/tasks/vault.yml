@@ -101,9 +101,10 @@
     register: vault_status_raw
     retries: 30
     delay: 10
-    until: vault_status_raw.rc == 0 and vault_status_raw.stdout | length > 0
+    until: vault_status_raw.stdout | length > 0
     failed_when: false
     changed_when: false
+    ignore_errors: true
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
@@ -168,7 +169,27 @@
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
       - vault_root_token is not defined
+      - vault_init_secret_exists | default(false)
     no_log: true
+
+  - name: Check if Vault init secret exists
+    shell: |
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get secret {{ vault_init_secret_name }} -n {{ vault_namespace }} >/dev/null 2>&1
+    register: vault_init_secret_check
+    failed_when: false
+    changed_when: false
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+      - vault_root_token is not defined
+
+  - name: Set Vault init secret existence
+    set_fact:
+      vault_init_secret_exists: "{{ vault_init_secret_check.rc == 0 }}"
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+      - vault_root_token is not defined
   
   - name: Parse Vault init secret
     set_fact:
