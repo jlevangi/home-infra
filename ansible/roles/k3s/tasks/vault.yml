@@ -44,6 +44,43 @@
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
+
+  - name: Wait for Vault pod to be Ready
+    shell: |
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml wait \
+        --for=condition=Ready pod \
+        -l app.kubernetes.io/name=vault \
+        -n {{ vault_namespace }} \
+        --timeout=300s
+    register: vault_pod_ready
+    retries: 5
+    delay: 15
+    until: vault_pod_ready.rc == 0
+    failed_when: false
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+
+  - name: Discover Vault pod name
+    shell: |
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get pod \
+        -l app.kubernetes.io/name=vault \
+        -n {{ vault_namespace }} \
+        -o jsonpath='{.items[0].metadata.name}'
+    register: vault_pod_lookup
+    failed_when: false
+    changed_when: false
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+
+  - name: Set Vault pod name
+    set_fact:
+      vault_pod_name: "{{ vault_pod_lookup.stdout }}"
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+      - vault_pod_lookup.stdout | length > 0
   
   - name: Check Vault pod phase
     shell: |
@@ -62,14 +99,15 @@
     shell: |
       kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- vault status -format=json
     register: vault_status_raw
-    retries: 10
-    delay: 6
-    until: vault_status_raw.stdout | length > 0
+    retries: 30
+    delay: 10
+    until: vault_status_raw.rc == 0 and vault_status_raw.stdout | length > 0
     failed_when: false
     changed_when: false
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
+      - vault_pod_name is defined
   
   - name: Parse Vault status
     set_fact:
@@ -88,6 +126,8 @@
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
+      - vault_status_raw.rc == 0
+      - vault_status_raw.stdout | length > 0
       - not (vault_initialized | default(false))
     no_log: true
   
