@@ -45,18 +45,18 @@
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
 
-  - name: Wait for Vault pod to be Ready
+  - name: Wait for Vault pod to be Running
     shell: |
-      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml wait \
-        --for=condition=Ready pod \
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get pod \
         -l app.kubernetes.io/name=vault \
         -n {{ vault_namespace }} \
-        --timeout=300s
-    register: vault_pod_ready
-    retries: 5
+        -o jsonpath='{.items[0].status.phase}'
+    register: vault_pod_phase_check
+    retries: 20
     delay: 15
-    until: vault_pod_ready.rc == 0
+    until: vault_pod_phase_check.stdout == "Running"
     failed_when: false
+    ignore_errors: true
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
