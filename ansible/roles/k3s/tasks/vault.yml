@@ -279,13 +279,13 @@
       - vault_app_present | default(false)
       - not (vault_sealed | default(true))
   
-  - name: Wait for external-secrets service account
+  - name: Wait for Vault service account
     shell: |
-      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml -n external-secrets get serviceaccount external-secrets
-    register: external_secrets_sa_check
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml -n {{ vault_namespace }} get serviceaccount vault
+    register: vault_sa_check
     retries: 10
     delay: 10
-    until: external_secrets_sa_check.rc == 0
+    until: vault_sa_check.rc == 0
     failed_when: false
     changed_when: false
     when:
@@ -293,9 +293,9 @@
       - vault_app_present | default(false)
       - not (vault_sealed | default(true))
 
-  - name: Get token reviewer JWT from external-secrets service account
+  - name: Get token reviewer JWT from Vault service account
     shell: |
-      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml -n external-secrets create token external-secrets
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml -n {{ vault_namespace }} create token vault
     register: vault_token_reviewer_jwt_cmd
     changed_when: false
     failed_when: false
@@ -303,7 +303,7 @@
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
       - not (vault_sealed | default(true))
-      - external_secrets_sa_check.rc == 0
+      - vault_sa_check.rc == 0
 
   - name: Set token reviewer JWT
     set_fact:
