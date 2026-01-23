@@ -81,6 +81,21 @@
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
       - vault_pod_lookup.stdout | length > 0
+
+  - name: Wait for Vault CLI to respond
+    shell: |
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- vault status -format=json
+    register: vault_status_probe
+    retries: 30
+    delay: 10
+    until: vault_status_probe.rc == 0 and vault_status_probe.stdout | length > 0
+    failed_when: false
+    changed_when: false
+    ignore_errors: true
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+      - vault_pod_name is defined
   
   - name: Check Vault pod phase
     shell: |
@@ -115,10 +130,21 @@
       vault_status: "{{ vault_status_raw.stdout | from_json }}"
       vault_initialized: "{{ (vault_status_raw.stdout | from_json).initialized | default(false) }}"
       vault_sealed: "{{ (vault_status_raw.stdout | from_json).sealed | default(true) }}"
+      vault_status_available: true
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
       - vault_status_raw.stdout | length > 0
+
+  - name: Default Vault status flags when status is unavailable
+    set_fact:
+      vault_status_available: false
+      vault_initialized: "{{ vault_initialized | default(false) }}"
+      vault_sealed: "{{ vault_sealed | default(true) }}"
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+      - vault_status_raw is not defined or vault_status_raw.stdout | length == 0
   
   - name: Initialize Vault
     shell: |
@@ -127,6 +153,7 @@
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
+      - vault_status_available | default(false)
       - vault_status_raw.rc == 0
       - vault_status_raw.stdout | length > 0
       - not (vault_initialized | default(false))
@@ -215,6 +242,7 @@
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
       - vault_unseal_keys is defined
+      - vault_status_available | default(false)
       - vault_sealed | default(true)
     no_log: true
   
