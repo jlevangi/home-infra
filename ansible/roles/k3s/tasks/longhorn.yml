@@ -86,6 +86,7 @@
   pause:
     seconds: 60
     prompt: "Waiting 60 seconds for API server and CRD subsystem to fully stabilize before Longhorn installation..."
+  when: k3s_needs_install | default(false)
 
 - name: Check if Longhorn namespace exists
   ansible.builtin.shell: |
@@ -104,7 +105,7 @@
 
 - name: Check if Longhorn Helm release exists
   ansible.builtin.shell: |
-    KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm list -n longhorn-system | grep longhorn
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm status longhorn -n longhorn-system >/dev/null 2>&1
   register: longhorn_helm_check
   failed_when: false
   become: yes

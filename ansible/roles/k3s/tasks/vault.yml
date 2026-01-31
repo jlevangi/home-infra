@@ -44,6 +44,58 @@
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
+
+  - name: Wait for Vault pod to be Running
+    shell: |
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get pod \
+        -l app.kubernetes.io/name=vault \
+        -n {{ vault_namespace }} \
+        -o jsonpath='{.items[0].status.phase}'
+    register: vault_pod_phase_check
+    retries: 20
+    delay: 15
+    until: vault_pod_phase_check.stdout == "Running"
+    failed_when: false
+    ignore_errors: true
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+
+  - name: Discover Vault pod name
+    shell: |
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get pod \
+        -l app.kubernetes.io/name=vault \
+        -n {{ vault_namespace }} \
+        -o jsonpath='{.items[0].metadata.name}'
+    register: vault_pod_lookup
+    failed_when: false
+    changed_when: false
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+
+  - name: Set Vault pod name
+    set_fact:
+      vault_pod_name: "{{ vault_pod_lookup.stdout }}"
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+      - vault_pod_lookup.stdout | length > 0
+
+  - name: Wait for Vault CLI to respond
+    shell: |
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- vault status -format=json
+    register: vault_status_probe
+    retries: 30
+    delay: 10
+    until: vault_status_probe.rc == 0 and vault_status_probe.stdout | length > 0
+    failed_when: false
+    changed_when: false
+    ignore_errors: true
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+      - vault_pod_name is defined
   
   - name: Check Vault pod phase
     shell: |
@@ -60,26 +112,39 @@
   
   - name: Check Vault status
     shell: |
-      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- vault status -format=json
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- sh -c 'vault status -format=json || true'
     register: vault_status_raw
-    retries: 10
-    delay: 6
+    retries: 30
+    delay: 10
     until: vault_status_raw.stdout | length > 0
     failed_when: false
     changed_when: false
+    ignore_errors: true
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
+      - vault_pod_name is defined
   
   - name: Parse Vault status
     set_fact:
       vault_status: "{{ vault_status_raw.stdout | from_json }}"
       vault_initialized: "{{ (vault_status_raw.stdout | from_json).initialized | default(false) }}"
       vault_sealed: "{{ (vault_status_raw.stdout | from_json).sealed | default(true) }}"
+      vault_status_available: true
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
       - vault_status_raw.stdout | length > 0
+
+  - name: Default Vault status flags when status is unavailable
+    set_fact:
+      vault_status_available: false
+      vault_initialized: "{{ vault_initialized | default(false) }}"
+      vault_sealed: "{{ vault_sealed | default(true) }}"
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+      - vault_status_raw is not defined or vault_status_raw.stdout | length == 0
   
   - name: Initialize Vault
     shell: |
@@ -88,6 +153,9 @@
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
+      - vault_status_available | default(false)
+      - vault_status_raw.rc == 0
+      - vault_status_raw.stdout | length > 0
       - not (vault_initialized | default(false))
     no_log: true
   
@@ -120,6 +188,25 @@
       - vault_unseal_keys is defined
     no_log: true
   
+  - name: Check if Vault init secret exists
+    shell: |
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get secret {{ vault_init_secret_name }} -n {{ vault_namespace }} >/dev/null 2>&1
+    register: vault_init_secret_check
+    failed_when: false
+    changed_when: false
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+      - vault_root_token is not defined
+
+  - name: Set Vault init secret existence
+    set_fact:
+      vault_init_secret_exists: "{{ vault_init_secret_check.rc == 0 }}"
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+      - vault_root_token is not defined
+
   - name: Read Vault init secret
     shell: |
       kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get secret {{ vault_init_secret_name }} -n {{ vault_namespace }} -o json
@@ -128,6 +215,7 @@
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
       - vault_root_token is not defined
+      - vault_init_secret_exists | default(false)
     no_log: true
   
   - name: Parse Vault init secret
@@ -141,6 +229,8 @@
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
       - vault_root_token is not defined
+      - vault_init_secret_raw is defined
+      - vault_init_secret_raw.stdout is defined
       - vault_init_secret_raw.stdout | length > 0
     no_log: true
   
@@ -152,6 +242,7 @@
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
       - vault_unseal_keys is defined
+      - vault_status_available | default(false)
       - vault_sealed | default(true)
     no_log: true
   
@@ -175,6 +266,7 @@
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
+      - not (vault_sealed | default(true))
   
   - name: Enable Kubernetes auth
     shell: |
@@ -185,12 +277,48 @@
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
+      - not (vault_sealed | default(true))
   
+  - name: Wait for Vault service account
+    shell: |
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml -n {{ vault_namespace }} get serviceaccount vault
+    register: vault_sa_check
+    retries: 10
+    delay: 10
+    until: vault_sa_check.rc == 0
+    failed_when: false
+    changed_when: false
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+      - not (vault_sealed | default(true))
+
+  - name: Get token reviewer JWT from Vault service account
+    shell: |
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml -n {{ vault_namespace }} create token vault
+    register: vault_token_reviewer_jwt_cmd
+    changed_when: false
+    failed_when: false
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+      - not (vault_sealed | default(true))
+      - vault_sa_check.rc == 0
+
+  - name: Set token reviewer JWT
+    set_fact:
+      vault_token_reviewer_jwt: "{{ vault_token_reviewer_jwt_cmd.stdout }}"
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+      - vault_token_reviewer_jwt_cmd.stdout is defined
+      - vault_token_reviewer_jwt_cmd.stdout | length > 0
+
   - name: Configure Kubernetes auth
     shell: |
       kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- \
         vault write auth/kubernetes/config \
-          token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+          token_reviewer_jwt="{{ vault_token_reviewer_jwt }}" \
           kubernetes_host="https://kubernetes.default.svc:443" \
           kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
     register: vault_auth_config
@@ -198,6 +326,8 @@
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
+      - not (vault_sealed | default(true))
+      - vault_token_reviewer_jwt is defined
   
   - name: Create ESO policy
     shell: |
@@ -217,6 +347,7 @@
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
+      - not (vault_sealed | default(true))
   
   - name: Create ESO Kubernetes auth role
     shell: |
@@ -230,6 +361,7 @@
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
+      - not (vault_sealed | default(true))
   
   - name: Seed Vaultwarden secrets
     shell: |
@@ -241,6 +373,7 @@
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
+      - not (vault_sealed | default(true))
       - vault_vaultwarden_admin_token is defined
     no_log: true
   
@@ -254,6 +387,7 @@
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
+      - not (vault_sealed | default(true))
       - vault_bookstack_db_password is defined
     no_log: true
   
@@ -264,6 +398,7 @@
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
+      - not (vault_sealed | default(true))
       - vault_pocketid_encryption_key is defined
     no_log: true
   tags:

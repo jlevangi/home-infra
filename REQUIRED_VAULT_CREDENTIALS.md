@@ -56,3 +56,19 @@ All three environments are now configured for SSL:
 - **Production**: `*.levangie.dev` (no prefix)
 - **Stage**: `*.stage.levangie.dev`  
 - **Test**: `*.test.levangie.dev`
+
+## Paperless Vault Secrets
+
+Add the following keys under each environment path:
+- `prod/paperless`
+- `stage/paperless`
+- `test/paperless`
+
+Required keys:
+```yaml
+MARIADB_ROOT_PASSWORD: "..."
+MARIADB_PASSWORD: "..."
+PAPERLESS_SECRET_KEY: "..."
+PAPERLESS_ADMIN_USER: "..."
+PAPERLESS_ADMIN_PASSWORD: "..."
+```
