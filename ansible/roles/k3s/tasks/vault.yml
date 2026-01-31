@@ -88,7 +88,7 @@
     register: vault_status_probe
     retries: 30
     delay: 10
-    until: vault_status_probe.rc == 0 and vault_status_probe.stdout | length > 0
+    until: vault_status_probe.rc in [0, 2] and vault_status_probe.stdout | length > 0
     failed_when: false
     changed_when: false
     ignore_errors: true
