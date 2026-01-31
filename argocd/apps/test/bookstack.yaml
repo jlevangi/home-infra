@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: git@github.com:jlevangi/home-infra.git
-    targetRevision: feat/vault-eso
+    targetRevision: test
     path: argocd/manifests/bookstack/overlays/test
   destination:
     server: https://kubernetes.default.svc

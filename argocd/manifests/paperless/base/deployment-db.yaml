@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paperless-mariadb
+  namespace: paperless
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: paperless-mariadb
+  template:
+    metadata:
+      labels:
+        app: paperless-mariadb
+    spec:
+      containers:
+        - name: mariadb
+          image: mariadb:10
+          ports:
+            - containerPort: 3306
+              name: mariadb
+          env:
+            - name: MARIADB_DATABASE
+              value: "paperless"
+            - name: MARIADB_USER
+              value: "paperless"
+            - name: MARIADB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: paperless-secrets
+                  key: MARIADB_PASSWORD
+            - name: MARIADB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: paperless-secrets
+                  key: MARIADB_ROOT_PASSWORD
+          volumeMounts:
+            - name: db-data
+              mountPath: /var/lib/mysql
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: paperless-db-pvc
