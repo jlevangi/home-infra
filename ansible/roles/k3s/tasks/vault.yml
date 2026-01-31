@@ -188,17 +188,6 @@
       - vault_unseal_keys is defined
     no_log: true
   
-  - name: Read Vault init secret
-    shell: |
-      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get secret {{ vault_init_secret_name }} -n {{ vault_namespace }} -o json
-    register: vault_init_secret_raw
-    when:
-      - inventory_hostname == groups[master_group][0]
-      - vault_app_present | default(false)
-      - vault_root_token is not defined
-      - vault_init_secret_exists | default(false)
-    no_log: true
-
   - name: Check if Vault init secret exists
     shell: |
       kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get secret {{ vault_init_secret_name }} -n {{ vault_namespace }} >/dev/null 2>&1
@@ -217,6 +206,17 @@
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
       - vault_root_token is not defined
+
+  - name: Read Vault init secret
+    shell: |
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get secret {{ vault_init_secret_name }} -n {{ vault_namespace }} -o json
+    register: vault_init_secret_raw
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+      - vault_root_token is not defined
+      - vault_init_secret_exists | default(false)
+    no_log: true
   
   - name: Parse Vault init secret
     set_fact:
