@@ -111,7 +111,7 @@
 - name: Install MetalLB using Helm
   shell: |
     export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
-    helm install metallb metallb/metallb \
+    helm upgrade --install metallb metallb/metallb \
       --namespace metallb-system \
       --create-namespace \
       --wait \
