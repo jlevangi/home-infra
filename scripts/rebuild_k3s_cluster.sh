@@ -103,3 +103,15 @@ echo "$CLUSTER_EMOJI Deploying $CLUSTER_NAME cluster with Terraform..."
 terraform apply --auto-approve $VERBOSITY
 
 popd
+
+# Clear stale SSH host keys (VMs get new host keys on rebuild)
+INVENTORY_PATH="$REPO_ROOT/ansible/inventories/$TARGET_CLUSTER/hosts.yml"
+if [[ -f "$INVENTORY_PATH" ]]; then
+  echo ""
+  echo "🔑 Clearing stale SSH host keys for $CLUSTER_NAME nodes..."
+  NODE_IPS=$(grep -E '^\s+ansible_host:' "$INVENTORY_PATH" | awk '{print $2}')
+  for ip in $NODE_IPS; do
+    ssh-keygen -f "$HOME/.ssh/known_hosts" -R "$ip" 2>/dev/null
+  done
+  echo "✅ SSH host keys cleared"
+fi
