@@ -286,7 +286,7 @@
   shell: |
     export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
     # Wait for ACME file to exist and have content
-    for i in {1..30}; do
+    i=0; while [ $i -lt 30 ]; do i=$((i+1))
       if kubectl exec -n traefik-system -l app.kubernetes.io/name=traefik -- test -f /data/acme.json 2>/dev/null; then
         SIZE=$(kubectl exec -n traefik-system -l app.kubernetes.io/name=traefik -- stat -c%s /data/acme.json 2>/dev/null || echo "0")
         if [ "$SIZE" -gt "100" ]; then
@@ -310,7 +310,7 @@
   shell: |
     export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
     # Test if Traefik can resolve external DNS
-    kubectl exec -n traefik-system -l app.kubernetes.io/name=traefik -- nslookup cloudflare.com 1.1.1.1 2>/dev/null || echo "DNS test failed"
+    kubectl exec -n traefik-system -l app.kubernetes.io/name=traefik -- wget -q -O /dev/null --timeout=5 https://acme-v02.api.letsencrypt.org/directory 2>/dev/null || echo "DNS test failed - Traefik may not be able to reach ACME servers"
   register: dns_test_result
   when: 
     - inventory_hostname == groups[master_group][0]
