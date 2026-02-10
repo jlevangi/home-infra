@@ -189,7 +189,12 @@ if [ $RESULT -eq 0 ]; then
   
   echo ""
   echo "✅ $CLUSTER_NAME cluster deployment complete!"
+  echo ""
+  echo "ArgoCD Initial Admin Password:"
+  kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d; echo
+
 else
   echo "❌ $CLUSTER_NAME cluster deployment failed (exit code: $RESULT)"
   exit $RESULT
+  
 fi
