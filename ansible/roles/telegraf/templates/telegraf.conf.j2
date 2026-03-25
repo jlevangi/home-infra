@@ -45,11 +45,12 @@
 [[inputs.net]]
   interfaces = ["eth*", "ens*", "flannel*", "cni*"]
 
-# Kubernetes/K3s specific monitoring
-{% if k3s_monitoring_token is defined and k3s_monitoring_token != "" %}
+# Kubernetes/K3s specific monitoring (disabled by default - requires kubelet auth setup)
+# To enable: set telegraf_enable_kubernetes_input: true and configure kubelet authentication
+{% if telegraf_enable_kubernetes_input | default(false) %}
 [[inputs.kubernetes]]
-  url = "https://{{ ansible_default_ipv4.address }}:6443"
-  bearer_token = "{{ k3s_monitoring_token }}"
+  url = "https://127.0.0.1:10250"
+  bearer_token = "/etc/telegraf/k8s_token"
   insecure_skip_verify = true
   response_timeout = "5s"
 {% endif %}

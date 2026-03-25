@@ -20,8 +20,12 @@ telegraf_username: "{{ vault_telegraf_username }}"
 telegraf_password: "{{ vault_telegraf_password }}"
 telegraf_retention_policy: "{{ vault_telegraf_retention_policy | default('') }}"
 
-# K3s monitoring configuration (mapped from vault)
-k3s_monitoring_token: "{{ vault_k3s_monitoring_token | default('') }}"
+# K3s monitoring configuration
+# Kubernetes input is disabled by default - kubelet auth requires additional setup
+telegraf_enable_kubernetes_input: false
+
+# Docker input is disabled by default - K3s uses containerd, not Docker
+telegraf_enable_docker_input: false
 
 # Package management
 telegraf_apt_repo_url: "https://repos.influxdata.com/ubuntu"

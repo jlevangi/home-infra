@@ -28,6 +28,15 @@ spec:
             size: 5Gi
           ui:
             enabled: true
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            annotations:
+              traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+            hosts:
+              - host: vault.test.levangie.dev
+                paths:
+                  - /
   destination:
     server: https://kubernetes.default.svc
     namespace: vault

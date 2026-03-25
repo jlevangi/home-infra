@@ -34,6 +34,16 @@ configs:
 # ArgoCD Server configuration
 server:
   replicas: {{ argocd_server_replicas | default(1) }}
+  livenessProbe:
+    initialDelaySeconds: 30
+    timeoutSeconds: 5
+    periodSeconds: 10
+    failureThreshold: 6
+  readinessProbe:
+    initialDelaySeconds: 20
+    timeoutSeconds: 5
+    periodSeconds: 10
+    failureThreshold: 6
 
   # We use Traefik IngressRoute, so disable built-in ingress
   ingress:
@@ -51,6 +61,16 @@ server:
 # ArgoCD Repo Server configuration
 repoServer:
   replicas: {{ argocd_reposerver_replicas | default(1) }}
+  livenessProbe:
+    initialDelaySeconds: 30
+    timeoutSeconds: 5
+    periodSeconds: 10
+    failureThreshold: 6
+  readinessProbe:
+    initialDelaySeconds: 20
+    timeoutSeconds: 5
+    periodSeconds: 10
+    failureThreshold: 6
 
   resources:
     limits:
