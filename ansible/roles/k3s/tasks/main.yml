@@ -49,7 +49,7 @@
     - storage
     - infrastructure
   when:
-    - inventory_hostname in groups[master_group]
+    - inventory_hostname == groups[master_group][0]
     - k3s_install_longhorn | default(true)
 
 # LoadBalancer and Ingress Setup

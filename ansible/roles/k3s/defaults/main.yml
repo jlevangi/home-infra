@@ -10,7 +10,6 @@ k3s_server_args:
   - "--disable=servicelb"    # Disable built-in service LB (will use MetalLB)
   - "--write-kubeconfig-mode=644"
   - "--node-external-ip={{ ansible_default_ipv4.address }}"
-  - "--node-taint=CriticalAddonsOnly=true:NoExecute"  # Tech Tim recommendation
   - "--cluster-init"  # Enable embedded etcd for HA
   - "--tls-san={{ load_balancer_ip | default(ansible_default_ipv4.address) }}"  # Support load balancer
 

@@ -46,12 +46,12 @@ resource "proxmox_vm_qemu" "terraform" {
   
   # CPU configuration for v3.x
   cpu {
-    cores = 2
+    cores = 4
     sockets = 1
     type = "host"
   }
   
-  memory = 2048  # Reduced for K3s - can be increased if needed
+  memory = 4096  # Reduced for K3s - can be increased if needed
   scsihw = "virtio-scsi-pci"
   bootdisk = "scsi0"
   
