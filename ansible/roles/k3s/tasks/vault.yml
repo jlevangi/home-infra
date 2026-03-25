@@ -389,5 +389,17 @@
       - not (vault_sealed | default(true))
       - vault_paperless_mariadb_password is defined
     no_log: true
+
+  - name: Seed Microbin secrets
+    shell: |
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- vault kv put {{ vault_kv_path }}/{{ cluster_environment }}/microbin \
+        MICROBIN_ADMIN_USERNAME='{{ vault_microbin_admin_username }}' \
+        MICROBIN_ADMIN_PASSWORD='{{ vault_microbin_admin_password }}'
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+      - not (vault_sealed | default(true))
+      - vault_microbin_admin_password is defined
+    no_log: true
   tags:
     - vault

@@ -16,8 +16,8 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # Source environment functions
 source "$SCRIPT_DIR/environment-functions.sh"
 
-# Component definitions
-INFRA_COMPONENTS=("traefik" "metallb" "longhorn" "argocd")
+# Component definitions (ordered for fresh cluster deployment)
+INFRA_COMPONENTS=("longhorn" "metallb" "traefik" "argocd")
 
 # Dynamically discover app components from ansible/roles/k3s-apps/tasks/apps/
 APP_COMPONENTS=()
@@ -31,7 +31,7 @@ if [[ -d "$APPS_DIR" ]]; then
     done
 fi
 
-ALL_COMPONENTS=("${INFRA_COMPONENTS[@]}" "${APP_COMPONENTS[@]}")
+ALL_COMPONENTS=("all-infra" "${INFRA_COMPONENTS[@]}" "${APP_COMPONENTS[@]}")
 
 # Default values
 TARGET_ENV=""
@@ -72,6 +72,7 @@ list_components() {
     echo "===================="
     echo ""
     echo "Infrastructure:"
+    echo "  - all-infra  (deploy all infra in order: ${INFRA_COMPONENTS[*]})"
     for c in "${INFRA_COMPONENTS[@]}"; do
         echo "  - $c"
     done
@@ -104,6 +105,7 @@ show_usage() {
     echo "  -h, --help           Show this help message"
     echo ""
     echo "Examples:"
+    echo "  $0 --test all-infra            # Deploy all infra to test (fresh cluster)"
     echo "  $0 --prod traefik              # Deploy Traefik to production"
     echo "  $0 --test metallb              # Deploy MetalLB to test"
     echo "  $0 --stage bookstack           # Deploy BookStack to staging"
@@ -254,6 +256,9 @@ echo "$CLUSTER_EMOJI Deploying $COMPONENT to $CLUSTER_NAME cluster"
 echo "============================================="
 echo "Environment: $TARGET_ENV ($TARGET_CLUSTER)"
 echo "Component:   $COMPONENT"
+if [[ "$COMPONENT" == "all-infra" ]]; then
+    echo "Components:  ${INFRA_COMPONENTS[*]}"
+fi
 echo "Force:       $([ "$FORCE_REDEPLOY" == "true" ] && echo "yes" || echo "no")"
 echo "Verbosity:   $([ -n "$VERBOSITY" ] && echo "$VERBOSITY" || echo "standard")"
 echo ""
@@ -261,25 +266,23 @@ echo ""
 # Get the appropriate inventory path for this environment
 INVENTORY_PATH=$(get_inventory_path "$TARGET_ENV" "$PROJECT_ROOT")
 
-# Build ansible command with proper argument handling
-ANSIBLE_CMD=(ansible-playbook -i "$INVENTORY_PATH" "$PROJECT_ROOT/ansible/playbooks/k3s-deploy-component.yml" --vault-password-file ~/.ansible_vault_pass)
+# Build the base ansible command (shared by single and all-infra paths)
+build_base_cmd() {
+    BASE_CMD=(ansible-playbook -i "$INVENTORY_PATH" "$PROJECT_ROOT/ansible/playbooks/k3s-deploy-component.yml" --vault-password-file ~/.ansible_vault_pass)
+    if [[ -n "$VERBOSITY" ]]; then
+        BASE_CMD+=("$VERBOSITY")
+    fi
+    BASE_CMD+=(-e "target_cluster=$TARGET_CLUSTER")
+}
 
-# Add verbosity if set
-if [[ -n "$VERBOSITY" ]]; then
-    ANSIBLE_CMD+=("$VERBOSITY")
-fi
+# Build the full ansible command for a single infra component
+build_infra_cmd() {
+    local comp="$1"
+    build_base_cmd
+    ANSIBLE_CMD=("${BASE_CMD[@]}" -e "deploy_component=$comp")
 
-# Add target cluster
-ANSIBLE_CMD+=(-e "target_cluster=$TARGET_CLUSTER")
-
-# Determine if infrastructure or app component and configure accordingly
-if is_infra_component "$COMPONENT"; then
-    # Infrastructure component - use deploy_component variable
-    ANSIBLE_CMD+=(-e "deploy_component=$COMPONENT")
-
-    # For force redeploy on infra, set the appropriate force variable (use JSON for boolean)
     if [[ "$FORCE_REDEPLOY" == "true" ]]; then
-        case "$COMPONENT" in
+        case "$comp" in
             traefik)
                 ANSIBLE_CMD+=(-e '{"force_traefik_redeploy": true}')
                 ;;
@@ -287,7 +290,6 @@ if is_infra_component "$COMPONENT"; then
                 ANSIBLE_CMD+=(-e '{"force_metallb_redeploy": true}')
                 ;;
             longhorn)
-                # Longhorn uses helm upgrade --install pattern
                 echo "Note: Longhorn will be upgraded/reinstalled via Helm"
                 ;;
             argocd)
@@ -295,38 +297,29 @@ if is_infra_component "$COMPONENT"; then
                 ;;
         esac
     fi
-else
-    # Application component - use deploy_single_app var
-    ANSIBLE_CMD+=(-e "deploy_single_app=$COMPONENT")
+}
 
-    # For force redeploy on apps, add to force_redeploy_apps list
-    if [[ "$FORCE_REDEPLOY" == "true" ]]; then
-        ANSIBLE_CMD+=(-e "force_redeploy_apps=['$COMPONENT']")
-    fi
-fi
-
-# Show the command
-echo "Ansible command:"
-echo "  ${ANSIBLE_CMD[*]}"
-echo ""
-
-# Exit if dry run
-if [[ "$DRY_RUN" == "true" ]]; then
-    echo "(Dry run - command not executed)"
-    exit 0
-fi
-
-# Execute the command
-"${ANSIBLE_CMD[@]}"
-
-RESULT=$?
-
-echo ""
-if [[ $RESULT -eq 0 ]]; then
-    echo "$CLUSTER_EMOJI $COMPONENT deployment to $CLUSTER_NAME complete!"
+# Run a single component and handle result
+run_component() {
+    local comp="$1"
+    echo "Ansible command:"
+    echo "  ${ANSIBLE_CMD[*]}"
     echo ""
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "(Dry run - command not executed)"
+        return 0
+    fi
+
+    "${ANSIBLE_CMD[@]}"
+    return $?
+}
+
+# Show verification commands for a component
+show_verification() {
+    local comp="$1"
     echo "Verification commands:"
-    case "$COMPONENT" in
+    case "$comp" in
         traefik)
             echo "  kubectl get pods -n traefik-system"
             echo "  kubectl get svc -n traefik-system"
@@ -349,12 +342,74 @@ if [[ $RESULT -eq 0 ]]; then
             echo "  # Get initial admin password:"
             echo "  kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d; echo"
             ;;
-        bookstack|vaultwarden|homepage|pocketid|plex)
-            echo "  kubectl get pods -n $COMPONENT"
-            echo "  kubectl get svc -n $COMPONENT"
-            echo "  kubectl get ingress -n $COMPONENT"
+        *)
+            echo "  kubectl get pods -n $comp"
+            echo "  kubectl get svc -n $comp"
+            echo "  kubectl get ingress -n $comp"
             ;;
     esac
+}
+
+# --- all-infra: deploy each infra component in order ---
+if [[ "$COMPONENT" == "all-infra" ]]; then
+    FAILED_COMPONENTS=()
+    SUCCEEDED_COMPONENTS=()
+
+    for infra_comp in "${INFRA_COMPONENTS[@]}"; do
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "$CLUSTER_EMOJI [$((${#SUCCEEDED_COMPONENTS[@]}+${#FAILED_COMPONENTS[@]}+1))/${#INFRA_COMPONENTS[@]}] Deploying $infra_comp"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        build_infra_cmd "$infra_comp"
+        run_component "$infra_comp"
+        RESULT=$?
+
+        if [[ $RESULT -eq 0 ]]; then
+            SUCCEEDED_COMPONENTS+=("$infra_comp")
+        else
+            FAILED_COMPONENTS+=("$infra_comp")
+            echo ""
+            echo "ERROR: $infra_comp failed (exit code: $RESULT) — skipping remaining components"
+            break
+        fi
+    done
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "$CLUSTER_EMOJI Infrastructure Deployment Summary"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    if [[ ${#SUCCEEDED_COMPONENTS[@]} -gt 0 ]]; then
+        echo "  Succeeded: ${SUCCEEDED_COMPONENTS[*]}"
+    fi
+    if [[ ${#FAILED_COMPONENTS[@]} -gt 0 ]]; then
+        echo "  Failed:    ${FAILED_COMPONENTS[*]}"
+        exit 1
+    fi
+    echo ""
+    echo "All infrastructure components deployed successfully!"
+    exit 0
+fi
+
+# --- Single component deployment ---
+if is_infra_component "$COMPONENT"; then
+    build_infra_cmd "$COMPONENT"
+else
+    build_base_cmd
+    ANSIBLE_CMD=("${BASE_CMD[@]}" -e "deploy_single_app=$COMPONENT")
+
+    if [[ "$FORCE_REDEPLOY" == "true" ]]; then
+        ANSIBLE_CMD+=(-e "force_redeploy_apps=['$COMPONENT']")
+    fi
+fi
+
+run_component "$COMPONENT"
+RESULT=$?
+
+echo ""
+if [[ $RESULT -eq 0 ]]; then
+    echo "$CLUSTER_EMOJI $COMPONENT deployment to $CLUSTER_NAME complete!"
+    echo ""
+    show_verification "$COMPONENT"
 else
     echo "Deployment of $COMPONENT to $CLUSTER_NAME failed (exit code: $RESULT)"
     exit $RESULT
