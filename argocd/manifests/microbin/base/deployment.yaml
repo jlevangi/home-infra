@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: microbin
+  namespace: microbin
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: microbin
+  template:
+    metadata:
+      labels:
+        app: microbin
+    spec:
+      containers:
+        - name: microbin
+          image: danielszabo99/microbin:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: microbin-config
+          env:
+            - name: MICROBIN_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: microbin-secrets
+                  key: MICROBIN_ADMIN_USERNAME
+            - name: MICROBIN_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: microbin-secrets
+                  key: MICROBIN_ADMIN_PASSWORD
+          volumeMounts:
+            - name: data
+              mountPath: /app/microbin_data
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: microbin-data-pvc
