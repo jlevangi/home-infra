@@ -27,7 +27,6 @@
       - apt-transport-https
       - gnupg
       - lsb-release
-      - open-iscsi  # For persistent volumes
       - nfs-common  # For NFS storage
       - qemu-guest-agent
     state: present
@@ -129,21 +128,6 @@
   shell: helm completion bash > /etc/bash_completion.d/helm
   become: yes
   when: k3s_install_bash_completion and k3s_install_helm
-
-- name: Add kubectl aliases to user
-  lineinfile:
-    path: "/home/{{ k3s_user }}/.bashrc"
-    line: "{{ item }}"
-    create: yes
-  loop:
-    - 'alias k=kubectl'
-    - 'alias kgp="kubectl get pods"'
-    - 'alias kgs="kubectl get services"'
-    - 'alias kgn="kubectl get nodes"'
-    - 'alias h=helm'
-    - 'alias hls="helm list"'
-    - 'alias hla="helm list --all-namespaces"'
-  become_user: "{{ k3s_user }}"
 
 - name: Display preparation status
   debug:

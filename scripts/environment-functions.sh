@@ -91,41 +91,6 @@ show_available_environments() {
     done
 }
 
-# Parse environment from command line arguments
-# Supports both legacy flags (--prod, --test) and new --env flag
-parse_environment_args() {
-    local args=("$@")
-    local target_env=""
-    local remaining_args=()
-    
-    for arg in "${args[@]}"; do
-        case "$arg" in
-            --prod|--production)
-                target_env="prod"
-                ;;
-            --test)
-                target_env="test"
-                ;;
-            --stage|--staging)
-                target_env="stage"
-                ;;
-            --env=*)
-                target_env="${arg#--env=}"
-                ;;
-            --env)
-                # Next argument should be the environment name
-                # This is handled by the caller
-                ;;
-            *)
-                remaining_args+=("$arg")
-                ;;
-        esac
-    done
-    
-    # Output format: "environment_name remaining_args..."
-    echo "$target_env ${remaining_args[*]}"
-}
-
 # Display environment-specific help section
 show_environment_help() {
     local script_name="$1"

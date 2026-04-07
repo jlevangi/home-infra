@@ -101,6 +101,16 @@
         - deploy_component == 'argocd'
         - inventory_hostname in groups[master_group]
 
+    - name: Bootstrap Vault (init, unseal, configure, seed secrets)
+      ansible.builtin.include_role:
+        name: ../roles/k3s
+        tasks_from: vault.yml
+      when:
+        - deploy_component is defined
+        - deploy_component in ['argocd', 'vault']
+        - inventory_hostname in groups[master_group]
+        - k3s_configure_vault | default(true)
+
     # Application components - use the k3s-apps role with deploy_single_app
     - name: Deploy application
       ansible.builtin.include_role:

@@ -17,7 +17,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/environment-functions.sh"
 
 # Component definitions (ordered for fresh cluster deployment)
-INFRA_COMPONENTS=("longhorn" "metallb" "traefik" "argocd")
+INFRA_COMPONENTS=("longhorn" "metallb" "traefik" "argocd" "vault")
 
 # Dynamically discover app components from ansible/roles/k3s-apps/tasks/apps/
 APP_COMPONENTS=()
@@ -341,6 +341,11 @@ show_verification() {
             echo ""
             echo "  # Get initial admin password:"
             echo "  kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d; echo"
+            ;;
+        vault)
+            echo "  kubectl get pods -n vault"
+            echo "  kubectl exec -n vault vault-0 -- vault status"
+            echo "  kubectl get externalsecrets -A"
             ;;
         *)
             echo "  kubectl get pods -n $comp"

@@ -14,7 +14,6 @@ TARGET_ENV=""
 TARGET_CLUSTER=""
 EXTRA_VARS=""
 VERBOSITY=""
-DEPLOY_APPS="false"
 SHOW_HELP=false
 
 # Parse command line arguments
@@ -43,11 +42,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --env=*)
       TARGET_ENV="${1#--env=}"
-      shift
-      ;;
-    --no-apps)
-      DEPLOY_APPS="false"
-      EXTRA_VARS="$EXTRA_VARS -e deploy_applications=false"
       shift
       ;;
     -v|--verbose)
@@ -84,7 +78,6 @@ if [[ "$SHOW_HELP" == "true" ]] || [[ -z "$TARGET_ENV" ]]; then
   echo ""
   show_environment_help "$0"
   echo "Options:"
-  echo "  --no-apps              Deploy only infrastructure, skip applications"
   echo "  -v, --verbose          Enable verbose output"
   echo "  -vv, -vvv              Enable more verbose output"
   echo "  -q, --quiet            Disable verbose output"
@@ -126,7 +119,6 @@ echo ""
 echo "$CLUSTER_EMOJI Deploying K3s $CLUSTER_NAME Cluster..."
 echo "📂 Using unified deployment playbook: k3s-deploy-cluster.yml"
 echo "🎯 Target: $CLUSTER_NAME cluster ($TARGET_CLUSTER)"
-echo "📦 Applications: $([ "$DEPLOY_APPS" == "true" ] && echo "Enabled" || echo "Disabled")"
 echo "🔊 Verbosity: $([ -n "$VERBOSITY" ] && echo "$VERBOSITY" || echo "Standard")"
 echo ""
 
