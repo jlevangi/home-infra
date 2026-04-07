@@ -11,7 +11,7 @@
 
 # - name: Include simplified NFS host mounting
 #   include_tasks: nfs-simple-mount.yml
-#   when: enable_nfs_mount | default(true)
+#   when: enable_nfs_storage | default(true)
 
 - name: Include K3s master installation
   include_tasks: master.yml

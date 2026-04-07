@@ -78,14 +78,14 @@
           🚨 DESTROYING ALL LONGHORN DATA
           💥 This will permanently delete all persistent volumes and data
           📁 Removing: /var/lib/longhorn/
-      when: k3s_force_longhorn_cleanup | default(false)
+      when: k3s_force_longhorn_cleanup | default(false) | bool
 
     - name: Remove Longhorn storage directory (DESTRUCTIVE)
       file:
         path: /var/lib/longhorn
         state: absent
       failed_when: false
-      when: k3s_force_longhorn_cleanup | default(false)
+      when: k3s_force_longhorn_cleanup | default(false) | bool
 
     - name: Remove additional Longhorn mount points
       shell: |
@@ -96,7 +96,7 @@
         dmsetup remove_all 2>/dev/null || true
         echo "✅ Longhorn mount cleanup completed"
       failed_when: false
-      when: k3s_force_longhorn_cleanup | default(false)
+      when: k3s_force_longhorn_cleanup | default(false) | bool
 
     # === System Services Cleanup ===
     - name: Stop and disable storage-related services
@@ -208,7 +208,7 @@
         state: absent
         autoremove: yes
       failed_when: false
-      when: k3s_remove_packages | default(false)
+      when: k3s_remove_packages | default(false) | bool
 
     - name: Remove K3s utility packages (if enabled)
       apt:
@@ -219,7 +219,7 @@
         state: absent
         autoremove: yes
       failed_when: false
-      when: k3s_remove_utility_packages | default(false)
+      when: k3s_remove_utility_packages | default(false) | bool
 
     # === User Configuration Cleanup ===
     - name: Clean up kubectl config
@@ -291,11 +291,11 @@
           - qemu-guest-agent: {{ 'Stopped/Disabled' if k3s_cleanup_qemu_agent | default(false) else 'Left Running' }}
           
           📦 PACKAGES:
-          - K3s packages: {{ 'Removed' if k3s_remove_packages | default(false) else 'Left Installed' }}
-          - Utility packages: {{ 'Removed' if k3s_remove_utility_packages | default(false) else 'Left Installed' }}
+          - K3s packages: {{ 'Removed' if k3s_remove_packages | default(false) | bool else 'Left Installed' }}
+          - Utility packages: {{ 'Removed' if k3s_remove_utility_packages | default(false) | bool else 'Left Installed' }}
           
           💾 PRESERVED:
-          - Longhorn storage data: {{ 'DESTROYED' if k3s_force_longhorn_cleanup | default(false) else 'Preserved (/var/lib/longhorn/)' }}
+          - Longhorn storage data: {{ 'DESTROYED' if k3s_force_longhorn_cleanup | default(false) | bool else 'Preserved (/var/lib/longhorn/)' }}
           - Core system packages (curl, wget, etc.)
           - SSH access and basic system functionality
           
