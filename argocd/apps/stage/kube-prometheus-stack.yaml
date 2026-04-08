@@ -61,7 +61,7 @@ spec:
                   accessModes: ["ReadWriteOnce"]
                   resources:
                     requests:
-                      storage: 10Gi
+                      storage: 4Gi
             serviceMonitorSelectorNilUsesHelmValues: false
             podMonitorSelectorNilUsesHelmValues: false
             ruleSelectorNilUsesHelmValues: false
