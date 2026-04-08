@@ -7,7 +7,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source environment functions
-source "$SCRIPT_DIR/environment-functions.sh"
+source "$SCRIPT_DIR/lib/environment-functions.sh"
 
 # Default values
 TARGET_ENV=""
@@ -125,7 +125,7 @@ fi
 
 # Switch to the appropriate kubectl context
 echo "🔄 Switching to $CLUSTER_NAME cluster context..."
-if "$SCRIPT_DIR/k3s-context-manager.sh" switch "$KUBECTL_CONTEXT" 2>/dev/null; then
+if "$SCRIPT_DIR/helpers/k3s-context-manager.sh" switch "$KUBECTL_CONTEXT" 2>/dev/null; then
 	echo "✅ Successfully switched to k3s-$KUBECTL_CONTEXT context"
 else
 	echo "⚠️  Warning: Failed to switch kubectl context to $KUBECTL_CONTEXT"

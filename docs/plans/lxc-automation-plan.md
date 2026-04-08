@@ -293,7 +293,7 @@ lxc_definitions_path: "{{ playbook_dir }}/../lxc_definitions"
 ### Phase 5: Deployment Script
 
 #### 5.1 Create Deploy Script
-**File:** `scripts/deploy_lxc.sh`
+**File:** `scripts/deploy-lxc.sh`
 
 Features:
 - List available containers from `ansible/lxc_definitions/containers/`
@@ -307,16 +307,16 @@ Features:
 **Usage examples:**
 ```bash
 # List available containers
-./scripts/deploy_lxc.sh --list
+./scripts/deploy-lxc.sh --list
 
 # Deploy specific container
-./scripts/deploy_lxc.sh nbn-srv
+./scripts/deploy-lxc.sh nbn-srv
 
 # Interactive selection
-./scripts/deploy_lxc.sh
+./scripts/deploy-lxc.sh
 
 # Prepare template only
-./scripts/deploy_lxc.sh --template-only ubuntu-24.04
+./scripts/deploy-lxc.sh --template-only ubuntu-24.04
 ```
 
 ---
@@ -352,7 +352,7 @@ Ensure these exist in `ansible/group_vars/k3s_cluster_vault.yml`:
 | `ansible/inventories/lxc/hosts.yml` | LXC inventory file |
 | `ansible/group_vars/lxc.yml` | Shared LXC variables |
 | `ansible/playbooks/lxc-deploy.yml` | Main deployment playbook |
-| `scripts/deploy_lxc.sh` | Deployment wrapper script |
+| `scripts/deploy-lxc.sh` | Deployment wrapper script |
 
 ### Files to Modify
 

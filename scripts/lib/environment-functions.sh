@@ -2,9 +2,9 @@
 # Environment Functions Library
 # Provides dynamic environment detection and configuration for K3s scripts
 
-# Get the directory of this script to locate environments.conf
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENVIRONMENTS_CONF="$SCRIPT_DIR/environments.conf"
+# Get the directory of this library to locate environments.conf
+_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENVIRONMENTS_CONF="$_LIB_DIR/environments.conf"
 
 # Colors for output
 RED='\033[0;31m'
