@@ -146,18 +146,18 @@
 
 - name: Calculate dynamic replica count for Longhorn
   set_fact:
-    calculated_replica_count: "{{ [groups[worker_group] | length, 3] | min }}"
+    calculated_replica_count: "{{ [groups[cluster_group] | default([]) | length, 3] | min }}"
   when: longhorn_replica_count is not defined
 
 - name: Display Longhorn replica count calculation
   debug:
     msg: |
       🔧 Longhorn Replica Count Calculation:
-      Worker group: {{ worker_group }}
-      Worker nodes: {{ groups[worker_group] | default([]) }}
-      Worker node count: {{ groups[worker_group] | length }}
+      Cluster group: {{ cluster_group }}
+      Cluster nodes: {{ groups[cluster_group] | default([]) }}
+      Cluster node count: {{ groups[cluster_group] | default([]) | length }}
       Configured replica count: {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}
-      Final replica count: {{ [groups[worker_group] | length, 3] | min }}
+      Final replica count: {{ [groups[cluster_group] | default([]) | length, 3] | min }}
 
 - name: Clean up any stuck Helm operations for Longhorn
   ansible.builtin.shell: |
@@ -499,33 +499,35 @@
   become: yes
   register: master_longhorn_check
   failed_when: false  # Don't fail - we expect this to fail
-  when: 
-    - longhorn_exclude_master_from_storage | default(true)
+  when:
     - item in groups[master_group]
 
-- name: Disable storage scheduling on masters that are in Longhorn
+- name: Reconcile storage scheduling on masters that are in Longhorn
   shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch nodes.longhorn.io {{ item.item }} -n longhorn-system \
-      --type='merge' -p='{"spec":{"allowScheduling":false}}'
+      --type='merge' -p='{"spec":{"allowScheduling":{{ longhorn_exclude_master_from_storage | default(false) | ternary("false", "true") }}}}'
   loop: "{{ master_longhorn_check.results | default([]) }}"
   become: yes
-  when: 
-    - longhorn_exclude_master_from_storage | default(true)
+  when:
     - item.rc == 0  # Only patch if the node exists in Longhorn
 
-- name: Display master node storage exclusion status
+- name: Display master node storage scheduling status
   debug:
     msg: |
-      📊 Master Node Storage Exclusion Status:
+      📊 Master Node Storage Scheduling Status:
+      Desired policy: {% if longhorn_exclude_master_from_storage | default(false) %}exclude master nodes from Longhorn storage{% else %}allow Longhorn storage on master nodes{% endif %}
       {% for result in master_longhorn_check.results | default([]) %}
       {% if result.rc == 0 %}
+      {% if longhorn_exclude_master_from_storage | default(false) %}
       ⚠️  {{ result.item }}: Found in Longhorn - storage scheduling disabled
       {% else %}
-      ✅ {{ result.item }}: Correctly excluded from Longhorn storage (best practice)
+      ✅ {{ result.item }}: Found in Longhorn - storage scheduling enabled
+      {% endif %}
+      {% else %}
+      ℹ️  {{ result.item }}: Not registered with Longhorn yet
       {% endif %}
       {% endfor %}
-  when: 
-    - longhorn_exclude_master_from_storage | default(true)
+  when:
     - master_longhorn_check is defined
 
 - name: Check if any Longhorn volumes exist
@@ -562,8 +564,8 @@
     msg: |
       📊 Longhorn Replica Count Adjustment:
       Target replica count: {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}
-      Based on: min({{ groups[worker_group] | length }} worker nodes, 3)
-      
+      Based on: min({{ groups[cluster_group] | default([]) | length }} cluster nodes, 3)
+
       {% if volume_count.stdout | int == 0 %}
       ℹ️  No existing volumes found - new volumes will use correct replica count
       {% elif incorrect_replica_volumes is defined and incorrect_replica_volumes.stdout_lines | length > 0 %}

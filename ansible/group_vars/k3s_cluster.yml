@@ -120,7 +120,7 @@ argocd_grpc_ingress_enabled: false  # gRPC ingress for external CLI
 
 # ArgoCD GitOps branch configuration
 # Each environment tracks a different branch for promotion workflow:
-#   test:  argo-cd branch (development/testing)
+#   test:  test branch (development/testing)
 #   stage: stage branch (pre-production validation)
 #   prod:  main branch (production releases)
 argocd_target_revision: "main"       # Default for prod, override per environment
@@ -204,8 +204,8 @@ default_initial_volume_size: "500Mi"
 # -----------------------------------------------------------------------------
 # LONGHORN CONFIGURATION
 # -----------------------------------------------------------------------------
-longhorn_replica_count: "{{ [groups[worker_group] | length, 3] | min }}"
-longhorn_exclude_master_from_storage: true
+longhorn_replica_count: "{{ [groups[cluster_group] | default([]) | length, 3] | min }}"
+longhorn_exclude_master_from_storage: false
 longhorn_ui_ingress_enabled: true
 longhorn_ui_app_url: "https://longhorn.{{ environment_domain }}"
 

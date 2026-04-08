@@ -19,10 +19,7 @@ spec:
           annotations:
             traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
           hosts:
-            - host: status.test.levangie.dev
-              paths:
-                - path: /
-                  pathType: Prefix
+            - status.test.levangie.dev
 
         persistence:
           enabled: true
