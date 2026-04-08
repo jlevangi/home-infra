@@ -1,0 +1,225 @@
+---
+# Restart a K3s cluster after maintenance shutdown
+#
+# Prerequisites:
+#   - VMs must be running (start from Proxmox UI if they were powered off)
+#
+# Required variables:
+#   target_cluster    - Ansible group name (e.g., k3s_cluster_prod)
+#   kubectl_context   - kubectl context name (e.g., k3s-prod)
+
+- name: Validate required variables
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Assert target_cluster and kubectl_context are defined
+      assert:
+        that:
+          - target_cluster is defined
+          - kubectl_context is defined
+        fail_msg: "Required variables target_cluster and kubectl_context must be set"
+
+    - name: Assert target cluster group exists in inventory
+      assert:
+        that:
+          - target_cluster in groups
+          - groups[target_cluster] | length > 0
+        fail_msg: "Cluster group '{{ target_cluster }}' not found or empty in inventory"
+
+- name: Wait for all nodes to be reachable
+  hosts: "{{ target_cluster }}"
+  gather_facts: no
+  tasks:
+    - name: Wait for SSH connectivity
+      wait_for_connection:
+        delay: 5
+        timeout: 300
+
+    - name: Gather facts
+      setup:
+
+    - name: Node reachable
+      debug:
+        msg: "{{ inventory_hostname }} is online ({{ ansible_host }})"
+
+- name: Start K3s on master node
+  hosts: "{{ target_cluster }}_master"
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: Start k3s service
+      systemd:
+        name: k3s
+        state: started
+
+    - name: Wait for K3s API to be ready
+      command: kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml get nodes
+      register: api_check
+      retries: 30
+      delay: 10
+      until: api_check.rc == 0
+      changed_when: false
+
+    - name: K3s API is ready
+      debug:
+        msg: "K3s API server is responding on {{ inventory_hostname }}"
+
+- name: Start K3s agent on worker nodes
+  hosts: "{{ target_cluster }}_workers"
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: Start k3s-agent service
+      systemd:
+        name: k3s-agent
+        state: started
+
+    - name: Wait for k3s-agent to be active
+      command: systemctl is-active k3s-agent
+      register: agent_status
+      retries: 12
+      delay: 5
+      until: agent_status.rc == 0
+      changed_when: false
+
+    - name: Worker agent started
+      debug:
+        msg: "k3s-agent started on {{ inventory_hostname }}"
+
+- name: Uncordon nodes and verify cluster health
+  hosts: "{{ target_cluster }}_master"
+  gather_facts: no
+  vars:
+    expected_node_count: "{{ groups[target_cluster] | length }}"
+  tasks:
+    - name: Wait for all nodes to register with cluster
+      shell: kubectl --context {{ kubectl_context }} get nodes --no-headers | wc -l
+      delegate_to: localhost
+      become: no
+      register: node_count
+      retries: 30
+      delay: 10
+      until: (node_count.stdout | trim | int) >= (expected_node_count | int)
+      changed_when: false
+
+    - name: Get list of all cluster nodes
+      command: kubectl --context {{ kubectl_context }} get nodes -o jsonpath='{.items[*].metadata.name}'
+      delegate_to: localhost
+      become: no
+      register: node_list
+      changed_when: false
+
+    - name: Set node names
+      set_fact:
+        cluster_nodes: "{{ node_list.stdout.split() }}"
+
+    - name: Uncordon all nodes
+      command: kubectl --context {{ kubectl_context }} uncordon {{ item }}
+      delegate_to: localhost
+      become: no
+      loop: "{{ cluster_nodes }}"
+      changed_when: true
+
+    - name: Wait for all nodes to be Ready
+      shell: >
+        kubectl --context {{ kubectl_context }} get nodes --no-headers |
+        grep -c ' Ready ' || true
+      delegate_to: localhost
+      become: no
+      register: ready_count
+      retries: 30
+      delay: 10
+      until: (ready_count.stdout | trim | int) >= (expected_node_count | int)
+      changed_when: false
+
+    - name: Wait for kube-system pods to be running
+      shell: >
+        kubectl --context {{ kubectl_context }} get pods -n kube-system --no-headers |
+        grep -v -E 'Running|Completed|Terminating' | wc -l
+      delegate_to: localhost
+      become: no
+      register: unhealthy_pods
+      retries: 30
+      delay: 10
+      until: (unhealthy_pods.stdout | trim | int) == 0
+      changed_when: false
+
+    - name: Wait for Longhorn manager pods to be running on all nodes
+      shell: >
+        kubectl --context {{ kubectl_context }} get pods -n longhorn-system
+        -l app=longhorn-manager --no-headers |
+        grep -c 'Running' || true
+      delegate_to: localhost
+      become: no
+      register: longhorn_manager_count
+      retries: 30
+      delay: 10
+      until: (longhorn_manager_count.stdout | trim | int) >= (expected_node_count | int)
+      changed_when: false
+
+    - name: Wait for Longhorn CSI plugin pods to be ready on all nodes
+      shell: >
+        kubectl --context {{ kubectl_context }} get pods -n longhorn-system
+        -l app=longhorn-csi-plugin --no-headers |
+        grep -c 'Running' || true
+      delegate_to: localhost
+      become: no
+      register: longhorn_csi_count
+      retries: 30
+      delay: 10
+      until: (longhorn_csi_count.stdout | trim | int) >= (expected_node_count | int)
+      changed_when: false
+
+    - name: Wait for Longhorn CSI sidecars to be healthy
+      shell: >
+        kubectl --context {{ kubectl_context }} get pods -n longhorn-system --no-headers |
+        grep -E 'csi-attacher|csi-provisioner|csi-resizer|csi-snapshotter' |
+        grep -v -E 'Running' | wc -l
+      delegate_to: localhost
+      become: no
+      register: unhealthy_csi
+      retries: 30
+      delay: 10
+      until: (unhealthy_csi.stdout | trim | int) == 0
+      changed_when: false
+
+    - name: Longhorn storage is healthy
+      debug:
+        msg: "Longhorn manager, CSI plugin, and CSI sidecars are all running"
+
+    - name: Get final cluster status
+      command: kubectl --context {{ kubectl_context }} get nodes -o wide
+      delegate_to: localhost
+      become: no
+      register: final_nodes
+      changed_when: false
+
+    - name: Display cluster status
+      debug:
+        msg: "{{ final_nodes.stdout_lines }}"
+
+    - name: Get kube-system pod status
+      command: kubectl --context {{ kubectl_context }} get pods -n kube-system
+      delegate_to: localhost
+      become: no
+      register: system_pods
+      changed_when: false
+
+    - name: Display system pods
+      debug:
+        msg: "{{ system_pods.stdout_lines }}"
+
+    - name: Get Longhorn pod status
+      command: kubectl --context {{ kubectl_context }} get pods -n longhorn-system
+      delegate_to: localhost
+      become: no
+      register: longhorn_pods
+      changed_when: false
+
+    - name: Display Longhorn pods
+      debug:
+        msg: "{{ longhorn_pods.stdout_lines }}"
+
+    - name: Cluster is healthy
+      debug:
+        msg: "All {{ expected_node_count }} nodes are Ready, kube-system pods running, Longhorn storage healthy"

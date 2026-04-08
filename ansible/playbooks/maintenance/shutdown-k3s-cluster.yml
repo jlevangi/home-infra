@@ -1,0 +1,145 @@
+---
+# Safely shut down a K3s cluster for maintenance
+#
+# Required variables:
+#   target_cluster    - Ansible group name (e.g., k3s_cluster_prod)
+#   kubectl_context   - kubectl context name (e.g., k3s-prod)
+#
+# Optional variables:
+#   skip_vm_shutdown  - Set to "true" to stop K3s only, leave VMs running (default: false)
+#   drain_timeout     - Timeout for kubectl drain per node (default: 120s)
+
+- name: Validate required variables
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Assert target_cluster and kubectl_context are defined
+      assert:
+        that:
+          - target_cluster is defined
+          - kubectl_context is defined
+        fail_msg: "Required variables target_cluster and kubectl_context must be set"
+
+    - name: Assert target cluster group exists in inventory
+      assert:
+        that:
+          - target_cluster in groups
+          - groups[target_cluster] | length > 0
+        fail_msg: "Cluster group '{{ target_cluster }}' not found or empty in inventory"
+
+- name: Cordon and drain all cluster nodes
+  hosts: "{{ target_cluster }}_master"
+  gather_facts: no
+  vars:
+    drain_timeout: "120s"
+  tasks:
+    - name: Get list of all cluster nodes
+      command: kubectl --context {{ kubectl_context }} get nodes -o jsonpath='{.items[*].metadata.name}'
+      delegate_to: localhost
+      become: no
+      register: node_list
+      changed_when: false
+
+    - name: Set node names
+      set_fact:
+        cluster_nodes: "{{ node_list.stdout.split() }}"
+
+    - name: Display nodes to be shut down
+      debug:
+        msg: "Shutting down nodes: {{ cluster_nodes | join(', ') }}"
+
+    - name: Cordon all nodes
+      command: kubectl --context {{ kubectl_context }} cordon {{ item }}
+      delegate_to: localhost
+      become: no
+      loop: "{{ cluster_nodes }}"
+      changed_when: true
+
+    - name: Drain all nodes
+      command: >
+        kubectl --context {{ kubectl_context }} drain {{ item }}
+        --ignore-daemonsets
+        --delete-emptydir-data
+        --force
+        --timeout={{ drain_timeout }}
+      delegate_to: localhost
+      become: no
+      loop: "{{ cluster_nodes }}"
+      register: drain_results
+      changed_when: true
+      ignore_errors: yes
+
+    - name: Warn about drain failures
+      debug:
+        msg: "WARNING: drain failed for {{ item.item }} — {{ item.stderr | default('unknown error') }}"
+      loop: "{{ drain_results.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.rc is defined and item.rc != 0
+
+    - name: All nodes drained
+      debug:
+        msg: "All nodes cordoned and drained"
+
+- name: Stop K3s agent on worker nodes
+  hosts: "{{ target_cluster }}_workers"
+  become: yes
+  gather_facts: no
+  serial: 1
+  tasks:
+    - name: Stop k3s-agent service
+      systemd:
+        name: k3s-agent
+        state: stopped
+
+    - name: Verify k3s-agent is stopped
+      command: systemctl is-active k3s-agent
+      register: agent_status
+      failed_when: agent_status.rc == 0 or agent_status.rc == 4
+      changed_when: false
+
+    - name: Worker agent stopped
+      debug:
+        msg: "k3s-agent stopped on {{ inventory_hostname }}"
+
+- name: Stop K3s on master node
+  hosts: "{{ target_cluster }}_master"
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: Stop k3s service
+      systemd:
+        name: k3s
+        state: stopped
+
+    - name: Verify k3s is stopped
+      command: systemctl is-active k3s
+      register: master_status
+      failed_when: master_status.rc == 0 or master_status.rc == 4
+      changed_when: false
+
+    - name: Master stopped
+      debug:
+        msg: "k3s stopped on {{ inventory_hostname }}"
+
+- name: Shut down VMs
+  hosts: "{{ target_cluster }}"
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: Power off VM
+      command: /sbin/shutdown -h now
+      async: 1
+      poll: 0
+      ignore_errors: yes
+      when: not (skip_vm_shutdown | default(false) | bool)
+
+    - name: VMs shutting down
+      debug:
+        msg: "Shutdown signal sent to {{ inventory_hostname }}"
+      when: not (skip_vm_shutdown | default(false) | bool)
+
+    - name: VMs left running (skip_vm_shutdown=true)
+      debug:
+        msg: "K3s services stopped on {{ inventory_hostname }} — VM left running"
+      when: skip_vm_shutdown | default(false) | bool
