@@ -20,13 +20,13 @@ Deploy complete K3s clusters to specific environments:
 
 ```bash
 # Production Cluster
-./scripts/deploy_k3s_cluster.sh --prod
+./scripts/deploy-k3s-cluster.sh --prod
 
 # Staging Cluster
-./scripts/deploy_k3s_cluster.sh --stage
+./scripts/deploy-k3s-cluster.sh --stage
 
 # Test Cluster
-./scripts/deploy_k3s_cluster.sh --test
+./scripts/deploy-k3s-cluster.sh --test
 ```
 
 ### 2. Component Management
@@ -35,20 +35,20 @@ Deploy or update specific infrastructure components or applications:
 
 ```bash
 # Deploy/Update Infrastructure
-./scripts/deploy_component.sh --prod traefik
-./scripts/deploy_component.sh --prod metallb
-./scripts/deploy_component.sh --prod longhorn
+./scripts/deploy-component.sh --prod traefik
+./scripts/deploy-component.sh --prod metallb
+./scripts/deploy-component.sh --prod longhorn
 
 # Deploy/Update Applications
-./scripts/deploy_component.sh --prod bookstack
-./scripts/deploy_component.sh --prod vaultwarden
-./scripts/deploy_component.sh --prod homepage
+./scripts/deploy-component.sh --prod bookstack
+./scripts/deploy-component.sh --prod vaultwarden
+./scripts/deploy-component.sh --prod homepage
 
 # Force Redeploy (useful for troubleshooting)
-./scripts/deploy_component.sh --prod traefik --force
+./scripts/deploy-component.sh --prod traefik --force
 
 # List all available components
-./scripts/deploy_component.sh --list
+./scripts/deploy-component.sh --list
 ```
 
 ### 3. LXC Container Management
@@ -57,13 +57,13 @@ Manage standalone LXC containers (separate from K3s):
 
 ```bash
 # Interactive deployment
-./scripts/deploy_lxc.sh
+./scripts/deploy-lxc.sh
 
 # Deploy specific container
-./scripts/deploy_lxc.sh nbn-srv
+./scripts/deploy-lxc.sh nbn-srv
 
 # List available container definitions
-./scripts/deploy_lxc.sh --list
+./scripts/deploy-lxc.sh --list
 ```
 
 ### 4. Context Management
@@ -72,14 +72,14 @@ Manage `kubectl` contexts for multiple clusters:
 
 ```bash
 # Setup/Refresh all contexts
-./scripts/k3s-context-manager.sh setup
+./scripts/helpers/k3s-context-manager.sh setup
 
 # Switch Context
-./scripts/k3s-context-manager.sh switch prod
-./scripts/k3s-context-manager.sh switch test
+./scripts/helpers/k3s-context-manager.sh switch prod
+./scripts/helpers/k3s-context-manager.sh switch test
 
 # List Contexts
-./scripts/k3s-context-manager.sh list
+./scripts/helpers/k3s-context-manager.sh list
 ```
 
 ### 5. Disaster Recovery
@@ -88,16 +88,16 @@ Backup and restore operations powered by Longhorn and NFS:
 
 ```bash
 # List available backups
-./scripts/list_backups.sh
+./scripts/helpers/list-backups.sh
 
 # Full Cluster Restore (Rebuild VMs + Data)
-./scripts/restore_cluster.sh --prod
+./scripts/restore-cluster.sh --prod
 
 # Restore Data Only (to existing cluster)
-./scripts/restore_cluster.sh --prod --restore-only
+./scripts/restore-cluster.sh --prod --restore-only
 
 # Cross-Cluster Restore (Clone Prod Data to Stage)
-./scripts/restore_cluster.sh --stage --from prod
+./scripts/restore-cluster.sh --stage --from prod
 ```
 
 ## 📂 Key Configuration Files

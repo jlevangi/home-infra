@@ -2,9 +2,9 @@
 # Environment Functions Library
 # Provides dynamic environment detection and configuration for K3s scripts
 
-# Get the directory of this script to locate environments.conf
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENVIRONMENTS_CONF="$SCRIPT_DIR/environments.conf"
+# Get the directory of this library to locate environments.conf
+_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENVIRONMENTS_CONF="$_LIB_DIR/environments.conf"
 
 # Colors for output
 RED='\033[0;31m'
@@ -89,41 +89,6 @@ show_available_environments() {
             echo "  $env - $emoji $display_name ($ansible_group)"
         fi
     done
-}
-
-# Parse environment from command line arguments
-# Supports both legacy flags (--prod, --test) and new --env flag
-parse_environment_args() {
-    local args=("$@")
-    local target_env=""
-    local remaining_args=()
-    
-    for arg in "${args[@]}"; do
-        case "$arg" in
-            --prod|--production)
-                target_env="prod"
-                ;;
-            --test)
-                target_env="test"
-                ;;
-            --stage|--staging)
-                target_env="stage"
-                ;;
-            --env=*)
-                target_env="${arg#--env=}"
-                ;;
-            --env)
-                # Next argument should be the environment name
-                # This is handled by the caller
-                ;;
-            *)
-                remaining_args+=("$arg")
-                ;;
-        esac
-    done
-    
-    # Output format: "environment_name remaining_args..."
-    echo "$target_env ${remaining_args[*]}"
 }
 
 # Display environment-specific help section

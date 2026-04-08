@@ -29,7 +29,7 @@ This comprehensive guide documents **production-validated** processes for Longho
 
 ```bash
 # Switch to source cluster
-echo "prod" | ./scripts/k3s-context-manager.sh switch
+echo "prod" | ./scripts/helpers/k3s-context-manager.sh switch
 
 # Scale down application safely
 kubectl scale deployment <app-name> -n <namespace> --replicas=0
@@ -73,7 +73,7 @@ kubectl scale deployment <app-name> -n <namespace> --replicas=1
 
 ```bash
 # Switch to target cluster
-echo "test" | ./scripts/k3s-context-manager.sh switch
+echo "test" | ./scripts/helpers/k3s-context-manager.sh switch
 
 # Ensure applications are deployed (creates fresh PVCs)
 ./deploy_K3s_apps.sh --test
@@ -119,17 +119,17 @@ kubectl wait --for=condition=Ready pod -l app=<app-name> -n <namespace> --timeou
 
 ### Method 2: Automated Scripts (Future-Ready)
 
-**Location:** `/scripts/restore_app_data.sh`, `/scripts/restore_cluster_from_backup.sh`
+**Location:** `/scripts/restore-cluster.sh`
 
 ```bash
 # Single application restore
-./scripts/restore_app_data.sh --app vaultwarden --cluster test
+./scripts/restore-cluster.sh --app vaultwarden --cluster test
 
 # Full cluster disaster recovery
-./scripts/restore_cluster_from_backup.sh --cluster test
+./scripts/restore-cluster.sh --cluster test
 
 # Dry run to preview actions
-./scripts/restore_app_data.sh --app homepage --cluster prod --dry-run
+./scripts/restore-cluster.sh --app homepage --cluster prod --dry-run
 ```
 
 ---
@@ -146,7 +146,7 @@ kubectl exec -n vaultwarden vaultwarden-pod -- tar czf /tmp/vw-backup.tar.gz -C 
 kubectl cp vaultwarden/vaultwarden-pod:/tmp/vw-backup.tar.gz /tmp/vaultwarden-prod-backup.tar.gz
 
 # Test cluster restore
-echo "test" | ./scripts/k3s-context-manager.sh switch
+echo "test" | ./scripts/helpers/k3s-context-manager.sh switch
 kubectl scale deployment vaultwarden -n vaultwarden --replicas=0
 # [Create migration pod and restore data as shown above]
 
@@ -167,7 +167,7 @@ kubectl exec -n homepage homepage-pod -- tar czf /tmp/homepage-backup.tar.gz -C 
 kubectl cp homepage/homepage-pod:/tmp/homepage-backup.tar.gz /tmp/homepage-prod-backup.tar.gz
 
 # Test cluster restore
-echo "test" | ./scripts/k3s-context-manager.sh switch
+echo "test" | ./scripts/helpers/k3s-context-manager.sh switch
 # [Standard migration process]
 
 # Verification
@@ -229,12 +229,12 @@ kubectl get pvc -A > pre-rebuild-storage-inventory.txt
 #### Phase 3: Data Restoration
 ```bash
 # 4. Restore critical application data
-./scripts/restore_app_data.sh --app vaultwarden --cluster prod
-./scripts/restore_app_data.sh --app bookstack --cluster prod
-./scripts/restore_app_data.sh --app homepage --cluster prod
+./scripts/restore-cluster.sh --app vaultwarden --cluster prod
+./scripts/restore-cluster.sh --app bookstack --cluster prod
+./scripts/restore-cluster.sh --app homepage --cluster prod
 
 # OR use full cluster restore
-./scripts/restore_cluster_from_backup.sh --cluster prod
+./scripts/restore-cluster.sh --cluster prod
 ```
 
 #### Phase 4: Validation
@@ -315,9 +315,9 @@ kubectl get volumes -n longhorn-system
 **Solution:**
 ```bash
 # Use the context manager script
-./scripts/k3s-context-manager.sh status
-echo "prod" | ./scripts/k3s-context-manager.sh switch
-echo "test" | ./scripts/k3s-context-manager.sh switch
+./scripts/helpers/k3s-context-manager.sh status
+echo "prod" | ./scripts/helpers/k3s-context-manager.sh switch
+echo "test" | ./scripts/helpers/k3s-context-manager.sh switch
 ```
 
 #### 3. Data Restoration Verification
