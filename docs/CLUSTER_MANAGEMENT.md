@@ -21,21 +21,21 @@ Production changes should follow `docs/PROD_CUTOVER_CHECKLIST.md` before syncing
 
 | Task | Command |
 |------|---------|
-| Deploy Traefik | `./scripts/deploy_component.sh --prod traefik` |
-| Deploy MetalLB | `./scripts/deploy_component.sh --prod metallb` |
-| Deploy Longhorn | `./scripts/deploy_component.sh --prod longhorn` |
-| Deploy ArgoCD | `./scripts/deploy_component.sh --prod argocd` |
-| Deploy single app | `./scripts/deploy_component.sh --prod bookstack` |
-| Force redeploy | `./scripts/deploy_component.sh --prod traefik --force` |
-| Dry run (show commands) | `./scripts/deploy_component.sh --prod traefik --dry-run` |
-| List components | `./scripts/deploy_component.sh --list` |
+| Deploy Traefik | `./scripts/deploy-component.sh --prod traefik` |
+| Deploy MetalLB | `./scripts/deploy-component.sh --prod metallb` |
+| Deploy Longhorn | `./scripts/deploy-component.sh --prod longhorn` |
+| Deploy ArgoCD | `./scripts/deploy-component.sh --prod argocd` |
+| Deploy single app | `./scripts/deploy-component.sh --prod bookstack` |
+| Force redeploy | `./scripts/deploy-component.sh --prod traefik --force` |
+| Dry run (show commands) | `./scripts/deploy-component.sh --prod traefik --dry-run` |
+| List components | `./scripts/deploy-component.sh --list` |
 
 ### Switch Cluster Context
 
 ```bash
-./scripts/k3s-context-manager.sh switch prod
-./scripts/k3s-context-manager.sh switch test
-./scripts/k3s-context-manager.sh switch stage
+./scripts/helpers/k3s-context-manager.sh switch prod
+./scripts/helpers/k3s-context-manager.sh switch test
+./scripts/helpers/k3s-context-manager.sh switch stage
 ```
 
 ### Environment Summary
@@ -56,20 +56,20 @@ The `deploy_component.sh` script provides targeted deployment of individual comp
 
 ```bash
 # Syntax
-./scripts/deploy_component.sh [ENVIRONMENT] COMPONENT [OPTIONS]
+./scripts/deploy-component.sh [ENVIRONMENT] COMPONENT [OPTIONS]
 
 # Infrastructure components
-./scripts/deploy_component.sh --prod traefik
-./scripts/deploy_component.sh --prod metallb
-./scripts/deploy_component.sh --prod longhorn
-./scripts/deploy_component.sh --prod argocd
+./scripts/deploy-component.sh --prod traefik
+./scripts/deploy-component.sh --prod metallb
+./scripts/deploy-component.sh --prod longhorn
+./scripts/deploy-component.sh --prod argocd
 
 # Application components
-./scripts/deploy_component.sh --prod bookstack
-./scripts/deploy_component.sh --prod vaultwarden
-./scripts/deploy_component.sh --prod homepage
-./scripts/deploy_component.sh --prod pocketid
-./scripts/deploy_component.sh --prod plex
+./scripts/deploy-component.sh --prod bookstack
+./scripts/deploy-component.sh --prod vaultwarden
+./scripts/deploy-component.sh --prod homepage
+./scripts/deploy-component.sh --prod pocketid
+./scripts/deploy-component.sh --prod plex
 
 # Options
 --force       # Force redeploy even if already deployed
@@ -149,7 +149,7 @@ kubectl exec -n traefik-system deploy/traefik -- cat /data/acme.json | jq '.lets
 
 **Redeploy:**
 ```bash
-./scripts/deploy_component.sh --prod traefik --force
+./scripts/deploy-component.sh --prod traefik --force
 ```
 
 **Configuration Variables:**
@@ -190,7 +190,7 @@ kubectl get svc -A | grep LoadBalancer
 
 **Redeploy:**
 ```bash
-./scripts/deploy_component.sh --prod metallb --force
+./scripts/deploy-component.sh --prod metallb --force
 ```
 
 ### Longhorn (Distributed Storage)
@@ -224,7 +224,7 @@ kubectl get backuptarget -n longhorn-system
 **Backup Commands:**
 ```bash
 # List available backups
-./scripts/list_backups.sh
+./scripts/helpers/list-backups.sh
 
 # Check recurring jobs
 kubectl get recurringjob -n longhorn-system
@@ -270,7 +270,7 @@ kubectl get crd | grep argoproj
 
 **Redeploy:**
 ```bash
-./scripts/deploy_component.sh --prod argocd --force
+./scripts/deploy-component.sh --prod argocd --force
 ```
 
 **Configuration Variables:**
@@ -431,7 +431,7 @@ kubectl logs -n traefik-system deploy/traefik | grep -i acme
 
 **Force Complete Rebuild:**
 ```bash
-./scripts/deploy_component.sh --prod traefik --force
+./scripts/deploy-component.sh --prod traefik --force
 ```
 
 ### MetalLB Issues
@@ -454,7 +454,7 @@ kubectl get ipaddresspool -n metallb-system
 kubectl get l2advertisement -n metallb-system
 
 # Redeploy MetalLB
-./scripts/deploy_component.sh --prod metallb --force
+./scripts/deploy-component.sh --prod metallb --force
 ```
 
 ### Longhorn Issues
@@ -550,7 +550,7 @@ kubectl delete namespace traefik-system
 kubectl get all -n traefik-system  # Should show nothing
 
 # 4. Redeploy
-./scripts/deploy_component.sh --prod traefik
+./scripts/deploy-component.sh --prod traefik
 ```
 
 ### Emergency: Complete MetalLB Reset
@@ -558,7 +558,7 @@ kubectl get all -n traefik-system  # Should show nothing
 ```bash
 helm uninstall metallb -n metallb-system
 kubectl delete namespace metallb-system
-./scripts/deploy_component.sh --prod metallb
+./scripts/deploy-component.sh --prod metallb
 ```
 
 ### View Rendered Ansible Templates
@@ -606,7 +606,7 @@ Apps are configured via `app_definitions` in `k3s_cluster.yml` and enabled per-e
 Example to deploy only one app to test:
 ```bash
 # Override enabled_apps for single deployment
-./scripts/deploy_component.sh --test bookstack
+./scripts/deploy-component.sh --test bookstack
 ```
 
 ---

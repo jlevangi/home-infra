@@ -186,10 +186,10 @@ vault_cloudflare_dns_api_key: "your-cloudflare-api-token"
 
 ```bash
 # Deploy the cluster with updated configuration
-./scripts/deploy_k3s_cluster.sh --test
+./scripts/deploy-k3s-cluster.sh --test
 
 # Deploy applications with SSL-enabled ingress
-./scripts/deploy_k3s_apps.sh --test
+./scripts/deploy-k3s-apps.sh --test
 ```
 
 ### Step 6: Verify Implementation

@@ -263,10 +263,10 @@ The `docs/` folder contains detailed guides for advanced cluster operations, inc
 #### Quick Setup for Multi-Cluster Management
 ```bash
 # Setup all cluster contexts (production & test)
-./scripts/k3s-context-manager.sh setup
+./scripts/helpers/k3s-context-manager.sh setup
 
 # Add shell functions to your profile
-echo 'source /path/to/home-infra/scripts/k3s-shell-functions.sh' >> ~/.bashrc
+echo 'source /path/to/home-infra/scripts/helpers/k3s-shell-functions.sh' >> ~/.bashrc
 
 # Reload your shell and use convenient commands
 k3s-prod     # Switch to production cluster

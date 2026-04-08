@@ -3,18 +3,18 @@
 # Deploy individual infrastructure components or applications to any cluster
 #
 # Usage:
-#   ./deploy_component.sh --prod traefik        # Deploy Traefik to production
-#   ./deploy_component.sh --test metallb        # Deploy MetalLB to test
-#   ./deploy_component.sh --stage bookstack     # Deploy BookStack to staging
-#   ./deploy_component.sh --prod traefik --force  # Force redeploy
-#   ./deploy_component.sh --list                # List available components
+#   ./deploy-component.sh --prod traefik        # Deploy Traefik to production
+#   ./deploy-component.sh --test metallb        # Deploy MetalLB to test
+#   ./deploy-component.sh --stage bookstack     # Deploy BookStack to staging
+#   ./deploy-component.sh --prod traefik --force  # Force redeploy
+#   ./deploy-component.sh --list                # List available components
 
 # Determine script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Source environment functions
-source "$SCRIPT_DIR/environment-functions.sh"
+source "$SCRIPT_DIR/lib/environment-functions.sh"
 
 # Component definitions (ordered for fresh cluster deployment)
 INFRA_COMPONENTS=("longhorn" "metallb" "traefik" "argocd" "vault")
@@ -242,11 +242,11 @@ fi
 
 # Switch to the appropriate kubectl context
 echo "Switching to $CLUSTER_NAME cluster context..."
-if "$SCRIPT_DIR/k3s-context-manager.sh" switch "$KUBECTL_CONTEXT" 2>/dev/null; then
+if "$SCRIPT_DIR/helpers/k3s-context-manager.sh" switch "$KUBECTL_CONTEXT" 2>/dev/null; then
     echo "Successfully switched to k3s-$KUBECTL_CONTEXT context"
 else
     echo "Warning: Failed to switch kubectl context to $KUBECTL_CONTEXT"
-    echo "   Run '$SCRIPT_DIR/k3s-context-manager.sh setup' if cluster exists"
+    echo "   Run '$SCRIPT_DIR/helpers/k3s-context-manager.sh setup' if cluster exists"
     echo "   Continuing with deployment..."
 fi
 echo ""

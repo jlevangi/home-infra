@@ -15,7 +15,7 @@ The new system uses Kubernetes contexts to manage multiple clusters cleanly, eli
 
 1. **Initial Setup** - Configure all clusters:
    ```bash
-   ./scripts/k3s-context-manager.sh setup
+   ./scripts/helpers/k3s-context-manager.sh setup
    ```
 
 ## Longhorn Storage UI Access
@@ -56,7 +56,7 @@ longhorn_ui_app_url: "http://longhorn.test"
 
 2. **Load Shell Functions** - Add to your `~/.bashrc` or `~/.zshrc`:
    ```bash
-   source /path/to/home-infra/scripts/k3s-shell-functions.sh
+   source /path/to/home-infra/scripts/helpers/k3s-shell-functions.sh
    ```
 
 3. **Switch Between Clusters**:
