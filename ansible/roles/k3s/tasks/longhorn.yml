@@ -157,7 +157,7 @@
       Cluster nodes: {{ groups[cluster_group] | default([]) }}
       Cluster node count: {{ groups[cluster_group] | default([]) | length }}
       Configured replica count: {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}
-      Final replica count: {{ [groups[cluster_group] | default([]) | length, 3] | min }}
+      Final replica count: {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}
 
 - name: Clean up any stuck Helm operations for Longhorn
   ansible.builtin.shell: |
@@ -207,7 +207,13 @@
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm install longhorn longhorn/longhorn \
       --namespace longhorn-system \
       --create-namespace \
+      --set-string global.tolerations[0].key=CriticalAddonsOnly \
+      --set-string global.tolerations[0].operator=Equal \
+      --set-string global.tolerations[0].value=true \
+      --set-string global.tolerations[0].effect=NoExecute \
+      --set-string defaultSettings.taintToleration='CriticalAddonsOnly=true:NoExecute' \
       --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
+      --set defaultSettings.storageReservedPercentageForDefaultDisk={{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }} \
       --set defaultSettings.defaultDataPath="/var/lib/longhorn/" \
       {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}" \
       {% endif %}--wait --timeout=1200s
@@ -224,7 +230,13 @@
   ansible.builtin.shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm upgrade longhorn longhorn/longhorn \
       --namespace longhorn-system \
+      --set-string global.tolerations[0].key=CriticalAddonsOnly \
+      --set-string global.tolerations[0].operator=Equal \
+      --set-string global.tolerations[0].value=true \
+      --set-string global.tolerations[0].effect=NoExecute \
+      --set-string defaultSettings.taintToleration='CriticalAddonsOnly=true:NoExecute' \
       --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
+      --set defaultSettings.storageReservedPercentageForDefaultDisk={{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }} \
       --set defaultSettings.defaultDataPath="/var/lib/longhorn/" \
       {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}" \
       {% endif %}--wait --timeout=600s
@@ -240,15 +252,20 @@
   ansible.builtin.shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm upgrade --install longhorn longhorn/longhorn \
       --namespace longhorn-system \
+      --set-string global.tolerations[0].key=CriticalAddonsOnly \
+      --set-string global.tolerations[0].operator=Equal \
+      --set-string global.tolerations[0].value=true \
+      --set-string global.tolerations[0].effect=NoExecute \
+      --set-string defaultSettings.taintToleration='CriticalAddonsOnly=true:NoExecute' \
       --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
+      --set defaultSettings.storageReservedPercentageForDefaultDisk={{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }} \
       --set defaultSettings.defaultDataPath="/var/lib/longhorn/" \
       {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}" \
       {% endif %}--wait --timeout=1200s --force
   become: yes
-  when: 
+  when:
     - longhorn_namespace_check.rc == 0
     - longhorn_helm_check.rc != 0
-    - (longhorn_pods_check.stdout | default('0') | int) < 10
   register: longhorn_repair_result
 
 # Removed duplicate API readiness check - already done above before Longhorn installation
@@ -312,6 +329,14 @@
   register: setting_update_result
   failed_when: false
 
+- name: Update Longhorn storage reservation setting to match cluster configuration
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch setting storage-reserved-percentage-for-default-disk -n longhorn-system \
+      --type='merge' -p='{"value":"{{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }}"}'
+  become: yes
+  register: storage_reservation_setting_update_result
+  failed_when: false
+
 - name: Display Longhorn setting update result
   debug:
     msg: |
@@ -321,6 +346,11 @@
       {% else %}
       ⚠️  Setting update failed (may not exist yet): {{ setting_update_result.stderr | default('Unknown error') }}
       💡 This is normal for fresh installations - settings will be applied via existing volume updates below
+      {% endif %}
+      {% if storage_reservation_setting_update_result.rc == 0 %}
+      ✅ Successfully updated storage-reserved-percentage-for-default-disk to {{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }}%
+      {% else %}
+      ⚠️  Storage reservation setting update failed (may not exist yet): {{ storage_reservation_setting_update_result.stderr | default('Unknown error') }}
       {% endif %}
 
 - name: Update Longhorn StorageClass ConfigMap to match replica count
