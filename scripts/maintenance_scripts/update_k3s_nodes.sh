@@ -1,1 +1,0 @@
-ansible-playbook ../ansible/playbooks/maintenance/update-k3s-systems.yml -i ../ansible/k3s-inventory -e "auto_reboot=true"

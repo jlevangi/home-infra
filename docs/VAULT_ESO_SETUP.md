@@ -14,7 +14,7 @@ Most of the setup is automated during cluster provisioning via Ansible (Vault in
 Switch to the test cluster and let ArgoCD sync:
 
 ```bash
-./scripts/k3s-context-manager.sh switch test
+./scripts/helpers/k3s-context-manager.sh switch test
 ```
 
 Then sync the new ArgoCD apps via the ArgoCD UI or CLI.

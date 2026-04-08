@@ -7,14 +7,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Source environment functions
-source "$SCRIPT_DIR/environment-functions.sh"
+source "$SCRIPT_DIR/lib/environment-functions.sh"
 
 # Default values
 TARGET_ENV=""
 TARGET_CLUSTER=""
 EXTRA_VARS=""
 VERBOSITY=""
-DEPLOY_APPS="false"
 SHOW_HELP=false
 
 # Parse command line arguments
@@ -43,11 +42,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --env=*)
       TARGET_ENV="${1#--env=}"
-      shift
-      ;;
-    --no-apps)
-      DEPLOY_APPS="false"
-      EXTRA_VARS="$EXTRA_VARS -e deploy_applications=false"
       shift
       ;;
     -v|--verbose)
@@ -84,7 +78,6 @@ if [[ "$SHOW_HELP" == "true" ]] || [[ -z "$TARGET_ENV" ]]; then
   echo ""
   show_environment_help "$0"
   echo "Options:"
-  echo "  --no-apps              Deploy only infrastructure, skip applications"
   echo "  -v, --verbose          Enable verbose output"
   echo "  -vv, -vvv              Enable more verbose output"
   echo "  -q, --quiet            Disable verbose output"
@@ -115,7 +108,7 @@ fi
 
 # Switch to the appropriate kubectl context (non-blocking for initial deployments)
 echo "🔄 Attempting to switch to $CLUSTER_NAME cluster context..."
-if "$SCRIPT_DIR/k3s-context-manager.sh" switch "$KUBECTL_CONTEXT" 2>/dev/null; then
+if "$SCRIPT_DIR/helpers/k3s-context-manager.sh" switch "$KUBECTL_CONTEXT" 2>/dev/null; then
   echo "✅ Successfully switched to k3s-$KUBECTL_CONTEXT context"
 else
   echo "ℹ️  Context k3s-$KUBECTL_CONTEXT not found (expected for initial deployment)"
@@ -126,13 +119,12 @@ echo ""
 echo "$CLUSTER_EMOJI Deploying K3s $CLUSTER_NAME Cluster..."
 echo "📂 Using unified deployment playbook: k3s-deploy-cluster.yml"
 echo "🎯 Target: $CLUSTER_NAME cluster ($TARGET_CLUSTER)"
-echo "📦 Applications: $([ "$DEPLOY_APPS" == "true" ] && echo "Enabled" || echo "Disabled")"
 echo "🔊 Verbosity: $([ -n "$VERBOSITY" ] && echo "$VERBOSITY" || echo "Standard")"
 echo ""
 
 # Pre-deployment kubeconfig setup attempt (for existing clusters)
 echo "🔑 Pre-deployment kubeconfig check..."
-if "$SCRIPT_DIR/k3s-context-manager.sh" setup > /dev/null 2>&1; then
+if "$SCRIPT_DIR/helpers/k3s-context-manager.sh" setup > /dev/null 2>&1; then
   echo "✅ Existing kubeconfig contexts updated"
 else
   echo "ℹ️  No existing clusters found or kubeconfig setup not needed yet"
@@ -180,9 +172,9 @@ if [ $RESULT -eq 0 ]; then
   echo ""
   
   # Setup kubeconfig contexts for the deployed cluster
-  if ! "$SCRIPT_DIR/k3s-context-manager.sh" setup; then
+  if ! "$SCRIPT_DIR/helpers/k3s-context-manager.sh" setup; then
     echo "⚠️  Warning: Kubeconfig setup failed, but cluster deployment succeeded"
-    echo "   You may need to run './scripts/k3s-context-manager.sh setup' manually"
+    echo "   You may need to run './scripts/helpers/k3s-context-manager.sh setup' manually"
   else
     echo "✅ Kubeconfig contexts configured successfully"
   fi

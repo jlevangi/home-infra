@@ -1,0 +1,100 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gatus
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://minicloudlabs.github.io/helm-charts
+    chart: gatus
+    targetRevision: 3.4.1
+    helm:
+      values: |
+        ingress:
+          enabled: true
+          ingressClassName: traefik
+          annotations:
+            traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+          hosts:
+            - host: status.test.levangie.dev
+              paths:
+                - path: /
+                  pathType: Prefix
+
+        persistence:
+          enabled: true
+          storageClassName: longhorn
+          size: 1Gi
+
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+
+        config:
+          storage:
+            type: sqlite
+            path: /data/data.db
+
+          endpoints:
+            - name: ArgoCD
+              group: Infrastructure
+              url: https://argocd.test.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Grafana
+              group: Monitoring
+              url: https://grafana.test.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Prometheus
+              group: Monitoring
+              url: http://prometheus-prometheus.monitoring.svc.cluster.local:9090/-/healthy
+              interval: 2m
+              conditions:
+                - "[STATUS] == 200"
+
+            - name: Bookstack
+              group: Applications
+              url: https://bookstack.test.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Vaultwarden
+              group: Applications
+              url: https://vw.test.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Microbin
+              group: Applications
+              url: https://bin.test.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gatus
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

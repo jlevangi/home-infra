@@ -22,44 +22,44 @@ This is a **home infrastructure automation repository** that provides infrastruc
 ### Cluster Deployment
 ```bash
 # Deploy production cluster
-./scripts/deploy_k3s_cluster.sh --prod
+./scripts/deploy-k3s-cluster.sh --prod
 
 # Deploy test cluster  
-./scripts/deploy_k3s_cluster.sh --test
+./scripts/deploy-k3s-cluster.sh --test
 
 # Deploy staging cluster
-./scripts/deploy_k3s_cluster.sh --stage
+./scripts/deploy-k3s-cluster.sh --stage
 ```
 
 ### Application Deployment
 ```bash
 # Deploy apps to production
-./scripts/deploy_k3s_apps.sh --prod
+./scripts/deploy-k3s-apps.sh --prod
 
 # Deploy apps to test environment
-./scripts/deploy_k3s_apps.sh --test
+./scripts/deploy-k3s-apps.sh --test
 ```
 
 ### Component Deployment
 ```bash
 # Deploy individual infrastructure components
-./scripts/deploy_component.sh --prod traefik
-./scripts/deploy_component.sh --prod metallb
-./scripts/deploy_component.sh --prod longhorn
+./scripts/deploy-component.sh --prod traefik
+./scripts/deploy-component.sh --prod metallb
+./scripts/deploy-component.sh --prod longhorn
 
 # Deploy individual applications
-./scripts/deploy_component.sh --prod bookstack
-./scripts/deploy_component.sh --prod vaultwarden
-./scripts/deploy_component.sh --prod homepage
+./scripts/deploy-component.sh --prod bookstack
+./scripts/deploy-component.sh --prod vaultwarden
+./scripts/deploy-component.sh --prod homepage
 
 # Force redeploy (cleanup and reinstall)
-./scripts/deploy_component.sh --prod traefik --force
+./scripts/deploy-component.sh --prod traefik --force
 
 # Dry run (show commands without executing)
-./scripts/deploy_component.sh --prod traefik --dry-run
+./scripts/deploy-component.sh --prod traefik --dry-run
 
 # List available components
-./scripts/deploy_component.sh --list
+./scripts/deploy-component.sh --list
 ```
 
 For detailed troubleshooting and manual operations, see [docs/CLUSTER_MANAGEMENT.md](docs/CLUSTER_MANAGEMENT.md).
@@ -67,29 +67,29 @@ For detailed troubleshooting and manual operations, see [docs/CLUSTER_MANAGEMENT
 ### Context Management
 ```bash
 # Setup all cluster contexts
-./scripts/k3s-context-manager.sh setup
+./scripts/helpers/k3s-context-manager.sh setup
 
 # Switch between clusters
-./scripts/k3s-context-manager.sh switch prod
-./scripts/k3s-context-manager.sh switch test
+./scripts/helpers/k3s-context-manager.sh switch prod
+./scripts/helpers/k3s-context-manager.sh switch test
 
 # List available contexts
-./scripts/k3s-context-manager.sh list
+./scripts/helpers/k3s-context-manager.sh list
 ```
 
 ### LXC Container Deployment
 ```bash
 # List available container definitions
-./scripts/deploy_lxc.sh --list
+./scripts/deploy-lxc.sh --list
 
 # Deploy a specific container
-./scripts/deploy_lxc.sh nbn-srv
+./scripts/deploy-lxc.sh nbn-srv
 
 # Interactive container selection
-./scripts/deploy_lxc.sh
+./scripts/deploy-lxc.sh
 
 # Deploy with verbose output
-./scripts/deploy_lxc.sh nbn-srv -v
+./scripts/deploy-lxc.sh nbn-srv -v
 ```
 
 ### Terraform Operations
@@ -117,19 +117,19 @@ ansible-playbook -i ansible/inventories/production/hosts.yml ansible/playbooks/k
 ### Backup and Restore
 ```bash
 # List available backups
-./scripts/list_backups.sh
+./scripts/helpers/list-backups.sh
 
 # Full disaster recovery for production
-./scripts/restore_cluster.sh --prod
+./scripts/restore-cluster.sh --prod
 
 # Clone production data to staging
-./scripts/restore_cluster.sh --stage --from prod
+./scripts/restore-cluster.sh --stage --from prod
 
 # Restore data only (no VM rebuild)
-./scripts/restore_cluster.sh --prod --restore-only
+./scripts/restore-cluster.sh --prod --restore-only
 
 # Restore specific app only
-./scripts/restore_cluster.sh --stage --from prod --app bookstack --restore-only
+./scripts/restore-cluster.sh --stage --from prod --app bookstack --restore-only
 ```
 
 ### Vault Management
@@ -180,14 +180,21 @@ ansible-vault view ansible/group_vars/lxc_vault.yml
 │   ├── k3_3node_cluster_test/
 │   └── k3_3node_cluster_stage/
 ├── scripts/                     # Management scripts
-│   ├── deploy_k3s_cluster.sh    # K3s cluster deployment
-│   ├── deploy_k3s_apps.sh       # K3s application deployment
-│   ├── deploy_component.sh      # Single component deployment
-│   ├── deploy_lxc.sh            # LXC container deployment
-│   ├── k3s-context-manager.sh   # Context switching
-│   ├── list_backups.sh          # List Longhorn backups from NFS
-│   ├── restore_cluster.sh       # Disaster recovery script
-│   └── environment-functions.sh # Environment helpers
+│   ├── deploy-k3s-cluster.sh    # K3s cluster deployment
+│   ├── deploy-k3s-apps.sh       # K3s application deployment
+│   ├── deploy-component.sh      # Single component deployment
+│   ├── deploy-lxc.sh            # LXC container deployment
+│   ├── reset-k3s-cluster.sh     # Reset/destroy cluster
+│   ├── rebuild-k3s-cluster.sh   # Terraform rebuild cluster
+│   ├── restore-cluster.sh       # Disaster recovery script
+│   ├── lib/                     # Shared libraries
+│   │   ├── environment-functions.sh
+│   │   └── environments.conf
+│   ├── helpers/                 # Helper utilities
+│   │   ├── k3s-context-manager.sh
+│   │   └── list-backups.sh
+│   └── maintenance/             # Maintenance scripts
+│       └── update-k3s-nodes.sh
 └── docs/                        # Additional documentation
     └── CLUSTER_MANAGEMENT.md    # Operational runbook
 ```
@@ -287,21 +294,21 @@ The restore process uses Longhorn's native backup restoration. Key technical not
 
 ```bash
 # List available backups from NFS
-./scripts/list_backups.sh
-./scripts/list_backups.sh --detailed   # Show individual backup timestamps
-./scripts/list_backups.sh --all        # Show all volume instances
+./scripts/helpers/list-backups.sh
+./scripts/helpers/list-backups.sh --detailed   # Show individual backup timestamps
+./scripts/helpers/list-backups.sh --all        # Show all volume instances
 
 # Full disaster recovery (rebuild VMs + restore data)
-./scripts/restore_cluster.sh --prod
+./scripts/restore-cluster.sh --prod
 
 # Clone production data to staging
-./scripts/restore_cluster.sh --stage --from prod
+./scripts/restore-cluster.sh --stage --from prod
 
 # Restore data only to existing cluster
-./scripts/restore_cluster.sh --prod --restore-only
+./scripts/restore-cluster.sh --prod --restore-only
 
 # Restore specific application
-./scripts/restore_cluster.sh --stage --from prod --app bookstack --restore-only
+./scripts/restore-cluster.sh --stage --from prod --app bookstack --restore-only
 
 # Using Ansible playbook directly
 ansible-playbook -i ansible/inventories/staging/hosts.yml \
@@ -387,7 +394,7 @@ applications:
 ### Adding a New LXC Container
 1. Create a new YAML file in `ansible/lxc_definitions/containers/`
 2. Define container settings (ID, resources, features)
-3. Run `./scripts/deploy_lxc.sh <container-name>`
+3. Run `./scripts/deploy-lxc.sh <container-name>`
 
 ### LXC Vault Variables
 The `ansible/group_vars/lxc_vault.yml` contains:
@@ -400,18 +407,18 @@ The `ansible/group_vars/lxc_vault.yml` contains:
 ## Troubleshooting
 
 ### General Issues
-- **Context issues**: Run `./scripts/k3s-context-manager.sh setup` to refresh contexts
+- **Context issues**: Run `./scripts/helpers/k3s-context-manager.sh setup` to refresh contexts
 - **Vault errors**: Ensure `~/.ansible_vault_pass` contains the correct password
 - **Deployment failures**: Check cluster connectivity and vault credentials
 - **Storage issues**: Verify NFS server accessibility and Longhorn status
 
 ### LXC Issues
-- **LXC template missing**: Run `./scripts/deploy_lxc.sh --template-only` to download template
+- **LXC template missing**: Run `./scripts/deploy-lxc.sh --template-only` to download template
 - **LXC container unreachable**: Check Proxmox console for container IP (DHCP assigned)
 
 ### Backup/Restore Issues
-- **Script won't execute**: Run `dos2unix scripts/list_backups.sh scripts/restore_cluster.sh` (Windows CRLF issue)
-- **Backups showing wrong names**: The list_backups.sh script parses nested JSON in `volume.cfg` - ensure Python3 is available on the cluster node
+- **Script won't execute**: Run `dos2unix scripts/helpers/list-backups.sh scripts/restore-cluster.sh` (Windows CRLF issue)
+- **Backups showing wrong names**: The list-backups.sh script parses nested JSON in `volume.cfg` - ensure Python3 is available on the cluster node
 - **Restore fails with "volume not found"**: Ensure the backup URL uses `nfs://` format, not `s3://`
 - **PVC stuck in Pending after restore**: Check that PV was created with correct `volumeHandle` matching the Longhorn volume name
 - **ArgoCD recreates PVC during manual restore**: ArgoCD's self-heal will immediately recreate deleted PVCs, racing against manual PV/PVC creation. Before deleting or recreating any PVC manually, **always disable ArgoCD auto-sync first**:

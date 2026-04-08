@@ -31,25 +31,25 @@ stage:k3s_cluster_stage:Staging:🎭:stage:-v
 ### Existing Syntax (Backward Compatible)
 ```bash
 # Deploy production cluster
-./scripts/deploy_k3s_cluster.sh --prod
+./scripts/deploy-k3s-cluster.sh --prod
 
 # Deploy test applications
-./scripts/deploy_k3s_apps.sh --test
+./scripts/deploy-k3s-apps.sh --test
 
 # Deploy staging cluster
-./scripts/deploy_k3s_cluster.sh --stage
+./scripts/deploy-k3s-cluster.sh --stage
 ```
 
 ### New Generic Syntax
 ```bash
 # Deploy to any environment
-./scripts/deploy_k3s_cluster.sh --env prod
-./scripts/deploy_k3s_cluster.sh --env test
-./scripts/deploy_k3s_cluster.sh --env stage
+./scripts/deploy-k3s-cluster.sh --env prod
+./scripts/deploy-k3s-cluster.sh --env test
+./scripts/deploy-k3s-cluster.sh --env stage
 
 # Deploy apps to any environment
-./scripts/deploy_k3s_apps.sh --env prod
-./scripts/deploy_k3s_apps.sh --env test
+./scripts/deploy-k3s-apps.sh --env prod
+./scripts/deploy-k3s-apps.sh --env test
 ```
 
 ## Adding New Environments
@@ -94,7 +94,7 @@ To add a new environment (e.g., "dev"):
    ```
 
 4. **Update context manager:**
-   Add dev cluster to `scripts/k3s-context-manager.sh` CLUSTERS array:
+   Add dev cluster to `scripts/helpers/k3s-context-manager.sh` CLUSTERS array:
    ```bash
    CLUSTERS=(
        "prod:172.20.20.101:pierce"
@@ -110,8 +110,8 @@ To add a new environment (e.g., "dev"):
 That's it! The scripts will automatically support the new environment:
 
 ```bash
-./scripts/deploy_k3s_cluster.sh --env dev
-./scripts/deploy_k3s_apps.sh --env dev
+./scripts/deploy-k3s-cluster.sh --env dev
+./scripts/deploy-k3s-apps.sh --env dev
 ```
 
 ## Environment Configuration Fields

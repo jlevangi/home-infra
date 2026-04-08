@@ -233,8 +233,8 @@ rebuild_vms() {
     print_step "Rebuilding VMs for $TARGET_ENV environment..."
 
     # Use the rebuild script if available
-    if [[ -f "$SCRIPT_DIR/rebuild_k3s_cluster.sh" ]]; then
-        "$SCRIPT_DIR/rebuild_k3s_cluster.sh" --$TARGET_ENV --yes
+    if [[ -f "$SCRIPT_DIR/rebuild-k3s-cluster.sh" ]]; then
+        "$SCRIPT_DIR/rebuild-k3s-cluster.sh" --$TARGET_ENV --yes
     else
         # Manual terraform destroy/apply
         local terraform_dir=""
@@ -271,12 +271,12 @@ deploy_k3s() {
 
     print_step "Deploying K3s cluster..."
 
-    "$SCRIPT_DIR/deploy_k3s_cluster.sh" --$TARGET_ENV
+    "$SCRIPT_DIR/deploy-k3s-cluster.sh" --$TARGET_ENV
 }
 
 switch_context() {
     print_step "Switching to $TARGET_ENV cluster context..."
-    "$SCRIPT_DIR/k3s-context-manager.sh" switch $TARGET_ENV
+    "$SCRIPT_DIR/helpers/k3s-context-manager.sh" switch $TARGET_ENV
 }
 
 restore_data() {
@@ -319,7 +319,7 @@ deploy_apps() {
 
     print_step "Deploying applications..."
 
-    "$SCRIPT_DIR/deploy_k3s_apps.sh" --$TARGET_ENV
+    "$SCRIPT_DIR/deploy-k3s-apps.sh" --$TARGET_ENV
 }
 
 verify_cluster() {

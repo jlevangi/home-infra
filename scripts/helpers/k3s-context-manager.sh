@@ -297,7 +297,7 @@ function cleanup_all_known_hosts() {
     
     echo ""
     echo -e "${GREEN}✅ Cleaned up SSH host keys for $cleaned_count cluster(s)${NC}"
-    echo -e "${YELLOW}💡 You can now run './scripts/k3s-context-manager.sh setup' to reconnect to clusters${NC}"
+    echo -e "${YELLOW}💡 You can now run './scripts/helpers/k3s-context-manager.sh setup' to reconnect to clusters${NC}"
 }
 
 # Main script logic
