@@ -152,22 +152,25 @@
       delegate_to: localhost
       become: no
       register: longhorn_manager_count
-      retries: 30
+      retries: 60
       delay: 10
       until: (longhorn_manager_count.stdout | trim | int) >= (expected_node_count | int)
       changed_when: false
 
-    - name: Wait for Longhorn CSI plugin pods to be ready on all nodes
-      shell: >
-        kubectl --context {{ kubectl_context }} get pods -n longhorn-system
-        -l app=longhorn-csi-plugin --no-headers |
-        grep -c 'Running' || true
+    - name: Rolling restart Longhorn CSI plugin DaemonSet
+      command: >
+        kubectl --context {{ kubectl_context }} rollout restart
+        daemonset/longhorn-csi-plugin -n longhorn-system
       delegate_to: localhost
       become: no
-      register: longhorn_csi_count
-      retries: 30
-      delay: 10
-      until: (longhorn_csi_count.stdout | trim | int) >= (expected_node_count | int)
+      changed_when: true
+
+    - name: Wait for Longhorn CSI plugin rollout to complete
+      command: >
+        kubectl --context {{ kubectl_context }} rollout status
+        daemonset/longhorn-csi-plugin -n longhorn-system --timeout=300s
+      delegate_to: localhost
+      become: no
       changed_when: false
 
     - name: Wait for Longhorn CSI sidecars to be healthy
@@ -178,7 +181,7 @@
       delegate_to: localhost
       become: no
       register: unhealthy_csi
-      retries: 30
+      retries: 60
       delay: 10
       until: (unhealthy_csi.stdout | trim | int) == 0
       changed_when: false
