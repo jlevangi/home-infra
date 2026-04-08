@@ -37,4 +37,4 @@ force_redeploy_apps:
 enable_longhorn_backup: false
 
 # ArgoCD tracks the 'stage' branch for staging environment
-argocd_target_revision: "main"
+argocd_target_revision: "stage"
