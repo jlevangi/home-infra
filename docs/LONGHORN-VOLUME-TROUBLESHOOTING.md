@@ -143,6 +143,79 @@ Common causes of read-only filesystem issues:
 - Consider increasing replica count for critical volumes
 - Set up alerts for pod restart counts
 
+## Replica Imbalance On One Node
+
+`replica-auto-balance=best-effort` is not enough by itself to evacuate replicas from an already overloaded node. Longhorn treats the global setting as a default, and existing imbalance may still require either per-volume updates or explicit node eviction.
+
+### Check Current Placement
+
+```bash
+# Show Longhorn nodes and scheduling state
+kubectl get nodes.longhorn.io -n longhorn-system
+
+# Show replica placement for the overloaded node
+kubectl get replicas.longhorn.io -n longhorn-system -o wide | grep node-2
+
+# Show each volume's replica auto-balance mode
+kubectl get volumes.longhorn.io -n longhorn-system \
+  -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.replicaAutoBalance}{"\n"}{end}'
+```
+
+### Apply Auto-Balance To Existing Volumes
+
+If older volumes are still set to `ignored` or `disabled`, patch them explicitly:
+
+```bash
+for volume in $(kubectl get volumes.longhorn.io -n longhorn-system \
+  -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.spec.replicaAutoBalance}{"\n"}{end}' | \
+  awk '$2 != "best-effort" {print $1}'); do
+  kubectl patch volume.longhorn.io "$volume" -n longhorn-system \
+    --type=merge -p '{"spec":{"replicaAutoBalance":"best-effort"}}'
+done
+```
+
+### Evict Replicas From An Overloaded Node
+
+Longhorn's documented way to actively move replicas off a node is to disable scheduling for that node and set `Eviction Requested` to `true`.
+
+```bash
+# Prevent new replicas landing on the node and start eviction
+kubectl patch node.longhorn.io node-2 -n longhorn-system \
+  --type=merge -p '{"spec":{"allowScheduling":false,"evictionRequested":true}}'
+
+# Watch replicas drain from the node
+watch "kubectl get replicas.longhorn.io -n longhorn-system -o wide | grep node-2 || true"
+```
+
+When the node shows `0` replicas left in the Longhorn UI, or the watch output is empty, clear eviction and re-enable scheduling:
+
+```bash
+kubectl patch node.longhorn.io node-2 -n longhorn-system \
+  --type=merge -p '{"spec":{"evictionRequested":false,"allowScheduling":true}}'
+```
+
+### Clean Up An Unused Restore Volume
+
+Before deleting a restore volume, confirm no PV or PVC still points at it:
+
+```bash
+kubectl get pv,pvc -A | grep vaultwarden-restore-20260118b || true
+kubectl get volume.longhorn.io vaultwarden-restore-20260118b -n longhorn-system \
+  -o jsonpath='{.status.state}{"\n"}'
+```
+
+If nothing references it and the volume is detached, delete it:
+
+```bash
+kubectl delete volume.longhorn.io vaultwarden-restore-20260118b -n longhorn-system
+```
+
+### Notes
+
+- Auto-balance only works on `Healthy` volumes. Detached or unhealthy volumes require manual intervention.
+- Node eviction preserves redundancy by moving one replica per volume at a time.
+- Longhorn orphan cleanup settings cover orphaned data and instances, not intentionally created but now-unused volumes.
+
 ## Related Documentation
 
 - [LONGHORN-BACKUP-MIGRATION.md](LONGHORN-BACKUP-MIGRATION.md)
