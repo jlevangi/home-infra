@@ -33,9 +33,9 @@ spec:
               name: rcon
           env:
             - name: LOAD_LATEST_SAVE
-              value: "false"
+              value: "true"
             - name: GENERATE_NEW_SAVE
-              value: "false"
+              value: "true"
             - name: SAVE_NAME
               value: "squidboi"
             - name: DLC_SPACE_AGE
