@@ -402,6 +402,18 @@
       - vault_microbin_admin_password is defined
     no_log: true
 
+  - name: Seed Monitoring secrets
+    shell: |
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- vault kv put {{ vault_kv_path }}/{{ cluster_environment }}/monitoring \
+        admin-user='{{ vault_grafana_admin_username | default("admin") }}' \
+        admin-password='{{ vault_grafana_admin_password }}'
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+      - not (vault_sealed | default(true))
+      - vault_grafana_admin_password is defined
+    no_log: true
+
   - name: Display Vault installation results
     debug:
       msg: |
