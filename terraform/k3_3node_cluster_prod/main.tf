@@ -51,7 +51,7 @@ resource "proxmox_vm_qemu" "terraform" {
     type = "host"
   }
   
-  memory = 2048  # Reduced for K3s - can be increased if needed
+  memory = 8192
   scsihw = "virtio-scsi-pci"
   bootdisk = "scsi0"
   
