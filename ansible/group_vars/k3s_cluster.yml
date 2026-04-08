@@ -204,7 +204,7 @@ default_initial_volume_size: "500Mi"
 # -----------------------------------------------------------------------------
 # LONGHORN CONFIGURATION
 # -----------------------------------------------------------------------------
-longhorn_replica_count: "{{ [groups[cluster_group] | default([]) | length, 3] | min }}"
+longhorn_replica_count: 2
 longhorn_exclude_master_from_storage: false
 longhorn_ui_ingress_enabled: true
 longhorn_ui_app_url: "https://longhorn.{{ environment_domain }}"
