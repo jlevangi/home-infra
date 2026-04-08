@@ -401,5 +401,26 @@
       - not (vault_sealed | default(true))
       - vault_microbin_admin_password is defined
     no_log: true
+
+  - name: Display Vault installation results
+    debug:
+      msg: |
+        Vault Installation Complete!
+
+        Web UI Access:
+        URL: https://vault.{{ environment_domain }}
+
+        Root Token: Run this command to retrieve:
+          kubectl get secret {{ vault_init_secret_name }} -n {{ vault_namespace }} -o jsonpath='{.data.root-token}' | base64 -d; echo
+
+        Unseal Keys: Run this command to retrieve:
+          kubectl get secret {{ vault_init_secret_name }} -n {{ vault_namespace }} -o json | jq -r '.data | to_entries[] | select(.key | startswith("unseal-key")) | "\(.key): \(.value | @base64d)"'
+
+        Note: Save these credentials securely. They are stored in the '{{ vault_init_secret_name }}' secret in the '{{ vault_namespace }}' namespace.
+
+        Verification Commands:
+        kubectl get pods -n {{ vault_namespace }}
+        kubectl exec -n {{ vault_namespace }} {{ vault_pod_name }} -- vault status
+    when: inventory_hostname == groups[master_group][0]
   tags:
     - vault
