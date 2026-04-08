@@ -38,4 +38,4 @@ enable_longhorn_backup: false
 dns_record_ttl: 300
 
 # ArgoCD tracks the 'test' branch for test/development environment
-argocd_target_revision: "main"
+argocd_target_revision: "test"
