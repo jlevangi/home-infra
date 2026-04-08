@@ -226,3 +226,146 @@
     - name: Cluster is healthy
       debug:
         msg: "All {{ expected_node_count }} nodes are Ready, kube-system pods running, Longhorn storage healthy"
+
+- name: Unseal Vault if present and sealed
+  hosts: "{{ target_cluster }}_master"
+  gather_facts: no
+  vars:
+    vault_namespace: "vault"
+    vault_init_secret_name: "vault-init"
+  tasks:
+    - name: Check if Vault pod exists
+      command: >
+        kubectl --context {{ kubectl_context }} get pod
+        -l app.kubernetes.io/name=vault -n {{ vault_namespace }}
+        -o jsonpath='{.items[0].metadata.name}'
+      delegate_to: localhost
+      become: no
+      register: vault_pod_check
+      failed_when: false
+      changed_when: false
+
+    - name: Skip Vault unseal if not deployed
+      debug:
+        msg: "Vault not found in this cluster, skipping unseal"
+      when: vault_pod_check.rc != 0 or vault_pod_check.stdout | length == 0
+
+    - name: Set Vault pod name
+      set_fact:
+        vault_pod_name: "{{ vault_pod_check.stdout }}"
+      when: vault_pod_check.rc == 0 and vault_pod_check.stdout | length > 0
+
+    - name: Wait for Vault pod to be Running
+      shell: >
+        kubectl --context {{ kubectl_context }} get pod {{ vault_pod_name }}
+        -n {{ vault_namespace }} -o jsonpath='{.status.phase}'
+      delegate_to: localhost
+      become: no
+      register: vault_phase
+      retries: 30
+      delay: 10
+      until: vault_phase.stdout == "Running"
+      changed_when: false
+      when: vault_pod_name is defined
+
+    - name: Check Vault seal status
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ vault_pod_name }} -- vault status -format=json
+      delegate_to: localhost
+      become: no
+      register: vault_status_raw
+      failed_when: false
+      changed_when: false
+      when: vault_pod_name is defined
+
+    - name: Parse Vault seal status
+      set_fact:
+        vault_sealed: "{{ (vault_status_raw.stdout | from_json).sealed | default(true) }}"
+      when:
+        - vault_pod_name is defined
+        - vault_status_raw.stdout is defined
+        - vault_status_raw.stdout | length > 0
+
+    - name: Skip unseal if already unsealed
+      debug:
+        msg: "Vault is already unsealed"
+      when:
+        - vault_pod_name is defined
+        - not (vault_sealed | default(true))
+
+    - name: Check if vault-init secret exists
+      command: >
+        kubectl --context {{ kubectl_context }} get secret {{ vault_init_secret_name }}
+        -n {{ vault_namespace }}
+      delegate_to: localhost
+      become: no
+      register: vault_secret_check
+      failed_when: false
+      changed_when: false
+      when:
+        - vault_pod_name is defined
+        - vault_sealed | default(true)
+
+    - name: Read unseal keys from vault-init secret
+      shell: >
+        kubectl --context {{ kubectl_context }} get secret {{ vault_init_secret_name }}
+        -n {{ vault_namespace }} -o json
+      delegate_to: localhost
+      become: no
+      register: vault_init_secret_raw
+      when:
+        - vault_pod_name is defined
+        - vault_sealed | default(true)
+        - vault_secret_check.rc == 0
+      no_log: true
+
+    - name: Parse unseal keys
+      set_fact:
+        vault_unseal_keys:
+          - "{{ (vault_init_secret_raw.stdout | from_json).data['unseal-key-1'] | b64decode }}"
+          - "{{ (vault_init_secret_raw.stdout | from_json).data['unseal-key-2'] | b64decode }}"
+          - "{{ (vault_init_secret_raw.stdout | from_json).data['unseal-key-3'] | b64decode }}"
+      when:
+        - vault_pod_name is defined
+        - vault_sealed | default(true)
+        - vault_init_secret_raw is defined
+        - vault_init_secret_raw.stdout is defined
+      no_log: true
+
+    - name: Unseal Vault
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ vault_pod_name }} -- vault operator unseal '{{ item }}'
+      delegate_to: localhost
+      become: no
+      loop: "{{ vault_unseal_keys }}"
+      when:
+        - vault_pod_name is defined
+        - vault_unseal_keys is defined
+        - vault_sealed | default(true)
+      no_log: true
+
+    - name: Verify Vault is unsealed
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ vault_pod_name }} -- vault status -format=json
+      delegate_to: localhost
+      become: no
+      register: vault_post_unseal
+      retries: 5
+      delay: 5
+      until: vault_post_unseal.rc == 0 and not (vault_post_unseal.stdout | from_json).sealed
+      changed_when: false
+      when:
+        - vault_pod_name is defined
+        - vault_unseal_keys is defined
+
+    - name: Vault unsealed successfully
+      debug:
+        msg: "Vault has been unsealed and is ready"
+      when:
+        - vault_pod_name is defined
+        - vault_post_unseal is defined
+        - vault_post_unseal.rc is defined
+        - vault_post_unseal.rc == 0
