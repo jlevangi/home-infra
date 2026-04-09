@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wallos
+  labels:
+    app.kubernetes.io/name: wallos
+    app.kubernetes.io/managed-by: argocd

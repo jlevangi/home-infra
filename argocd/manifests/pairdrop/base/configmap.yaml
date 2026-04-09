@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pairdrop-config
+  namespace: pairdrop
+data:
+  PUID: "1000"
+  PGID: "1000"
+  WS_FALLBACK: "false"
+  RATE_LIMIT: "false"
+  TZ: "America/New_York"

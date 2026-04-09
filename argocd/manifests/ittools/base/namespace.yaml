@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ittools
+  labels:
+    app.kubernetes.io/name: ittools
+    app.kubernetes.io/managed-by: argocd
