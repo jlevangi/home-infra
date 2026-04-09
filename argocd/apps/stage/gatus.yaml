@@ -63,14 +63,6 @@ spec:
               conditions:
                 - "[STATUS] == 200"
 
-            - name: Bookstack
-              group: Applications
-              url: https://bookstack.stage.levangie.dev
-              interval: 5m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
-
             - name: Vaultwarden
               group: Applications
               url: https://vw.stage.levangie.dev
@@ -103,29 +95,6 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
-            - name: Paperless
-              group: Applications
-              url: https://paperless.stage.levangie.dev
-              interval: 5m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
-
-            - name: Plex
-              group: Applications
-              url: https://plex.stage.levangie.dev
-              interval: 5m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
-
-            - name: Factorio
-              group: Applications
-              url: https://factorio.stage.levangie.dev
-              interval: 5m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
   destination:
     server: https://kubernetes.default.svc
     namespace: gatus
