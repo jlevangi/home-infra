@@ -337,6 +337,22 @@
   register: storage_reservation_setting_update_result
   failed_when: false
 
+- name: Update Longhorn storage reservation setting to match cluster configuration
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch setting storage-reserved-percentage-for-default-disk -n longhorn-system \
+      --type='merge' -p='{"value":"{{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }}"}'
+  become: yes
+  register: storage_reservation_setting_update_result
+  failed_when: false
+
+- name: Update Longhorn replica auto-balance setting
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch setting replica-auto-balance -n longhorn-system \
+      --type='merge' -p='{"value":"{{ longhorn_replica_auto_balance | default("best-effort") }}"}'
+  become: yes
+  register: replica_auto_balance_setting_result
+  failed_when: false
+
 - name: Display Longhorn setting update result
   debug:
     msg: |
@@ -352,11 +368,16 @@
       {% else %}
       ⚠️  Storage reservation setting update failed (may not exist yet): {{ storage_reservation_setting_update_result.stderr | default('Unknown error') }}
       {% endif %}
+      {% if replica_auto_balance_setting_result.rc == 0 %}
+      ✅ Successfully updated replica-auto-balance to {{ longhorn_replica_auto_balance | default('best-effort') }}
+      {% else %}
+      ⚠️  Replica auto-balance setting update failed (may not exist yet): {{ replica_auto_balance_setting_result.stderr | default('Unknown error') }}
+      {% endif %}
 
 - name: Update Longhorn StorageClass ConfigMap to match replica count
   ansible.builtin.shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch configmap longhorn-storageclass -n longhorn-system \
-      --type='merge' -p='{"data":{"storageclass.yaml":"kind: StorageClass\napiVersion: storage.k8s.io/v1\nmetadata:\n  name: longhorn\n  annotations:\n    storageclass.kubernetes.io/is-default-class: \"true\"\nprovisioner: driver.longhorn.io\nallowVolumeExpansion: true\nreclaimPolicy: \"Delete\"\nvolumeBindingMode: Immediate\nparameters:\n  numberOfReplicas: \"{{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}\"\n  staleReplicaTimeout: \"30\"\n  fromBackup: \"\"\n  fsType: \"ext4\"\n  dataLocality: \"disabled\"\n  unmapMarkSnapChainRemoved: \"ignored\"\n  disableRevisionCounter: \"true\"\n  dataEngine: \"v1\"\n  backupTargetName: \"default\"\n"}}'
+      --type='merge' -p='{"data":{"storageclass.yaml":"kind: StorageClass\napiVersion: storage.k8s.io/v1\nmetadata:\n  name: longhorn\n  annotations:\n    storageclass.kubernetes.io/is-default-class: \"true\"\nprovisioner: driver.longhorn.io\nallowVolumeExpansion: true\nreclaimPolicy: \"Delete\"\nvolumeBindingMode: Immediate\nparameters:\n  numberOfReplicas: \"{{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}\"\n  replicaAutoBalance: \"{{ longhorn_replica_auto_balance | default('best-effort') }}\"\n  staleReplicaTimeout: \"30\"\n  fromBackup: \"\"\n  fsType: \"ext4\"\n  dataLocality: \"disabled\"\n  unmapMarkSnapChainRemoved: \"ignored\"\n  disableRevisionCounter: \"true\"\n  dataEngine: \"v1\"\n  backupTargetName: \"default\"\n"}}'
   become: yes
   register: storageclass_configmap_update_result
   failed_when: false
@@ -382,6 +403,7 @@
     volumeBindingMode: Immediate
     parameters:
       numberOfReplicas: "{{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}"
+      replicaAutoBalance: "{{ longhorn_replica_auto_balance | default('best-effort') }}"
       staleReplicaTimeout: "30"
       fromBackup: ""
       fsType: "ext4"
@@ -589,12 +611,34 @@
     - incorrect_replica_volumes is defined
     - incorrect_replica_volumes.stdout_lines | length > 0
 
+- name: Check existing volumes with incorrect replica auto-balance setting
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get volumes -n longhorn-system -o jsonpath='{range .items[*]}{.metadata.name}:{.spec.replicaAutoBalance}{"\n"}{end}' 2>/dev/null | \
+    awk -F: -v target="{{ longhorn_replica_auto_balance | default('best-effort') }}" '$2 != target && NF > 0 {print $1}' || echo ""
+  register: incorrect_replica_auto_balance_volumes
+  become: yes
+  changed_when: false
+  failed_when: false
+  when: volume_count.stdout | int > 0
+
+- name: Update existing volumes to correct replica auto-balance setting
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch volume {{ item }} -n longhorn-system \
+      --type='merge' -p='{"spec":{"replicaAutoBalance":"{{ longhorn_replica_auto_balance | default('best-effort') }}"}}'
+  loop: "{{ incorrect_replica_auto_balance_volumes.stdout_lines }}"
+  become: yes
+  when:
+    - volume_count.stdout | int > 0
+    - incorrect_replica_auto_balance_volumes is defined
+    - incorrect_replica_auto_balance_volumes.stdout_lines | length > 0
+
 - name: Display replica count adjustment status
   debug:
     msg: |
       📊 Longhorn Replica Count Adjustment:
       Target replica count: {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}
       Based on: min({{ groups[cluster_group] | default([]) | length }} cluster nodes, 3)
+      Replica auto-balance target: {{ longhorn_replica_auto_balance | default('best-effort') }}
 
       {% if volume_count.stdout | int == 0 %}
       ℹ️  No existing volumes found - new volumes will use correct replica count
@@ -606,11 +650,21 @@
       {% else %}
       ✅ All volumes already have correct replica count ({{ longhorn_replica_count | default(calculated_replica_count | default(3)) }})
       {% endif %}
+      {% if volume_count.stdout | int == 0 %}
+      ℹ️  No existing volumes found - new volumes will inherit replica auto-balance from the StorageClass
+      {% elif incorrect_replica_auto_balance_volumes is defined and incorrect_replica_auto_balance_volumes.stdout_lines | length > 0 %}
+      ✅ Updated {{ incorrect_replica_auto_balance_volumes.stdout_lines | length }} volume(s) to replica auto-balance={{ longhorn_replica_auto_balance | default('best-effort') }}:
+      {% for volume in incorrect_replica_auto_balance_volumes.stdout_lines %}
+      - {{ volume }}
+      {% endfor %}
+      {% else %}
+      ✅ All volumes already have replica auto-balance={{ longhorn_replica_auto_balance | default('best-effort') }}
+      {% endif %}
 
 - name: Wait for updated volumes to become healthy
   shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get volume {{ item }} -n longhorn-system -o jsonpath='{.status.robustness}' | grep -q 'healthy\|unknown'
-  loop: "{{ incorrect_replica_volumes.stdout_lines }}"
+  loop: "{{ ((incorrect_replica_volumes.stdout_lines | default([])) + (incorrect_replica_auto_balance_volumes.stdout_lines | default([]))) | unique }}"
   become: yes
   register: volume_health_check
   until: volume_health_check.rc == 0
@@ -618,8 +672,7 @@
   delay: 10
   when: 
     - volume_count.stdout | int > 0
-    - incorrect_replica_volumes is defined
-    - incorrect_replica_volumes.stdout_lines | length > 0
+    - ((incorrect_replica_volumes.stdout_lines | default([])) + (incorrect_replica_auto_balance_volumes.stdout_lines | default([]))) | length > 0
   ignore_errors: yes
 
 - name: Patch Longhorn frontend service to NodePort
