@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wallos-config
+  namespace: wallos
+data:
+  TZ: "America/New_York"
