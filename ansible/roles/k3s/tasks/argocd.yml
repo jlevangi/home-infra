@@ -242,6 +242,11 @@
       --dry-run=client -o yaml | kubectl apply -f -
   loop:
     - factorio
+    - ittools
+    - ntfy
+    - pairdrop
+    - wallos
+    - linkding
   when:
     - inventory_hostname == groups[master_group][0]
     - manage_dns_records | default(false)
