@@ -205,6 +205,7 @@ default_initial_volume_size: "500Mi"
 # LONGHORN CONFIGURATION
 # -----------------------------------------------------------------------------
 longhorn_replica_count: 2
+longhorn_replica_auto_balance: "best-effort"
 longhorn_exclude_master_from_storage: false
 longhorn_storage_reserved_percentage_for_default_disk: 5
 longhorn_ui_ingress_enabled: true
