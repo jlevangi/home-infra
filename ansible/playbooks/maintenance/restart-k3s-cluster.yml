@@ -1,0 +1,371 @@
+---
+# Restart a K3s cluster after maintenance shutdown
+#
+# Prerequisites:
+#   - VMs must be running (start from Proxmox UI if they were powered off)
+#
+# Required variables:
+#   target_cluster    - Ansible group name (e.g., k3s_cluster_prod)
+#   kubectl_context   - kubectl context name (e.g., k3s-prod)
+
+- name: Validate required variables
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Assert target_cluster and kubectl_context are defined
+      assert:
+        that:
+          - target_cluster is defined
+          - kubectl_context is defined
+        fail_msg: "Required variables target_cluster and kubectl_context must be set"
+
+    - name: Assert target cluster group exists in inventory
+      assert:
+        that:
+          - target_cluster in groups
+          - groups[target_cluster] | length > 0
+        fail_msg: "Cluster group '{{ target_cluster }}' not found or empty in inventory"
+
+- name: Wait for all nodes to be reachable
+  hosts: "{{ target_cluster }}"
+  gather_facts: no
+  tasks:
+    - name: Wait for SSH connectivity
+      wait_for_connection:
+        delay: 5
+        timeout: 300
+
+    - name: Gather facts
+      setup:
+
+    - name: Node reachable
+      debug:
+        msg: "{{ inventory_hostname }} is online ({{ ansible_host }})"
+
+- name: Start K3s on master node
+  hosts: "{{ target_cluster }}_master"
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: Start k3s service
+      systemd:
+        name: k3s
+        state: started
+
+    - name: Wait for K3s API to be ready
+      command: kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml get nodes
+      register: api_check
+      retries: 30
+      delay: 10
+      until: api_check.rc == 0
+      changed_when: false
+
+    - name: K3s API is ready
+      debug:
+        msg: "K3s API server is responding on {{ inventory_hostname }}"
+
+- name: Start K3s agent on worker nodes
+  hosts: "{{ target_cluster }}_workers"
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: Start k3s-agent service
+      systemd:
+        name: k3s-agent
+        state: started
+
+    - name: Wait for k3s-agent to be active
+      command: systemctl is-active k3s-agent
+      register: agent_status
+      retries: 12
+      delay: 5
+      until: agent_status.rc == 0
+      changed_when: false
+
+    - name: Worker agent started
+      debug:
+        msg: "k3s-agent started on {{ inventory_hostname }}"
+
+- name: Uncordon nodes and verify cluster health
+  hosts: "{{ target_cluster }}_master"
+  gather_facts: no
+  vars:
+    expected_node_count: "{{ groups[target_cluster] | length }}"
+  tasks:
+    - name: Wait for all nodes to register with cluster
+      shell: kubectl --context {{ kubectl_context }} get nodes --no-headers | wc -l
+      delegate_to: localhost
+      become: no
+      register: node_count
+      retries: 30
+      delay: 10
+      until: (node_count.stdout | trim | int) >= (expected_node_count | int)
+      changed_when: false
+
+    - name: Get list of all cluster nodes
+      command: kubectl --context {{ kubectl_context }} get nodes -o jsonpath='{.items[*].metadata.name}'
+      delegate_to: localhost
+      become: no
+      register: node_list
+      changed_when: false
+
+    - name: Set node names
+      set_fact:
+        cluster_nodes: "{{ node_list.stdout.split() }}"
+
+    - name: Uncordon all nodes
+      command: kubectl --context {{ kubectl_context }} uncordon {{ item }}
+      delegate_to: localhost
+      become: no
+      loop: "{{ cluster_nodes }}"
+      changed_when: true
+
+    - name: Wait for all nodes to be Ready
+      shell: >
+        kubectl --context {{ kubectl_context }} get nodes --no-headers |
+        grep -c ' Ready ' || true
+      delegate_to: localhost
+      become: no
+      register: ready_count
+      retries: 30
+      delay: 10
+      until: (ready_count.stdout | trim | int) >= (expected_node_count | int)
+      changed_when: false
+
+    - name: Wait for kube-system pods to be running
+      shell: >
+        kubectl --context {{ kubectl_context }} get pods -n kube-system --no-headers |
+        grep -v -E 'Running|Completed|Terminating' | wc -l
+      delegate_to: localhost
+      become: no
+      register: unhealthy_pods
+      retries: 30
+      delay: 10
+      until: (unhealthy_pods.stdout | trim | int) == 0
+      changed_when: false
+
+    - name: Wait for Longhorn manager pods to be running on all nodes
+      shell: >
+        kubectl --context {{ kubectl_context }} get pods -n longhorn-system
+        -l app=longhorn-manager --no-headers |
+        grep -c 'Running' || true
+      delegate_to: localhost
+      become: no
+      register: longhorn_manager_count
+      retries: 60
+      delay: 10
+      until: (longhorn_manager_count.stdout | trim | int) >= (expected_node_count | int)
+      changed_when: false
+
+    - name: Rolling restart Longhorn CSI plugin DaemonSet
+      command: >
+        kubectl --context {{ kubectl_context }} rollout restart
+        daemonset/longhorn-csi-plugin -n longhorn-system
+      delegate_to: localhost
+      become: no
+      changed_when: true
+
+    - name: Wait for Longhorn CSI plugin rollout to complete
+      command: >
+        kubectl --context {{ kubectl_context }} rollout status
+        daemonset/longhorn-csi-plugin -n longhorn-system --timeout=300s
+      delegate_to: localhost
+      become: no
+      changed_when: false
+
+    - name: Wait for Longhorn CSI sidecars to be healthy
+      shell: >
+        kubectl --context {{ kubectl_context }} get pods -n longhorn-system --no-headers |
+        grep -E 'csi-attacher|csi-provisioner|csi-resizer|csi-snapshotter' |
+        grep -v -E 'Running' | wc -l
+      delegate_to: localhost
+      become: no
+      register: unhealthy_csi
+      retries: 60
+      delay: 10
+      until: (unhealthy_csi.stdout | trim | int) == 0
+      changed_when: false
+
+    - name: Longhorn storage is healthy
+      debug:
+        msg: "Longhorn manager, CSI plugin, and CSI sidecars are all running"
+
+    - name: Get final cluster status
+      command: kubectl --context {{ kubectl_context }} get nodes -o wide
+      delegate_to: localhost
+      become: no
+      register: final_nodes
+      changed_when: false
+
+    - name: Display cluster status
+      debug:
+        msg: "{{ final_nodes.stdout_lines }}"
+
+    - name: Get kube-system pod status
+      command: kubectl --context {{ kubectl_context }} get pods -n kube-system
+      delegate_to: localhost
+      become: no
+      register: system_pods
+      changed_when: false
+
+    - name: Display system pods
+      debug:
+        msg: "{{ system_pods.stdout_lines }}"
+
+    - name: Get Longhorn pod status
+      command: kubectl --context {{ kubectl_context }} get pods -n longhorn-system
+      delegate_to: localhost
+      become: no
+      register: longhorn_pods
+      changed_when: false
+
+    - name: Display Longhorn pods
+      debug:
+        msg: "{{ longhorn_pods.stdout_lines }}"
+
+    - name: Cluster is healthy
+      debug:
+        msg: "All {{ expected_node_count }} nodes are Ready, kube-system pods running, Longhorn storage healthy"
+
+- name: Unseal Vault if present and sealed
+  hosts: "{{ target_cluster }}_master"
+  gather_facts: no
+  vars:
+    vault_namespace: "vault"
+    vault_init_secret_name: "vault-init"
+  tasks:
+    - name: Check if Vault pod exists
+      command: >
+        kubectl --context {{ kubectl_context }} get pod
+        -l app.kubernetes.io/name=vault -n {{ vault_namespace }}
+        -o jsonpath='{.items[0].metadata.name}'
+      delegate_to: localhost
+      become: no
+      register: vault_pod_check
+      failed_when: false
+      changed_when: false
+
+    - name: Skip Vault unseal if not deployed
+      debug:
+        msg: "Vault not found in this cluster, skipping unseal"
+      when: vault_pod_check.rc != 0 or vault_pod_check.stdout | length == 0
+
+    - name: Set Vault pod name
+      set_fact:
+        vault_pod_name: "{{ vault_pod_check.stdout }}"
+      when: vault_pod_check.rc == 0 and vault_pod_check.stdout | length > 0
+
+    - name: Wait for Vault pod to be Running
+      shell: >
+        kubectl --context {{ kubectl_context }} get pod {{ vault_pod_name }}
+        -n {{ vault_namespace }} -o jsonpath='{.status.phase}'
+      delegate_to: localhost
+      become: no
+      register: vault_phase
+      retries: 30
+      delay: 10
+      until: vault_phase.stdout == "Running"
+      changed_when: false
+      when: vault_pod_name is defined
+
+    - name: Check Vault seal status
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ vault_pod_name }} -- vault status -format=json
+      delegate_to: localhost
+      become: no
+      register: vault_status_raw
+      failed_when: false
+      changed_when: false
+      when: vault_pod_name is defined
+
+    - name: Parse Vault seal status
+      set_fact:
+        vault_sealed: "{{ (vault_status_raw.stdout | from_json).sealed | default(true) }}"
+      when:
+        - vault_pod_name is defined
+        - vault_status_raw.stdout is defined
+        - vault_status_raw.stdout | length > 0
+
+    - name: Skip unseal if already unsealed
+      debug:
+        msg: "Vault is already unsealed"
+      when:
+        - vault_pod_name is defined
+        - not (vault_sealed | default(true))
+
+    - name: Check if vault-init secret exists
+      command: >
+        kubectl --context {{ kubectl_context }} get secret {{ vault_init_secret_name }}
+        -n {{ vault_namespace }}
+      delegate_to: localhost
+      become: no
+      register: vault_secret_check
+      failed_when: false
+      changed_when: false
+      when:
+        - vault_pod_name is defined
+        - vault_sealed | default(true)
+
+    - name: Read unseal keys from vault-init secret
+      shell: >
+        kubectl --context {{ kubectl_context }} get secret {{ vault_init_secret_name }}
+        -n {{ vault_namespace }} -o json
+      delegate_to: localhost
+      become: no
+      register: vault_init_secret_raw
+      when:
+        - vault_pod_name is defined
+        - vault_sealed | default(true)
+        - vault_secret_check.rc == 0
+      no_log: true
+
+    - name: Parse unseal keys
+      set_fact:
+        vault_unseal_keys:
+          - "{{ (vault_init_secret_raw.stdout | from_json).data['unseal-key-1'] | b64decode }}"
+          - "{{ (vault_init_secret_raw.stdout | from_json).data['unseal-key-2'] | b64decode }}"
+          - "{{ (vault_init_secret_raw.stdout | from_json).data['unseal-key-3'] | b64decode }}"
+      when:
+        - vault_pod_name is defined
+        - vault_sealed | default(true)
+        - vault_init_secret_raw is defined
+        - vault_init_secret_raw.stdout is defined
+      no_log: true
+
+    - name: Unseal Vault
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ vault_pod_name }} -- vault operator unseal '{{ item }}'
+      delegate_to: localhost
+      become: no
+      loop: "{{ vault_unseal_keys }}"
+      when:
+        - vault_pod_name is defined
+        - vault_unseal_keys is defined
+        - vault_sealed | default(true)
+      no_log: true
+
+    - name: Verify Vault is unsealed
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ vault_pod_name }} -- vault status -format=json
+      delegate_to: localhost
+      become: no
+      register: vault_post_unseal
+      retries: 5
+      delay: 5
+      until: vault_post_unseal.rc == 0 and not (vault_post_unseal.stdout | from_json).sealed
+      changed_when: false
+      when:
+        - vault_pod_name is defined
+        - vault_unseal_keys is defined
+
+    - name: Vault unsealed successfully
+      debug:
+        msg: "Vault has been unsealed and is ready"
+      when:
+        - vault_pod_name is defined
+        - vault_post_unseal is defined
+        - vault_post_unseal.rc is defined
+        - vault_post_unseal.rc == 0
