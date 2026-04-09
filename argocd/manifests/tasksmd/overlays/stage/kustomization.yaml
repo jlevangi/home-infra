@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+patches:
+  - target:
+      kind: Ingress
+      name: tasksmd-ingress
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: "tasksmd.stage.levangie.dev"
+  - target:
+      kind: Job
+      name: tasksmd-dns-record
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env/3/value
+        value: "tasksmd.stage"
+      - op: replace
+        path: /spec/template/spec/containers/0/env/4/value
+        value: "k3s-stage.levangie.dev"
+commonLabels:
+  environment: stage

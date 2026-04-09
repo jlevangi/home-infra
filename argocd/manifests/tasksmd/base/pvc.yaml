@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tasksmd-data-pvc
+  namespace: tasksmd
+  labels:
+    app: tasksmd
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 250Mi
+  storageClassName: longhorn

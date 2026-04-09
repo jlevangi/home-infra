@@ -1,0 +1,57 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+patches:
+  - target:
+      kind: PersistentVolumeClaim
+      name: tasksmd-data-pvc
+    patch: |
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: "100Mi"
+  - target:
+      kind: ResourceQuota
+      name: tasksmd-storage-quota
+    patch: |
+      - op: replace
+        path: /spec/hard/requests.storage
+        value: "100Mi"
+      - op: replace
+        path: /spec/hard/longhorn.io~1requests.storage
+        value: "100Mi"
+  - target:
+      kind: LimitRange
+      name: tasksmd-storage-limits
+    patch: |
+      - op: replace
+        path: /spec/limits/0/max/storage
+        value: "100Mi"
+      - op: replace
+        path: /spec/limits/0/default/storage
+        value: "100Mi"
+      - op: replace
+        path: /spec/limits/0/defaultRequest/storage
+        value: "100Mi"
+  - target:
+      kind: Ingress
+      name: tasksmd-ingress
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: "tasksmd.test.levangie.dev"
+  - target:
+      kind: Job
+      name: tasksmd-dns-record
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env/3/value
+        value: "tasksmd.test"
+      - op: replace
+        path: /spec/template/spec/containers/0/env/4/value
+        value: "k3s-test.levangie.dev"
+      - op: replace
+        path: /spec/template/spec/containers/0/env/5/value
+        value: "300"
+commonLabels:
+  environment: test

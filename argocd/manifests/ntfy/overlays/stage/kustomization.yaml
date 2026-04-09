@@ -1,0 +1,31 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+patches:
+  - target:
+      kind: ConfigMap
+      name: ntfy-config
+    patch: |
+      - op: replace
+        path: /data/NTFY_BASE_URL
+        value: "https://ntfy.stage.levangie.dev"
+  - target:
+      kind: Ingress
+      name: ntfy-ingress
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: "ntfy.stage.levangie.dev"
+  - target:
+      kind: Job
+      name: ntfy-dns-record
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env/3/value
+        value: "ntfy.stage"
+      - op: replace
+        path: /spec/template/spec/containers/0/env/4/value
+        value: "k3s-stage.levangie.dev"
+commonLabels:
+  environment: stage

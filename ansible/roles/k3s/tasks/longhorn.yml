@@ -337,14 +337,6 @@
   register: storage_reservation_setting_update_result
   failed_when: false
 
-- name: Update Longhorn storage reservation setting to match cluster configuration
-  ansible.builtin.shell: |
-    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch setting storage-reserved-percentage-for-default-disk -n longhorn-system \
-      --type='merge' -p='{"value":"{{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }}"}'
-  become: yes
-  register: storage_reservation_setting_update_result
-  failed_when: false
-
 - name: Update Longhorn replica auto-balance setting
   ansible.builtin.shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch setting replica-auto-balance -n longhorn-system \

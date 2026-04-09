@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pairdrop
+  namespace: pairdrop
+  labels:
+    app: pairdrop
+    app.kubernetes.io/name: pairdrop
+spec:
+  type: ClusterIP
+  selector:
+    app: pairdrop
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      protocol: TCP

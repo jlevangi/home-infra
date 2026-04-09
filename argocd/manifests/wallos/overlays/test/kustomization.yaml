@@ -1,0 +1,57 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+patches:
+  - target:
+      kind: PersistentVolumeClaim
+      name: wallos-data-pvc
+    patch: |
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: "250Mi"
+  - target:
+      kind: ResourceQuota
+      name: wallos-storage-quota
+    patch: |
+      - op: replace
+        path: /spec/hard/requests.storage
+        value: "250Mi"
+      - op: replace
+        path: /spec/hard/longhorn.io~1requests.storage
+        value: "250Mi"
+  - target:
+      kind: LimitRange
+      name: wallos-storage-limits
+    patch: |
+      - op: replace
+        path: /spec/limits/0/max/storage
+        value: "250Mi"
+      - op: replace
+        path: /spec/limits/0/default/storage
+        value: "250Mi"
+      - op: replace
+        path: /spec/limits/0/defaultRequest/storage
+        value: "250Mi"
+  - target:
+      kind: Ingress
+      name: wallos-ingress
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: "wallos.test.levangie.dev"
+  - target:
+      kind: Job
+      name: wallos-dns-record
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env/3/value
+        value: "wallos.test"
+      - op: replace
+        path: /spec/template/spec/containers/0/env/4/value
+        value: "k3s-test.levangie.dev"
+      - op: replace
+        path: /spec/template/spec/containers/0/env/5/value
+        value: "300"
+commonLabels:
+  environment: test
