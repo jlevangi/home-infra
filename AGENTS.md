@@ -226,6 +226,7 @@ Applications are configured using a two-layer approach:
 
 1. **Base config** (`k3s_cluster.yml`): Contains `app_definitions` with full app configurations
 2. **Environment overrides** (`k3s_cluster_{env}.yml`): Contains `enabled_apps` list and overrides
+3. **ArgoCD environment paths** (`argocd/apps/{prod,stage,test}`): Control which Application objects each cluster reconciles from `main`
 
 ```yaml
 # Base config - app_definitions (full configs, no deploy flags)
@@ -256,6 +257,22 @@ Available applications:
 - **Homepage**: Dashboard
 - **PocketID**: Identity provider
 - **Plex**: Media server (Helm-based)
+
+### ArgoCD Branching Model
+
+All clusters reconcile from the `main` branch. Environment separation is path-based, not branch-based:
+
+| Environment | Root App | Git Path | Git Branch |
+|-------------|----------|----------|------------|
+| **Prod** | `root-prod` | `argocd/apps/prod` | `main` |
+| **Stage** | `root-stage` | `argocd/apps/stage` | `main` |
+| **Test** | `root-test` | `argocd/apps/test` | `main` |
+
+Operational guidance:
+- Make environment-specific app enablement changes under `argocd/apps/<env>`
+- Make shared manifest changes under `argocd/manifests/**`
+- Do not use `stage` or `test` as promotion branches
+- If `stage` and `test` branches are retained, keep them fast-forwarded to `main`
 
 ## Backup and Restore Strategy
 
@@ -345,10 +362,10 @@ Required vault variables are documented in `REQUIRED_VAULT_CREDENTIALS.md`.
 
 1. **Infrastructure Changes**: Modify Terraform configurations in environment-specific directories
 2. **Configuration Changes**: Update Ansible group_vars files for each environment
-3. **Application Changes**: Modify Ansible roles in `ansible/roles/k3s-apps/`
+3. **Application Changes**: Update ArgoCD manifests under `argocd/apps/<env>` and `argocd/manifests/**`
 4. **Secrets Management**: Use `ansible-vault edit` for sensitive data
-5. **Testing**: Deploy to test environment first using `--test` flag
-6. **Production**: Deploy to production using `--prod` flag after testing
+5. **Validation**: Test in stage or test first, depending on risk and cluster availability
+6. **Production**: Promote by committing to `main` and syncing only the intended prod apps
 
 ## Important Notes
 
@@ -421,6 +438,7 @@ The `ansible/group_vars/lxc_vault.yml` contains:
 - **Backups showing wrong names**: The list-backups.sh script parses nested JSON in `volume.cfg` - ensure Python3 is available on the cluster node
 - **Restore fails with "volume not found"**: Ensure the backup URL uses `nfs://` format, not `s3://`
 - **PVC stuck in Pending after restore**: Check that PV was created with correct `volumeHandle` matching the Longhorn volume name
+- **Backup creation fails with "backup target default is not available"**: Check `backuptarget/default` in `longhorn-system`; if the URL is empty, patch it to `nfs://172.20.20.5:/volume1/k3s-storage/longhorn/shared`
 - **ArgoCD recreates PVC during manual restore**: ArgoCD's self-heal will immediately recreate deleted PVCs, racing against manual PV/PVC creation. Before deleting or recreating any PVC manually, **always disable ArgoCD auto-sync first**:
   ```bash
   # Disable auto-sync (prevents self-heal from recreating objects)
@@ -434,4 +452,5 @@ The `ansible/group_vars/lxc_vault.yml` contains:
     -p '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'
   ```
   Note: `--type=merge -p '{"spec":{"syncPolicy":{"automated":null}}}'` does NOT work to remove the automated block; use the JSON patch `remove` operation instead.
+- **ArgoCD reports immutable PVC drift after restore**: Add the restored `spec.volumeName` to the target overlay so desired state matches the live PVC, then hard-refresh the Application
 - **Multiple clusters creating backups**: Only prod should have `enable_longhorn_backup: true`; stage/test should have it set to `false` (this auto-deletes RecurringJobs)

@@ -46,6 +46,22 @@ Production changes should follow `docs/PROD_CUTOVER_CHECKLIST.md` before syncing
 | stage | 172.20.20.111-113 | 172.20.20.211 | stage.levangie.dev |
 | test | 172.20.20.121-123 | 172.20.20.230 | test.levangie.dev |
 
+### ArgoCD Source Of Truth
+
+All clusters now track the `main` branch. Environment separation is done by ArgoCD path:
+
+| Cluster | Root App | Path | Branch |
+|---------|----------|------|--------|
+| prod | `root-prod` | `argocd/apps/prod` | `main` |
+| stage | `root-stage` | `argocd/apps/stage` | `main` |
+| test | `root-test` | `argocd/apps/test` | `main` |
+
+Operational rules:
+- Make environment-specific app list changes in `argocd/apps/<env>`.
+- Make shared manifest changes in `argocd/manifests/**`.
+- Commit to `main` first; do not use `test` or `stage` as promotion branches.
+- If `test` and `stage` branches are retained, keep them fast-forwarded to `main`.
+
 ---
 
 ## Component Deployment
@@ -268,6 +284,21 @@ kubectl get applications -A
 kubectl get crd | grep argoproj
 ```
 
+**Environment Mapping:**
+```bash
+kubectl --context k3s-prod get application root-prod -n argocd \
+  -o jsonpath='{.spec.source.targetRevision}{" "}{.spec.source.path}{"\n"}'
+kubectl --context k3s-stage get application root-stage -n argocd \
+  -o jsonpath='{.spec.source.targetRevision}{" "}{.spec.source.path}{"\n"}'
+kubectl --context k3s-test get application root-test -n argocd \
+  -o jsonpath='{.spec.source.targetRevision}{" "}{.spec.source.path}{"\n"}'
+```
+
+Expected output:
+- prod: `main argocd/apps/prod`
+- stage: `main argocd/apps/stage`
+- test: `main argocd/apps/test`
+
 **Redeploy:**
 ```bash
 ./scripts/deploy-component.sh --prod argocd --force
@@ -481,6 +512,22 @@ kubectl port-forward -n longhorn-system svc/longhorn-frontend 8080:80
 # Open http://localhost:8080 and check volume health
 ```
 
+**Problem: Backup creation fails with `backup target default is not available`**
+```bash
+# Check shared backup target health
+kubectl get backuptarget default -n longhorn-system -o yaml
+
+# Expected shared target URL
+kubectl get backuptarget default -n longhorn-system \
+  -o jsonpath='{.spec.backupTargetURL}{"\n"}'
+```
+
+If the target URL is empty, patch it before creating backups:
+```bash
+kubectl patch backuptarget default -n longhorn-system --type=merge \
+  -p '{"spec":{"backupTargetURL":"nfs://172.20.20.5:/volume1/k3s-storage/longhorn/shared"}}'
+```
+
 ### Application Issues
 
 **Problem: App not accessible via ingress**
@@ -509,9 +556,36 @@ kubectl logs -n <namespace> deploy/<deployment> --previous
 kubectl get pvc -n <namespace>
 ```
 
+**Problem: `dns-record` hook pods are in `CreateContainerConfigError`**
+```bash
+# Confirm the Technitium secret exists in the app namespace
+kubectl get secret technitium-api-credentials -n <namespace>
+
+# If the secret only exists in argocd, copy it into the app namespace
+kubectl get secret technitium-api-credentials -n argocd -o yaml \
+  | sed "s/namespace: argocd/namespace: <namespace>/" \
+  | kubectl apply -f -
+```
+
+Apps that create per-namespace DNS jobs need the secret in the application namespace, not only in `argocd`.
+
 ---
 
 ## Manual Operations
+
+### Stateful Cross-Cluster Migration
+
+Use this workflow when promoting a Longhorn-backed app from one cluster to another.
+
+1. Freeze GitOps for the root app and the affected child apps.
+2. Scale the source deployment down and wait for pods to stop.
+3. Create Longhorn snapshots and backups from the source PVCs.
+4. On the target cluster, freeze the same apps, scale them down, and delete the target PVCs if they are being replaced.
+5. Restore with a Longhorn `Volume` using `fromBackup`, then create a PV and PVC bound with `volumeName`.
+6. If ArgoCD reports immutable PVC drift after restore, patch the target overlay so the desired PVC includes the restored `volumeName`.
+7. Scale workloads back up, re-enable automated sync, then hard-refresh the affected ArgoCD apps.
+
+For the full validated procedure, see [LONGHORN-BACKUP-MIGRATION.md](/mnt/c/Users/pierc/git/home-infra/docs/LONGHORN-BACKUP-MIGRATION.md).
 
 ### Direct Helm Commands
 
