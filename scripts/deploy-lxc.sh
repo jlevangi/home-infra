@@ -245,13 +245,14 @@ echo ""
 "${ANSIBLE_CMD[@]}"
 
 RESULT=$?
+DEFAULT_LXC_SSH_USER="${LXC_PRIMARY_USER:-${USER:-ansible}}"
 
 echo ""
 if [[ $RESULT -eq 0 ]]; then
   print_success "Container deployment complete!"
   echo ""
   print_info "To connect to your container:"
-  echo "  ssh pierce@<container-ip>"
+  echo "  ssh ${DEFAULT_LXC_SSH_USER}@<container-ip>"
   echo "  ssh ansible@<container-ip>"
 else
   print_error "Container deployment failed (exit code: $RESULT)"

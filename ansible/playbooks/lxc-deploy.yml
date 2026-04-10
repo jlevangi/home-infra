@@ -126,6 +126,6 @@
           Docker: {{ 'Installed' if container.applications.docker_installed | default(false) else 'Not installed' }}
 
           SSH access:
-            ssh pierce@{{ ansible_host }}
+            ssh {{ lxc_primary_user }}@{{ ansible_host }}
             ssh ansible@{{ ansible_host }}
           ============================================

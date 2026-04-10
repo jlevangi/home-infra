@@ -140,8 +140,8 @@ get_inventory_path() {
             echo "$project_root/ansible/inventories/staging/hosts.yml"
             ;;
         *)
-            # Fallback to old inventory for any custom environments
-            echo "$project_root/ansible/k3s-inventory"
+            echo -e "${RED}❌ Error: No inventory defined for environment '$env_name'${NC}" >&2
+            return 1
             ;;
     esac
 }

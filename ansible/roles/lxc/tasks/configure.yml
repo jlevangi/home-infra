@@ -66,14 +66,16 @@
     mode: '0440'
     validate: 'visudo -cf %s'
 
-- name: Configure sudo for pierce user
+- name: Configure passwordless sudo for LXC users
   ansible.builtin.copy:
-    content: "pierce ALL=(ALL) NOPASSWD: ALL\n"
-    dest: /etc/sudoers.d/pierce
+    content: "{{ item.name }} ALL=(ALL) NOPASSWD: ALL\n"
+    dest: "/etc/sudoers.d/{{ item.name }}"
     owner: root
     group: root
     mode: '0440'
     validate: 'visudo -cf %s'
+  loop: "{{ lxc_users }}"
+  when: item.name != 'ansible' and ('sudo' in (item.groups | default('')))
 
 - name: Set timezone
   community.general.timezone:

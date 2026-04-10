@@ -1,8 +1,8 @@
 ---
 # K3s Cluster Deployment with NFS Authentication
-# 
+#
 # IMPORTANT: This playbook uses Ansible Vault for NFS credentials
-# Run with: ansible-playbook -i k3s-inventory playbooks/k3s-deploy-roles.yml --ask-vault-pass
+# Run with: ansible-playbook -i inventories/test/hosts.yml playbooks/k3s-deploy-roles.yml --ask-vault-pass
 #
 - name: Deploy K3s Test Cluster with Roles
   hosts: k3s_test_cluster
@@ -23,8 +23,8 @@
   post_tasks:
     # - name: Automatically setup local kubeconfig
     #   shell: |
-    #     chmod +x /mnt/c/Users/pierc/git/home-infra/setup-local-kubeconfig.sh
-    #     /mnt/c/Users/pierc/git/home-infra/setup-local-kubeconfig.sh
+    #     chmod +x ./setup-local-kubeconfig.sh
+    #     ./setup-local-kubeconfig.sh
     #   delegate_to: localhost
     #   run_once: true
     #   become: no

@@ -86,6 +86,9 @@ nfs-secret.yaml
 *.swo
 *~
 .vim/
+settings.json.bak
+ssh-config-wsl
+ssh-config-windows
 
 # OS files  
 .DS_Store

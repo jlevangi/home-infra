@@ -3,7 +3,7 @@
 # This defines all applications and their settings for the nbn-srv container
 
 # Application user (owns directories and runs services)
-app_user: pierce
+app_user: "{{ lxc_primary_user }}"
 app_user_uid: 1000
 app_user_gid: 1000
 
@@ -13,13 +13,13 @@ website_domain: naturallybynature.com
 
 # Hugo source repository
 hugo_repo: "git@github.com:jlevangi/naturallybynature-website.git"
-hugo_source_path: /home/pierce/hugo/naturallybynature-website
+hugo_source_path: "{{ lxc_primary_user_home }}/hugo/naturallybynature-website"
 
 # Website serve path
 website_serve_path: /srv/naturallybynature.com
 
 # Caddy configuration
-caddy_acme_email: "pierce@levangie.org"
+caddy_acme_email: "admin@levangie.org"
 caddy_basic_auth_user: "kelly"
 # Note: caddy_basic_auth_hash will be set in apps.yml from vault
 
@@ -29,7 +29,7 @@ google_calendar_ics_url: "https://calendar.google.com/calendar/ical/f2421f9f3c03
 # Application directories
 app_directories:
   - name: caddy
-    path: /home/pierce/caddy-nbn
+    path: "{{ lxc_primary_user_home }}/caddy-nbn"
     files:
       - src: caddy/compose.yml.j2
         dest: compose.yml
@@ -47,7 +47,7 @@ app_directories:
     start: true
 
   - name: decap-proxy
-    path: /home/pierce/decap-proxy-nbn
+    path: "{{ lxc_primary_user_home }}/decap-proxy-nbn"
     files:
       - src: decap-proxy/compose.yml.j2
         dest: compose.yml
@@ -55,7 +55,7 @@ app_directories:
     start: true
 
   - name: hugo
-    path: /home/pierce/hugo/naturallybynature-website
+    path: "{{ lxc_primary_user_home }}/hugo/naturallybynature-website"
     git_repo: "git@github.com:jlevangi/naturallybynature-website.git"
     git_branch: master
     files:

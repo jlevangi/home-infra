@@ -43,7 +43,7 @@ sleep 30
 
 echo "🔧 Running Ansible playbook to deploy K3s..."
 cd ../ansible
-ansible-playbook -i k3s-inventory playbooks/k3s-deploy.yml
+ansible-playbook -i inventories/production/hosts.yml playbooks/k3s-deploy.yml
 
 echo "✅ K3s cluster deployment completed!"
 echo ""

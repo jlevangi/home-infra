@@ -5,9 +5,9 @@
 # 
 # Usage examples:
 # Production cluster:
-#   ansible-playbook -i k3s-inventory playbooks/k3s-deploy-cluster.yml --ask-vault-pass
+#   ansible-playbook -i inventories/production/hosts.yml playbooks/k3s-deploy-cluster.yml -e target_cluster=k3s_cluster_prod --ask-vault-pass
 # Test cluster:
-#   ansible-playbook -i k3s-inventory playbooks/k3s-deploy-cluster.yml -e target_cluster=k3s_test_cluster --ask-vault-pass
+#   ansible-playbook -i inventories/test/hosts.yml playbooks/k3s-deploy-cluster.yml -e target_cluster=k3s_cluster_test --ask-vault-pass
 #
 - name: Deploy K3s Cluster with Roles
   hosts: "{{ target_cluster | default('k3s_cluster') }}"
