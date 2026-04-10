@@ -1,3 +1,7 @@
+# Historical Note
+
+This document is archived. It reflects an older cluster-management writeup and may overlap with newer current docs in `docs/operations/` and `docs/recovery/`.
+
 # K3s Cluster Management Runbook
 
 This document provides operational guidance for managing K3s clusters, including component deployment, troubleshooting, and manual operations.
@@ -15,7 +19,7 @@ This document provides operational guidance for managing K3s clusters, including
 ---
 
 ## Quick Reference
-Production changes should follow `docs/PROD_CUTOVER_CHECKLIST.md` before syncing ArgoCD.
+Production changes should follow `docs/recovery/production-cutover-checklist.md` before syncing ArgoCD.
 
 ### Common Operations
 
@@ -585,7 +589,7 @@ Use this workflow when promoting a Longhorn-backed app from one cluster to anoth
 6. If ArgoCD reports immutable PVC drift after restore, patch the target overlay so the desired PVC includes the restored `volumeName`.
 7. Scale workloads back up, re-enable automated sync, then hard-refresh the affected ArgoCD apps.
 
-For the full validated procedure, see [LONGHORN-BACKUP-MIGRATION.md](/mnt/c/Users/pierc/git/home-infra/docs/LONGHORN-BACKUP-MIGRATION.md).
+For the current validated procedure, see [backup-and-restore.md](../recovery/backup-and-restore.md).
 
 ### Direct Helm Commands
 
@@ -687,6 +691,6 @@ Example to deploy only one app to test:
 
 ## See Also
 
-- [CLAUDE.md](/CLAUDE.md) - Repository overview and common commands
-- [K3S-CLUSTER-MANAGEMENT.md](/docs/K3S-CLUSTER-MANAGEMENT.md) - Context switching details
-- [LONGHORN-BACKUP-MIGRATION.md](/docs/LONGHORN-BACKUP-MIGRATION.md) - Backup procedures
+- [CLAUDE.md](/mnt/c/Users/pierc/git/home-infra/CLAUDE.md) - Repository overview and common commands
+- [k3s-context-management-legacy.md](k3s-context-management-legacy.md) - Archived context switching details
+- [backup-and-restore.md](../recovery/backup-and-restore.md) - Current backup procedures

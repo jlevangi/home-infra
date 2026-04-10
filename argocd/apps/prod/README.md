@@ -6,4 +6,4 @@
 - Keep prod apps aligned with `main` only.
 
 ## Cutover Notes
-- Use `docs/PROD_CUTOVER_CHECKLIST.md` before syncing changes.
+- Use `docs/recovery/production-cutover-checklist.md` before syncing changes.

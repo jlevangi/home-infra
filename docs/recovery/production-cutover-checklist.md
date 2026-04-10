@@ -1,4 +1,6 @@
-## Production Cutover Checklist (Stage -> Prod)
+# Production Cutover Checklist
+
+Use this checklist for controlled stage-to-prod changes. It assumes the current GitOps model where all clusters reconcile from `main` and environment separation is path-based under `argocd/apps/<env>`.
 
 ### Goals
 - Promote stage-validated changes into the prod app set tracked by ArgoCD.
@@ -14,9 +16,9 @@
 ### Current GitOps Model
 - All clusters track the `main` branch.
 - Environment separation is path-based:
-  - prod: `argocd/apps/prod`
-  - stage: `argocd/apps/stage`
-  - test: `argocd/apps/test`
+  - `prod`: `argocd/apps/prod`
+  - `stage`: `argocd/apps/stage`
+  - `test`: `argocd/apps/test`
 - Do not use `stage` or `test` as promotion branches.
 - If those branches are retained, keep them fast-forwarded to `main`.
 
@@ -99,3 +101,9 @@ kubectl --context k3s-prod -n argocd get applications
 - If an app sync causes regressions, revert the relevant commit on `main` and re-sync only the affected prod apps.
 - If a restored PVC was wrong, scale the app down again, remove the manual PV/PVC binding, and recreate the restore from the correct Longhorn backup URL.
 - If ESO or Vault breaks secrets, scale ESO down, fix Vault, then re-enable ESO.
+
+## Related Docs
+
+- [Backup And Restore](backup-and-restore.md)
+- [GitOps And ArgoCD](../operations/gitops-and-argocd.md)
+- [Vault And External Secrets](../reference/vault-and-eso.md)
