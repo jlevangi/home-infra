@@ -1,419 +1,290 @@
-# Longhorn Cross-Cluster Backup & Migration Guide
+# Longhorn Cross-Cluster Backup And Migration Guide
 
-## 📋 Overview
+## Overview
 
-This comprehensive guide documents **production-validated** processes for Longhorn backup, restore, and cross-cluster migration. All procedures have been tested in real-world cluster rebuilds and data migrations.
+This guide documents the current, production-validated workflow for moving stateful applications between clusters with Longhorn. The current pattern is:
 
-### 🏗️ Infrastructure Setup
+1. Deploy manifests from `main` using the environment path under `argocd/apps/<env>`.
+2. Freeze ArgoCD only for the root app and workloads involved in the migration.
+3. Create Longhorn-native backups from the source cluster.
+4. Restore on the target cluster with a Longhorn `Volume` using `fromBackup`.
+5. Bind a PV and PVC manually with `volumeName`.
+6. Re-enable ArgoCD and hard-refresh the affected apps.
 
-**Production Environment:**
-- **Production Cluster:** `k3s_cluster` (172.20.20.101-103)
-- **Test Cluster:** `k3s_cluster_test` (172.20.20.111-113)
-- **Shared Backup Location:** `nfs://172.20.20.5:/volume1/k3s-storage/longhorn/shared`
+## Environment Layout
 
-**Storage Configuration:**
-- **Replica Count:** Dynamic based on worker nodes (`{{ [groups[worker_group] | length, 3] | min }}`)
-- **Backup Target:** Shared NFS location for cross-cluster access
-- **Backup Schedules:** Daily (2 AM), Weekly (Sunday 3 AM)
+- Production cluster: `k3s-prod` (`172.20.20.101-103`)
+- Staging cluster: `k3s-stage` (`172.20.20.111-113`)
+- Test cluster: `k3s-test` (`172.20.20.121-123`)
+- Shared backup location: `nfs://172.20.20.5:/volume1/k3s-storage/longhorn/shared`
 
----
+## GitOps Model
 
-## 🔄 Cross-Cluster Migration Process (Production-Tested)
+All clusters now track `main`. Environment separation is path-based:
 
-### Method 1: Manual Migration (Recommended for Critical Data)
+- prod: `argocd/apps/prod`
+- stage: `argocd/apps/stage`
+- test: `argocd/apps/test`
 
-**Best for:** Vaultwarden, databases, critical configuration files  
-**Tested with:** Vaultwarden (SQLite + configs), Homepage (YAML configs), BookStack (app + database)
+Do not use `stage` or `test` as promotion branches. If those branches remain, keep them fast-forwarded to `main`.
 
-#### Step 1: Create Backup in Source Cluster
+## Recommended Migration Process
 
-```bash
-# Switch to source cluster
-echo "prod" | ./scripts/helpers/k3s-context-manager.sh switch
-
-# Scale down application safely
-kubectl scale deployment <app-name> -n <namespace> --replicas=0
-kubectl wait --for=delete pod -l app=<app-name> -n <namespace> --timeout=300s
-
-# Create backup pod
-kubectl apply -f - <<EOF
-apiVersion: v1
-kind: Pod
-metadata:
-  name: <app-name>-backup-pod
-  namespace: <namespace>
-spec:
-  containers:
-  - name: backup
-    image: busybox:1.35
-    command: ['sleep', '3600']
-    volumeMounts:
-    - name: app-data
-      mountPath: /data
-  volumes:
-  - name: app-data
-    persistentVolumeClaim:
-      claimName: <app-name>-data-pvc
-  restartPolicy: Never
-EOF
-
-# Wait for pod and create backup
-kubectl wait --for=condition=Ready pod/<app-name>-backup-pod -n <namespace> --timeout=300s
-kubectl exec -n <namespace> <app-name>-backup-pod -- tar czf /tmp/<app-name>-backup.tar.gz -C /data .
-
-# Copy backup locally
-kubectl cp <namespace>/<app-name>-backup-pod:/tmp/<app-name>-backup.tar.gz /tmp/<app-name>-backup.tar.gz
-
-# Clean up and restart source application
-kubectl delete pod <app-name>-backup-pod -n <namespace>
-kubectl scale deployment <app-name> -n <namespace> --replicas=1
-```
-
-#### Step 2: Restore to Target Cluster
+### Step 1: Freeze ArgoCD And Quiesce The Source App
 
 ```bash
-# Switch to target cluster
-echo "test" | ./scripts/helpers/k3s-context-manager.sh switch
+kubectl --context k3s-stage patch application root-stage -n argocd --type=json \
+  -p='[{"op":"remove","path":"/spec/syncPolicy/automated"}]'
+kubectl --context k3s-stage patch application linkding -n argocd --type=json \
+  -p='[{"op":"remove","path":"/spec/syncPolicy/automated"}]'
 
-# Ensure applications are deployed (creates fresh PVCs)
-./deploy_K3s_apps.sh --test
-
-# Scale down target application
-kubectl scale deployment <app-name> -n <namespace> --replicas=0
-kubectl wait --for=delete pod -l app=<app-name> -n <namespace> --timeout=300s
-
-# Create restore pod
-kubectl apply -f - <<EOF
-apiVersion: v1
-kind: Pod
-metadata:
-  name: <app-name>-restore-pod
-  namespace: <namespace>
-spec:
-  containers:
-  - name: restore
-    image: busybox:1.35
-    command: ['sleep', '3600']
-    volumeMounts:
-    - name: app-data
-      mountPath: /data
-  volumes:
-  - name: app-data
-    persistentVolumeClaim:
-      claimName: <app-name>-data-pvc
-  restartPolicy: Never
-EOF
-
-# Wait for pod and restore data
-kubectl wait --for=condition=Ready pod/<app-name>-restore-pod -n <namespace> --timeout=300s
-cat /tmp/<app-name>-backup.tar.gz | kubectl exec -n <namespace> <app-name>-restore-pod -i -- tar xzf - -C /data/
-
-# Verify data restoration
-kubectl exec -n <namespace> <app-name>-restore-pod -- ls -la /data/
-
-# Clean up and restart application
-kubectl delete pod <app-name>-restore-pod -n <namespace>
-kubectl scale deployment <app-name> -n <namespace> --replicas=1
-kubectl wait --for=condition=Ready pod -l app=<app-name> -n <namespace> --timeout=300s
+kubectl --context k3s-stage scale deployment linkding -n linkding --replicas=0
+kubectl --context k3s-stage get pvc linkding-data-pvc -n linkding
 ```
 
-### Method 2: Automated Scripts (Future-Ready)
+Freeze the root app plus each stateful child app involved in the migration. Scale the source deployments down before taking a backup.
 
-**Location:** `/scripts/restore-cluster.sh`
+### Step 2: Verify The Shared BackupTarget
 
 ```bash
-# Single application restore
-./scripts/restore-cluster.sh --app vaultwarden --cluster test
-
-# Full cluster disaster recovery
-./scripts/restore-cluster.sh --cluster test
-
-# Dry run to preview actions
-./scripts/restore-cluster.sh --app homepage --cluster prod --dry-run
+kubectl --context k3s-stage get backuptarget default -n longhorn-system -o yaml
+kubectl --context k3s-prod get backuptarget default -n longhorn-system -o yaml
 ```
 
----
+Expected URL:
 
-## 📊 Validated Migration Examples
+```text
+nfs://172.20.20.5:/volume1/k3s-storage/longhorn/shared
+```
 
-### Example 1: Vaultwarden Migration (Production → Test)
-
-**Data Profile:** SQLite database (1.04MB), icon cache, RSA keys (~2.3MB total)
+If the target URL is empty, patch it before creating backups:
 
 ```bash
-# Production backup
-kubectl exec -n vaultwarden vaultwarden-pod -- tar czf /tmp/vw-backup.tar.gz -C /data .
-kubectl cp vaultwarden/vaultwarden-pod:/tmp/vw-backup.tar.gz /tmp/vaultwarden-prod-backup.tar.gz
-
-# Test cluster restore
-echo "test" | ./scripts/helpers/k3s-context-manager.sh switch
-kubectl scale deployment vaultwarden -n vaultwarden --replicas=0
-# [Create migration pod and restore data as shown above]
-
-# Verification
-kubectl exec -n vaultwarden vaultwarden-pod -- ls -la /data/
-# Expected: db.sqlite3, db.sqlite3-wal, icon_cache/, rsa_key.pem
+kubectl --context k3s-stage patch backuptarget default -n longhorn-system --type=merge \
+  -p '{"spec":{"backupTargetURL":"nfs://172.20.20.5:/volume1/k3s-storage/longhorn/shared"}}'
 ```
 
-**Result:** ✅ Complete data integrity, all user accounts and vault data preserved
+### Step 3: Create Longhorn Snapshot And Backup Objects
 
-### Example 2: Homepage Configuration Migration (Production → Test)
-
-**Data Profile:** YAML configurations (services, bookmarks, widgets) ~8KB compressed
+Find the Longhorn volume backing the PVC:
 
 ```bash
-# Production backup
-kubectl exec -n homepage homepage-pod -- tar czf /tmp/homepage-backup.tar.gz -C /app/config .
-kubectl cp homepage/homepage-pod:/tmp/homepage-backup.tar.gz /tmp/homepage-prod-backup.tar.gz
-
-# Test cluster restore
-echo "test" | ./scripts/helpers/k3s-context-manager.sh switch
-# [Standard migration process]
-
-# Verification
-kubectl exec -n homepage homepage-pod -- cat /app/config/services.yaml | head -10
-# Expected: Custom services configuration with Tautulli, Jellyfin, etc.
+kubectl --context k3s-stage get pvc linkding-data-pvc -n linkding \
+  -o jsonpath='{.spec.volumeName}{"\n"}'
 ```
 
-**Result:** ✅ All custom dashboards, widgets, and service configurations preserved
+Create the snapshot and backup resources, then wait until the backup completes. The resulting backup URL format is:
 
-### Example 3: BookStack Database Migration (NFS → Longhorn)
+```text
+nfs://172.20.20.5:/volume1/k3s-storage/longhorn/shared?backup=<backup-name>&volume=<volume-name>
+```
 
-**Data Profile:** Application data (~23MB), MariaDB database (~34MB)
+### Step 4: Freeze The Target App And Replace The PVC
 
 ```bash
-# Backup from NFS hostPath (original production)
-kubectl exec -n bookstack bookstack-pod -- tar czf /tmp/app-backup.tar.gz -C /config .
-kubectl exec -n bookstack mariadb-pod -- mysqldump -u root -p$MYSQL_ROOT_PASSWORD bookstack > /tmp/bookstack-db.sql
+kubectl --context k3s-prod patch application root-prod -n argocd --type=json \
+  -p='[{"op":"remove","path":"/spec/syncPolicy/automated"}]'
+kubectl --context k3s-prod patch application linkding -n argocd --type=json \
+  -p='[{"op":"remove","path":"/spec/syncPolicy/automated"}]'
 
-# Restore to Longhorn volumes (new production)
-# [Standard migration process for both app and database data]
+kubectl --context k3s-prod scale deployment linkding -n linkding --replicas=0
+kubectl --context k3s-prod delete pvc linkding-data-pvc -n linkding
 ```
 
-**Result:** ✅ Complete application migration from NFS to Longhorn, zero data loss
+Only delete the target PVC when you are explicitly replacing it with a restored Longhorn volume.
 
----
+### Step 5: Restore A Longhorn Volume From Backup
 
-## 🚀 Production Cluster Rebuild Process
-
-### Validated Workflow (Complete Infrastructure Replacement)
-
-This process has been successfully tested for full production cluster rebuilds:
-
-#### Phase 1: Pre-Rebuild Preparation
-```bash
-# 1. Ensure all data is backed up to shared location
-kubectl get backupvolumes -n longhorn-system
-kubectl get backups -n longhorn-system
-
-# 2. Create manual backups of critical applications
-# [Follow Method 1 process for each application]
-
-# 3. Document current application versions and configurations
-kubectl get pods -A -o wide > pre-rebuild-pod-inventory.txt
-kubectl get pvc -A > pre-rebuild-storage-inventory.txt
-```
-
-#### Phase 2: Infrastructure Rebuild
-```bash
-# 1. Destroy existing production VMs
-# [VM destruction process - external to this guide]
-
-# 2. Deploy fresh production cluster
-./deploy_k3s_cluster.sh --prod
-
-# 3. Deploy applications with fresh storage
-./deploy_K3s_apps.sh --prod
-```
-
-#### Phase 3: Data Restoration
-```bash
-# 4. Restore critical application data
-./scripts/restore-cluster.sh --app vaultwarden --cluster prod
-./scripts/restore-cluster.sh --app bookstack --cluster prod
-./scripts/restore-cluster.sh --app homepage --cluster prod
-
-# OR use full cluster restore
-./scripts/restore-cluster.sh --cluster prod
-```
-
-#### Phase 4: Validation
-```bash
-# 5. Verify all applications and data
-kubectl get pods -A | grep -E "(vaultwarden|bookstack|homepage)"
-kubectl get pvc -A
-kubectl get volumes -n longhorn-system
-
-# 6. Test application functionality
-# - Login to Vaultwarden and verify vault data
-# - Check BookStack for content and database integrity  
-# - Verify Homepage shows custom configurations
-```
-
-**Rebuild Statistics:**
-- **Time to Complete:** ~30 minutes (infrastructure) + ~15 minutes (data restoration)
-- **Data Loss:** 0% (all data preserved)
-- **Application Downtime:** ~45 minutes total
-- **Success Rate:** 100% (tested multiple times)
-
----
-
-## 🔧 Longhorn Backup Target Configuration
-
-### Shared Backup Location Setup
+Create the Longhorn `Volume` with `fromBackup`:
 
 ```yaml
-# In ansible/group_vars/k3s_cluster.yml and k3s_cluster_test.yml
+apiVersion: longhorn.io/v1beta2
+kind: Volume
+metadata:
+  name: linkding-data-restored
+  namespace: longhorn-system
+spec:
+  accessMode: rwo
+  backupTargetName: default
+  dataEngine: v1
+  fromBackup: "nfs://172.20.20.5:/volume1/k3s-storage/longhorn/shared?backup=<backup-name>&volume=<volume-name>"
+  numberOfReplicas: 2
+  size: "1073741824"
+```
+
+Then create a PV and PVC bound to that restored volume:
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: linkding-data-pv
+spec:
+  accessModes: ["ReadWriteOnce"]
+  capacity:
+    storage: 1Gi
+  csi:
+    driver: driver.longhorn.io
+    fsType: ext4
+    volumeHandle: linkding-data-restored
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: longhorn
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: linkding-data-pvc
+  namespace: linkding
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: longhorn
+  volumeName: linkding-data-pv
+```
+
+### Step 6: Re-Enable Workload And ArgoCD
+
+```bash
+kubectl --context k3s-prod scale deployment linkding -n linkding --replicas=1
+
+kubectl --context k3s-prod patch application linkding -n argocd --type=merge \
+  -p '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'
+kubectl --context k3s-prod patch application root-prod -n argocd --type=merge \
+  -p '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'
+
+kubectl --context k3s-prod annotate application linkding -n argocd \
+  argocd.argoproj.io/refresh=hard --overwrite
+```
+
+If ArgoCD reports immutable PVC drift after restore, patch the target overlay so the desired PVC includes the restored `volumeName`.
+
+## Validated Examples
+
+### File-Level Migration
+
+These older file-copy migrations are still valid for tiny config-only or non-Longhorn cases:
+
+- Vaultwarden: prod -> test
+- Homepage: prod -> test
+- BookStack: NFS -> Longhorn
+
+### Longhorn-Native Migration
+
+This workflow has been validated for:
+
+- linkding: stage -> prod
+- ntfy: stage -> prod
+- wallos: stage -> prod
+
+## Disaster Recovery Commands
+
+```bash
+# Full disaster recovery
+./scripts/restore-cluster.sh --prod
+
+# Clone prod data to stage
+./scripts/restore-cluster.sh --stage --from prod
+
+# Restore data only
+./scripts/restore-cluster.sh --prod --restore-only
+
+# Restore one app only
+./scripts/restore-cluster.sh --stage --from prod --app bookstack --restore-only
+```
+
+## Shared Backup Configuration
+
+Prod normally owns recurring backups:
+
+```yaml
 enable_longhorn_backup: true
 longhorn_backup_shared_across_clusters: true
 nfs_server_ip: "172.20.20.5"
 nfs_share_backup: "/volume1/k3s-storage/longhorn/shared"
-
-# Backup schedules
-longhorn_backup_schedule_daily: "0 2 * * *"    # Production: 2 AM
-longhorn_backup_schedule_daily: "0 1 * * *"    # Test: 1 AM (offset)
-longhorn_backup_schedule_weekly: "0 3 * * 0"   # Production: Sunday 3 AM  
-longhorn_backup_schedule_weekly: "0 2 * * 6"   # Test: Saturday 2 AM
 ```
 
-### Backup Target Validation
+Stage and test normally run with `enable_longhorn_backup: false`. They can still use the shared target for restores and ad hoc migration backups.
+
+Validate the target directly:
 
 ```bash
-# Check backup target status
 kubectl get backuptargets -n longhorn-system
-
-# Expected output:
-# NAME    URL                                                      AVAILABLE   LASTSYNCEDAT
-# default nfs://172.20.20.5:/volume1/k3s-storage/longhorn/shared  true        2025-08-14T20:45:31Z
-
-# View available backups from shared location
 kubectl get backupvolumes -n longhorn-system
 kubectl get backups -n longhorn-system
 ```
 
----
+## Troubleshooting
 
-## 🛠️ Troubleshooting & Best Practices
+### Backup target default is not available
 
-### Common Issues and Solutions
+Symptoms:
+- backup creation is rejected
+- `backup target URL is empty`
 
-#### 1. Longhorn Validation PVC Fails During Deployment
-**Symptoms:** Test PVC stuck in Pending state, "volumes.longhorn.io already exists" errors
-
-**Solution:**
-```bash
-# This is typically a timing issue during cluster startup
-# The deployment continues successfully despite the validation warning
-# Check final cluster status:
-kubectl get pods -A | grep -E "(longhorn|vaultwarden|bookstack|homepage)"
-kubectl get volumes -n longhorn-system
-```
-
-#### 2. Cross-Cluster Context Switching Issues
-**Symptoms:** kubectl commands fail with context errors
-
-**Solution:**
-```bash
-# Use the context manager script
-./scripts/helpers/k3s-context-manager.sh status
-echo "prod" | ./scripts/helpers/k3s-context-manager.sh switch
-echo "test" | ./scripts/helpers/k3s-context-manager.sh switch
-```
-
-#### 3. Data Restoration Verification
-**Always verify data integrity after migration:**
+Fix:
 
 ```bash
-# For Vaultwarden
-kubectl exec -n vaultwarden vaultwarden-pod -- ls -la /data/
-# Expect: db.sqlite3, icon_cache/, rsa_key.pem
+kubectl get backuptarget default -n longhorn-system -o yaml
 
-# For Homepage  
-kubectl exec -n homepage homepage-pod -- head -10 /app/config/services.yaml
-# Expect: Custom service configurations
-
-# For databases
-kubectl exec -n bookstack mariadb-pod -- mysql -u root -p -e "SHOW DATABASES;"
+kubectl patch backuptarget default -n longhorn-system --type=merge \
+  -p '{"spec":{"backupTargetURL":"nfs://172.20.20.5:/volume1/k3s-storage/longhorn/shared"}}'
 ```
 
-### Performance Optimization
+### ArgoCD recreates PVCs during restore
 
-#### Backup Retention Strategy
+Disable auto-sync before deleting or recreating PVCs:
+
 ```bash
-# Production (conservative retention)
-longhorn_backup_retain_daily: 7    # 1 week of daily backups
-longhorn_backup_retain_weekly: 4   # 1 month of weekly backups
-
-# Test (aggressive cleanup)  
-longhorn_backup_retain_daily: 3    # 3 days of daily backups
-longhorn_backup_retain_weekly: 2   # 2 weeks of weekly backups
+kubectl patch application <app-name> -n argocd --type=json \
+  -p '[{"op":"remove","path":"/spec/syncPolicy/automated"}]'
 ```
 
-#### Storage Sizing Best Practices
+Re-enable it when the restore is complete:
+
 ```bash
-# Start small, let Longhorn expand dynamically
-default_initial_volume_size: "500Mi"    # Production
-default_initial_volume_size: "100Mi"    # Test
-
-# Per-application limits
-vaultwarden_default_pvc_size: "5Gi"     # Production  
-vaultwarden_default_pvc_size: "500Mi"   # Test
+kubectl patch application <app-name> -n argocd --type=merge \
+  -p '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'
 ```
 
----
+### ArgoCD stays OutOfSync after PVC restore
 
-## 📋 Migration Checklist
+Symptoms:
+- sync fails on immutable PVC fields
+- restored PVC contains `volumeName` that desired state does not include
+
+Fix:
+- patch the target overlay so the desired PVC includes the restored `volumeName`
+- hard-refresh the affected ArgoCD app
+
+## Migration Checklist
 
 ### Pre-Migration
-- [ ] Verify backup target connectivity on both clusters
-- [ ] Create manual backups of all critical applications  
-- [ ] Document current application configurations
-- [ ] Test restore process on non-critical data
-- [ ] Ensure adequate storage space on target cluster
+- [ ] Confirm source and target root apps both track `main`
+- [ ] Verify the shared backup target on both clusters
+- [ ] Disable ArgoCD auto-sync on the root app and affected child apps
+- [ ] Ensure adequate storage space on the target cluster
+- [ ] Confirm the data to be migrated has been validated on the source cluster
 
 ### During Migration
-- [ ] Scale down applications safely (avoid data corruption)
-- [ ] Use migration pods for reliable data transfer
-- [ ] Verify data integrity at each step
-- [ ] Monitor Longhorn volume health
-- [ ] Keep backup files until migration is validated
+- [ ] Scale down the source workloads cleanly
+- [ ] Create Longhorn-native backups for Longhorn-backed apps
+- [ ] Record the exact backup URLs used for restore
+- [ ] Scale down the target workloads before PVC replacement
+- [ ] Verify restored PV/PVC bindings and Longhorn volume health
 
 ### Post-Migration
-- [ ] Test application functionality thoroughly
-- [ ] Verify user data and configurations are intact
-- [ ] Update DNS/ingress if needed for production cutover
-- [ ] Create new backups in target cluster
-- [ ] Document any configuration changes
-- [ ] Clean up temporary backup files and pods
+- [ ] Scale workloads back up
+- [ ] Re-enable ArgoCD auto-sync on root and child apps
+- [ ] Hard-refresh the affected ArgoCD apps
+- [ ] Verify application functionality and ingress
+- [ ] Document any overlay patches added for restored PVC bindings
 
----
-
-## 🔗 Related Documentation
+## Related Documentation
 
 - [Production Cluster Rebuild Documentation](./LONGHORN-CROSS-CLUSTER-MIGRATION.md)
-- [K3s Cluster Management Guide](./K3S-CLUSTER-MANAGEMENT.md)
+- [K3s Cluster Management Guide](./CLUSTER_MANAGEMENT.md)
 - [Ansible Playbook Documentation](../ansible/README.md)
 
----
-
-## 📊 Migration Success Metrics
-
-**Tested Scenarios:**
-- ✅ **Full production cluster rebuild** (2x tested)
-- ✅ **Individual application migration** (Vaultwarden, Homepage, BookStack)
-- ✅ **Cross-cluster data transfer** (prod ↔ test)  
-- ✅ **Storage backend migration** (NFS hostPath → Longhorn)
-- ✅ **Database migration** (MariaDB with data integrity)
-- ✅ **Configuration preservation** (YAML configs, SQLite databases)
-
-**Performance Metrics:**
-- **Migration Speed:** ~2-5 minutes per application
-- **Data Integrity:** 100% (zero data loss across all tests)
-- **Automation Coverage:** Manual (100% tested) + Scripts (ready for production)
-- **Recovery Time Objective (RTO):** <1 hour for full cluster rebuild
-- **Recovery Point Objective (RPO):** Daily backups (24-hour maximum data loss)
-
----
-
-*Last Updated: August 2025*  
-*All procedures validated in production environment*
+*Last Updated: April 2026*
