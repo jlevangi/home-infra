@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ntfy-data-pvc
+  namespace: ntfy
+spec:
+  volumeName: ntfy-data-pv
