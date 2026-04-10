@@ -280,7 +280,7 @@
 - name: Deploy root ArgoCD application for environment
   shell: |
     export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
-    echo "Deploying root-{{ cluster_environment }} Application tracking {{ argocd_target_revision }} branch..."
+    echo "Deploying root-{{ cluster_environment }} Application from {{ argocd_target_revision }} at argocd/apps/{{ cluster_environment }}..."
     kubectl apply -f - <<'EOF'
     apiVersion: argoproj.io/v1alpha1
     kind: Application
