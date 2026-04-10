@@ -1,4 +1,6 @@
-# Vault + External Secrets Operator (ESO) Setup
+# Vault And External Secrets
+
+Use this document when Vault or External Secrets Operator bootstrap needs to be verified, re-run, or repaired. Most of the workflow is automated during cluster provisioning.
 
 This guide bootstraps HashiCorp Vault (in-cluster) with Kubernetes auth and External Secrets Operator (ESO).
 
@@ -10,22 +12,26 @@ Most of the setup is automated during cluster provisioning via Ansible (Vault in
 - ClusterSecretStore is applied via ArgoCD `external-secrets-config` Application.
 - Vault is running in dev/test mode for internal-only use (TLS disabled in chart values).
 
-## 1) Deploy Vault + ESO (test cluster)
-Switch to the test cluster and let ArgoCD sync:
+## Current Automated Behavior
+
+When `k3s_configure_vault: true`, the Ansible Vault role bootstraps:
+
+- Vault init and unseal
+- Kubernetes auth configuration
+- the External Secrets policy and role
+- seed secrets from Ansible Vault values
+
+The automation stores the Vault root token and unseal keys in the `vault-init` secret in the `vault` namespace. Treat that secret as highly sensitive.
+
+## 1) Deploy Vault + ESO
+
+Switch to the target cluster and let ArgoCD sync:
 
 ```bash
 ./scripts/helpers/k3s-context-manager.sh switch test
 ```
 
 Then sync the new ArgoCD apps via the ArgoCD UI or CLI.
-
-If `k3s_configure_vault: true` (default), Ansible will automatically:
-- Initialize and unseal Vault
-- Enable KV v2 and Kubernetes auth
-- Create the ESO policy and role
-- Seed app secrets from Ansible Vault values
-
-The automation stores the Vault root token and unseal keys in the `vault-init` Secret in the `vault` namespace for future unseals. Treat this Secret as highly sensitive.
 
 ## 2) Manual init/unseal (only if automation is disabled or failed)
 Get the Vault pod name:
@@ -138,3 +144,8 @@ You should see Secrets created with the expected names:
 - `vaultwarden-secrets`
 - `bookstack-secrets`
 - `pocketid-secret`
+
+## Related Docs
+
+- [GitOps And ArgoCD](../operations/gitops-and-argocd.md)
+- [Production Cutover Checklist](../recovery/production-cutover-checklist.md)

@@ -1,3 +1,7 @@
+# Historical Note
+
+This document is archived. It preserves migration history and validated restore examples, but the current operator workflow lives in `docs/recovery/backup-and-restore.md`.
+
 # Longhorn Cross-Cluster Backup And Migration Guide
 
 ## Overview

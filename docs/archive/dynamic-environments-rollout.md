@@ -1,3 +1,7 @@
+# Historical Note
+
+This document is archived. It describes the rollout of dynamic environment support and is useful as implementation history, not as the current operator guide.
+
 # Dynamic Environment Management
 
 Your K3s infrastructure scripts now support dynamic environment management, making it easy to define and manage multiple environments.

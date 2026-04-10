@@ -1,3 +1,7 @@
+# Historical Note
+
+This document is archived. It captures storage migration history and lessons learned from earlier Longhorn cutovers.
+
 # Longhorn Cross-Cluster Data Migration Guide
 
 ## Overview

@@ -122,4 +122,4 @@ Backup and restore operations powered by Longhorn and NFS:
 
 -   **`README.md`**: General project overview and prerequisites.
 -   **`CLAUDE.md`**: Detailed operational guide and command reference (Primary Reference).
--   **`docs/CLUSTER_MANAGEMENT.md`**: In-depth management, troubleshooting, and manual operations.
+-   **`docs/operations/cluster-operations.md`**: Current cluster management, troubleshooting, and operator runbooks.

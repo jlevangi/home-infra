@@ -62,7 +62,7 @@ This is a **home infrastructure automation repository** that provides infrastruc
 ./scripts/deploy-component.sh --list
 ```
 
-For detailed troubleshooting and manual operations, see [docs/CLUSTER_MANAGEMENT.md](docs/CLUSTER_MANAGEMENT.md).
+For detailed troubleshooting and manual operations, see [docs/operations/cluster-operations.md](docs/operations/cluster-operations.md) and [docs/recovery/backup-and-restore.md](docs/recovery/backup-and-restore.md).
 
 ### Context Management
 ```bash

@@ -1,3 +1,7 @@
+# Historical Note
+
+This document is archived. It captures an older context-management guide that has been superseded by the current cluster operations docs.
+
 # K3s Cluster Management
 
 This directory contains an improved K3s cluster management system that supports multiple clusters with proper context switching.

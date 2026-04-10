@@ -1,10 +1,12 @@
-# SSL Certificate Implementation Guide - Traefik with Let's Encrypt
+# Traefik SSL
+
+Use this reference for the current Traefik ACME setup. The repo is configured for cluster-level TLS termination through Traefik with Cloudflare DNS challenge support.
 
 This document outlines the complete implementation of SSL certificates using Traefik with Let's Encrypt ACME and Cloudflare DNS challenge for cluster-level SSL termination.
 
 ## Overview
 
-The implementation enables automatic SSL certificate generation and management at the Kubernetes cluster level, replacing external SSL termination (Caddy) with cluster-internal termination via Traefik.
+The current implementation provides automatic certificate generation and renewal at the cluster level. Traefik handles TLS termination and stores ACME state in persistent storage.
 
 ### Architecture
 
@@ -238,6 +240,11 @@ dnsPolicy: "None"
 dnsConfig:
   nameservers:
   - "1.1.1.1"
+
+## Related Docs
+
+- [Cluster Operations](../operations/cluster-operations.md)
+- [GitOps And ArgoCD](../operations/gitops-and-argocd.md)
   - "8.8.8.8"
 ```
 

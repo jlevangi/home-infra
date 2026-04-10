@@ -1,5 +1,7 @@
 # Longhorn Volume Troubleshooting Guide
 
+Use this document for live Longhorn repair work. For the normal restore workflow, use [Backup And Restore](backup-and-restore.md).
+
 This guide documents common Longhorn volume issues and their resolution steps.
 
 ## Read-Only Filesystem / I/O Errors
@@ -216,7 +218,7 @@ kubectl delete volume.longhorn.io vaultwarden-restore-20260118b -n longhorn-syst
 - Node eviction preserves redundancy by moving one replica per volume at a time.
 - Longhorn orphan cleanup settings cover orphaned data and instances, not intentionally created but now-unused volumes.
 
-## Related Documentation
+## Related Docs
 
-- [LONGHORN-BACKUP-MIGRATION.md](LONGHORN-BACKUP-MIGRATION.md)
-- [LONGHORN-CROSS-CLUSTER-MIGRATION.md](LONGHORN-CROSS-CLUSTER-MIGRATION.md)
+- [Backup And Restore](backup-and-restore.md)
+- [Production Cutover Checklist](production-cutover-checklist.md)
