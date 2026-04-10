@@ -118,12 +118,12 @@ argocd_dex_enabled: false           # SSO/OIDC provider
 argocd_notifications_enabled: false  # Notification controller
 argocd_grpc_ingress_enabled: false  # gRPC ingress for external CLI
 
-# ArgoCD GitOps branch configuration
-# Each environment tracks a different branch for promotion workflow:
-#   test:  test branch (development/testing)
-#   stage: stage branch (pre-production validation)
-#   prod:  main branch (production releases)
-argocd_target_revision: "main"       # Default for prod, override per environment
+# ArgoCD GitOps source configuration
+# All environments track the same Git revision and select their manifests by path:
+#   test:  argocd/apps/test
+#   stage: argocd/apps/stage
+#   prod:  argocd/apps/prod
+argocd_target_revision: "main"
 argocd_deploy_root_app: true         # Deploy root app-of-apps Application
 
 # -----------------------------------------------------------------------------
