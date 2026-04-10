@@ -1,8 +1,8 @@
 ---
 # K3s Cluster Deployment with NFS Authentication
-# 
+#
 # IMPORTANT: This playbook uses Ansible Vault for NFS credentials
-# Run with: ansible-playbook -i k3s-inventory playbooks/k3s-deploy-roles.yml --ask-vault-pass
+# Run with: ansible-playbook -i inventories/production/hosts.yml playbooks/k3s-deploy-roles.yml -e target_cluster=k3s_cluster_prod --ask-vault-pass
 #
 - name: Deploy K3s Cluster Applications
   hosts: "{{ target_cluster | default('k3s_cluster') }}"

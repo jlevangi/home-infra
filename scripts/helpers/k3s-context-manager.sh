@@ -12,10 +12,11 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
+DEFAULT_K3S_SSH_USER="${K3S_SSH_USER:-${USER:-ansible}}"
 CLUSTERS=(
-    "prod:172.20.20.101:pierce"
-    "stage:172.20.20.111:pierce"
-    "test:172.20.20.121:pierce"
+    "prod:172.20.20.101:${DEFAULT_K3S_SSH_USER}"
+    "stage:172.20.20.111:${DEFAULT_K3S_SSH_USER}"
+    "test:172.20.20.121:${DEFAULT_K3S_SSH_USER}"
 )
 
 LOCAL_KUBECONFIG_DIR="$HOME/.kube"
