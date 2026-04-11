@@ -5,6 +5,7 @@
 # Get the directory of this library to locate environments.conf
 _LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENVIRONMENTS_CONF="$_LIB_DIR/environments.conf"
+_PROJECT_ROOT="$(cd "$_LIB_DIR/../.." && pwd)"
 
 # Colors for output
 RED='\033[0;31m'
@@ -12,6 +13,21 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+# Resolve and export ANSIBLE_CONFIG so ansible-playbook picks up the local,
+# gitignored ansible.cfg regardless of the caller's current directory.
+# Exits non-zero if the file is missing so users get a clear message instead
+# of a confusing authentication failure later.
+require_ansible_config() {
+    local cfg="$_PROJECT_ROOT/ansible/ansible.cfg"
+    if [[ ! -f "$cfg" ]]; then
+        echo -e "${RED}❌ Missing $cfg${NC}" >&2
+        echo "   Copy ansible/ansible.cfg.example to ansible/ansible.cfg and" >&2
+        echo "   edit remote_user / private_key_file for your environment." >&2
+        return 1
+    fi
+    export ANSIBLE_CONFIG="$cfg"
+}
 
 # Parse environment configuration and return all available environments
 get_available_environments() {
