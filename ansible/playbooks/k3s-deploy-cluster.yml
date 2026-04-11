@@ -26,6 +26,20 @@
       when: k3s_install_telegraf | default(false)
 
   post_tasks:
+    # Fail loudly if any host dropped out of the play so the completion banner
+    # below only ever runs on a real success. Without this the debug task runs
+    # on the surviving hosts via delegate_to: localhost and prints a
+    # celebratory message even when the master failed mid-role.
+    - name: Fail if any host failed during deployment
+      fail:
+        msg: |
+          K3s deployment FAILED.
+          Failed hosts: {{ ansible_play_hosts_all | difference(ansible_play_hosts) | join(', ') }}
+          Review the task output above for the specific error.
+      when: ansible_play_hosts_all | difference(ansible_play_hosts) | length > 0
+      run_once: true
+      delegate_to: localhost
+
     - name: Display deployment completion message
       debug:
         msg:
