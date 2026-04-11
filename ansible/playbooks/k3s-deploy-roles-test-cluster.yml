@@ -21,15 +21,6 @@
     - ../roles/telegraf
 
   post_tasks:
-    # - name: Automatically setup local kubeconfig
-    #   shell: |
-    #     chmod +x ./setup-local-kubeconfig.sh
-    #     ./setup-local-kubeconfig.sh
-    #   delegate_to: localhost
-    #   run_once: true
-    #   become: no
-    #   ignore_errors: yes
-      
     - name: Display deployment completion message
       debug:
         msg:

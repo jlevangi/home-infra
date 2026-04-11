@@ -12,11 +12,13 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-DEFAULT_K3S_SSH_USER="${K3S_SSH_USER:-${USER:-ansible}}"
+# SSH user must match the cloud-init user provisioned on the VMs (see
+# terraform/<cluster>/terraform.tfvars `ci_user`, default `ansible`). The
+# matching private key is discovered via your ~/.ssh/config or ssh-agent.
 CLUSTERS=(
-    "prod:172.20.20.101:${DEFAULT_K3S_SSH_USER}"
-    "stage:172.20.20.111:${DEFAULT_K3S_SSH_USER}"
-    "test:172.20.20.121:${DEFAULT_K3S_SSH_USER}"
+    "prod:172.20.20.101:ansible"
+    "stage:172.20.20.111:ansible"
+    "test:172.20.20.121:ansible"
 )
 
 LOCAL_KUBECONFIG_DIR="$HOME/.kube"

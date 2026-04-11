@@ -33,6 +33,8 @@ host_vars/*/vault.yml
 ansible/group_vars/*vault.yml
 !ansible/group_vars/*vault.yml.example
 ansible/host_vars/*/vault.yml
+ansible/ansible.cfg
+!ansible/ansible.cfg.example
 ansible/*.log
 ansible/playbook.retry
 temp-inventory*
