@@ -176,13 +176,24 @@
       }}
 
 # Configure CoreDNS to use public DNS servers for external lookups
+# Tight-memory test VMs can cause the k3s API server to flap briefly under
+# load, so wait for port 6443 and retry the kubectl calls instead of letting
+# one unlucky connection-refused fail the whole play.
+- name: Wait for K3s API server to be available before CoreDNS configuration
+  wait_for:
+    port: 6443
+    host: "{{ ansible_default_ipv4.address }}"
+    timeout: 180
+
 - name: Get current CoreDNS Corefile
   shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get configmap coredns -n kube-system -o jsonpath='{.data.Corefile}'
   register: current_corefile
   become: yes
   changed_when: false
-  failed_when: false
+  retries: 10
+  delay: 10
+  until: current_corefile.rc == 0
 
 - name: Configure CoreDNS to use public DNS servers
   shell: |
@@ -195,6 +206,9 @@
   register: coredns_patch_result
   when: "'forward . 1.1.1.1 8.8.8.8' not in (current_corefile.stdout | default(''))"
   changed_when: coredns_patch_result.rc == 0
+  retries: 5
+  delay: 10
+  until: coredns_patch_result is not failed
 
 - name: Restart CoreDNS to apply DNS configuration changes
   shell: |

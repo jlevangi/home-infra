@@ -20,6 +20,21 @@ interpreter_python = /usr/bin/python3
 retry_files_enabled = False
 stdout_callback = default
 
+; SSH connect timeout. Bumped from the 10s default so slow-booting or
+; resource-pressured nodes (Longhorn install, helm --wait) do not trip
+; spurious "Timeout waiting for privilege escalation prompt" errors.
+timeout = 30
+
+[privilege_escalation]
+; Time Ansible will wait for sudo to return before giving up. Default is
+; 10s which is too tight when the target node is under memory pressure
+; (e.g. mid-Longhorn install on a 4G test VM).
+become_timeout = 60
+
 [ssh_connection]
-ssh_args = -o ControlMaster=auto -o ControlPersist=60s -o StrictHostKeyChecking=no
+; ControlPersist bumped to 300s to outlive long `helm --wait` and
+; `kubectl wait` tasks so we do not rebuild the multiplexed socket
+; repeatedly. ServerAliveInterval/CountMax keep the TCP session alive
+; during long in-task waits.
+ssh_args = -o ControlMaster=auto -o ControlPersist=300s -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ServerAliveCountMax=3
 pipelining = True
