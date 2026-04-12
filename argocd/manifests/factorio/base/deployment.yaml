@@ -35,7 +35,7 @@ spec:
             - name: LOAD_LATEST_SAVE
               value: "true"
             - name: GENERATE_NEW_SAVE
-              value: "true"
+              value: "false"
             - name: SAVE_NAME
               value: "squidboi"
             - name: DLC_SPACE_AGE
