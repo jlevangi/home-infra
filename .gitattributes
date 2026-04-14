@@ -1,0 +1,33 @@
+# Normalize line endings on checkin and checkout.
+# Prevents CRLF from leaking into the repo on Windows/WSL hosts.
+* text=auto eol=lf
+
+# Explicit LF for text formats that must stay unix-style.
+*.sh       text eol=lf
+*.bash     text eol=lf
+*.py       text eol=lf
+*.yml      text eol=lf
+*.yaml     text eol=lf
+*.json     text eol=lf
+*.toml     text eol=lf
+*.ini      text eol=lf
+*.cfg      text eol=lf
+*.conf     text eol=lf
+*.tf       text eol=lf
+*.tfvars   text eol=lf
+*.md       text eol=lf
+*.j2       text eol=lf
+Dockerfile text eol=lf
+Makefile   text eol=lf
+
+# Binary files — never touch.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.zip  binary
+*.tar  binary
+*.gz   binary
+*.tgz  binary

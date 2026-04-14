@@ -158,7 +158,7 @@ Modify CPU, memory, and storage in `main.tf`:
 ```hcl
 cores = 4        # Increase CPU cores
 memory = 4096    # Increase memory (MB)
-size = "40G"     # Increase disk size
+size = "80G"     # Increase disk size
 ```
 
 ### K3s Configuration

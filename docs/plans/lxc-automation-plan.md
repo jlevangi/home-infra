@@ -159,7 +159,7 @@ This task will:
 **File:** `ansible/roles/lxc/tasks/configure.yml`
 
 This task will:
-1. Create `pierce` user with sudo privileges
+1. Create a primary admin user with sudo privileges
 2. Create `ansible` user for configuration management
 3. Deploy SSH authorized keys (from vault)
 4. Configure sudo access (passwordless for ansible user)
@@ -225,7 +225,7 @@ lxc_nameservers:
 
 # User configuration
 lxc_users:
-  - name: pierce
+  - name: <primary-admin-user>
     groups: sudo
     shell: /bin/bash
   - name: ansible

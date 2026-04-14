@@ -64,7 +64,7 @@ resource "proxmox_vm_qemu" "terraform" {
 
   disk {
     slot = "scsi0"  # Must be string format like 'scsi0' not numeric
-    size = "50G"    # Increased to match expanded prod VM disks
+    size = "80G"    # Matches the expanded prod VM root disks
     type = "disk"   # Must be 'disk', 'cdrom', 'cloudinit', or 'ignore'
     storage = "vm_data" # Name of storage local to the host you are spinning the VM up on
     # SSD and discard options may not be available in v3.x - removed for compatibility

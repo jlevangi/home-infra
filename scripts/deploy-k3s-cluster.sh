@@ -9,6 +9,9 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # Source environment functions
 source "$SCRIPT_DIR/lib/environment-functions.sh"
 
+# Ensure ansible/ansible.cfg is present and picked up by ansible-playbook.
+require_ansible_config || exit 1
+
 # Default values
 TARGET_ENV=""
 TARGET_CLUSTER=""

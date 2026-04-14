@@ -5,9 +5,9 @@
 # 
 # Usage examples:
 # Production cluster:
-#   ansible-playbook -i k3s-inventory playbooks/k3s-deploy-cluster.yml --ask-vault-pass
+#   ansible-playbook -i inventories/production/hosts.yml playbooks/k3s-deploy-cluster.yml -e target_cluster=k3s_cluster_prod --ask-vault-pass
 # Test cluster:
-#   ansible-playbook -i k3s-inventory playbooks/k3s-deploy-cluster.yml -e target_cluster=k3s_test_cluster --ask-vault-pass
+#   ansible-playbook -i inventories/test/hosts.yml playbooks/k3s-deploy-cluster.yml -e target_cluster=k3s_cluster_test --ask-vault-pass
 #
 - name: Deploy K3s Cluster with Roles
   hosts: "{{ target_cluster | default('k3s_cluster') }}"
@@ -26,6 +26,20 @@
       when: k3s_install_telegraf | default(false)
 
   post_tasks:
+    # Fail loudly if any host dropped out of the play so the completion banner
+    # below only ever runs on a real success. Without this the debug task runs
+    # on the surviving hosts via delegate_to: localhost and prints a
+    # celebratory message even when the master failed mid-role.
+    - name: Fail if any host failed during deployment
+      fail:
+        msg: |
+          K3s deployment FAILED.
+          Failed hosts: {{ ansible_play_hosts_all | difference(ansible_play_hosts) | join(', ') }}
+          Review the task output above for the specific error.
+      when: ansible_play_hosts_all | difference(ansible_play_hosts) | length > 0
+      run_once: true
+      delegate_to: localhost
+
     - name: Display deployment completion message
       debug:
         msg:

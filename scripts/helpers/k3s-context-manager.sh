@@ -12,11 +12,54 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_PROJECT_ROOT="$(cd "$_SCRIPT_DIR/../.." && pwd)"
+
 CLUSTERS=(
-    "prod:172.20.20.101:pierce"
-    "stage:172.20.20.111:pierce"
-    "test:172.20.20.121:pierce"
+    "prod:172.20.20.101"
+    "stage:172.20.20.111"
+    "test:172.20.20.121"
 )
+
+# Derive the SSH user for a given cluster by mirroring Ansible's own
+# precedence: inventory ansible_user overrides ansible.cfg remote_user.
+get_ssh_user() {
+    local cluster_name="$1"
+    local cfg="$_PROJECT_ROOT/ansible/ansible.cfg"
+
+    # Map short cluster name to inventory directory
+    local inv_dir
+    case "$cluster_name" in
+        prod)  inv_dir="production" ;;
+        stage) inv_dir="staging" ;;
+        *)     inv_dir="$cluster_name" ;;
+    esac
+
+    local inv_file="$_PROJECT_ROOT/ansible/inventories/$inv_dir/hosts.yml"
+
+    # Check for ansible_user override in the inventory
+    if [ -f "$inv_file" ]; then
+        local inv_user
+        inv_user=$(grep -m1 'ansible_user:' "$inv_file" 2>/dev/null | awk '{print $2}' | tr -d "\"'")
+        if [ -n "$inv_user" ]; then
+            echo "$inv_user"
+            return
+        fi
+    fi
+
+    # Fall back to remote_user from ansible.cfg
+    if [ -f "$cfg" ]; then
+        local cfg_user
+        cfg_user=$(grep -m1 '^remote_user' "$cfg" 2>/dev/null | awk '{print $3}' | tr -d "\"'")
+        if [ -n "$cfg_user" ]; then
+            echo "$cfg_user"
+            return
+        fi
+    fi
+
+    # Ultimate fallback
+    echo "ansible"
+}
 
 LOCAL_KUBECONFIG_DIR="$HOME/.kube"
 MASTER_KUBECONFIG="$LOCAL_KUBECONFIG_DIR/config"
@@ -212,8 +255,10 @@ function setup_all_clusters() {
     local total_count=${#CLUSTERS[@]}
     
     for cluster_config in "${CLUSTERS[@]}"; do
-        IFS=':' read -r cluster_name master_node master_user <<< "$cluster_config"
-        
+        IFS=':' read -r cluster_name master_node <<< "$cluster_config"
+        local master_user
+        master_user=$(get_ssh_user "$cluster_name")
+
         echo -e "${YELLOW}Processing cluster: $cluster_name ($master_node)${NC}"
         if setup_cluster "$cluster_name" "$master_node" "$master_user"; then
             success_count=$((success_count + 1))
@@ -242,7 +287,7 @@ function switch_context() {
     if [ -z "$1" ]; then
         echo "Available clusters:"
         for cluster_config in "${CLUSTERS[@]}"; do
-            IFS=':' read -r cluster_name master_node master_user <<< "$cluster_config"
+            IFS=':' read -r cluster_name master_node <<< "$cluster_config"
             echo "  $cluster_name"
         done
         echo ""
@@ -288,8 +333,8 @@ function cleanup_all_known_hosts() {
     local cleaned_count=0
     
     for cluster_config in "${CLUSTERS[@]}"; do
-        IFS=':' read -r cluster_name master_node master_user <<< "$cluster_config"
-        
+        IFS=':' read -r cluster_name master_node <<< "$cluster_config"
+
         echo -e "${YELLOW}Processing $cluster_name cluster ($master_node)...${NC}"
         cleanup_known_hosts "$master_node" "$cluster_name"
         cleaned_count=$((cleaned_count + 1))

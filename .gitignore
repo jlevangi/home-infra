@@ -33,6 +33,8 @@ host_vars/*/vault.yml
 ansible/group_vars/*vault.yml
 !ansible/group_vars/*vault.yml.example
 ansible/host_vars/*/vault.yml
+ansible/ansible.cfg
+!ansible/ansible.cfg.example
 ansible/*.log
 ansible/playbook.retry
 temp-inventory*
@@ -86,6 +88,9 @@ nfs-secret.yaml
 *.swo
 *~
 .vim/
+settings.json.bak
+ssh-config-wsl
+ssh-config-windows
 
 # OS files  
 .DS_Store

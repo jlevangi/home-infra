@@ -80,8 +80,8 @@ To add a new environment (e.g., "dev"):
    ---
    all:
      vars:
-       ansible_user: pierce
-       ansible_ssh_private_key_file: ~/.ssh/pierce
+       ansible_user: <cluster-admin-user>
+       ansible_ssh_private_key_file: ~/.ssh/<cluster-admin-key>
        ansible_python_interpreter: /usr/bin/python3
        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
 
@@ -101,10 +101,10 @@ To add a new environment (e.g., "dev"):
    Add dev cluster to `scripts/helpers/k3s-context-manager.sh` CLUSTERS array:
    ```bash
    CLUSTERS=(
-       "prod:172.20.20.101:pierce"
-       "test:172.20.20.111:pierce"
-       "stage:172.20.20.121:pierce"
-       "dev:172.20.20.131:pierce"   # New environment
+       "prod:172.20.20.101:<cluster-admin-user>"
+       "test:172.20.20.111:<cluster-admin-user>"
+       "stage:172.20.20.121:<cluster-admin-user>"
+       "dev:172.20.20.131:<cluster-admin-user>"   # New environment
    )
    ```
 

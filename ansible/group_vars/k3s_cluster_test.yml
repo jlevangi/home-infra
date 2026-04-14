@@ -36,3 +36,21 @@ enable_longhorn_backup: false
 
 # Shorter DNS TTL for test (faster iteration)
 dns_record_ttl: 300
+
+# -----------------------------------------------------------------------------
+# K3S DATASTORE — SQLite (not embedded etcd)
+# -----------------------------------------------------------------------------
+# Explicit override of roles/k3s/defaults/main.yml's k3s_server_args to drop
+# `--cluster-init`. See IMPORTANT_NOTE.md at the repo root for the full story.
+#
+# Short version: `--cluster-init` switches k3s from SQLite/kine to embedded
+# etcd. Embedded etcd has a ~100ms disk fsync watchdog that our local-lvm
+# Proxmox storage cannot reliably meet during Longhorn + ArgoCD install,
+# which causes k3s to crash loop (NRestarts > 15 observed). SQLite is
+# tolerant of slower disks and we do not need HA on a 1-master cluster.
+k3s_server_args:
+  - "--disable=traefik"
+  - "--disable=servicelb"
+  - "--write-kubeconfig-mode=644"
+  - "--node-external-ip={{ ansible_default_ipv4.address }}"
+  - "--tls-san={{ load_balancer_ip | default(ansible_default_ipv4.address) }}"
