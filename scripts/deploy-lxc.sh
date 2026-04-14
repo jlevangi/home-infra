@@ -6,6 +6,12 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Source environment functions (needed for require_ansible_config)
+source "$SCRIPT_DIR/lib/environment-functions.sh"
+
+# Ensure ansible/ansible.cfg is present and picked up by ansible-playbook.
+require_ansible_config || exit 1
+
 # Paths
 DEFINITIONS_PATH="$PROJECT_ROOT/ansible/lxc_definitions/containers"
 INVENTORY_PATH="$PROJECT_ROOT/ansible/inventories/lxc/hosts.yml"
@@ -251,7 +257,6 @@ if [[ $RESULT -eq 0 ]]; then
   print_success "Container deployment complete!"
   echo ""
   print_info "To connect to your container:"
-  echo "  ssh pierce@<container-ip>"
   echo "  ssh ansible@<container-ip>"
 else
   print_error "Container deployment failed (exit code: $RESULT)"

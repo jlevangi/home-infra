@@ -691,6 +691,6 @@ Example to deploy only one app to test:
 
 ## See Also
 
-- [CLAUDE.md](/mnt/c/Users/pierc/git/home-infra/CLAUDE.md) - Repository overview and common commands
+- [CLAUDE.md](../../CLAUDE.md) - Repository overview and common commands
 - [k3s-context-management-legacy.md](k3s-context-management-legacy.md) - Archived context switching details
 - [backup-and-restore.md](../recovery/backup-and-restore.md) - Current backup procedures

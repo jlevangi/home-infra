@@ -62,7 +62,7 @@ variable "token_id" {
 variable "ci_user" {
   description = "Cloud-init username"
   type        = string
-  default     = "pierce"
+  default     = "ansible"
 }
 
 variable "ci_password" {

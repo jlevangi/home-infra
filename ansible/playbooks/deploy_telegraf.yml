@@ -5,11 +5,11 @@
 # 
 # Usage examples:
 # Test cluster (default):
-#   ansible-playbook -i k3s-inventory playbooks/deploy_telegraf.yml --vault-password-file ~/.ansible_vault_pass
+#   ansible-playbook -i inventories/test/hosts.yml playbooks/deploy_telegraf.yml --vault-password-file ~/.ansible_vault_pass
 # Production cluster:
-#   ansible-playbook -i k3s-inventory playbooks/deploy_telegraf.yml -e target_cluster=k3s_cluster --vault-password-file ~/.ansible_vault_pass
+#   ansible-playbook -i inventories/production/hosts.yml playbooks/deploy_telegraf.yml -e target_cluster=k3s_cluster_prod --vault-password-file ~/.ansible_vault_pass
 # Specific host:
-#   ansible-playbook -i k3s-inventory playbooks/deploy_telegraf.yml -l k3s-test-node-1 --vault-password-file ~/.ansible_vault_pass
+#   ansible-playbook -i inventories/test/hosts.yml playbooks/deploy_telegraf.yml -l k3s-test-node-1 --vault-password-file ~/.ansible_vault_pass
 #
 - name: Deploy Telegraf Monitoring Agent
   hosts: "{{ target_cluster | default('k3s_test_cluster') }}"
@@ -34,11 +34,11 @@
           - "🌐 Environment: {{ cluster_environment | default('test') }}"
           - ""
           - "🔍 Verify deployment:"
-          - "   ansible all -i k3s-inventory -m command -a 'systemctl status telegraf' --limit {{ target_cluster | default('k3s_test_cluster') }}"
-          - "   ansible all -i k3s-inventory -m command -a 'journalctl -u telegraf --no-pager -n 20' --limit {{ target_cluster | default('k3s_test_cluster') }}"
+          - "   ansible all -i inventories/test/hosts.yml -m command -a 'systemctl status telegraf' --limit {{ target_cluster | default('k3s_test_cluster') }}"
+          - "   ansible all -i inventories/test/hosts.yml -m command -a 'journalctl -u telegraf --no-pager -n 20' --limit {{ target_cluster | default('k3s_test_cluster') }}"
           - ""
           - "📈 Test configuration:"
-          - "   ansible all -i k3s-inventory -m command -a 'telegraf --test --config /etc/telegraf/telegraf.conf' --limit {{ target_cluster | default('k3s_test_cluster') }}"
+          - "   ansible all -i inventories/test/hosts.yml -m command -a 'telegraf --test --config /etc/telegraf/telegraf.conf' --limit {{ target_cluster | default('k3s_test_cluster') }}"
           - ""
           - "🔧 Management commands (run on target nodes):"
           - "   sudo systemctl status telegraf"

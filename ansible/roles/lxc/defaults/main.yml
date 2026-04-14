@@ -28,9 +28,13 @@ lxc_nameservers:
 lxc_default_unprivileged: true
 lxc_default_nesting: true
 
+# Primary non-ansible user. Override with LXC_PRIMARY_USER or OPERATOR_USER.
+lxc_primary_user: "{{ lookup('env', 'LXC_PRIMARY_USER') or lookup('env', 'OPERATOR_USER') or lookup('env', 'USER') or 'ansible' }}"
+lxc_primary_user_home: "/home/{{ lxc_primary_user }}"
+
 # User configuration
 lxc_users:
-  - name: pierce
+  - name: "{{ lxc_primary_user }}"
     groups: sudo
     shell: /bin/bash
     create_home: true
