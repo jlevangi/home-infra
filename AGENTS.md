@@ -220,6 +220,14 @@ The repository supports three environments:
 - Domain: `stage.levangie.dev`
 - Production-like testing environment
 
+### Talos Test (experimental)
+- Cluster nodes: 172.20.20.131-133
+- Distribution: **Talos Linux** + upstream Kubernetes (not K3s, not Debian)
+- Managed via `terraform/talos_cluster_test/` (uses the `siderolabs/talos` provider for bootstrap) and `scripts/helpers/import-talos-template.sh` for the Proxmox template
+- VMs have `onboot = false` and do not start on Proxmox host boot
+- No Ansible: Talos has no SSH/package manager; the existing `k3s` role does not apply here
+- App deployment (kubectl/helm, ArgoCD) still works against the cluster API if/when wired up; not yet integrated with `scripts/deploy-k3s-apps.sh` or `scripts/helpers/k3s-context-manager.sh`
+
 ## Application Configuration
 
 Applications are configured using a two-layer approach:
