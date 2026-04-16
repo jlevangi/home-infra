@@ -52,10 +52,11 @@ locals {
   # Two patches per node:
   #   1. v1alpha1 strategic-merge patch for install disk + static network
   #   2. Standalone HostnameConfig document (Talos 1.12 moved hostname out of
-  #      v1alpha1 machine.network.hostname; setting it in both places now
-  #      fails validation with "static hostname is already set in v1alpha1
-  #      config"). HostnameConfig accepts either `hostname: <name>` for an
-  #      explicit value or `auto: stable` for a derived one.
+  #      v1alpha1 machine.network.hostname. The default machine config already
+  #      includes `auto: stable`, so when overriding with an explicit
+  #      hostname we must also disable auto-generation or Talos rejects the
+  #      merged document with "'auto' and 'hostname' cannot be set at the same
+  #      time".
   node_network_patch = {
     for name, cfg in local.nodes : name => yamlencode({
       machine = {
@@ -83,6 +84,7 @@ locals {
     for name, _ in local.nodes : name => yamlencode({
       apiVersion = "v1alpha1"
       kind       = "HostnameConfig"
+      auto       = "off"
       hostname   = name
     })
   }
