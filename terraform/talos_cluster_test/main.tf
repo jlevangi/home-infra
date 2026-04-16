@@ -46,14 +46,20 @@ locals {
   # Allow `nameserver` tfvar to hold a single IP or a comma-separated list.
   nameservers = [for n in split(",", var.nameserver) : trimspace(n) if trimspace(n) != ""]
 
-  # Per-node machine config patch: hostname, static IP, install disk.
-  # Applied on top of the base controlplane/worker config produced by the
-  # talos_machine_configuration data source below.
-  node_patch = {
+  # Per-node patches applied on top of the base controlplane/worker config
+  # produced by the talos_machine_configuration data source below.
+  #
+  # Two patches per node:
+  #   1. v1alpha1 strategic-merge patch for install disk + static network
+  #   2. Standalone HostnameConfig document (Talos 1.12 moved hostname out of
+  #      v1alpha1 machine.network.hostname; setting it in both places now
+  #      fails validation with "static hostname is already set in v1alpha1
+  #      config"). HostnameConfig accepts either `hostname: <name>` for an
+  #      explicit value or `auto: stable` for a derived one.
+  node_network_patch = {
     for name, cfg in local.nodes : name => yamlencode({
       machine = {
         network = {
-          hostname    = name
           nameservers = local.nameservers
           interfaces = [{
             deviceSelector = {
@@ -70,6 +76,14 @@ locals {
           disk = var.install_disk
         }
       }
+    })
+  }
+
+  node_hostname_patch = {
+    for name, _ in local.nodes : name => yamlencode({
+      apiVersion = "v1alpha1"
+      kind       = "HostnameConfig"
+      hostname   = name
     })
   }
 }
@@ -92,6 +106,9 @@ resource "proxmox_vm_qemu" "talos" {
   start_at_node_boot = false
 
   agent = 1
+  # Our bridge has no IPv6 — skip IPv6 address discovery via qemu-guest-agent
+  # to avoid a harmless-but-noisy "no IPv6 address is found" warning on plan.
+  skip_ipv6 = true
 
   cpu {
     cores   = var.vm_cores
@@ -169,7 +186,10 @@ resource "talos_machine_configuration_apply" "controlplane" {
   node                        = proxmox_vm_qemu.talos[each.key].default_ipv4_address
   endpoint                    = proxmox_vm_qemu.talos[each.key].default_ipv4_address
 
-  config_patches = [local.node_patch[each.key]]
+  config_patches = [
+    local.node_network_patch[each.key],
+    local.node_hostname_patch[each.key],
+  ]
 
   depends_on = [proxmox_vm_qemu.talos]
 
@@ -188,7 +208,10 @@ resource "talos_machine_configuration_apply" "worker" {
   node                        = proxmox_vm_qemu.talos[each.key].default_ipv4_address
   endpoint                    = proxmox_vm_qemu.talos[each.key].default_ipv4_address
 
-  config_patches = [local.node_patch[each.key]]
+  config_patches = [
+    local.node_network_patch[each.key],
+    local.node_hostname_patch[each.key],
+  ]
 
   depends_on = [proxmox_vm_qemu.talos]
 
