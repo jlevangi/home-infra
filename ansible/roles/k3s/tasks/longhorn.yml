@@ -690,7 +690,7 @@
 - name: Create DNS CNAME record for Longhorn UI
   include_tasks: shared/dns_management.yml
   vars:
-    dns_record_name: "{{ environment_prefix }}longhorn"
+    dns_record_name: "{{ ('longhorn.' + environment_domain) | regex_replace('\\.' + cluster_tld + '$', '') }}"
     dns_record_type: "CNAME"
     dns_record_target: "{{ cluster_dns_name }}"
     dns_record_action: "create"
