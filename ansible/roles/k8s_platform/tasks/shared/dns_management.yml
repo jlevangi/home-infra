@@ -1,0 +1,129 @@
+---
+# Shared DNS Management Tasks
+# This task file manages DNS records for applications and system services
+
+- name: Check if DNS management is enabled
+  debug:
+    msg: "DNS management is {{ 'enabled' if manage_dns_records | default(false) else 'disabled' }}"
+
+- name: Validate DNS management variables
+  assert:
+    that:
+      - technitium_dns_server is defined
+      - technitium_api_token is defined
+      - dns_record_name is defined
+      - dns_record_ip is defined or dns_record_target is defined
+    fail_msg: "Required DNS variables are missing. Ensure technitium_dns_server, technitium_api_token, dns_record_name, and either dns_record_ip or dns_record_target are defined."
+    success_msg: "DNS management variables validated successfully"
+  when: manage_dns_records | default(false)
+
+- name: Create/Update DNS A record
+  uri:
+    url: "http://{{ technitium_dns_server }}:5380/api/zones/records/add"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      token: "{{ technitium_api_token }}"
+      domain: "{{ dns_record_name }}.{{ cluster_tld }}"
+      type: "A"
+      value: "{{ dns_record_ip }}"
+      ttl: "{{ dns_record_ttl | default(3600) }}"
+      overwrite: "true"  # This will update existing records
+    status_code: [200, 201]
+    timeout: 30
+  register: dns_create_result
+  when: 
+    - manage_dns_records | default(false)
+    - dns_record_action | default('create') == 'create'
+    - dns_record_type | default('A') == 'A'
+    - dns_record_ip is defined
+  ignore_errors: yes
+
+- name: Create/Update DNS CNAME record
+  uri:
+    url: "http://{{ technitium_dns_server }}:5380/api/zones/records/add"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      token: "{{ technitium_api_token }}"
+      domain: "{{ dns_record_name }}.{{ cluster_tld }}"
+      type: "CNAME"
+      value: "{{ dns_record_target }}"
+      ttl: "{{ dns_record_ttl | default(3600) }}"
+      overwrite: "true"  # This will update existing records
+    status_code: [200, 201]
+    timeout: 30
+  register: dns_create_result
+  when: 
+    - manage_dns_records | default(false)
+    - dns_record_action | default('create') == 'create'
+    - dns_record_type | default('A') == 'CNAME'
+    - dns_record_target is defined
+  ignore_errors: yes
+
+- name: Display DNS record creation result
+  debug:
+    msg: |
+      📡 DNS Record Management:
+      Record: {{ dns_record_name }}.{{ cluster_tld }} → {{ dns_record_ip | default(dns_record_target) }}
+      Type: {{ dns_record_type | default('A') }}
+      {% if dns_create_result.skipped | default(false) %}
+      ⏭️  DNS management disabled or skipped
+      {% elif dns_create_result.failed | default(false) %}
+      ❌ Failed to create DNS record: {{ dns_create_result.msg | default('Unknown error') }}
+      {% else %}
+      ✅ DNS record created/updated successfully
+      {% endif %}
+  when: manage_dns_records | default(false)
+
+- name: Delete DNS A record
+  uri:
+    url: "http://{{ technitium_dns_server }}:5380/api/zones/records/delete"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      token: "{{ technitium_api_token }}"
+      domain: "{{ dns_record_name }}.{{ cluster_tld }}"
+      type: "A"
+    status_code: [200, 201, 404]  # 404 is OK if record doesn't exist
+    timeout: 30
+  register: dns_delete_result
+  when: 
+    - manage_dns_records | default(false)
+    - dns_record_action | default('create') == 'delete'
+    - dns_record_type | default('A') == 'A'
+  ignore_errors: yes
+
+- name: Delete DNS CNAME record
+  uri:
+    url: "http://{{ technitium_dns_server }}:5380/api/zones/records/delete"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      token: "{{ technitium_api_token }}"
+      domain: "{{ dns_record_name }}.{{ cluster_tld }}"
+      type: "CNAME"
+    status_code: [200, 201, 404]  # 404 is OK if record doesn't exist
+    timeout: 30
+  register: dns_delete_result
+  when: 
+    - manage_dns_records | default(false)
+    - dns_record_action | default('create') == 'delete'
+    - dns_record_type | default('A') == 'CNAME'
+  ignore_errors: yes
+
+- name: Display DNS record deletion result
+  debug:
+    msg: |
+      📡 DNS Record Cleanup:
+      Record: {{ dns_record_name }}.{{ cluster_tld }}
+      {% if dns_delete_result.skipped | default(false) %}
+      ⏭️  DNS cleanup disabled or skipped
+      {% elif dns_delete_result.failed | default(false) %}
+      ❌ Failed to delete DNS record: {{ dns_delete_result.msg | default('Unknown error') }}
+      {% else %}
+      ✅ DNS record deleted successfully (or didn't exist)
+      {% endif %}
+  when: 
+    - manage_dns_records | default(false)
+    - dns_record_action | default('create') == 'delete'

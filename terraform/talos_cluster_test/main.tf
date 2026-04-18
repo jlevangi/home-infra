@@ -44,7 +44,8 @@ locals {
   worker_nodes       = { for k, v in local.nodes : k => v if v.role == "worker" }
 
   # Allow `nameserver` tfvar to hold a single IP or a comma-separated list.
-  nameservers = [for n in split(",", var.nameserver) : trimspace(n) if trimspace(n) != ""]
+  nameservers                         = [for n in split(",", var.nameserver) : trimspace(n) if trimspace(n) != ""]
+  talos_longhorn_volume_disk_selector = var.talos_longhorn_volume_disk_selector != "" ? var.talos_longhorn_volume_disk_selector : "disk.dev_path == '${var.install_disk}'"
 
   # Per-node patches applied on top of the base controlplane/worker config
   # produced by the talos_machine_configuration data source below.
@@ -86,6 +87,40 @@ locals {
       kind       = "HostnameConfig"
       auto       = "off"
       hostname   = name
+    })
+  }
+
+  # Longhorn on Talos 1.10+ should use a user volume mounted under
+  # /var/mnt/<name>, then expose that path explicitly to kubelet so Longhorn
+  # CSI components can reach the host path.
+  node_longhorn_kubelet_patch = {
+    for name, _ in local.nodes : name => yamlencode({
+      machine = {
+        kubelet = {
+          extraMounts = [{
+            destination = var.talos_longhorn_data_path
+            type        = "bind"
+            source      = var.talos_longhorn_data_path
+            options     = ["bind", "rshared", "rw"]
+          }]
+        }
+      }
+    })
+  }
+
+  node_longhorn_user_volume_patch = {
+    for name, _ in local.nodes : name => yamlencode({
+      apiVersion = "v1alpha1"
+      kind       = "UserVolumeConfig"
+      name       = var.talos_longhorn_volume_name
+      provisioning = {
+        diskSelector = {
+          match = local.talos_longhorn_volume_disk_selector
+        }
+        grow    = false
+        minSize = var.talos_longhorn_volume_min_size
+        maxSize = var.talos_longhorn_volume_max_size
+      }
     })
   }
 }
@@ -179,27 +214,26 @@ data "talos_client_configuration" "this" {
 # reports its IP via qemu-guest-agent (bundled in the Talos template image).
 # We reach it at that DHCP address to apply the real config, which includes
 # the static IP patch from locals.node_patch above. After apply, Talos reboots
-# into its configured state on the static IP.
+# into its configured state on the static IP. Subsequent reconfiguration must
+# target the static IP directly because the reported guest-agent address may be
+# a transient DHCP/maintenance address that is not routable from the operator
+# machine.
 resource "talos_machine_configuration_apply" "controlplane" {
   for_each = local.controlplane_nodes
 
   client_configuration        = talos_machine_secrets.this.client_configuration
   machine_configuration_input = data.talos_machine_configuration.controlplane.machine_configuration
-  node                        = proxmox_vm_qemu.talos[each.key].default_ipv4_address
-  endpoint                    = proxmox_vm_qemu.talos[each.key].default_ipv4_address
+  node                        = var.machine_config_apply_mode == "static" ? each.value.ip : proxmox_vm_qemu.talos[each.key].default_ipv4_address
+  endpoint                    = var.machine_config_apply_mode == "static" ? each.value.ip : proxmox_vm_qemu.talos[each.key].default_ipv4_address
 
   config_patches = [
     local.node_network_patch[each.key],
+    local.node_longhorn_kubelet_patch[each.key],
+    local.node_longhorn_user_volume_patch[each.key],
     local.node_hostname_patch[each.key],
   ]
 
   depends_on = [proxmox_vm_qemu.talos]
-
-  lifecycle {
-    # After the first apply, the node reboots to its static IP, so
-    # default_ipv4_address changes. Don't trigger re-applies on that drift.
-    ignore_changes = [node, endpoint]
-  }
 }
 
 resource "talos_machine_configuration_apply" "worker" {
@@ -207,19 +241,17 @@ resource "talos_machine_configuration_apply" "worker" {
 
   client_configuration        = talos_machine_secrets.this.client_configuration
   machine_configuration_input = data.talos_machine_configuration.worker.machine_configuration
-  node                        = proxmox_vm_qemu.talos[each.key].default_ipv4_address
-  endpoint                    = proxmox_vm_qemu.talos[each.key].default_ipv4_address
+  node                        = var.machine_config_apply_mode == "static" ? each.value.ip : proxmox_vm_qemu.talos[each.key].default_ipv4_address
+  endpoint                    = var.machine_config_apply_mode == "static" ? each.value.ip : proxmox_vm_qemu.talos[each.key].default_ipv4_address
 
   config_patches = [
     local.node_network_patch[each.key],
+    local.node_longhorn_kubelet_patch[each.key],
+    local.node_longhorn_user_volume_patch[each.key],
     local.node_hostname_patch[each.key],
   ]
 
   depends_on = [proxmox_vm_qemu.talos]
-
-  lifecycle {
-    ignore_changes = [node, endpoint]
-  }
 }
 
 # --- Bootstrap etcd on the controlplane ------------------------------------
