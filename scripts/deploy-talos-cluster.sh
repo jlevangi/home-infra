@@ -1,5 +1,5 @@
 #!/bin/bash
-# Deploy the Talos test cluster, configure local access, then bootstrap the
+# Deploy a Talos cluster, configure local access, then bootstrap the
 # shared Kubernetes platform services (Longhorn, MetalLB, Traefik, ArgoCD,
 # Vault).
 
@@ -8,9 +8,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/lib/environment-functions.sh"
+ENVIRONMENTS_CONF="$SCRIPT_DIR/lib/talos-environments.conf"
 
 require_ansible_config || exit 1
 
+TARGET_ENV=""
 VERBOSITY=""
 SHOW_HELP=false
 AUTO_APPROVE=false
@@ -28,6 +30,22 @@ require_command() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --prod|--production)
+      TARGET_ENV="prod"
+      shift
+      ;;
+    --test)
+      TARGET_ENV="test"
+      shift
+      ;;
+    --stage|--staging)
+      TARGET_ENV="stage"
+      shift
+      ;;
+    --env)
+      TARGET_ENV="$2"
+      shift 2
+      ;;
     -v|--verbose)
       VERBOSITY="-v"
       shift
@@ -63,9 +81,13 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ "${SHOW_HELP}" == "true" ]]; then
+if [[ "${SHOW_HELP}" == "true" ]] || [[ -z "${TARGET_ENV}" ]]; then
   cat <<'EOF'
-Usage: scripts/deploy-talos-cluster.sh [options]
+Usage: scripts/deploy-talos-cluster.sh --test|--stage|--prod [options]
+
+EOF
+  show_environment_help "scripts/deploy-talos-cluster.sh" "Deploy"
+  cat <<'EOF'
 
 Options:
   -v, -vv, -vvv     Increase Ansible verbosity
@@ -80,15 +102,26 @@ Options:
 Environment:
   TALOS_MACHINE_CONFIG_MODE=auto|reported|static
 EOF
+  if [[ -z "${TARGET_ENV}" ]]; then
+    echo ""
+    echo "❌ Error: Target environment must be specified (--test, --stage, or --prod)"
+    exit 1
+  fi
   exit 0
 fi
 
-TERRAFORM_DIR="${PROJECT_ROOT}/terraform/talos_cluster_test"
+setup_environment_vars "${TARGET_ENV}" || exit 1
+
+if [[ -n "${DEFAULT_VERBOSITY}" && -z "${VERBOSITY}" ]]; then
+  VERBOSITY="${DEFAULT_VERBOSITY}"
+fi
+
+TERRAFORM_DIR="${PROJECT_ROOT}/terraform/${TARGET_CLUSTER}"
 LOCAL_KUBECONFIG_DIR="${HOME}/.kube"
 LOCAL_TALOSCONFIG_DIR="${HOME}/.talos"
-TALOS_KUBECONFIG="${LOCAL_KUBECONFIG_DIR}/config-talos-test"
-TALOSCONFIG_FILE="${LOCAL_TALOSCONFIG_DIR}/config-talos-test"
-TALOS_CONTEXT="talos-test"
+TALOS_KUBECONFIG="${LOCAL_KUBECONFIG_DIR}/config-${KUBECTL_CONTEXT}"
+TALOSCONFIG_FILE="${LOCAL_TALOSCONFIG_DIR}/config-${KUBECTL_CONTEXT}"
+TALOS_CONTEXT="${KUBECTL_CONTEXT}"
 
 require_command terraform "Talos VM/bootstrap provisioning"
 require_command ansible-playbook "shared Kubernetes platform bootstrap"
@@ -102,6 +135,12 @@ if [[ ! -f "${HOME}/.ansible_vault_pass" ]]; then
   exit 1
 fi
 
+if [[ ! -d "${TERRAFORM_DIR}" ]]; then
+  echo "❌ Terraform directory not found: ${TERRAFORM_DIR}" >&2
+  echo "   Create it before deploying the ${CLUSTER_NAME} Talos cluster" >&2
+  exit 1
+fi
+
 mkdir -p "${LOCAL_KUBECONFIG_DIR}" "${LOCAL_TALOSCONFIG_DIR}"
 
 if [[ "${MACHINE_CONFIG_APPLY_MODE}" == "auto" ]]; then
@@ -112,6 +151,7 @@ if [[ "${MACHINE_CONFIG_APPLY_MODE}" == "auto" ]]; then
   fi
 fi
 
+echo "${CLUSTER_EMOJI} Deploying ${CLUSTER_NAME} Talos cluster..."
 echo "Using Talos machine-config apply mode: ${MACHINE_CONFIG_APPLY_MODE}"
 
 TF_CMD=(
@@ -125,7 +165,7 @@ if [[ "${AUTO_APPROVE}" == "true" ]]; then
   TF_CMD+=(-auto-approve)
 fi
 
-echo "Deploying Talos test cluster with Terraform..."
+echo "Deploying Talos cluster with Terraform..."
 "${TF_CMD[@]}"
 
 echo "Writing local kubeconfig and talosconfig..."
@@ -142,7 +182,7 @@ ANSIBLE_CMD=(
   --vault-password-file
   "${HOME}/.ansible_vault_pass"
   -e
-  "target_cluster=talos_cluster_test"
+  "target_cluster=${TARGET_CLUSTER}"
   -e
   "kubeconfig_path=${TALOS_KUBECONFIG}"
 )
@@ -151,11 +191,11 @@ if [[ -n "${VERBOSITY}" ]]; then
   ANSIBLE_CMD+=("${VERBOSITY}")
 fi
 
-echo "Bootstrapping shared platform services on Talos..."
+echo "Bootstrapping shared platform services on ${CLUSTER_NAME} Talos cluster..."
 "${ANSIBLE_CMD[@]}"
 
 echo
-echo "Talos cluster deployment complete."
+echo "${CLUSTER_EMOJI} Talos cluster deployment complete."
 echo "kubectl context: ${TALOS_CONTEXT}"
 echo "kubeconfig: ${TALOS_KUBECONFIG}"
 echo "talosconfig: ${TALOSCONFIG_FILE}"
