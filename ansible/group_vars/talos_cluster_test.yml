@@ -1,0 +1,34 @@
+---
+# Talos test cluster bootstrap settings. Shared platform defaults still come
+# from group_vars/k3s_cluster.yml; this file overrides only Talos-specific
+# environment identity and network/runtime details.
+
+cluster_environment: "talos-test"
+cluster_dns_name: "talos-test.{{ cluster_tld }}"
+
+platform_primary_node_ip: "172.20.20.131"
+platform_master_nodes:
+  - "talos-test-node-1"
+platform_cluster_nodes:
+  - "talos-test-node-1"
+  - "talos-test-node-2"
+  - "talos-test-node-3"
+platform_cluster_node_count: 3
+
+metallb_ip_range: "172.20.20.241-172.20.20.250"
+traefik_loadbalancer_ip: "172.20.20.241"
+
+# Match the current test environment's backup posture until Talos has been
+# exercised long enough to trust as a backup source.
+enable_longhorn_backup: false
+longhorn_default_data_path: "/var/mnt/longhorn"
+longhorn_namespace_pod_security_enforce: "privileged"
+longhorn_namespace_pod_security_audit: "privileged"
+longhorn_namespace_pod_security_warn: "privileged"
+metallb_namespace_pod_security_enforce: "privileged"
+metallb_namespace_pod_security_audit: "privileged"
+metallb_namespace_pod_security_warn: "privileged"
+
+# Root apps for Talos test are intentionally minimal in the first pass.
+enabled_apps: []
+force_redeploy_apps: []

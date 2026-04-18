@@ -104,3 +104,44 @@ variable "install_disk" {
   type        = string
   default     = "/dev/sda"
 }
+
+variable "machine_config_apply_mode" {
+  description = "How talos_machine_configuration_apply should reach nodes: 'reported' uses the QEMU guest-agent IPv4 on first boot, 'static' uses the configured Talos node IPs for reconfiguration."
+  type        = string
+  default     = "reported"
+
+  validation {
+    condition     = contains(["reported", "static"], var.machine_config_apply_mode)
+    error_message = "machine_config_apply_mode must be either 'reported' or 'static'."
+  }
+}
+
+variable "talos_longhorn_data_path" {
+  description = "Host path Longhorn should use on Talos nodes."
+  type        = string
+  default     = "/var/mnt/longhorn"
+}
+
+variable "talos_longhorn_volume_name" {
+  description = "Talos UserVolumeConfig name for the Longhorn data volume. Mounted at /var/mnt/<name>."
+  type        = string
+  default     = "longhorn"
+}
+
+variable "talos_longhorn_volume_disk_selector" {
+  description = "CEL expression used by Talos UserVolumeConfig to select the disk for the Longhorn volume."
+  type        = string
+  default     = ""
+}
+
+variable "talos_longhorn_volume_min_size" {
+  description = "Minimum size for the Talos Longhorn user volume."
+  type        = string
+  default     = "2GiB"
+}
+
+variable "talos_longhorn_volume_max_size" {
+  description = "Maximum size for the Talos Longhorn user volume."
+  type        = string
+  default     = "8GiB"
+}

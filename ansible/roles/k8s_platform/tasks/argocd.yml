@@ -1,0 +1,330 @@
+---
+# ArgoCD Installation
+# GitOps continuous delivery tool for Kubernetes
+
+- name: Check ArgoCD service health
+  shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} get svc argocd-server -n argocd -o jsonpath='{.spec.clusterIP}' 2>/dev/null
+  register: argocd_service_check
+  failed_when: false
+  changed_when: false
+
+- name: Check if ArgoCD pods are running
+  shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} get pods -n argocd -l app.kubernetes.io/name=argocd-server -o jsonpath='{.items[0].status.phase}' 2>/dev/null
+  register: argocd_pod_check
+  failed_when: false
+  changed_when: false
+
+- name: Check if ArgoCD Helm release exists
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    helm list -n argocd -o json | grep -q '"name":"argocd"'
+  register: argocd_helm_check
+  failed_when: false
+  changed_when: false
+
+- name: Determine if ArgoCD needs deployment
+  set_fact:
+    argocd_needs_deployment: "{{ force_argocd_redeploy | default(false) or argocd_service_check.stdout == '' or argocd_pod_check.stdout != 'Running' or argocd_helm_check.rc != 0 }}"
+
+- name: Display ArgoCD status
+  debug:
+    msg: |
+      ArgoCD Current Status:
+      Service ClusterIP: {{ argocd_service_check.stdout | default('Not found') }}
+      Pod Status: {{ argocd_pod_check.stdout | default('Not found') }}
+      Helm Release: {{ 'Found' if argocd_helm_check.rc == 0 else 'Not found' }}
+      Needs Deployment: {{ argocd_needs_deployment | default(false) }}
+      Force Redeploy: {{ force_argocd_redeploy | default(false) }}
+
+- name: Add ArgoCD Helm repository
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    helm repo add argo https://argoproj.github.io/argo-helm
+    helm repo update
+  when:
+    - argocd_needs_deployment | default(true)
+
+- name: Create ArgoCD Helm values configuration
+  template:
+    src: argocd-values.yaml.j2
+    dest: /tmp/argocd-values.yaml
+    mode: '0644'
+  when:
+    - argocd_needs_deployment | default(true)
+
+- name: Create argocd namespace
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+  when:
+    - argocd_needs_deployment | default(true)
+
+- name: Wait for Traefik to be ready (ArgoCD depends on ingress)
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=traefik -n traefik-system --timeout=120s
+  when:
+    - argocd_needs_deployment | default(true)
+    - platform_install_traefik | default(true)
+  ignore_errors: yes
+
+- name: Clean up any stuck Helm operations for ArgoCD
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    echo "Performing ArgoCD cleanup..."
+
+    # Uninstall Helm release
+    helm uninstall argocd -n argocd --ignore-not-found --wait=false || echo "No Helm release to uninstall"
+
+    # Force delete pods
+    kubectl delete pods -n argocd -l app.kubernetes.io/part-of=argocd --force --grace-period=0 --ignore-not-found || true
+
+    # Wait for cleanup
+    sleep 10
+
+    # Verify cleanup
+    kubectl get pods -n argocd || echo "ArgoCD namespace clean"
+  when:
+    - argocd_needs_deployment | default(true)
+    - force_argocd_redeploy | default(false)
+  ignore_errors: yes
+
+- name: Install ArgoCD using Helm
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    echo "Installing ArgoCD with Traefik ingress support..."
+    helm upgrade --install argocd argo/argo-cd \
+      --namespace argocd \
+      --values /tmp/argocd-values.yaml \
+      --wait \
+      --timeout=10m
+  register: argocd_install_result
+  retries: 2
+  delay: 60
+  when:
+    - argocd_needs_deployment | default(true)
+
+- name: Wait for ArgoCD server pods to be ready
+  shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} wait --for=condition=ready pod \
+      -l app.kubernetes.io/name=argocd-server \
+      -n argocd \
+      --timeout=180s
+  when:
+    - argocd_needs_deployment | default(true)
+
+- name: Wait for ArgoCD Application CRD to be available
+  shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} wait --for=condition=established crd/applications.argoproj.io --timeout=120s
+  when:
+    - argocd_needs_deployment | default(true)
+
+- name: Create ArgoCD Traefik IngressRoute
+  template:
+    src: argocd-ingress.yaml.j2
+    dest: /tmp/argocd-ingress.yaml
+    mode: '0644'
+  when:
+    - argocd_ingress_enabled | default(true)
+
+- name: Wait for Traefik CRDs before applying ArgoCD ingress
+  shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} wait --for=condition=established crd/ingressroutes.traefik.io --timeout=120s
+  when:
+    - argocd_ingress_enabled | default(true)
+  ignore_errors: yes
+
+- name: Apply ArgoCD Traefik IngressRoute
+  shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} apply -f /tmp/argocd-ingress.yaml
+  when:
+    - argocd_ingress_enabled | default(true)
+  retries: 3
+  delay: 10
+
+- name: Create DNS CNAME record for ArgoCD
+  include_tasks: shared/dns_management.yml
+  vars:
+    dns_record_name: "{{ 'argocd.' + environment_prefix | regex_replace('\\.$', '') if environment_prefix else 'argocd' }}"
+    dns_record_type: "CNAME"
+    dns_record_target: "{{ cluster_dns_name }}"
+    dns_record_action: "create"
+  when:
+    - argocd_ingress_enabled | default(true)
+    - manage_dns_records | default(false)
+
+- name: Create temporary file for SSH key
+  tempfile:
+    state: file
+    suffix: .key
+  register: ssh_key_tempfile
+  when:
+    - vault_argocd_ssh_private_key is defined
+  no_log: true
+
+- name: Write SSH private key to temp file
+  copy:
+    content: "{{ vault_argocd_ssh_private_key }}"
+    dest: "{{ ssh_key_tempfile.path }}"
+    mode: '0600'
+  when:
+    - vault_argocd_ssh_private_key is defined
+  no_log: true
+
+- name: Create ArgoCD repository credentials secret
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    kubectl create secret generic home-infra-repo-creds \
+      --namespace argocd \
+      --from-file=sshPrivateKey={{ ssh_key_tempfile.path }} \
+      --from-literal=type=git \
+      --from-literal=url=git@github.com:jlevangi/home-infra.git \
+      --dry-run=client -o yaml | kubectl apply -f -
+    kubectl label secret home-infra-repo-creds -n argocd \
+      argocd.argoproj.io/secret-type=repository --overwrite
+  when:
+    - vault_argocd_ssh_private_key is defined
+  no_log: true
+
+- name: Remove temporary SSH key file
+  file:
+    path: "{{ ssh_key_tempfile.path }}"
+    state: absent
+  when:
+    - vault_argocd_ssh_private_key is defined
+
+- name: Create Technitium DNS credentials for ArgoCD hooks
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    kubectl create secret generic technitium-api-credentials \
+      --namespace argocd \
+      --from-literal=server="{{ technitium_dns_server }}" \
+      --from-literal=token="{{ technitium_api_token }}" \
+      --from-literal=tld="{{ cluster_tld }}" \
+      --dry-run=client -o yaml | kubectl apply -f -
+  when:
+    - manage_dns_records | default(false)
+  no_log: true
+
+- name: Create Technitium DNS credentials in app namespaces
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    kubectl create namespace {{ item }} --dry-run=client -o yaml | kubectl apply -f -
+    kubectl create secret generic technitium-api-credentials \
+      --namespace {{ item }} \
+      --from-literal=server="{{ technitium_dns_server }}" \
+      --from-literal=token="{{ technitium_api_token }}" \
+      --from-literal=tld="{{ cluster_tld }}" \
+      --dry-run=client -o yaml | kubectl apply -f -
+  loop:
+    - factorio
+    - ittools
+    - ntfy
+    - pairdrop
+    - wallos
+    - linkding
+  when:
+    - manage_dns_records | default(false)
+  no_log: true
+
+- name: Get ArgoCD initial admin password
+  shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d
+  register: argocd_admin_password
+  ignore_errors: yes
+  no_log: true
+
+- name: Validate ArgoCD deployment
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    # Check if all ArgoCD components are running
+    READY_PODS=$(kubectl get pods -n argocd --no-headers | grep -c "Running" || echo "0")
+    TOTAL_PODS=$(kubectl get pods -n argocd --no-headers | wc -l)
+    if [ "$READY_PODS" -lt 5 ]; then
+      echo "WARNING: Not all ArgoCD pods are running ($READY_PODS/$TOTAL_PODS)"
+      kubectl get pods -n argocd
+    fi
+
+    echo "ArgoCD deployment status: $READY_PODS pods running"
+  register: argocd_validation
+  when:
+    - argocd_needs_deployment | default(true)
+
+- name: Deploy root ArgoCD application for environment
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    echo "Deploying root-{{ cluster_environment }} Application from {{ argocd_target_revision }} at argocd/apps/{{ cluster_environment }}..."
+    kubectl apply -f - <<'EOF'
+    apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: root-{{ cluster_environment }}
+      namespace: argocd
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: default
+      source:
+        repoURL: git@github.com:jlevangi/home-infra.git
+        targetRevision: {{ argocd_target_revision }}
+        path: argocd/apps/{{ cluster_environment }}
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: argocd
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+    EOF
+  register: argocd_root_app_result
+  when:
+    - argocd_deploy_root_app | default(true)
+
+- name: Wait for root Application to sync
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    # Wait up to 2 minutes for the root app to sync
+    for i in $(seq 1 24); do
+      STATUS=$(kubectl get application root-{{ cluster_environment }} -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "Unknown")
+      if [ "$STATUS" = "Synced" ]; then
+        echo "Root application synced successfully"
+        exit 0
+      fi
+      echo "Waiting for root application to sync... (status: $STATUS)"
+      sleep 5
+    done
+    echo "WARNING: Root application not yet synced after 2 minutes"
+    kubectl get application root-{{ cluster_environment }} -n argocd -o yaml
+  when:
+    - argocd_deploy_root_app | default(true)
+  ignore_errors: yes
+
+- name: Display ArgoCD installation results
+  debug:
+    msg: |
+      ArgoCD Installation Complete!
+
+      Installation Status:
+      {{ argocd_install_result.stdout if argocd_install_result.stdout is defined else 'Already installed' }}
+
+      Web UI Access:
+      URL: https://argocd.{{ environment_domain }}
+      Username: admin
+      Password: Run this command to retrieve:
+        kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d; echo
+
+      Note: It is recommended to delete the initial admin secret after first login:
+        kubectl delete secret argocd-initial-admin-secret -n argocd
+
+      Verification Commands:
+      kubectl get pods -n argocd
+      kubectl get svc -n argocd
+      kubectl get ingressroute -n argocd
+      kubectl get applications -A
+
+      CLI Login (from cluster):
+      argocd login argocd-server.argocd.svc.cluster.local --insecure

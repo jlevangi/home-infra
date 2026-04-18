@@ -1,0 +1,48 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vault
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://helm.releases.hashicorp.com
+    chart: vault
+    targetRevision: 0.28.0
+    helm:
+      values: |
+        global:
+          enabled: true
+          tlsDisable: true
+        injector:
+          enabled: false
+        csi:
+          enabled: false
+        server:
+          ha:
+            enabled: false
+          dataStorage:
+            enabled: true
+            size: 5Gi
+          ui:
+            enabled: true
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            annotations:
+              traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+            hosts:
+              - host: vault.talos-test.levangie.dev
+                paths:
+                  - /
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vault
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
