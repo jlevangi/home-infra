@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: git@github.com:jlevangi/home-infra.git
-    targetRevision: talos-test-cluster  # TODO: switch back to main after merge
+    targetRevision: main
     path: argocd/apps/talos-test
   destination:
     server: https://kubernetes.default.svc
