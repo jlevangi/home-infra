@@ -35,7 +35,7 @@ spec:
             annotations:
               traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
             hosts:
-              - grafana.levangie.dev
+              - grafana.talos-test.levangie.dev
           persistence:
             enabled: true
             storageClassName: longhorn
