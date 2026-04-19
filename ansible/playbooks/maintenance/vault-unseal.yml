@@ -1,0 +1,281 @@
+---
+# Unseal Vault, reconfigure Kubernetes auth, and recover External Secrets
+#
+# Handles the common scenario where a Vault pod restart leaves Vault sealed
+# and the Kubernetes auth JWT stale, causing all ExternalSecrets to fail.
+#
+# Works for any cluster (K3s or Talos) — runs entirely from localhost via kubectl.
+#
+# Usage:
+#   ansible-playbook ansible/playbooks/maintenance/vault-unseal.yml \
+#     -e "kubectl_context=k3s-prod"
+#
+#   ansible-playbook ansible/playbooks/maintenance/vault-unseal.yml \
+#     -e "kubectl_context=talos-test"
+#
+# What it does:
+#   1. Checks Vault seal status
+#   2. Unseals using keys from the vault-init Kubernetes secret
+#   3. Reconfigures Vault Kubernetes auth (refreshes the SA token/CA cert)
+#   4. Restarts external-secrets operator deployments
+#   5. Verifies ClusterSecretStore and all ExternalSecrets recover
+
+- name: Vault unseal and External Secrets recovery
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    vault_namespace: "vault"
+    vault_init_secret_name: "vault-init"
+    external_secrets_namespace: "external-secrets"
+    # How long to wait for ExternalSecrets to resync after recovery
+    es_recovery_retries: 12
+    es_recovery_delay: 10
+
+  pre_tasks:
+    - name: Assert kubectl_context is provided
+      ansible.builtin.assert:
+        that:
+          - kubectl_context is defined
+          - kubectl_context | length > 0
+        fail_msg: "kubectl_context is required (e.g. k3s-prod, talos-test)"
+
+  tasks:
+    # ── Discover Vault pod ────────────────────────────────────────────
+    - name: Find Vault pod
+      shell: >
+        kubectl --context {{ kubectl_context }} get pod
+        -l app.kubernetes.io/name=vault -n {{ vault_namespace }}
+        -o jsonpath='{.items[0].metadata.name}'
+      register: vault_pod_check
+      failed_when: false
+      changed_when: false
+
+    - name: Abort if Vault is not deployed
+      ansible.builtin.fail:
+        msg: "No Vault pod found in namespace '{{ vault_namespace }}' on context '{{ kubectl_context }}'"
+      when: vault_pod_check.rc != 0 or vault_pod_check.stdout | length == 0
+
+    - name: Set Vault pod name
+      set_fact:
+        vault_pod: "{{ vault_pod_check.stdout }}"
+
+    - name: Wait for Vault pod to be Running
+      shell: >
+        kubectl --context {{ kubectl_context }} get pod {{ vault_pod }}
+        -n {{ vault_namespace }} -o jsonpath='{.status.phase}'
+      register: vault_phase
+      retries: 30
+      delay: 10
+      until: vault_phase.stdout == "Running"
+      changed_when: false
+
+    # ── Check seal status ─────────────────────────────────────────────
+    - name: Get Vault status
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ vault_pod }} -- vault status -format=json
+      register: vault_status_raw
+      failed_when: false
+      changed_when: false
+
+    - name: Parse Vault status
+      set_fact:
+        vault_initialized: "{{ (vault_status_raw.stdout | from_json).initialized | default(false) }}"
+        vault_sealed: "{{ (vault_status_raw.stdout | from_json).sealed | default(true) }}"
+      when: vault_status_raw.stdout | default('') | length > 0
+
+    - name: Abort if Vault is not initialized
+      ansible.builtin.fail:
+        msg: "Vault is not initialized. Run the bootstrap playbook first."
+      when: not (vault_initialized | default(false))
+
+    - name: Report Vault already unsealed
+      debug:
+        msg: "Vault is already unsealed — skipping unseal, proceeding to auth refresh."
+      when: not (vault_sealed | default(true))
+
+    # ── Unseal Vault ──────────────────────────────────────────────────
+    - name: Read vault-init secret
+      shell: >
+        kubectl --context {{ kubectl_context }} get secret {{ vault_init_secret_name }}
+        -n {{ vault_namespace }} -o json
+      register: vault_init_secret_raw
+      when: vault_sealed | default(true)
+      no_log: true
+
+    - name: Parse unseal keys and root token
+      set_fact:
+        vault_unseal_keys:
+          - "{{ (vault_init_secret_raw.stdout | from_json).data['unseal-key-1'] | b64decode }}"
+          - "{{ (vault_init_secret_raw.stdout | from_json).data['unseal-key-2'] | b64decode }}"
+          - "{{ (vault_init_secret_raw.stdout | from_json).data['unseal-key-3'] | b64decode }}"
+        vault_root_token: "{{ (vault_init_secret_raw.stdout | from_json).data['root-token'] | b64decode }}"
+      when: vault_sealed | default(true)
+      no_log: true
+
+    - name: Unseal Vault
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ vault_pod }} -- vault operator unseal '{{ item }}'
+      loop: "{{ vault_unseal_keys }}"
+      when:
+        - vault_sealed | default(true)
+        - vault_unseal_keys is defined
+      no_log: true
+
+    - name: Verify Vault is unsealed
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ vault_pod }} -- vault status -format=json
+      register: vault_post_unseal
+      retries: 5
+      delay: 5
+      until: vault_post_unseal.rc == 0 and not (vault_post_unseal.stdout | from_json).sealed
+      changed_when: false
+      when: vault_sealed | default(true)
+
+    - name: Vault unsealed
+      debug:
+        msg: "Vault has been unsealed successfully."
+      when: vault_sealed | default(true)
+
+    # ── Read root token (if we didn't unseal, we still need it) ───────
+    - name: Read root token from secret
+      shell: >
+        kubectl --context {{ kubectl_context }} get secret {{ vault_init_secret_name }}
+        -n {{ vault_namespace }} -o jsonpath='{.data.root-token}'
+      register: vault_root_token_raw
+      when: vault_root_token is not defined
+      no_log: true
+
+    - name: Set root token
+      set_fact:
+        vault_root_token: "{{ vault_root_token_raw.stdout | b64decode }}"
+      when: vault_root_token is not defined
+      no_log: true
+
+    # ── Reconfigure Kubernetes auth ───────────────────────────────────
+    # After a pod restart, Vault's internal SA token for token review
+    # may be stale. Re-writing the config forces Vault to pick up the
+    # fresh token from its mounted service account.
+    - name: Login to Vault
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ vault_pod }} -- vault login '{{ vault_root_token }}'
+      changed_when: false
+      no_log: true
+
+    - name: Reconfigure Kubernetes auth backend
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ vault_pod }} -- sh -c '
+          vault write auth/kubernetes/config
+            kubernetes_host="https://kubernetes.default.svc:443"
+            disable_iss_validation=true
+            disable_local_ca_jwt=false'
+      register: vault_k8s_auth_config
+      changed_when: vault_k8s_auth_config.rc == 0
+
+    - name: Kubernetes auth reconfigured
+      debug:
+        msg: "Vault Kubernetes auth backend has been refreshed with current SA token."
+
+    # ── Restart External Secrets operator ─────────────────────────────
+    - name: Check if external-secrets namespace exists
+      shell: >
+        kubectl --context {{ kubectl_context }} get namespace {{ external_secrets_namespace }}
+      register: es_ns_check
+      failed_when: false
+      changed_when: false
+
+    - name: Get external-secrets deployments
+      shell: >
+        kubectl --context {{ kubectl_context }} get deployments
+        -n {{ external_secrets_namespace }}
+        -o jsonpath='{.items[*].metadata.name}'
+      register: es_deployments
+      when: es_ns_check.rc == 0
+      changed_when: false
+
+    - name: Restart external-secrets deployments
+      shell: >
+        kubectl --context {{ kubectl_context }} rollout restart
+        deployment {{ item }} -n {{ external_secrets_namespace }}
+      loop: "{{ es_deployments.stdout.split() }}"
+      when:
+        - es_ns_check.rc == 0
+        - es_deployments.stdout | length > 0
+
+    - name: Wait for external-secrets rollouts
+      shell: >
+        kubectl --context {{ kubectl_context }} rollout status
+        deployment {{ item }} -n {{ external_secrets_namespace }} --timeout=120s
+      loop: "{{ es_deployments.stdout.split() }}"
+      when:
+        - es_ns_check.rc == 0
+        - es_deployments.stdout | length > 0
+      changed_when: false
+
+    # ── Force ClusterSecretStore resync ───────────────────────────────
+    - name: Get ClusterSecretStore names
+      shell: >
+        kubectl --context {{ kubectl_context }} get clustersecretstores
+        -o jsonpath='{.items[*].metadata.name}'
+      register: css_names
+      failed_when: false
+      changed_when: false
+      when: es_ns_check.rc == 0
+
+    - name: Annotate ClusterSecretStores to force resync
+      shell: >
+        kubectl --context {{ kubectl_context }} annotate clustersecretstore {{ item }}
+        force-sync="{{ lookup('pipe', 'date +%s') }}" --overwrite
+      loop: "{{ css_names.stdout.split() }}"
+      when:
+        - es_ns_check.rc == 0
+        - css_names.stdout | default('') | length > 0
+
+    # ── Verify recovery ──────────────────────────────────────────────
+    - name: Wait for ClusterSecretStores to become Ready
+      shell: >
+        kubectl --context {{ kubectl_context }} get clustersecretstores
+        -o jsonpath='{range .items[*]}{.metadata.name}={.status.conditions[0].reason}{" "}{end}'
+      register: css_status
+      retries: "{{ es_recovery_retries }}"
+      delay: "{{ es_recovery_delay }}"
+      until: "'InvalidProviderConfig' not in css_status.stdout and 'Valid' in css_status.stdout"
+      changed_when: false
+      when:
+        - es_ns_check.rc == 0
+        - css_names.stdout | default('') | length > 0
+
+    - name: Check ExternalSecrets sync status
+      shell: >
+        kubectl --context {{ kubectl_context }} get externalsecrets -A
+        -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}={.status.conditions[0].reason}{" "}{end}'
+      register: es_status
+      retries: "{{ es_recovery_retries }}"
+      delay: "{{ es_recovery_delay }}"
+      until: "'SecretSyncedError' not in es_status.stdout"
+      changed_when: false
+      failed_when: false
+      when: es_ns_check.rc == 0
+
+    - name: Display final status
+      shell: |
+        echo "=== Vault Status ==="
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }} {{ vault_pod }} -- vault status 2>&1 || true
+        echo ""
+        echo "=== ClusterSecretStores ==="
+        kubectl --context {{ kubectl_context }} get clustersecretstores 2>&1 || echo "  (none)"
+        echo ""
+        echo "=== ExternalSecrets ==="
+        kubectl --context {{ kubectl_context }} get externalsecrets -A 2>&1 || echo "  (none)"
+      register: final_status
+      changed_when: false
+
+    - name: Recovery summary
+      debug:
+        msg: "{{ final_status.stdout_lines }}"

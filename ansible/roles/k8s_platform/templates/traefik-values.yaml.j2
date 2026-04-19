@@ -1,0 +1,152 @@
+# Traefik Configuration (Helm chart v35+)
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+deployment:
+  replicas: 1
+{% if traefik_acme_enabled | default(false) %}
+  initContainers:
+    - name: acme-init
+      image: busybox:1.35
+      command:
+        - sh
+        - -c
+        - |
+          touch /data/acme.json
+          chmod 600 /data/acme.json
+          ls -la /data/acme.json
+      securityContext:
+        runAsUser: 65532
+        runAsGroup: 65532
+        runAsNonRoot: true
+        allowPrivilegeEscalation: false
+      volumeMounts:
+        - name: traefik-certs
+          mountPath: /data
+  dnsPolicy: "{{ traefik_dns_policy | default('None') }}"
+  dnsConfig:
+    nameservers:
+{% for nameserver in traefik_external_nameservers | default(['1.1.1.1', '8.8.8.8']) %}
+      - "{{ nameserver }}"
+{% endfor %}
+    options:
+      - name: ndots
+        value: "{{ traefik_dns_ndots | default('2') }}"
+{% endif %}
+
+service:
+  enabled: true
+  type: LoadBalancer
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: "{{ traefik_loadbalancer_ip }}"
+
+ports:
+  web:
+    port: 80
+    expose:
+      default: true
+    exposedPort: 80
+  websecure:
+    port: 8443
+    expose:
+      default: true
+    exposedPort: 443
+    http:
+      tls:
+        enabled: true
+{% if traefik_acme_enabled | default(false) and traefik_wildcard_cert_enabled | default(false) %}
+        certResolver: letsencrypt
+        domains:
+          - main: "{{ traefik_wildcard_domain | default('*.' + environment_prefix + cluster_tld) }}"
+            sans:
+              - "{{ environment_prefix | regex_replace('\\.$', '') }}.{{ cluster_tld }}"
+{% endif %}
+  traefik:
+    port: 9000
+    expose:
+      default: false
+    exposedPort: 9000
+
+api:
+  dashboard: true
+  insecure: {{ traefik_dashboard_insecure | default(true) | lower }}
+
+providers:
+  kubernetesCRD:
+    enabled: true
+  kubernetesIngress:
+    enabled: true
+
+additionalArguments:
+  - "--providers.kubernetesingress.ingressclass=traefik"
+  - "--metrics.prometheus=true"
+{% if traefik_tls_enabled | default(false) %}
+  - "--entrypoints.websecure.http.tls=true"
+{% if traefik_acme_enabled | default(false) %}
+  - "--certificatesresolvers.letsencrypt.acme.dnschallenge=true"
+  - "--certificatesresolvers.letsencrypt.acme.dnschallenge.provider={{ traefik_acme_dns_provider | default('cloudflare') }}"
+  - "--certificatesresolvers.letsencrypt.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
+  - "--certificatesresolvers.letsencrypt.acme.dnschallenge.delaybeforecheck=10"
+  - "--certificatesresolvers.letsencrypt.acme.email={{ traefik_acme_email | default('admin@levangie.dev') }}"
+  - "--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json"
+  - "--certificatesresolvers.letsencrypt.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"
+{% else %}
+  - "--providers.file.directory=/data/dynamic"
+  - "--providers.file.watch=true"
+{% endif %}
+{% endif %}
+
+{% if traefik_persistence_enabled | default(false) %}
+persistence:
+  enabled: true
+  name: traefik-certs
+  size: 1Gi
+  storageClass: longhorn
+  path: /data
+  annotations: {}
+{% endif %}
+
+{% if traefik_acme_enabled | default(false) %}
+# Environment variables for DNS provider
+env:
+{% if traefik_acme_dns_provider == 'cloudflare' %}
+  - name: CF_API_EMAIL
+    valueFrom:
+      secretKeyRef:
+        name: traefik-dns-secret
+        key: email
+  - name: CF_DNS_API_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: traefik-dns-secret
+        key: api-token
+{% elif traefik_acme_dns_provider == 'route53' %}
+  - name: AWS_ACCESS_KEY_ID
+    valueFrom:
+      secretKeyRef:
+        name: traefik-dns-secret
+        key: access-key-id
+  - name: AWS_SECRET_ACCESS_KEY
+    valueFrom:
+      secretKeyRef:
+        name: traefik-dns-secret
+        key: secret-access-key
+{% endif %}
+
+securityContext:
+  runAsUser: 65532
+  runAsGroup: 65532
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+podSecurityContext:
+  runAsNonRoot: true
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+{% endif %}
