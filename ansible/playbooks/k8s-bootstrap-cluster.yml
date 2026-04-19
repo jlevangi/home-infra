@@ -1,0 +1,32 @@
+---
+- name: Bootstrap Kubernetes platform services from kubeconfig
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars_files:
+    - ../group_vars/k3s_cluster_vault.yml
+    - ../group_vars/k3s_cluster.yml
+    - "../group_vars/{{ target_cluster }}.yml"
+
+  pre_tasks:
+    - name: Assert required variables are present
+      ansible.builtin.assert:
+        that:
+          - target_cluster is defined
+          - kubeconfig_path is defined
+          - kubeconfig_path | length > 0
+        fail_msg: "target_cluster and kubeconfig_path are required"
+
+    - name: Check kubeconfig file exists
+      ansible.builtin.stat:
+        path: "{{ kubeconfig_path }}"
+      register: bootstrap_kubeconfig
+
+    - name: Fail when kubeconfig file is missing
+      ansible.builtin.fail:
+        msg: "Kubeconfig '{{ kubeconfig_path }}' does not exist"
+      when: not bootstrap_kubeconfig.stat.exists
+
+  roles:
+    - role: ../roles/k8s_platform
