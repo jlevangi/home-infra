@@ -2,6 +2,9 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../base
+images:
+  - name: sissbruecker/linkding
+    newTag: "1.45.0"
 patchesStrategicMerge:
   - pvc-patch.yaml
 commonLabels:

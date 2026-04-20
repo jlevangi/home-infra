@@ -2,6 +2,9 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../base
+images:
+  - name: danielszabo99/microbin
+    newTag: "2.1.4"
 patches:
   # Patch ConfigMap public path for stage environment
   - target:

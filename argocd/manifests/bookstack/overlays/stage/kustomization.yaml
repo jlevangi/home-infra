@@ -2,6 +2,11 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../base
+images:
+  - name: linuxserver/bookstack
+    newTag: "26.03.3"
+  - name: linuxserver/mariadb
+    newTag: "11.4.9"
 patches:
   # Patch ConfigMap APP_URL for stage environment
   - target:
