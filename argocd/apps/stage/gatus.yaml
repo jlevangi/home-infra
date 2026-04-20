@@ -48,6 +48,13 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
+            - name: Longhorn
+              group: Infrastructure
+              url: https://longhorn.stage.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+
             - name: Grafana
               group: Monitoring
               url: https://grafana.stage.levangie.dev
@@ -63,17 +70,17 @@ spec:
               conditions:
                 - "[STATUS] == 200"
 
-            - name: Vaultwarden
+            - name: Bookstack
               group: Applications
-              url: https://vw.stage.levangie.dev
+              url: https://bookstack.stage.levangie.dev
               interval: 5m
               conditions:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
-            - name: Homepage
+            - name: Vaultwarden
               group: Applications
-              url: https://homepage.stage.levangie.dev
+              url: https://vw.stage.levangie.dev
               interval: 5m
               conditions:
                 - "[STATUS] == 200"
@@ -94,6 +101,21 @@ spec:
               conditions:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
+
+            - name: Paperless
+              group: Applications
+              url: https://paperless.stage.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Factorio
+              group: Applications
+              url: tcp://factorio.stage.levangie.dev:27015
+              interval: 5m
+              conditions:
+                - "[CONNECTED] == true"
 
   destination:
     server: https://kubernetes.default.svc
