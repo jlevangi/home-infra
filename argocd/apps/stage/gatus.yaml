@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://minicloudlabs.github.io/helm-charts
     chart: gatus
-    targetRevision: 3.4.1
+    targetRevision: 3.4.6
     helm:
       values: |
         ingress:
