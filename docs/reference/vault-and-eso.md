@@ -33,7 +33,7 @@ To upgrade prod after stage is healthy:
 
 1. Confirm `external-secrets` and `external-secrets-config` are synced and healthy in stage.
 2. Confirm each stage `ExternalSecret` has `Ready=True` and the generated Kubernetes `Secret` objects were refreshed.
-3. Change `argocd/apps/prod/external-secrets.yaml` to `targetRevision: 0.20.4` and add `ServerSideApply=true` under `syncOptions`.
+3. Change `argocd/apps/prod/external-secrets.yaml` to `targetRevision: 0.20.4`, add `namespaceOverride: external-secrets` to the Helm values, and add `ServerSideApply=true` under `syncOptions`.
 4. Remove the prod `apiVersion: external-secrets.io/v1beta1` patches from the prod overlays.
 5. Sync prod `external-secrets` first, then `external-secrets-config`, then the app manifests that contain `ExternalSecret` resources.
 
