@@ -49,9 +49,11 @@ resource "proxmox_vm_qemu" "terraform" {
     cores = 4
     sockets = 1
     type = "host"
+    numa = true
   }
-  
-  memory = 4096  # Reduced for K3s - can be increased if needed
+
+  memory = 4096
+  balloon = 4096
   scsihw = "virtio-scsi-pci"
   bootdisk = "scsi0"
   
