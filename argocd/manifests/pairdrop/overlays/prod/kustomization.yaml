@@ -2,5 +2,8 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../base
+images:
+  - name: lscr.io/linuxserver/pairdrop
+    newTag: "1.11.2"
 commonLabels:
   environment: prod

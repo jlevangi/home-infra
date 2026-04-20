@@ -2,6 +2,13 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../base
+images:
+  - name: ghcr.io/paperless-ngx/paperless-ngx
+    newTag: "2.20.4"
+  - name: mariadb
+    newTag: "10.11.16"
+  - name: redis
+    newTag: "7.4.8"
 patches:
   - target:
       kind: PersistentVolumeClaim

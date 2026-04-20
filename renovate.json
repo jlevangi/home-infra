@@ -1,0 +1,75 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "ignorePaths": [
+    "argocd/manifests/*/base/**",
+    "ansible/**",
+    "scripts/**"
+  ],
+  "kubernetes": {
+    "fileMatch": ["argocd/manifests/.+/overlays/.+/kustomization\\.yaml$"]
+  },
+  "argocd": {
+    "fileMatch": ["argocd/apps/.+\\.yaml$"]
+  },
+  "packageRules": [
+    {
+      "description": "Stage container images - weekly",
+      "matchFileNames": ["argocd/manifests/*/overlays/stage/**"],
+      "schedule": ["before 6am on Monday"],
+      "automerge": false,
+      "groupName": "stage-container-images"
+    },
+    {
+      "description": "Stage Helm charts - weekly",
+      "matchFileNames": ["argocd/apps/stage/**"],
+      "matchManagers": ["argocd"],
+      "schedule": ["before 6am on Monday"],
+      "automerge": false,
+      "groupName": "stage-helm-charts"
+    },
+    {
+      "description": "Prod - disabled initially",
+      "matchFileNames": ["argocd/apps/prod/**", "argocd/manifests/*/overlays/prod/**"],
+      "enabled": false
+    },
+    {
+      "description": "Test/Talos - disabled",
+      "matchFileNames": [
+        "argocd/apps/test/**",
+        "argocd/apps/talos-test/**",
+        "argocd/manifests/*/overlays/test/**"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Terraform - monthly",
+      "matchManagers": ["terraform"],
+      "schedule": ["before 6am on the first day of the month"],
+      "automerge": false,
+      "groupName": "terraform-providers"
+    },
+    {
+      "description": "Major updates need review",
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "labels": ["major-update"]
+    },
+    {
+      "description": "Plex - patch only (complex versioning)",
+      "matchPackageNames": ["plexinc/pms-docker"],
+      "matchUpdateTypes": ["major", "minor"],
+      "enabled": false
+    },
+    {
+      "description": "PocketID - stay on v1.x",
+      "matchPackageNames": ["ghcr.io/pocket-id/pocket-id"],
+      "allowedVersions": "/^v1\\./"
+    }
+  ],
+  "labels": ["renovate"],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "dependencyDashboard": true,
+  "timezone": "America/New_York"
+}
