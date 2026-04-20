@@ -49,9 +49,11 @@ resource "proxmox_vm_qemu" "terraform" {
     cores = 2
     sockets = 1
     type = "host"
+    numa = true
   }
-  
+
   memory = 8192
+  balloon = 8192
   scsihw = "virtio-scsi-pci"
   bootdisk = "scsi0"
   
