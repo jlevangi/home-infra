@@ -7,6 +7,15 @@ images:
     newTag: "26.03.3"
   - name: linuxserver/mariadb
     newTag: "11.4.9"
+patches:
+  # Prod ESO is pinned to 0.10.5, whose CRDs do not serve external-secrets.io/v1.
+  - target:
+      kind: ExternalSecret
+      name: bookstack-secrets
+    patch: |
+      - op: replace
+        path: /apiVersion
+        value: external-secrets.io/v1beta1
 # Prod uses base values (bookstack.levangie.dev) - no patches needed
 commonLabels:
   environment: prod
