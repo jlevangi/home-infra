@@ -14,18 +14,18 @@
   },
   "packageRules": [
     {
-      "description": "Stage container images - weekly",
+      "description": "Stage container images - weekly automerge",
       "matchFileNames": ["argocd/manifests/*/overlays/stage/**"],
-      "schedule": ["before 6am on Monday"],
-      "automerge": false,
+      "schedule": ["after 10am on Monday"],
+      "automerge": true,
       "groupName": "stage-container-images"
     },
     {
-      "description": "Stage Helm charts - weekly",
+      "description": "Stage Helm charts - weekly automerge",
       "matchFileNames": ["argocd/apps/stage/**"],
       "matchManagers": ["argocd"],
-      "schedule": ["before 6am on Monday"],
-      "automerge": false,
+      "schedule": ["after 10am on Monday"],
+      "automerge": true,
       "groupName": "stage-helm-charts"
     },
     {
