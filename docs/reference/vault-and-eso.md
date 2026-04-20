@@ -23,6 +23,20 @@ When `k3s_configure_vault: true`, the Ansible Vault role bootstraps:
 
 The automation stores the Vault root token and unseal keys in the `vault-init` secret in the `vault` namespace. Treat that secret as highly sensitive.
 
+## ESO Version Rollout
+
+Stage and test track the newer External Secrets Operator chart first. The `external-secrets` ArgoCD Application for those environments uses `targetRevision: 0.20.4` with `ServerSideApply=true`, and their manifests render `external-secrets.io/v1` custom resources.
+
+Production intentionally remains on ESO `0.10.5` until the stage rollout is verified. Prod overlays patch `ClusterSecretStore` and `ExternalSecret` resources back to `external-secrets.io/v1beta1` so pushing shared `v1` base manifests does not change prod's ESO behavior.
+
+To upgrade prod after stage is healthy:
+
+1. Confirm `external-secrets` and `external-secrets-config` are synced and healthy in stage.
+2. Confirm each stage `ExternalSecret` has `Ready=True` and the generated Kubernetes `Secret` objects were refreshed.
+3. Change `argocd/apps/prod/external-secrets.yaml` to `targetRevision: 0.20.4` and add `ServerSideApply=true` under `syncOptions`.
+4. Remove the prod `apiVersion: external-secrets.io/v1beta1` patches from the prod overlays.
+5. Sync prod `external-secrets` first, then `external-secrets-config`, then the app manifests that contain `ExternalSecret` resources.
+
 ## 1) Deploy Vault + ESO
 
 Switch to the target cluster and let ArgoCD sync:

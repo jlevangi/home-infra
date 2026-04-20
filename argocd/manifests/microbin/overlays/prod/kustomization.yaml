@@ -5,6 +5,15 @@ resources:
 images:
   - name: danielszabo99/microbin
     newTag: "2.1.4"
+patches:
+  # Prod ESO is pinned to 0.10.5, whose CRDs do not serve external-secrets.io/v1.
+  - target:
+      kind: ExternalSecret
+      name: microbin-secrets
+    patch: |
+      - op: replace
+        path: /apiVersion
+        value: external-secrets.io/v1beta1
 # Prod uses base values (bin.levangie.dev) - no patches needed
 commonLabels:
   environment: prod

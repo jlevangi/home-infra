@@ -55,5 +55,13 @@ patches:
       - op: replace
         path: /spec/hard/longhorn.io~1requests.storage
         value: "40Gi"
+  # Prod ESO is pinned to 0.10.5, whose CRDs do not serve external-secrets.io/v1.
+  - target:
+      kind: ExternalSecret
+      name: paperless-secrets
+    patch: |
+      - op: replace
+        path: /apiVersion
+        value: external-secrets.io/v1beta1
 commonLabels:
   environment: prod

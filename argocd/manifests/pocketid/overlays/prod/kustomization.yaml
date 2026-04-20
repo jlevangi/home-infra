@@ -5,5 +5,14 @@ resources:
 images:
   - name: ghcr.io/pocket-id/pocket-id
     newTag: "v1.16.0"
+patches:
+  # Prod ESO is pinned to 0.10.5, whose CRDs do not serve external-secrets.io/v1.
+  - target:
+      kind: ExternalSecret
+      name: pocketid-secret
+    patch: |
+      - op: replace
+        path: /apiVersion
+        value: external-secrets.io/v1beta1
 commonLabels:
   environment: prod
