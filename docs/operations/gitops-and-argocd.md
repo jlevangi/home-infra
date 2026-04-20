@@ -67,5 +67,6 @@ kubectl --context k3s-prod patch application <app-name> -n argocd --type=merge \
 ## Related Docs
 
 - [Cluster Operations](cluster-operations.md)
+- [Major Chart Upgrades](major-chart-upgrades.md)
 - [Backup And Restore](../recovery/backup-and-restore.md)
 - [Production Cutover Checklist](../recovery/production-cutover-checklist.md)
