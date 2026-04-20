@@ -19,6 +19,7 @@ spec:
           enabled: true
           deploymentStrategy:
             type: Recreate
+            rollingUpdate: null
           admin:
             existingSecret: grafana-admin-credentials
             userKey: admin-user
