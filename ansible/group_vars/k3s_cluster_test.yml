@@ -34,6 +34,9 @@ default_initial_volume_size: "100Mi"
 # Disable backups for test environment (ephemeral data)
 enable_longhorn_backup: false
 
+# Test tracks the same ESO chart path as stage and may be rebuilt from scratch.
+external_secrets_bootstrap_crds: true
+
 # Shorter DNS TTL for test (faster iteration)
 dns_record_ttl: 300
 

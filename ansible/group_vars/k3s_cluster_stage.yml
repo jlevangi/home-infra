@@ -36,6 +36,10 @@ force_redeploy_apps:
 # Disable backups for stage (restores from prod backups for testing)
 enable_longhorn_backup: false
 
+# Stage tracks the ESO chart with installCRDs=false, so fresh rebuilds need the
+# CRDs pre-seeded before ArgoCD syncs ExternalSecret resources.
+external_secrets_bootstrap_crds: true
+
 # -----------------------------------------------------------------------------
 # K3S DATASTORE — SQLite (not embedded etcd)
 # -----------------------------------------------------------------------------
