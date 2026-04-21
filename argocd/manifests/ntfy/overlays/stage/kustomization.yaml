@@ -20,15 +20,9 @@ patches:
       - op: replace
         path: /spec/rules/0/host
         value: "ntfy.stage.levangie.dev"
-  - target:
-      kind: Job
-      name: ntfy-dns-record
-    patch: |
-      - op: replace
-        path: /spec/template/spec/containers/0/env/3/value
-        value: "ntfy.stage"
-      - op: replace
-        path: /spec/template/spec/containers/0/env/4/value
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
         value: "k3s-stage.levangie.dev"
+
 commonLabels:
   environment: stage

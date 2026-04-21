@@ -18,6 +18,7 @@ spec:
           ingressClassName: traefik
           annotations:
             traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+            external-dns.alpha.kubernetes.io/target: k3s-stage.levangie.dev
           hosts:
             - status.stage.levangie.dev
 
