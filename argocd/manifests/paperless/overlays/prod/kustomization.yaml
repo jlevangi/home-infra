@@ -4,11 +4,11 @@ resources:
   - ../../base
 images:
   - name: ghcr.io/paperless-ngx/paperless-ngx
-    newTag: "2.20.4"
+    newTag: "2.20.14"
   - name: mariadb
-    newTag: "10.11.16"
+    newTag: "12.2.2"
   - name: redis
-    newTag: "7.4.8"
+    newTag: "8.6.2"
 patches:
   - target:
       kind: PersistentVolumeClaim
