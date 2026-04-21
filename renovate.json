@@ -16,7 +16,7 @@
     {
       "description": "Stage container images - weekly automerge",
       "matchFileNames": ["argocd/manifests/*/overlays/stage/**"],
-      "schedule": ["after 10am on Monday"],
+      "schedule": ["after 6am on Monday"],
       "automerge": true,
       "groupName": "stage-container-images"
     },
@@ -24,7 +24,7 @@
       "description": "Stage Helm charts - weekly automerge",
       "matchFileNames": ["argocd/apps/stage/**"],
       "matchManagers": ["argocd"],
-      "schedule": ["after 10am on Monday"],
+      "schedule": ["after 6am on Monday"],
       "automerge": true,
       "groupName": "stage-helm-charts"
     },
