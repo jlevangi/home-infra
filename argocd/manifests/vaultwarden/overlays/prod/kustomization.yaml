@@ -5,15 +5,6 @@ resources:
 images:
   - name: vaultwarden/server
     newTag: "1.35.4"
-patches:
-  # Prod ESO is pinned to 0.10.5, whose CRDs do not serve external-secrets.io/v1.
-  - target:
-      kind: ExternalSecret
-      name: vaultwarden-secrets
-    patch: |
-      - op: replace
-        path: /apiVersion
-        value: external-secrets.io/v1beta1
 # Prod uses base values (vw.levangie.dev) - no patches needed
 commonLabels:
   environment: prod
