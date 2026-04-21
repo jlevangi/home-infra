@@ -139,6 +139,8 @@ external_secrets_namespace: "external-secrets"
 external_secrets_service_account: "external-secrets"
 vault_external_secrets_policy: "external-secrets"
 vault_external_secrets_role: "external-secrets"
+external_secrets_bootstrap_crds: false
+external_secrets_crds_chart_version: "2.3.0"
 
 # ArgoCD server resource limits (homelab-appropriate)
 argocd_server_cpu_limit: "500m"
