@@ -22,6 +22,9 @@ patches:
       - op: replace
         path: /spec/rules/0/host
         value: "bin.stage.levangie.dev"
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: "k3s-stage.levangie.dev"
   # Patch ExternalSecret vault path for stage environment
   - target:
       kind: ExternalSecret

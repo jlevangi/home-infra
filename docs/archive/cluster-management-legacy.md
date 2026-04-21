@@ -560,18 +560,14 @@ kubectl logs -n <namespace> deploy/<deployment> --previous
 kubectl get pvc -n <namespace>
 ```
 
-**Problem: `dns-record` hook pods are in `CreateContainerConfigError`**
+**Problem: `dns-record` hook pods are in `CreateContainerConfigError`** (Legacy - only applies to Factorio)
+
+> **Note:** DNS hook Jobs have been replaced by ExternalDNS for most apps. See [docs/reference/dns-automation.md](../reference/dns-automation.md). Only Factorio still uses a hook Job.
+
 ```bash
-# Confirm the Technitium secret exists in the app namespace
-kubectl get secret technitium-api-credentials -n <namespace>
-
-# If the secret only exists in argocd, copy it into the app namespace
-kubectl get secret technitium-api-credentials -n argocd -o yaml \
-  | sed "s/namespace: argocd/namespace: <namespace>/" \
-  | kubectl apply -f -
+# Confirm the Technitium secret exists in the factorio namespace
+kubectl get secret technitium-api-credentials -n factorio
 ```
-
-Apps that create per-namespace DNS jobs need the secret in the application namespace, not only in `argocd`.
 
 ---
 
