@@ -4,9 +4,9 @@ resources:
   - ../../base
 images:
   - name: linuxserver/bookstack
-    newTag: "26.03.3"
+    newTag: "26.03.20260315"
   - name: linuxserver/mariadb
-    newTag: "11.4.9"
+    newTag: "11.4.10"
 # Prod uses base values (bookstack.levangie.dev) - no patches needed
 commonLabels:
   environment: prod
