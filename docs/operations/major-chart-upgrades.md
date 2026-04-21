@@ -25,7 +25,7 @@ Before applying these upgrades to prod:
 
 ## External Secrets Operator
 
-Prod intentionally remains pinned to ESO `0.10.5` until the stage rollout is accepted. Prod overlays currently patch `ExternalSecret` and `ClusterSecretStore` resources back to `external-secrets.io/v1beta1`.
+Prod was promoted from ESO `0.10.5` to `2.3.0` on 2026-04-21. The key production difference from a fresh stage cluster is that prod had existing objects stored as `v1beta1`, so the CRD storage version had to be migrated before ending on the `2.3.0` CRDs.
 
 To promote ESO to prod:
 
@@ -35,11 +35,12 @@ To promote ESO to prod:
    kubectl --context k3s-stage get externalsecret -A
    kubectl --context k3s-stage get clustersecretstore vault-kv
    ```
-2. Ensure prod CRDs serve `external-secrets.io/v1` before removing prod `v1beta1` overlays.
+2. Apply transitional ESO CRDs that serve both `v1beta1` and `v1`, with `v1` as storage. If webhook conversion fields remain from the old CRDs, patch the affected CRDs to `conversion: None` while both versions are served.
 3. Update `argocd/apps/prod/external-secrets.yaml` to chart `2.3.0`, `installCRDs: false`, `namespaceOverride: external-secrets`, and `ServerSideApply=true`.
 4. Remove the prod `apiVersion: external-secrets.io/v1beta1` kustomize patches.
 5. Sync prod in this order: `external-secrets`, `external-secrets-config`, then apps with `ExternalSecret` resources.
-6. Verify every prod `ExternalSecret` reports `SecretSynced`.
+6. After the v1 objects have been reapplied, patch CRD status `storedVersions` to `["v1"]` for `externalsecrets`, `clustersecretstores`, `secretstores`, and `clusterexternalsecrets`, then apply the final sanitized ESO `2.3.0` CRDs.
+7. Verify every prod `ExternalSecret` reports `SecretSynced`.
 
 ## Kube Prometheus Stack
 
@@ -82,18 +83,12 @@ kubectl --context k3s-prod -n monitoring rollout status deployment/kube-promethe
 kubectl --context k3s-prod -n monitoring get pods
 ```
 
-If Grafana was already rolling with the old `RollingUpdate` strategy, the old ReplicaSet can hold the PVC and block the upgraded pod with a Multi-Attach error. Patch the live deployment to the committed `Recreate` strategy, remove the old `rollingUpdate` field, and scale the old ReplicaSet down during the maintenance window:
+If Grafana was already rolling with the old `RollingUpdate` strategy, patch the live deployment strategy before retrying the sync. Replacing the whole `strategy` object is more reliable than removing only `rollingUpdate`:
 
 ```bash
 kubectl --context k3s-prod -n monitoring patch deployment kube-prometheus-stack-grafana \
   --type=json \
-  -p='[
-    {"op":"replace","path":"/spec/strategy/type","value":"Recreate"},
-    {"op":"remove","path":"/spec/strategy/rollingUpdate"}
-  ]'
-
-kubectl --context k3s-prod -n monitoring get rs -l app.kubernetes.io/name=grafana
-kubectl --context k3s-prod -n monitoring scale rs <old-grafana-replicaset> --replicas=0
+  -p='[{"op":"replace","path":"/spec/strategy","value":{"type":"Recreate"}}]'
 ```
 
 After the sync, verify:
@@ -104,3 +99,21 @@ kubectl --context k3s-prod -n monitoring get pods
 kubectl --context k3s-prod -n monitoring get deployment kube-prometheus-stack-grafana \
   -o jsonpath='{.spec.strategy.type}{"\n"}'
 ```
+
+## Gatus
+
+Gatus uses a single RWO PVC. Set prod Gatus to `deployment.strategy: Recreate` before chart upgrades. If an upgrade was already started with `RollingUpdate`, deleting the old Gatus pod allows the new pod to attach the PVC, but committing `Recreate` avoids repeating that manual step.
+
+## Vault
+
+Vault chart `0.32.0` updates the StatefulSet template to Vault `1.21.2`, but the chart uses `OnDelete`, so the pod does not restart automatically. After syncing the chart:
+
+1. Confirm the StatefulSet template image and update revision changed.
+2. Delete `vault-0` during the maintenance window.
+3. Run the maintenance unseal/auth-refresh playbook:
+   ```bash
+   ANSIBLE_LOCAL_TEMP=/tmp/ansible-tmp ANSIBLE_REMOTE_TEMP=/tmp/ansible-tmp \
+     ansible-playbook ansible/playbooks/maintenance/vault-unseal.yml \
+     -e kubectl_context=k3s-prod
+   ```
+4. Verify Vault is unsealed, `vault-kv` is `Valid`, and all ExternalSecrets are `SecretSynced`.
