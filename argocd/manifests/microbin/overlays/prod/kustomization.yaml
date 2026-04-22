@@ -6,5 +6,13 @@ images:
   - name: danielszabo99/microbin
     newTag: "2.1.4"
 # Prod uses base values (bin.levangie.dev) - no patches needed
+patches:
+  - target:
+      kind: Ingress
+      name: microbin-ingress
+    patch: |
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: "k3s-prod.levangie.dev"
 commonLabels:
   environment: prod

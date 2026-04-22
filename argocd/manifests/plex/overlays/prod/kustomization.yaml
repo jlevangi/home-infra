@@ -5,5 +5,13 @@ resources:
 images:
   - name: plexinc/pms-docker
     newTag: "1.42.1.10054-f333bdaa8"
+patches:
+  - target:
+      kind: Ingress
+      name: plex-ingress
+    patch: |
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: "k3s-prod.levangie.dev"
 commonLabels:
   environment: prod

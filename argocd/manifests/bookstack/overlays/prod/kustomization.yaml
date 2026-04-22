@@ -8,5 +8,13 @@ images:
   - name: linuxserver/mariadb
     newTag: "11.4.10"
 # Prod uses base values (bookstack.levangie.dev) - no patches needed
+patches:
+  - target:
+      kind: Ingress
+      name: bookstack-ingress
+    patch: |
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: "k3s-prod.levangie.dev"
 commonLabels:
   environment: prod

@@ -40,9 +40,6 @@ external_secrets_bootstrap_crds: true
 # Shorter DNS TTL for test (faster iteration)
 dns_record_ttl: 300
 
-# Point test ArgoCD at feature branch (revert to "main" after merge)
-argocd_target_revision: "feature/external-dns-automation"
-
 # -----------------------------------------------------------------------------
 # K3S DATASTORE — SQLite (not embedded etcd)
 # -----------------------------------------------------------------------------
