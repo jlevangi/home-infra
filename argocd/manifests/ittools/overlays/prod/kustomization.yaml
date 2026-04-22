@@ -5,5 +5,13 @@ resources:
 images:
   - name: corentinth/it-tools
     newTag: "2024.10.22-7ca5933"
+patches:
+  - target:
+      kind: Ingress
+      name: ittools-ingress
+    patch: |
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: "k3s-prod.levangie.dev"
 commonLabels:
   environment: prod

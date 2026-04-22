@@ -7,5 +7,13 @@ images:
     newTag: "4.8.2"
 patchesStrategicMerge:
   - pvc-patch.yaml
+patches:
+  - target:
+      kind: Ingress
+      name: wallos-ingress
+    patch: |
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: "k3s-prod.levangie.dev"
 commonLabels:
   environment: prod
