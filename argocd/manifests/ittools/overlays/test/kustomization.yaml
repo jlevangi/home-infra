@@ -10,6 +10,9 @@ patches:
       - op: replace
         path: /spec/rules/0/host
         value: "ittools.test.levangie.dev"
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: "k3s-test.levangie.dev"
 
 commonLabels:
   environment: test
