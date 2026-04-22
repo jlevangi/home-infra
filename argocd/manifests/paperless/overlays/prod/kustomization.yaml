@@ -68,5 +68,12 @@ patches:
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 90
+  - target:
+      kind: Ingress
+      name: paperless-ingress
+    patch: |
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: "k3s-prod.levangie.dev"
 commonLabels:
   environment: prod

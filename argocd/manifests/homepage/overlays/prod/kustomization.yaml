@@ -5,5 +5,13 @@ resources:
 images:
   - name: ghcr.io/gethomepage/homepage
     newTag: "v1.12.3"
+patches:
+  - target:
+      kind: Ingress
+      name: homepage-ingress
+    patch: |
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: "k3s-prod.levangie.dev"
 commonLabels:
   environment: prod

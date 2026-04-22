@@ -5,5 +5,13 @@ resources:
 images:
   - name: lscr.io/linuxserver/pairdrop
     newTag: "1.11.2"
+patches:
+  - target:
+      kind: Ingress
+      name: pairdrop-ingress
+    patch: |
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: "k3s-prod.levangie.dev"
 commonLabels:
   environment: prod

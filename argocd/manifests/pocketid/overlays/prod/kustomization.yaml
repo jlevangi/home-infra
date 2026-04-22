@@ -5,5 +5,13 @@ resources:
 images:
   - name: ghcr.io/pocket-id/pocket-id
     newTag: "v1.16.0"
+patches:
+  - target:
+      kind: Ingress
+      name: pocketid-ingress
+    patch: |
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: "k3s-prod.levangie.dev"
 commonLabels:
   environment: prod
