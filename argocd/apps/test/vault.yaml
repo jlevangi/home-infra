@@ -26,6 +26,16 @@ spec:
           dataStorage:
             enabled: true
             size: 5Gi
+          livenessProbe:
+            enabled: true
+            execCommand:
+              - /bin/sh
+              - -ec
+              - touch /vault/data/.liveness && rm /vault/data/.liveness
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+            timeoutSeconds: 5
           ui:
             enabled: true
           ingress:
