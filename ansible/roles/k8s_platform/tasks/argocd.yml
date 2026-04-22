@@ -195,36 +195,30 @@
   when:
     - vault_argocd_ssh_private_key is defined
 
-- name: Create Technitium DNS credentials for ArgoCD hooks
+- name: Create Technitium webhook credentials for ExternalDNS
   shell: |
     export KUBECONFIG={{ kubeconfig_path }}
-    kubectl create secret generic technitium-api-credentials \
-      --namespace argocd \
-      --from-literal=server="{{ technitium_dns_server }}" \
-      --from-literal=token="{{ technitium_api_token }}" \
-      --from-literal=tld="{{ cluster_tld }}" \
+    kubectl create namespace external-dns --dry-run=client -o yaml | kubectl apply -f -
+    kubectl create secret generic technitium-webhook-credentials \
+      --namespace external-dns \
+      --from-literal=TECHNITIUM_URL="{{ technitium_webhook_url }}" \
+      --from-literal=TECHNITIUM_USERNAME="{{ technitium_webhook_username }}" \
+      --from-literal=TECHNITIUM_PASSWORD="{{ technitium_webhook_password }}" \
       --dry-run=client -o yaml | kubectl apply -f -
   when:
     - manage_dns_records | default(false)
   no_log: true
 
-- name: Create Technitium DNS credentials in app namespaces
+- name: Create Technitium DNS credentials for Factorio DNS hook
   shell: |
     export KUBECONFIG={{ kubeconfig_path }}
-    kubectl create namespace {{ item }} --dry-run=client -o yaml | kubectl apply -f -
+    kubectl create namespace factorio --dry-run=client -o yaml | kubectl apply -f -
     kubectl create secret generic technitium-api-credentials \
-      --namespace {{ item }} \
+      --namespace factorio \
       --from-literal=server="{{ technitium_dns_server }}" \
       --from-literal=token="{{ technitium_api_token }}" \
       --from-literal=tld="{{ cluster_tld }}" \
       --dry-run=client -o yaml | kubectl apply -f -
-  loop:
-    - factorio
-    - ittools
-    - ntfy
-    - pairdrop
-    - wallos
-    - linkding
   when:
     - manage_dns_records | default(false)
   no_log: true

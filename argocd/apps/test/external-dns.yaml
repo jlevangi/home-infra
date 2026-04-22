@@ -1,0 +1,104 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-dns
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://kubernetes-sigs.github.io/external-dns/
+    chart: external-dns
+    targetRevision: 1.20.0
+    helm:
+      values: |
+        fullnameOverride: external-dns
+
+        sources:
+          - ingress
+
+        policy: upsert-only
+        registry: txt
+        txtOwnerId: k3s-test
+        txtPrefix: _edns.
+
+        domainFilters:
+          - test.levangie.dev
+
+        logLevel: debug
+
+        extraArgs:
+          - --webhook-provider-url=http://localhost:8080
+
+        provider:
+          name: webhook
+          webhook:
+            image:
+              repository: ghcr.io/roosmaa/external-dns-technitium-webhook
+              tag: main
+            env:
+              - name: LISTEN_PORT
+                value: "8080"
+              - name: TECHNITIUM_URL
+                valueFrom:
+                  secretKeyRef:
+                    name: technitium-webhook-credentials
+                    key: TECHNITIUM_URL
+              - name: TECHNITIUM_USERNAME
+                valueFrom:
+                  secretKeyRef:
+                    name: technitium-webhook-credentials
+                    key: TECHNITIUM_USERNAME
+              - name: TECHNITIUM_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: technitium-webhook-credentials
+                    key: TECHNITIUM_PASSWORD
+              - name: ZONE
+                value: "levangie.dev"
+            livenessProbe:
+              httpGet:
+                path: /health
+                port: http-webhook
+              initialDelaySeconds: 10
+              periodSeconds: 10
+              timeoutSeconds: 5
+              failureThreshold: 2
+              successThreshold: 1
+            readinessProbe:
+              httpGet:
+                path: /health
+                port: http-webhook
+              initialDelaySeconds: 5
+              periodSeconds: 10
+              timeoutSeconds: 5
+              failureThreshold: 6
+              successThreshold: 1
+            securityContext:
+              runAsNonRoot: false
+              runAsUser: 0
+            resources:
+              requests:
+                cpu: 25m
+                memory: 32Mi
+              limits:
+                cpu: 100m
+                memory: 128Mi
+
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: external-dns
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

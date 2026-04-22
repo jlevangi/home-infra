@@ -10,18 +10,9 @@ patches:
       - op: replace
         path: /spec/rules/0/host
         value: "ittools.test.levangie.dev"
-  - target:
-      kind: Job
-      name: ittools-dns-record
-    patch: |
-      - op: replace
-        path: /spec/template/spec/containers/0/env/3/value
-        value: "ittools.test"
-      - op: replace
-        path: /spec/template/spec/containers/0/env/4/value
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
         value: "k3s-test.levangie.dev"
-      - op: replace
-        path: /spec/template/spec/containers/0/env/5/value
-        value: "300"
+
 commonLabels:
   environment: test

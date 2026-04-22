@@ -101,6 +101,11 @@ technitium_dns_server: "{{ vault_technitium_dns_server }}"
 technitium_api_token: "{{ vault_technitium_api_token }}"
 dns_record_ttl: 3600
 
+# ExternalDNS webhook credentials (for Technitium webhook sidecar)
+technitium_webhook_url: "http://{{ vault_technitium_dns_server }}:5380"
+technitium_webhook_username: "{{ vault_technitium_username }}"
+technitium_webhook_password: "{{ vault_technitium_password }}"
+
 # -----------------------------------------------------------------------------
 # ARGOCD GITOPS CONFIGURATION
 # -----------------------------------------------------------------------------
