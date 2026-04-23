@@ -46,14 +46,14 @@ resource "proxmox_vm_qemu" "terraform" {
   
   # CPU configuration for v3.x
   cpu {
-    cores = 2
+    cores = 8
     sockets = 1
     type = "host"
     numa = true
   }
 
-  memory = 8192
-  balloon = 8192
+  memory = 12288
+  balloon = 12288
   scsihw = "virtio-scsi-pci"
   bootdisk = "scsi0"
   
