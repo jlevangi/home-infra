@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: yams-storage-quota
+  namespace: yams
+spec:
+  hard:
+    requests.storage: "50Gi"
+    persistentvolumeclaims: "20"
+    longhorn.io/requests.storage: "50Gi"
