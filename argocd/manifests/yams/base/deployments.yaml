@@ -1,0 +1,932 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tautulli
+  namespace: yams
+  labels:
+    app: tautulli
+    app.kubernetes.io/name: tautulli
+    app.kubernetes.io/part-of: yams
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: tautulli
+  template:
+    metadata:
+      labels:
+        app: tautulli
+        app.kubernetes.io/name: tautulli
+        app.kubernetes.io/part-of: yams
+    spec:
+      containers:
+        - name: tautulli
+          image: ghcr.io/tautulli/tautulli:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: TZ
+              value: America/New_York
+          ports:
+            - name: http
+              containerPort: 8181
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /config
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: tautulli-config-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: seerr
+  namespace: yams
+  labels:
+    app: seerr
+    app.kubernetes.io/name: seerr
+    app.kubernetes.io/part-of: yams
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: seerr
+  template:
+    metadata:
+      labels:
+        app: seerr
+        app.kubernetes.io/name: seerr
+        app.kubernetes.io/part-of: yams
+    spec:
+      containers:
+        - name: seerr
+          image: ghcr.io/seerr-team/seerr:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: LOG_LEVEL
+              value: debug
+            - name: TZ
+              value: America/New_York
+            - name: PORT
+              value: "5055"
+          ports:
+            - name: http
+              containerPort: 5055
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+          readinessProbe:
+            httpGet:
+              path: /api/v1/status
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: seerr-config-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jellyseerr
+  namespace: yams
+  labels:
+    app: jellyseerr
+    app.kubernetes.io/name: jellyseerr
+    app.kubernetes.io/part-of: yams
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: jellyseerr
+  template:
+    metadata:
+      labels:
+        app: jellyseerr
+        app.kubernetes.io/name: jellyseerr
+        app.kubernetes.io/part-of: yams
+    spec:
+      containers:
+        - name: jellyseerr
+          image: ghcr.io/fallenbagel/jellyseerr:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: LOG_LEVEL
+              value: debug
+            - name: TZ
+              value: America/New_York
+          ports:
+            - name: http
+              containerPort: 5055
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+          readinessProbe:
+            httpGet:
+              path: /api/v1/status
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: jellyseerr-config-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: overseerr
+  namespace: yams
+  labels:
+    app: overseerr
+    app.kubernetes.io/name: overseerr
+    app.kubernetes.io/part-of: yams
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: overseerr
+  template:
+    metadata:
+      labels:
+        app: overseerr
+        app.kubernetes.io/name: overseerr
+        app.kubernetes.io/part-of: yams
+    spec:
+      containers:
+        - name: overseerr
+          image: lscr.io/linuxserver/overseerr:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: America/New_York
+          ports:
+            - name: http
+              containerPort: 5055
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /config
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: overseerr-config-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qbittorrent
+  namespace: yams
+  labels:
+    app: qbittorrent
+    app.kubernetes.io/name: qbittorrent
+    app.kubernetes.io/part-of: yams
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: qbittorrent
+  template:
+    metadata:
+      labels:
+        app: qbittorrent
+        app.kubernetes.io/name: qbittorrent
+        app.kubernetes.io/part-of: yams
+    spec:
+      containers:
+        - name: gluetun
+          image: ghcr.io/qdm12/gluetun:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+          env:
+            - name: VPN_SERVICE_PROVIDER
+              value: surfshark
+            - name: VPN_TYPE
+              value: openvpn
+            - name: OPENVPN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: yams-secrets
+                  key: OPENVPN_USER
+            - name: OPENVPN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: yams-secrets
+                  key: OPENVPN_PASSWORD
+            - name: SERVER_CITIES
+              value: New York
+            - name: FIREWALL_INPUT_PORTS
+              value: "8080"
+          ports:
+            - name: http-proxy
+              containerPort: 8888
+              protocol: TCP
+            - name: shadowsocks-tcp
+              containerPort: 8388
+              protocol: TCP
+            - name: shadowsocks-udp
+              containerPort: 8388
+              protocol: UDP
+          volumeMounts:
+            - name: gluetun-config
+              mountPath: /config
+            - name: dev-net-tun
+              mountPath: /dev/net/tun
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+        - name: qbittorrent
+          image: ghcr.io/linuxserver/qbittorrent:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: America/New_York
+            - name: WEB_UI_PORT
+              value: "8080"
+          ports:
+            - name: qbit-http
+              containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: qbittorrent-config
+              mountPath: /config
+            - name: media
+              mountPath: /downloads
+              subPath: downloads/qbit
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+      volumes:
+        - name: gluetun-config
+          persistentVolumeClaim:
+            claimName: qbittorrent-gluetun-config-pvc
+        - name: qbittorrent-config
+          persistentVolumeClaim:
+            claimName: qbittorrent-config-pvc
+        - name: media
+          nfs:
+            server: 172.20.20.5
+            path: /volume1/media
+        - name: dev-net-tun
+          hostPath:
+            path: /dev/net/tun
+            type: CharDevice
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nzbget
+  namespace: yams
+  labels:
+    app: nzbget
+    app.kubernetes.io/name: nzbget
+    app.kubernetes.io/part-of: yams
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nzbget
+  template:
+    metadata:
+      labels:
+        app: nzbget
+        app.kubernetes.io/name: nzbget
+        app.kubernetes.io/part-of: yams
+    spec:
+      containers:
+        - name: gluetun
+          image: ghcr.io/qdm12/gluetun:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+          env:
+            - name: VPN_SERVICE_PROVIDER
+              value: surfshark
+            - name: VPN_TYPE
+              value: openvpn
+            - name: OPENVPN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: yams-secrets
+                  key: OPENVPN_USER
+            - name: OPENVPN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: yams-secrets
+                  key: OPENVPN_PASSWORD
+            - name: SERVER_CITIES
+              value: New York
+            - name: FIREWALL_INPUT_PORTS
+              value: "6789"
+          ports:
+            - name: http-proxy
+              containerPort: 8888
+              protocol: TCP
+            - name: shadowsocks-tcp
+              containerPort: 8388
+              protocol: TCP
+            - name: shadowsocks-udp
+              containerPort: 8388
+              protocol: UDP
+          volumeMounts:
+            - name: gluetun-config
+              mountPath: /config
+            - name: dev-net-tun
+              mountPath: /dev/net/tun
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+        - name: nzbget
+          image: lscr.io/linuxserver/nzbget:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: America/New_York
+            - name: NZBGET_USER
+              valueFrom:
+                secretKeyRef:
+                  name: yams-secrets
+                  key: NZBGET_USER
+            - name: NZBGET_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: yams-secrets
+                  key: NZBGET_PASS
+          ports:
+            - name: nzbget-http
+              containerPort: 6789
+              protocol: TCP
+          volumeMounts:
+            - name: nzbget-config
+              mountPath: /config
+            - name: media
+              mountPath: /downloads
+              subPath: downloads
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+      volumes:
+        - name: gluetun-config
+          persistentVolumeClaim:
+            claimName: nzbget-gluetun-config-pvc
+        - name: nzbget-config
+          persistentVolumeClaim:
+            claimName: nzbget-config-pvc
+        - name: media
+          nfs:
+            server: 172.20.20.5
+            path: /volume1/media
+        - name: dev-net-tun
+          hostPath:
+            path: /dev/net/tun
+            type: CharDevice
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonarr
+  namespace: yams
+  labels:
+    app: sonarr
+    app.kubernetes.io/name: sonarr
+    app.kubernetes.io/part-of: yams
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: sonarr
+  template:
+    metadata:
+      labels:
+        app: sonarr
+        app.kubernetes.io/name: sonarr
+        app.kubernetes.io/part-of: yams
+    spec:
+      containers:
+        - name: sonarr
+          image: ghcr.io/linuxserver/sonarr:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: America/New_York
+          ports:
+            - name: http
+              containerPort: 8989
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: media
+              mountPath: /tv
+              subPath: tv
+            - name: media
+              mountPath: /anime
+              subPath: anime
+            - name: media
+              mountPath: /downloads
+              subPath: downloads/qbit
+            - name: media
+              mountPath: /kids
+              subPath: kids
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: sonarr-config-pvc
+        - name: media
+          nfs:
+            server: 172.20.20.5
+            path: /volume1/media
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: radarr
+  namespace: yams
+  labels:
+    app: radarr
+    app.kubernetes.io/name: radarr
+    app.kubernetes.io/part-of: yams
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: radarr
+  template:
+    metadata:
+      labels:
+        app: radarr
+        app.kubernetes.io/name: radarr
+        app.kubernetes.io/part-of: yams
+    spec:
+      containers:
+        - name: radarr
+          image: ghcr.io/linuxserver/radarr:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: America/New_York
+          ports:
+            - name: http
+              containerPort: 7878
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: media
+              mountPath: /movies
+              subPath: movies
+            - name: media
+              mountPath: /private
+              subPath: private_library
+            - name: media
+              mountPath: /downloads
+              subPath: downloads/qbit
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: radarr-config-pvc
+        - name: media
+          nfs:
+            server: 172.20.20.5
+            path: /volume1/media
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: radarr4k
+  namespace: yams
+  labels:
+    app: radarr4k
+    app.kubernetes.io/name: radarr4k
+    app.kubernetes.io/part-of: yams
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: radarr4k
+  template:
+    metadata:
+      labels:
+        app: radarr4k
+        app.kubernetes.io/name: radarr4k
+        app.kubernetes.io/part-of: yams
+    spec:
+      containers:
+        - name: radarr4k
+          image: ghcr.io/linuxserver/radarr:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: America/New_York
+          ports:
+            - name: http
+              containerPort: 7878
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: media
+              mountPath: /movies
+              subPath: movies
+            - name: media
+              mountPath: /downloads
+              subPath: downloads/qbit
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: radarr4k-config-pvc
+        - name: media
+          nfs:
+            server: 172.20.20.5
+            path: /volume1/media
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bazarr
+  namespace: yams
+  labels:
+    app: bazarr
+    app.kubernetes.io/name: bazarr
+    app.kubernetes.io/part-of: yams
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: bazarr
+  template:
+    metadata:
+      labels:
+        app: bazarr
+        app.kubernetes.io/name: bazarr
+        app.kubernetes.io/part-of: yams
+    spec:
+      containers:
+        - name: bazarr
+          image: ghcr.io/linuxserver/bazarr:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: America/New_York
+          ports:
+            - name: http
+              containerPort: 6767
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: media
+              mountPath: /movies
+              subPath: movies
+            - name: media
+              mountPath: /tv
+              subPath: tv
+            - name: media
+              mountPath: /anime
+              subPath: anime
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: bazarr-config-pvc
+        - name: media
+          nfs:
+            server: 172.20.20.5
+            path: /volume1/media
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prowlarr
+  namespace: yams
+  labels:
+    app: prowlarr
+    app.kubernetes.io/name: prowlarr
+    app.kubernetes.io/part-of: yams
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: prowlarr
+  template:
+    metadata:
+      labels:
+        app: prowlarr
+        app.kubernetes.io/name: prowlarr
+        app.kubernetes.io/part-of: yams
+    spec:
+      containers:
+        - name: prowlarr
+          image: lscr.io/linuxserver/prowlarr:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: America/New_York
+          ports:
+            - name: http
+              containerPort: 9696
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /config
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: prowlarr-config-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wizarr
+  namespace: yams
+  labels:
+    app: wizarr
+    app.kubernetes.io/name: wizarr
+    app.kubernetes.io/part-of: yams
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: wizarr
+  template:
+    metadata:
+      labels:
+        app: wizarr
+        app.kubernetes.io/name: wizarr
+        app.kubernetes.io/part-of: yams
+    spec:
+      containers:
+        - name: wizarr
+          image: ghcr.io/wizarrrr/wizarr:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: APP_URL
+              value: https://join.levangie.dev
+            - name: DISABLE_BUILTIN_AUTH
+              value: "false"
+            - name: TZ
+              value: America/New_York
+          ports:
+            - name: http
+              containerPort: 5690
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /data/database
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: wizarr-config-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: maintainerr
+  namespace: yams
+  labels:
+    app: maintainerr
+    app.kubernetes.io/name: maintainerr
+    app.kubernetes.io/part-of: yams
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: maintainerr
+  template:
+    metadata:
+      labels:
+        app: maintainerr
+        app.kubernetes.io/name: maintainerr
+        app.kubernetes.io/part-of: yams
+    spec:
+      containers:
+        - name: maintainerr
+          image: jorenn92/maintainerr:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: TZ
+              value: America/New_York
+            - name: DEBUG
+              value: "true"
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /opt/data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: maintainerr-config-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flaresolverr
+  namespace: yams
+  labels:
+    app: flaresolverr
+    app.kubernetes.io/name: flaresolverr
+    app.kubernetes.io/part-of: yams
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: flaresolverr
+  template:
+    metadata:
+      labels:
+        app: flaresolverr
+        app.kubernetes.io/name: flaresolverr
+        app.kubernetes.io/part-of: yams
+    spec:
+      containers:
+        - name: flaresolverr
+          image: ghcr.io/flaresolverr/flaresolverr:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: LOG_LEVEL
+              value: info
+            - name: LOG_HTML
+              value: "false"
+            - name: CAPTCHA_SOLVER
+              value: none
+            - name: TZ
+              value: America/New_York
+          ports:
+            - name: http
+              containerPort: 8191
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi

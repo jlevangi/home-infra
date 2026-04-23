@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: root-test
+  name: yams
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -10,10 +10,10 @@ spec:
   source:
     repoURL: git@github.com:jlevangi/home-infra.git
     targetRevision: media-srv-migration
-    path: argocd/apps/test
+    path: argocd/manifests/yams/overlays/test
   destination:
     server: https://kubernetes.default.svc
-    namespace: argocd
+    namespace: yams
   syncPolicy:
     automated:
       prune: true
