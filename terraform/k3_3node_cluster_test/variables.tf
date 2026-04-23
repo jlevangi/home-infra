@@ -9,42 +9,42 @@ variable "ssh_key" {
 variable "proxmox_hosts" {
   description = "List of Proxmox hosts"
   #type        = list(string) # Uncomment to use the list below when using shared storage.
-  type        = string
+  type = string
   #default     = ["pve2"] # Used to cycle through Proxmox Nodes. Will go: 1--> 2--> 3--> 1...
-  default     = "pve2"
+  default = "pve2"
 }
 
 # Specify VM Name(s)
 variable "vm_name" {
   description = "Name of the VM(s) + -##"
   type        = string
-  default = "k3s-test-node"
+  default     = "k3s-test-node"
 }
 
 # Specify the amount of VMs to be created.
 variable "vm_count" {
   description = "Number of new VMs"
   type        = number
-  default = 3
+  default     = 3
 }
 
 #Specify which template name you'd like to use
 variable "template_name" {
-    default = "debian12-server-template"
+  default = "debian12-server-template"
 }
 #Establish which nic you would like to utilize
 variable "nic_name" {
-    default = "vmbr0"
+  default = "vmbr0"
 }
 #Establish the VLAN you'd like to use
 variable "vlan_num" {
-    default = "1"
+  default = "1"
 }
 #Provide the url of the host you would like the API to communicate on.
 #It is safe to default to setting this as the URL for what you used
 #as your `proxmox_host`, although they can be different
 variable "api_url" {
-    default = "https://172.20.20.12:8006/api2/json"
+  default = "https://172.20.20.12:8006/api2/json"
 }
 #Blank var for use by terraform.tfvars
 variable "token_secret" {

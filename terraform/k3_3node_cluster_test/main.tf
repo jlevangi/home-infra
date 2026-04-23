@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     proxmox = {
-      source = "telmate/proxmox"
+      source  = "telmate/proxmox"
       version = "3.0.2-rc07"
     }
   }
@@ -16,21 +16,21 @@ provider "proxmox" {
   # References our secrets.tfvars to plug in our token_secret 
   pm_api_token_secret = var.token_secret
   # Default to `true` unless you have TLS working within your pve setup 
-  pm_tls_insecure = true	# Added the following lines to enable verbose logging.
+  pm_tls_insecure = true # Added the following lines to enable verbose logging.
   pm_log_enable   = true
   pm_log_file     = "tf-plugin-proxmox.log"
-  pm_debug = true
-  pm_log_levels   = {
-        _default        = "debug"
-        _capturelog     = ""
-	}
+  pm_debug        = true
+  pm_log_levels = {
+    _default    = "debug"
+    _capturelog = ""
+  }
 }
 
 # Creates a proxmox_vm_qemu entity named "terraform"
 resource "proxmox_vm_qemu" "terraform" {
-#  name = var.vm_name
-  name = "${var.vm_name}-${count.index + 1}"		    # VM Name + number created
-  count = var.vm_count                              # Establishes how many instances will be created 
+  #  name = var.vm_name
+  name  = "${var.vm_name}-${count.index + 1}" # VM Name + number created
+  count = var.vm_count                        # Establishes how many instances will be created 
   # target_node = element(var.proxmox_hosts, count.index % length(var.proxmox_hosts)) Uncomment when using a list of Proxmox nodes using Shared Storage.
   target_node = var.proxmox_hosts
 
@@ -38,61 +38,61 @@ resource "proxmox_vm_qemu" "terraform" {
   clone = var.template_name
   # Creates a full clone, rather than linked clone 
   # https://pve.proxmox.com/wiki/VM_Templates_and_Clones
-  full_clone  = "true"
+  full_clone = "true"
 
   # VM Settings. `agent = 1` enables qemu-guest-agent
-  agent = 1
+  agent   = 1
   os_type = "cloud-init"
-  
+
   # CPU configuration for v3.x
   cpu {
-    cores = 4
+    cores   = 4
     sockets = 1
-    type = "host"
-    numa = true
+    type    = "host"
+    numa    = true
   }
 
-  memory = 4096
-  balloon = 4096
-  scsihw = "virtio-scsi-pci"
+  memory   = 6144
+  balloon  = 0
+  scsihw   = "virtio-scsi-pci"
   bootdisk = "scsi0"
-  
+
   # Cloud-init drive - must come first to avoid slot conflicts
   disk {
-    slot = "ide2"
-    type = "cloudinit"
+    slot    = "ide2"
+    type    = "cloudinit"
     storage = "vm_data"
   }
 
   disk {
-    slot = "scsi0"  # Must be string format like 'scsi0' not numeric
-    size = "20G"    # Reduced size for K3s
-    type = "disk"   # Must be 'disk', 'cdrom', 'cloudinit', or 'ignore'
+    slot    = "scsi0"   # Must be string format like 'scsi0' not numeric
+    size    = "40G"     # K3s node disk size
+    type    = "disk"    # Must be 'disk', 'cdrom', 'cloudinit', or 'ignore'
     storage = "vm_data" # Name of storage local to the host you are spinning the VM up on
     # SSD and discard options may not be available in v3.x - removed for compatibility
     #iothread = 1
   }
 
   network {
-    id = 0  # Required network ID for v3.x
-    model = "virtio"
+    id     = 0 # Required network ID for v3.x
+    model  = "virtio"
     bridge = var.nic_name
-#    tag = var.vlan_num # This tag can be left off if you are not taking advantage of VLANs
-#    macaddr  = "76:5A:F2:57:5B:0${count.index + 1}"  # Updated MAC address pattern
+    #    tag = var.vlan_num # This tag can be left off if you are not taking advantage of VLANs
+    #    macaddr  = "76:5A:F2:57:5B:0${count.index + 1}"  # Updated MAC address pattern
   }
 
   # Updated IP configuration for K3s cluster
-  ipconfig0 = "ip=${var.ip_base}${count.index + 1}/${var.subnet_mask},gw=${var.gateway}"
-  nameserver = var.nameserver
+  ipconfig0    = "ip=${var.ip_base}${count.index + 1}/${var.subnet_mask},gw=${var.gateway}"
+  nameserver   = var.nameserver
   searchdomain = var.search_domain
 
   # Cloud-init configuration
   sshkeys = var.ssh_key
 
   # Cloud-init user configuration
-  ciuser = var.ci_user
+  ciuser     = var.ci_user
   cipassword = var.ci_password
-  
+
   # Enable automatic package upgrades via cloud-init
   ciupgrade = false
 
