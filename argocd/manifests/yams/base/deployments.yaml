@@ -183,59 +183,6 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: overseerr
-  namespace: yams
-  labels:
-    app: overseerr
-    app.kubernetes.io/name: overseerr
-    app.kubernetes.io/part-of: yams
-spec:
-  replicas: 1
-  strategy:
-    type: Recreate
-  selector:
-    matchLabels:
-      app: overseerr
-  template:
-    metadata:
-      labels:
-        app: overseerr
-        app.kubernetes.io/name: overseerr
-        app.kubernetes.io/part-of: yams
-    spec:
-      containers:
-        - name: overseerr
-          image: lscr.io/linuxserver/overseerr:latest
-          imagePullPolicy: IfNotPresent
-          env:
-            - name: PUID
-              value: "1000"
-            - name: PGID
-              value: "1000"
-            - name: TZ
-              value: America/New_York
-          ports:
-            - name: http
-              containerPort: 5055
-              protocol: TCP
-          volumeMounts:
-            - name: config
-              mountPath: /config
-          resources:
-            requests:
-              cpu: 50m
-              memory: 128Mi
-            limits:
-              cpu: 500m
-              memory: 512Mi
-      volumes:
-        - name: config
-          persistentVolumeClaim:
-            claimName: overseerr-config-pvc
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
   name: qbittorrent
   namespace: yams
   labels:
