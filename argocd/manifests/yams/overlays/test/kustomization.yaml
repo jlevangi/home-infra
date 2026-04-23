@@ -44,14 +44,14 @@ patches:
     patch: |
       - op: replace
         path: /spec/rules/0/host
-        value: "overseerr.test.levangie.dev"
+        value: "request.test.levangie.dev"
   - target:
       kind: Ingress
       name: qbittorrent-ingress
     patch: |
       - op: replace
         path: /spec/rules/0/host
-        value: "qbittorrent.test.levangie.dev"
+        value: "torrent.test.levangie.dev"
   - target:
       kind: Ingress
       name: nzbget-ingress
