@@ -1,0 +1,319 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tautulli
+  namespace: yams
+  labels:
+    app: tautulli
+    app.kubernetes.io/name: tautulli
+    app.kubernetes.io/part-of: yams
+spec:
+  type: ClusterIP
+  selector:
+    app: tautulli
+  ports:
+    - name: http
+      port: 8181
+      targetPort: 8181
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: seerr
+  namespace: yams
+  labels:
+    app: seerr
+    app.kubernetes.io/name: seerr
+    app.kubernetes.io/part-of: yams
+spec:
+  type: ClusterIP
+  selector:
+    app: seerr
+  ports:
+    - name: http
+      port: 5055
+      targetPort: 5055
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jellyseerr
+  namespace: yams
+  labels:
+    app: jellyseerr
+    app.kubernetes.io/name: jellyseerr
+    app.kubernetes.io/part-of: yams
+spec:
+  type: ClusterIP
+  selector:
+    app: jellyseerr
+  ports:
+    - name: http
+      port: 5055
+      targetPort: 5055
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: overseerr
+  namespace: yams
+  labels:
+    app: overseerr
+    app.kubernetes.io/name: overseerr
+    app.kubernetes.io/part-of: yams
+spec:
+  type: ClusterIP
+  selector:
+    app: overseerr
+  ports:
+    - name: http
+      port: 5055
+      targetPort: 5055
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent
+  namespace: yams
+  labels:
+    app: qbittorrent
+    app.kubernetes.io/name: qbittorrent
+    app.kubernetes.io/part-of: yams
+spec:
+  type: ClusterIP
+  selector:
+    app: qbittorrent
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent-gluetun
+  namespace: yams
+  labels:
+    app: qbittorrent
+    app.kubernetes.io/name: qbittorrent-gluetun
+    app.kubernetes.io/part-of: yams
+spec:
+  type: ClusterIP
+  selector:
+    app: qbittorrent
+  ports:
+    - name: http-proxy
+      port: 8888
+      targetPort: 8888
+      protocol: TCP
+    - name: shadowsocks-tcp
+      port: 8388
+      targetPort: 8388
+      protocol: TCP
+    - name: shadowsocks-udp
+      port: 8388
+      targetPort: 8388
+      protocol: UDP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nzbget-gluetun
+  namespace: yams
+  labels:
+    app: nzbget
+    app.kubernetes.io/name: nzbget-gluetun
+    app.kubernetes.io/part-of: yams
+spec:
+  type: ClusterIP
+  selector:
+    app: nzbget
+  ports:
+    - name: http-proxy
+      port: 8888
+      targetPort: 8888
+      protocol: TCP
+    - name: shadowsocks-tcp
+      port: 8388
+      targetPort: 8388
+      protocol: TCP
+    - name: shadowsocks-udp
+      port: 8388
+      targetPort: 8388
+      protocol: UDP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nzbget
+  namespace: yams
+  labels:
+    app: nzbget
+    app.kubernetes.io/name: nzbget
+    app.kubernetes.io/part-of: yams
+spec:
+  type: ClusterIP
+  selector:
+    app: nzbget
+  ports:
+    - name: http
+      port: 6789
+      targetPort: 6789
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarr
+  namespace: yams
+  labels:
+    app: sonarr
+    app.kubernetes.io/name: sonarr
+    app.kubernetes.io/part-of: yams
+spec:
+  type: ClusterIP
+  selector:
+    app: sonarr
+  ports:
+    - name: http
+      port: 8989
+      targetPort: 8989
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: radarr
+  namespace: yams
+  labels:
+    app: radarr
+    app.kubernetes.io/name: radarr
+    app.kubernetes.io/part-of: yams
+spec:
+  type: ClusterIP
+  selector:
+    app: radarr
+  ports:
+    - name: http
+      port: 7878
+      targetPort: 7878
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: radarr4k
+  namespace: yams
+  labels:
+    app: radarr4k
+    app.kubernetes.io/name: radarr4k
+    app.kubernetes.io/part-of: yams
+spec:
+  type: ClusterIP
+  selector:
+    app: radarr4k
+  ports:
+    - name: http
+      port: 7878
+      targetPort: 7878
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bazarr
+  namespace: yams
+  labels:
+    app: bazarr
+    app.kubernetes.io/name: bazarr
+    app.kubernetes.io/part-of: yams
+spec:
+  type: ClusterIP
+  selector:
+    app: bazarr
+  ports:
+    - name: http
+      port: 6767
+      targetPort: 6767
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prowlarr
+  namespace: yams
+  labels:
+    app: prowlarr
+    app.kubernetes.io/name: prowlarr
+    app.kubernetes.io/part-of: yams
+spec:
+  type: ClusterIP
+  selector:
+    app: prowlarr
+  ports:
+    - name: http
+      port: 9696
+      targetPort: 9696
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wizarr
+  namespace: yams
+  labels:
+    app: wizarr
+    app.kubernetes.io/name: wizarr
+    app.kubernetes.io/part-of: yams
+spec:
+  type: ClusterIP
+  selector:
+    app: wizarr
+  ports:
+    - name: http
+      port: 5690
+      targetPort: 5690
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: maintainerr
+  namespace: yams
+  labels:
+    app: maintainerr
+    app.kubernetes.io/name: maintainerr
+    app.kubernetes.io/part-of: yams
+spec:
+  type: ClusterIP
+  selector:
+    app: maintainerr
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flaresolverr
+  namespace: yams
+  labels:
+    app: flaresolverr
+    app.kubernetes.io/name: flaresolverr
+    app.kubernetes.io/part-of: yams
+spec:
+  type: ClusterIP
+  selector:
+    app: flaresolverr
+  ports:
+    - name: http
+      port: 8191
+      targetPort: 8191
+      protocol: TCP
