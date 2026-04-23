@@ -1,9 +1,9 @@
 # Output the IP addresses of created VMs
 output "vm_ips" {
   description = "IP addresses of the K3s nodes"
-  sensitive   = true  # Mark as sensitive since it references VM resources
+  sensitive   = true # Mark as sensitive since it references VM resources
   value = [
-    for vm in proxmox_vm_qemu.terraform : 
+    for vm in proxmox_vm_qemu.terraform :
     "172.20.20.11${index(proxmox_vm_qemu.terraform, vm) + 1}"
   ]
 }
@@ -11,14 +11,14 @@ output "vm_ips" {
 # Output VM names
 output "vm_names" {
   description = "Names of the K3s nodes"
-  sensitive   = true  # Mark as sensitive since it references VM resources
-  value = proxmox_vm_qemu.terraform[*].name
+  sensitive   = true # Mark as sensitive since it references VM resources
+  value       = proxmox_vm_qemu.terraform[*].name
 }
 
 # Output for Ansible inventory
 output "ansible_inventory" {
   description = "Ansible inventory format"
-  sensitive   = true  # Mark as sensitive since it references VM resources
+  sensitive   = true # Mark as sensitive since it references VM resources
   value = {
     k3s_master = {
       hosts = {
