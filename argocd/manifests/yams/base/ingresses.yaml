@@ -39,6 +39,26 @@ spec:
                 name: seerr
                 port:
                   number: 5055
+    - host: request.levangie.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: seerr
+                port:
+                  number: 5055
+    - host: overseerr.levangie.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: seerr
+                port:
+                  number: 5055
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -58,37 +78,6 @@ spec:
             backend:
               service:
                 name: jellyseerr
-                port:
-                  number: 5055
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: overseerr-ingress
-  namespace: yams
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-spec:
-  ingressClassName: traefik
-  rules:
-    - host: overseerr.levangie.dev
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: overseerr
-                port:
-                  number: 5055
-    - host: request.levangie.dev
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: overseerr
                 port:
                   number: 5055
 ---

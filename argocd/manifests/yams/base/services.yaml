@@ -58,25 +58,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: overseerr
-  namespace: yams
-  labels:
-    app: overseerr
-    app.kubernetes.io/name: overseerr
-    app.kubernetes.io/part-of: yams
-spec:
-  type: ClusterIP
-  selector:
-    app: overseerr
-  ports:
-    - name: http
-      port: 5055
-      targetPort: 5055
-      protocol: TCP
----
-apiVersion: v1
-kind: Service
-metadata:
   name: qbittorrent
   namespace: yams
   labels:

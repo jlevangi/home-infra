@@ -49,22 +49,6 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: overseerr-config-pvc
-  namespace: yams
-  labels:
-    app: overseerr
-    volume-type: config
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 500Mi
-  storageClassName: longhorn
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
   name: qbittorrent-gluetun-config-pvc
   namespace: yams
   labels:

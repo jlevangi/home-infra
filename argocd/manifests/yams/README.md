@@ -28,7 +28,6 @@ initial sync. After ArgoCD creates the PVCs, copy each source directory from
 tautulli      -> tautulli-config-pvc:/config
 seerr         -> seerr-config-pvc:/app/config
 jellyseerr    -> jellyseerr-config-pvc:/app/config
-overseerr     -> overseerr-config-pvc:/config
 gluetun       -> gluetun-config-pvc:/config
 qbittorrent   -> qbittorrent-config-pvc:/config
 sonarr        -> sonarr-config-pvc:/config
@@ -39,6 +38,11 @@ prowlarr      -> prowlarr-config-pvc:/config
 wizarr        -> wizarr-config-pvc:/data/database
 maintainerr   -> maintainerr-config-pvc:/opt/data
 ```
+
+For an Overseerr to Seerr cutover, seed `seerr-config-pvc` from the existing
+Overseerr config while both workloads are stopped, then start Seerr and let its
+first-boot migration update the database in place before pruning the old
+Overseerr Kubernetes resources.
 
 The old compose stack mounted `./config` at `/config` for NZBGet. Seed
 `nzbget-config-pvc` with the root-level NZBGet config files, especially
