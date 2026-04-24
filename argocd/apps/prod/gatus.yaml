@@ -59,6 +59,14 @@ spec:
               conditions:
                 - "[STATUS] == 200"
 
+            - name: Vault
+              group: Infrastructure
+              url: https://vault.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
             - name: Grafana
               group: Monitoring
               url: https://grafana.levangie.dev
@@ -120,6 +128,150 @@ spec:
               interval: 5m
               conditions:
                 - "[CONNECTED] == true"
+
+            - name: IT Tools
+              group: Applications
+              url: https://ittools.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Linkding
+              group: Applications
+              url: https://linkding.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Ntfy
+              group: Applications
+              url: https://ntfy.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: PairDrop
+              group: Applications
+              url: https://pairdrop.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Wallos
+              group: Applications
+              url: https://wallos.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Immich
+              group: Applications
+              url: https://photos.levangie.org
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Tautulli
+              group: Media
+              url: https://tautulli.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Seerr
+              group: Media
+              url: https://request.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Jellyseerr
+              group: Media
+              url: https://jellyseerr.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Sonarr
+              group: Media
+              url: https://sonarr.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Radarr
+              group: Media
+              url: https://radarr.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Radarr 4K
+              group: Media
+              url: https://radarr4k.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Bazarr
+              group: Media
+              url: https://bazarr.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Prowlarr
+              group: Media
+              url: https://prowlarr.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: qBittorrent
+              group: Media
+              url: https://qbittorrent.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: NZBGet
+              group: Media
+              url: https://nzbget.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Wizarr
+              group: Media
+              url: https://join.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Maintainerr
+              group: Media
+              url: https://maintainerr.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
   destination:
     server: https://kubernetes.default.svc
     namespace: gatus
