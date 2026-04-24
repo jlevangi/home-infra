@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: tasksmd-storage-quota
+  namespace: tasksmd
+spec:
+  hard:
+    requests.storage: "500Mi"
+    persistentvolumeclaims: "1"
+    longhorn.io/requests.storage: "500Mi"

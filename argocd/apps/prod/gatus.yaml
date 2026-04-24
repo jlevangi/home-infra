@@ -185,6 +185,30 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
+            - name: Tasks.md
+              group: Applications
+              url: https://tasks.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Snippet Box
+              group: Applications
+              url: https://snippets.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Netboot.xyz
+              group: Applications
+              url: https://netboot.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
             - name: Tautulli
               group: Media
               url: https://tautulli.levangie.dev

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tasksmd
+  labels:
+    app.kubernetes.io/name: tasksmd
+    app.kubernetes.io/managed-by: argocd
