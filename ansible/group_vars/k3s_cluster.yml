@@ -85,6 +85,11 @@ traefik_custom_domain: "*.{{ environment_domain }}"
 # Wildcard Certificate Configuration
 traefik_wildcard_cert_enabled: true
 traefik_wildcard_domain: "*.{{ environment_domain }}"
+# Additional wildcard domains (e.g. secondary TLDs served by the same cluster)
+traefik_additional_wildcard_domains:
+  - main: "*.levangie.org"
+    sans:
+      - "levangie.org"
 
 # Critical DNS Configuration for ACME validation
 traefik_dns_policy: "None"

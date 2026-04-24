@@ -61,6 +61,15 @@ ports:
           - main: "{{ traefik_wildcard_domain | default('*.' + environment_prefix + cluster_tld) }}"
             sans:
               - "{{ environment_prefix | regex_replace('\\.$', '') }}.{{ cluster_tld }}"
+{% for extra in traefik_additional_wildcard_domains | default([]) %}
+          - main: "{{ extra.main }}"
+{% if extra.sans is defined %}
+            sans:
+{% for san in extra.sans %}
+              - "{{ san }}"
+{% endfor %}
+{% endif %}
+{% endfor %}
 {% endif %}
   traefik:
     port: 9000
