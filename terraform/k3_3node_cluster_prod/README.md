@@ -132,9 +132,9 @@ The deployment creates:
 - **2 Worker Nodes** (k3s-node-2, k3s-node-3): Run the K3s agent
 
 ### VM Specifications:
-- **CPU**: 2 cores per node
-- **Memory**: 2GB per node (adjustable)
-- **Storage**: 20GB per node (thin-provisioned)
+- **CPU**: 12 cores per node
+- **Memory**: 24GiB per node
+- **Storage**: 160GB per node
 - **Network**: Virtio with static IP configuration
 
 ### Cloud-Init Configuration:
@@ -156,9 +156,9 @@ To change the number of nodes, update `vm_count` in `variables.tf` and adjust th
 ### Resources
 Modify CPU, memory, and storage in `main.tf`:
 ```hcl
-cores = 4        # Increase CPU cores
-memory = 4096    # Increase memory (MB)
-size = "80G"     # Increase disk size
+cores = 12       # CPU cores per node
+memory = 24576   # Memory in MB
+size = "160G"    # Root disk size
 ```
 
 ### K3s Configuration
