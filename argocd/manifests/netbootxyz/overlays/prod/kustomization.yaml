@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+images:
+  - name: lscr.io/linuxserver/netbootxyz
+    newTag: "0.7.6"
+patches:
+  # Pin to a specific node for stable hostPort TFTP access
+  - target:
+      kind: Deployment
+      name: netbootxyz
+    patch: |
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          kubernetes.io/hostname: k3s-prod-node-2
+  - target:
+      kind: Ingress
+      name: netbootxyz-ingress
+    patch: |
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: "k3s-prod.levangie.dev"
+commonLabels:
+  environment: prod
