@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memos
+  namespace: memos
+  labels:
+    app: memos
+    app.kubernetes.io/name: memos
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: memos
+  template:
+    metadata:
+      labels:
+        app: memos
+        app.kubernetes.io/name: memos
+    spec:
+      containers:
+        - name: memos
+          image: neosmemo/memos:stable
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 5230
+              protocol: TCP
+          volumeMounts:
+            - name: memos-data
+              mountPath: /var/opt/memos
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 5230
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 5230
+            initialDelaySeconds: 30
+            periodSeconds: 20
+      volumes:
+        - name: memos-data
+          persistentVolumeClaim:
+            claimName: memos-data-pvc
