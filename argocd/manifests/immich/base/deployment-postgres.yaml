@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: immich-postgres
+  namespace: immich
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: immich-postgres
+  template:
+    metadata:
+      labels:
+        app: immich-postgres
+    spec:
+      securityContext:
+        fsGroup: 999
+      initContainers:
+        - name: prepare-data
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - mkdir -p /mnt/db/pgdata && chown -R 999:999 /mnt/db/pgdata
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: db-data
+              mountPath: /mnt/db
+      containers:
+        - name: postgres
+          image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 999
+            runAsGroup: 999
+          env:
+            - name: POSTGRES_USER
+              value: "postgres"
+            - name: POSTGRES_DB
+              value: "immich"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: immich-secrets
+                  key: DB_PASSWORD
+            - name: POSTGRES_INITDB_ARGS
+              value: "--data-checksums"
+          ports:
+            - containerPort: 5432
+              name: postgres
+          readinessProbe:
+            tcpSocket:
+              port: postgres
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: postgres
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          volumeMounts:
+            - name: db-data
+              mountPath: /var/lib/postgresql/data
+              subPath: pgdata
+            - name: dshm
+              mountPath: /dev/shm
+      volumes:
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: immich-db-pvc
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 128Mi

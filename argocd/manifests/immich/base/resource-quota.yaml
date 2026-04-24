@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: immich-storage-quota
+  namespace: immich
+spec:
+  hard:
+    requests.storage: "20Gi"
+    persistentvolumeclaims: "5"
+    longhorn.io/requests.storage: "20Gi"

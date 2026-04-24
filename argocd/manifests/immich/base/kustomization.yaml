@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - pvc-db.yaml
+  - pvc-model-cache.yaml
+  - configmap.yaml
+  - external-secret.yaml
+  - deployment-postgres.yaml
+  - service-postgres.yaml
+  - deployment-redis.yaml
+  - service-redis.yaml
+  - deployment-machine-learning.yaml
+  - service-machine-learning.yaml
+  - deployment-server.yaml
+  - service-server.yaml
+  - ingress.yaml
+  - resource-quota.yaml
+  - limit-range.yaml
