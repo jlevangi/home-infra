@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jellyplex-watched-config
+  namespace: yams
+data:
+  DRYRUN: "False"
+  DEBUG_LEVEL: "INFO"
+  RUN_ONLY_ONCE: "False"
+  SLEEP_DURATION: "3600"
+  LOG_FILE: "jellyplex_log.log"
+  MARK_FILE: "mark.log"
+  REQUEST_TIMEOUT: "300"
+  MAX_THREADS: "1"
+  GENERATE_GUIDS: "True"
+  GENERATE_LOCATIONS: "True"
+  USER_MAPPING: '{ "Pierce": "JLeVangie", "cassielayman": "cassie", "hkmby": "mariah", "turkeyhu": "pigeondog", "joet192": "Joe" }'
+  LIBRARY_MAPPING: '{ "TV Shows" :"TV Shows", "Movies": "Movies" }'
+  PLEX_BASEURL: "http://plex-srv.levangie.org:32400"
+  SSL_BYPASS: "True"
+  JELLYFIN_BASEURL: "https://jf.levangie.org"
+  SYNC_FROM_PLEX_TO_JELLYFIN: "True"
+  SYNC_FROM_PLEX_TO_PLEX: "True"
+  SYNC_FROM_PLEX_TO_EMBY: "True"
+  SYNC_FROM_JELLYFIN_TO_PLEX: "True"
+  SYNC_FROM_JELLYFIN_TO_JELLYFIN: "True"
+  SYNC_FROM_JELLYFIN_TO_EMBY: "True"
+  SYNC_FROM_EMBY_TO_PLEX: "True"
+  SYNC_FROM_EMBY_TO_JELLYFIN: "True"
+  SYNC_FROM_EMBY_TO_EMBY: "True"
