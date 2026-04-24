@@ -18,6 +18,15 @@ NZBGET_PASS
 
 Rotate the values from the original compose stack before storing them.
 
+`jellyplex-watched` uses its own Vault path so the background sync credentials
+do not have to be merged into the shared YAMS secret bundle:
+
+```text
+prod/jellyplex-watched
+  PLEX_TOKEN
+  JELLYFIN_TOKEN
+```
+
 ## Config Seeding
 
 The prod overlay intentionally renders all Deployments with `replicas: 0` for the

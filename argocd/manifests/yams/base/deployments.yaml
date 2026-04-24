@@ -1,6 +1,60 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: jellyplex-watched
+  namespace: yams
+  labels:
+    app: jellyplex-watched
+    app.kubernetes.io/name: jellyplex-watched
+    app.kubernetes.io/part-of: yams
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: jellyplex-watched
+  template:
+    metadata:
+      labels:
+        app: jellyplex-watched
+        app.kubernetes.io/name: jellyplex-watched
+        app.kubernetes.io/part-of: yams
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: jellyplex-watched
+          image: luigi311/jellyplex-watched:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: PLEX_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: jellyplex-watched-secrets
+                  key: PLEX_TOKEN
+            - name: JELLYFIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: jellyplex-watched-secrets
+                  key: JELLYFIN_TOKEN
+          envFrom:
+            - configMapRef:
+                name: jellyplex-watched-config
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
   name: tautulli
   namespace: yams
   labels:
