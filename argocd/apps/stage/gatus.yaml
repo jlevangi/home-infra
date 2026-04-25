@@ -13,6 +13,9 @@ spec:
     targetRevision: 3.4.6
     helm:
       values: |
+        deployment:
+          strategy: Recreate
+
         ingress:
           enabled: true
           ingressClassName: traefik
@@ -36,6 +39,8 @@ spec:
             memory: 256Mi
 
         config:
+          metrics: true
+
           storage:
             type: sqlite
             path: /data/data.db
@@ -110,13 +115,6 @@ spec:
               conditions:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
-
-            - name: Factorio
-              group: Applications
-              url: tcp://factorio.stage.levangie.dev:27015
-              interval: 5m
-              conditions:
-                - "[CONNECTED] == true"
 
   destination:
     server: https://kubernetes.default.svc
