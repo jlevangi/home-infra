@@ -30,6 +30,17 @@ spec:
           limits:
             cpu: 300m
             memory: 256Mi
+
+        tolerations:
+          - key: node-role.kubernetes.io/master
+            effect: NoSchedule
+            operator: Exists
+          - key: node-role.kubernetes.io/control-plane
+            effect: NoSchedule
+            operator: Exists
+          - key: CriticalAddonsOnly
+            effect: NoExecute
+            operator: Exists
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
