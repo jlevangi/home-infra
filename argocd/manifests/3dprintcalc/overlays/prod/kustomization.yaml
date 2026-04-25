@@ -5,7 +5,7 @@ resources:
 patches:
   - target:
       kind: Ingress
-      name: 3dprintcalc-ingress
+      name: printcalc-ingress
     patch: |
       - op: add
         path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
