@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: changedetection-storage-quota
+  namespace: changedetection
+spec:
+  hard:
+    requests.storage: "500Mi"
+    persistentvolumeclaims: "1"
+    longhorn.io/requests.storage: "500Mi"

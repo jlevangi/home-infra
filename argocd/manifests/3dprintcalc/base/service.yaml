@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: 3dprintcalc
+  namespace: 3dprintcalc
+  labels:
+    app: 3dprintcalc
+    app.kubernetes.io/name: 3dprintcalc
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5000
+      targetPort: 5000
+      protocol: TCP
+  selector:
+    app: 3dprintcalc

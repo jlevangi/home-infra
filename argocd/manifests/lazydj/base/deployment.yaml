@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lazydj
+  namespace: lazydj
+  labels:
+    app: lazydj
+    app.kubernetes.io/name: lazydj
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: lazydj
+  template:
+    metadata:
+      labels:
+        app: lazydj
+        app.kubernetes.io/name: lazydj
+    spec:
+      containers:
+        - name: lazydj
+          image: jlevangie/lazydj:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: FLASK_ENV
+              value: production
+            - name: PORT
+              value: "5000"
+            - name: WEDDING_MODE
+              value: "true"
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lazydj-secrets
+                  key: SECRET_KEY
+            - name: SPOTIPY_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: lazydj-secrets
+                  key: SPOTIPY_CLIENT_ID
+            - name: SPOTIPY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: lazydj-secrets
+                  key: SPOTIPY_CLIENT_SECRET
+            - name: SPOTIPY_REDIRECT_URI
+              valueFrom:
+                secretKeyRef:
+                  name: lazydj-secrets
+                  key: SPOTIPY_REDIRECT_URI
+            - name: ADMIN_KEYWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lazydj-secrets
+                  key: ADMIN_KEYWORD
+          ports:
+            - name: http
+              containerPort: 5000
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 20

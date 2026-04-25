@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notemark
+  namespace: notemark
+  labels:
+    app: notemark
+    app.kubernetes.io/name: notemark
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: notemark
+  template:
+    metadata:
+      labels:
+        app: notemark
+        app.kubernetes.io/name: notemark
+    spec:
+      containers:
+        - name: notemark
+          image: ghcr.io/enchant97/note-mark-aio:0.17.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: notemark-secrets
+                  key: JWT_SECRET
+            - name: CORS_ORIGINS
+              value: "https://notemark.levangie.org"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: notemark-data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 20
+      volumes:
+        - name: notemark-data
+          persistentVolumeClaim:
+            claimName: notemark-data-pvc
