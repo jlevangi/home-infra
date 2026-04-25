@@ -76,7 +76,7 @@ data:
           },
           "targets": [
             {
-              "expr": "sum(rate(loki_distributor_lines_received_total[5m]))",
+              "expr": "(sum(rate(loki_distributor_lines_received_total[5m]))) or vector(0)",
               "instant": true,
               "refId": "A"
             }
