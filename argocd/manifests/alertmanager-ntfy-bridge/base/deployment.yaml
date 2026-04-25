@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager-ntfy-bridge
+  namespace: monitoring
+  labels:
+    app: alertmanager-ntfy-bridge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager-ntfy-bridge
+  template:
+    metadata:
+      labels:
+        app: alertmanager-ntfy-bridge
+    spec:
+      containers:
+        - name: bridge
+          image: python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command:
+            - python
+            - /app/bridge.py
+          env:
+            - name: NTFY_URL
+              value: http://ntfy.ntfy.svc.cluster.local/
+            - name: DEFAULT_TOPIC
+              value: homelab-alerts
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          volumeMounts:
+            - name: app
+              mountPath: /app
+              readOnly: true
+      volumes:
+        - name: app
+          configMap:
+            name: alertmanager-ntfy-bridge
+            defaultMode: 0555

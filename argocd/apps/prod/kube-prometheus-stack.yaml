@@ -122,30 +122,14 @@ spec:
               - name: ntfy-null
               - name: ntfy-prod
                 webhook_configs:
-                  - url: http://ntfy.ntfy.svc.cluster.local/
+                  - url: http://alertmanager-ntfy-bridge.monitoring.svc.cluster.local/alerts/homelab-alerts
                     send_resolved: true
                     timeout: 10s
-                    payload:
-                      topic: '{{ "homelab-alerts" | toJson }}'
-                      title: '{{ printf "Prod %s: %s" (toUpper .Status) .CommonLabels.alertname | toJson }}'
-                      message: '{{ printf "# %s\n\n**Status:** %s\n**Severity:** %s\n**Summary:** %s\n**Description:** %s\n**Target:** %s\n\n[Open in Prometheus](%s)" .CommonLabels.alertname (toUpper .Status) .CommonLabels.severity (or .CommonAnnotations.summary .CommonLabels.alertname) (or .CommonAnnotations.description "No additional description provided.") (or .CommonLabels.name .CommonLabels.node .CommonLabels.instance .CommonLabels.volume .CommonLabels.namespace "n/a") ((index .Alerts 0).GeneratorURL) | toJson }}'
-                      tags: '{{ if eq .Status "resolved" }}["white_check_mark","mailbox_with_mail"]{{ else }}["warning","chart_with_upwards_trend"]{{ end }}'
-                      priority: '{{ if eq .Status "resolved" }}3{{ else }}4{{ end }}'
-                      markdown: 'true'
-                      click: '{{ ((index .Alerts 0).GeneratorURL) | toJson }}'
               - name: ntfy-prod-critical
                 webhook_configs:
-                  - url: http://ntfy.ntfy.svc.cluster.local/
+                  - url: http://alertmanager-ntfy-bridge.monitoring.svc.cluster.local/alerts/homelab-critical
                     send_resolved: true
                     timeout: 10s
-                    payload:
-                      topic: '{{ "homelab-critical" | toJson }}'
-                      title: '{{ printf "Prod %s: %s" (toUpper .Status) .CommonLabels.alertname | toJson }}'
-                      message: '{{ printf "# %s\n\n**Status:** %s\n**Severity:** %s\n**Summary:** %s\n**Description:** %s\n**Target:** %s\n\n[Open in Prometheus](%s)" .CommonLabels.alertname (toUpper .Status) .CommonLabels.severity (or .CommonAnnotations.summary .CommonLabels.alertname) (or .CommonAnnotations.description "No additional description provided.") (or .CommonLabels.name .CommonLabels.node .CommonLabels.instance .CommonLabels.volume .CommonLabels.namespace "n/a") ((index .Alerts 0).GeneratorURL) | toJson }}'
-                      tags: '{{ if eq .Status "resolved" }}["white_check_mark","rotating_light"]{{ else }}["rotating_light","warning"]{{ end }}'
-                      priority: '{{ if eq .Status "resolved" }}4{{ else }}5{{ end }}'
-                      markdown: 'true'
-                      click: '{{ ((index .Alerts 0).GeneratorURL) | toJson }}'
           alertmanagerSpec:
             resources:
               requests:

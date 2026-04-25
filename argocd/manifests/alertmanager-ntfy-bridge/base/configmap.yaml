@@ -1,0 +1,178 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-ntfy-bridge
+  namespace: monitoring
+data:
+  bridge.py: |
+    import json
+    import os
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+
+    NTFY_URL = os.environ.get("NTFY_URL", "http://ntfy.ntfy.svc.cluster.local/")
+    DEFAULT_TOPIC = os.environ.get("DEFAULT_TOPIC", "homelab-alerts")
+
+
+    def first_nonempty(*values):
+        for value in values:
+            if value:
+                return value
+        return None
+
+
+    def build_details(alerts):
+        lines = []
+        for alert in alerts[:5]:
+            labels = alert.get("labels") or {}
+            annotations = alert.get("annotations") or {}
+            target = first_nonempty(
+                labels.get("name"),
+                labels.get("node"),
+                labels.get("instance"),
+                labels.get("pod"),
+                labels.get("volume"),
+            )
+            summary = first_nonempty(annotations.get("summary"), target, "alert")
+            if target:
+                lines.append(f"- `{target}`: {summary}")
+            else:
+                lines.append(f"- {summary}")
+        if len(alerts) > 5:
+            lines.append(f"- ... and {len(alerts) - 5} more")
+        return lines
+
+
+    def build_notification(payload, topic):
+        alerts = payload.get("alerts") or []
+        common_labels = payload.get("commonLabels") or {}
+        common_annotations = payload.get("commonAnnotations") or {}
+
+        alertname = common_labels.get("alertname") or "Alert"
+        severity = (common_labels.get("severity") or "warning").lower()
+        status = (payload.get("status") or "firing").lower()
+
+        if severity in {"info", "none"} or alertname == "InfoInhibitor":
+            return None
+
+        target = first_nonempty(
+            common_labels.get("name"),
+            common_labels.get("node"),
+            common_labels.get("instance"),
+            common_labels.get("volume"),
+            common_labels.get("namespace"),
+            common_labels.get("group"),
+            "n/a",
+        )
+        summary = common_annotations.get("summary") or alertname
+        description = (
+            common_annotations.get("description")
+            or "No additional description provided."
+        )
+        click = first_nonempty(
+            alerts[0].get("generatorURL") if alerts else None,
+            payload.get("externalURL"),
+        )
+
+        message_lines = [
+            f"# {alertname}",
+            "",
+            f"**Status:** {status.upper()}",
+            f"**Severity:** {severity}",
+            f"**Summary:** {summary}",
+            f"**Description:** {description}",
+            f"**Target:** {target}",
+            f"**Alerts:** {len(alerts)}",
+        ]
+
+        details = build_details(alerts)
+        if details:
+            message_lines.extend(["", "**Instances:**", *details])
+
+        if click:
+            message_lines.extend(["", f"[Open in Prometheus]({click})"])
+
+        is_critical = topic == "homelab-critical" or severity == "critical"
+        if status == "resolved":
+            priority = 4 if is_critical else 3
+            tags = (
+                ["white_check_mark", "rotating_light"]
+                if is_critical
+                else ["white_check_mark", "mailbox_with_mail"]
+            )
+        else:
+            priority = 5 if is_critical else 4
+            tags = (
+                ["rotating_light", "warning"]
+                if is_critical
+                else ["warning", "chart_with_upwards_trend"]
+            )
+
+        title = f"Prod {status.upper()}: {alertname}"
+        if len(alerts) > 1:
+            title = f"{title} ({len(alerts)})"
+
+        return {
+            "topic": topic,
+            "title": title,
+            "message": "\n".join(message_lines),
+            "tags": tags,
+            "priority": priority,
+            "markdown": True,
+            "click": click,
+        }
+
+
+    class Handler(BaseHTTPRequestHandler):
+        def _send(self, code, body):
+            body_bytes = body.encode("utf-8")
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body_bytes)))
+            self.end_headers()
+            self.wfile.write(body_bytes)
+
+        def do_GET(self):
+            if self.path.startswith("/healthz"):
+                self._send(200, json.dumps({"status": "ok"}))
+                return
+            self._send(404, json.dumps({"error": "not found"}))
+
+        def do_POST(self):
+            parsed = urllib.parse.urlparse(self.path)
+            path_parts = [part for part in parsed.path.split("/") if part]
+            if len(path_parts) >= 2 and path_parts[0] == "alerts":
+                topic = path_parts[1]
+            else:
+                topic = DEFAULT_TOPIC
+
+            content_length = int(self.headers.get("Content-Length", "0"))
+            raw_body = self.rfile.read(content_length)
+
+            try:
+                payload = json.loads(raw_body.decode("utf-8"))
+                notification = build_notification(payload, topic)
+                if notification is None:
+                    self._send(204, json.dumps({"status": "ignored"}))
+                    return
+
+                request = urllib.request.Request(
+                    NTFY_URL,
+                    data=json.dumps(notification).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(request, timeout=10) as response:
+                    body = response.read().decode("utf-8")
+                self._send(200, body)
+            except urllib.error.HTTPError as exc:
+                body = exc.read().decode("utf-8", errors="replace")
+                self._send(502, json.dumps({"error": body}))
+            except Exception as exc:
+                self._send(500, json.dumps({"error": str(exc)}))
+
+        def log_message(self, format, *args):
+            return
