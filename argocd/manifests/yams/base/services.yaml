@@ -260,26 +260,6 @@ spec:
       port: 5690
       targetPort: 5690
       protocol: TCP
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: maintainerr
-  namespace: yams
-  labels:
-    app: maintainerr
-    app.kubernetes.io/name: maintainerr
-    app.kubernetes.io/part-of: yams
-spec:
-  type: ClusterIP
-  selector:
-    app: maintainerr
-  ports:
-    - name: http
-      port: 80
-      targetPort: 80
-      protocol: TCP
----
 apiVersion: v1
 kind: Service
 metadata:

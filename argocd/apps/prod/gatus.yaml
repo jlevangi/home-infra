@@ -347,13 +347,6 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
-            - name: Maintainerr
-              group: Media
-              url: https://maintainerr.levangie.dev/api/media-server/type
-              interval: 5m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
   destination:
     server: https://kubernetes.default.svc
     namespace: gatus

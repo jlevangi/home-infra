@@ -209,19 +209,3 @@ spec:
     requests:
       storage: 500Mi
   storageClassName: longhorn
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: maintainerr-config-pvc
-  namespace: yams
-  labels:
-    app: maintainerr
-    volume-type: config
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 500Mi
-  storageClassName: longhorn
