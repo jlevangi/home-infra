@@ -176,3 +176,8 @@ data:
 
         def log_message(self, format, *args):
             return
+
+
+    if __name__ == "__main__":
+        server = ThreadingHTTPServer(("0.0.0.0", 8080), Handler)
+        server.serve_forever()
