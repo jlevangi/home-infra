@@ -39,6 +39,8 @@ spec:
             memory: 256Mi
 
         config:
+          metrics: true
+
           storage:
             type: sqlite
             path: /data/data.db
