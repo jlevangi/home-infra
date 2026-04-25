@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lazydj
+  labels:
+    app.kubernetes.io/name: lazydj
+    app.kubernetes.io/managed-by: argocd

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: notemark
+  namespace: notemark
+  labels:
+    app: notemark
+    app.kubernetes.io/name: notemark
+spec:
+  type: ClusterIP
+  selector:
+    app: notemark
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP

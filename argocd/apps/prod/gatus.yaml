@@ -209,6 +209,54 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
+            - name: 3D Print Calc
+              group: Applications
+              url: https://3dprintcalc.levangie.org
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Change Detection
+              group: Applications
+              url: https://changedetection.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Hoarder
+              group: Applications
+              url: https://hoarder.levangie.org
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: LazyDJ
+              group: Applications
+              url: https://lazydj.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Note Mark
+              group: Applications
+              url: https://notemark.levangie.org
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Smokeping
+              group: Applications
+              url: https://smokeping.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
             - name: Tautulli
               group: Media
               url: https://tautulli.levangie.dev

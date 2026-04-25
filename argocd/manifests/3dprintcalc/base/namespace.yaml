@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: 3dprintcalc
+  labels:
+    app.kubernetes.io/name: 3dprintcalc
+    app.kubernetes.io/managed-by: argocd

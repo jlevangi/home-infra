@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: lazydj
+  namespace: lazydj
+  labels:
+    app: lazydj
+    app.kubernetes.io/name: lazydj
+spec:
+  type: ClusterIP
+  selector:
+    app: lazydj
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000
+      protocol: TCP

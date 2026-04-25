@@ -1,0 +1,259 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hoarder
+  namespace: hoarder
+  labels:
+    app: hoarder
+    app.kubernetes.io/name: hoarder
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: hoarder
+  template:
+    metadata:
+      labels:
+        app: hoarder
+        app.kubernetes.io/name: hoarder
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/hoarder-app/hoarder-web:release
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DATA_DIR
+              value: /data
+            - name: REDIS_HOST
+              value: hoarder-redis
+            - name: MEILI_ADDR
+              value: http://hoarder-meilisearch:7700
+            - name: NEXTAUTH_URL
+              value: https://hoarder.levangie.org
+            - name: DISABLE_SIGNUPS
+              value: "true"
+            - name: MAX_ASSET_SIZE_MB
+              value: "50"
+            - name: NEXTAUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: hoarder-secrets
+                  key: NEXTAUTH_SECRET
+            - name: MEILI_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hoarder-secrets
+                  key: MEILI_MASTER_KEY
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hoarder-secrets
+                  key: OPENAI_API_KEY
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          volumeMounts:
+            - name: hoarder-data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+        - name: workers
+          image: ghcr.io/hoarder-app/hoarder-workers:release
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DATA_DIR
+              value: /data
+            - name: REDIS_HOST
+              value: hoarder-redis
+            - name: MEILI_ADDR
+              value: http://hoarder-meilisearch:7700
+            - name: BROWSER_WEB_URL
+              value: http://hoarder-chrome:9222
+            - name: NEXTAUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: hoarder-secrets
+                  key: NEXTAUTH_SECRET
+            - name: MEILI_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hoarder-secrets
+                  key: MEILI_MASTER_KEY
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hoarder-secrets
+                  key: OPENAI_API_KEY
+          volumeMounts:
+            - name: hoarder-data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: hoarder-data
+          persistentVolumeClaim:
+            claimName: hoarder-data-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hoarder-redis
+  namespace: hoarder
+  labels:
+    app: hoarder-redis
+    app.kubernetes.io/name: hoarder-redis
+    app.kubernetes.io/part-of: hoarder
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: hoarder-redis
+  template:
+    metadata:
+      labels:
+        app: hoarder-redis
+        app.kubernetes.io/name: hoarder-redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          ports:
+            - name: redis
+              containerPort: 6379
+              protocol: TCP
+          command: ["redis-server", "--appendonly", "yes"]
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: hoarder-redis-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hoarder-meilisearch
+  namespace: hoarder
+  labels:
+    app: hoarder-meilisearch
+    app.kubernetes.io/name: hoarder-meilisearch
+    app.kubernetes.io/part-of: hoarder
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: hoarder-meilisearch
+  template:
+    metadata:
+      labels:
+        app: hoarder-meilisearch
+        app.kubernetes.io/name: hoarder-meilisearch
+    spec:
+      containers:
+        - name: meilisearch
+          image: getmeili/meilisearch:v1.6
+          env:
+            - name: MEILI_NO_ANALYTICS
+              value: "true"
+            - name: MEILI_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hoarder-secrets
+                  key: MEILI_MASTER_KEY
+          ports:
+            - name: http
+              containerPort: 7700
+              protocol: TCP
+          volumeMounts:
+            - name: meilisearch-data
+              mountPath: /meili_data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: meilisearch-data
+          persistentVolumeClaim:
+            claimName: hoarder-meilisearch-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hoarder-chrome
+  namespace: hoarder
+  labels:
+    app: hoarder-chrome
+    app.kubernetes.io/name: hoarder-chrome
+    app.kubernetes.io/part-of: hoarder
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hoarder-chrome
+  template:
+    metadata:
+      labels:
+        app: hoarder-chrome
+        app.kubernetes.io/name: hoarder-chrome
+    spec:
+      containers:
+        - name: chrome
+          image: gcr.io/zenika-hub/alpine-chrome:123
+          args:
+            - --no-sandbox
+            - --disable-gpu
+            - --disable-dev-shm-usage
+            - --remote-debugging-address=0.0.0.0
+            - --remote-debugging-port=9222
+            - --hide-scrollbars
+          ports:
+            - name: debug
+              containerPort: 9222
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

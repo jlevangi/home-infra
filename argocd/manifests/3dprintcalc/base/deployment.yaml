@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: 3dprintcalc
+  namespace: 3dprintcalc
+  labels:
+    app: 3dprintcalc
+    app.kubernetes.io/name: 3dprintcalc
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: 3dprintcalc
+  template:
+    metadata:
+      labels:
+        app: 3dprintcalc
+        app.kubernetes.io/name: 3dprintcalc
+    spec:
+      containers:
+        - name: 3dprintcalc
+          image: jlevangie/3d-print-cost-calculator
+          ports:
+            - containerPort: 5000
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 20
