@@ -1,0 +1,96 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: blackbox-exporter
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: prometheus-blackbox-exporter
+    targetRevision: 11.5.0
+    helm:
+      values: |
+        releaseLabel: false
+
+        securityContext:
+          runAsUser: 0
+          runAsGroup: 0
+          runAsNonRoot: false
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+            add: ["NET_RAW"]
+
+        resources:
+          requests:
+            cpu: 25m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+
+        config:
+          modules:
+            http_2xx:
+              prober: http
+              timeout: 10s
+              http:
+                preferred_ip_protocol: ip4
+                valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+                follow_redirects: true
+            tcp_connect:
+              prober: tcp
+              timeout: 5s
+              tcp:
+                preferred_ip_protocol: ip4
+            icmp:
+              prober: icmp
+              timeout: 5s
+              icmp:
+                preferred_ip_protocol: ip4
+
+        serviceMonitor:
+          selfMonitor:
+            enabled: true
+          enabled: true
+          defaults:
+            interval: 30s
+            scrapeTimeout: 10s
+          targets:
+            - name: prod-node-1-icmp
+              url: 172.20.20.101
+              module: icmp
+            - name: prod-node-2-icmp
+              url: 172.20.20.102
+              module: icmp
+            - name: prod-node-3-icmp
+              url: 172.20.20.103
+              module: icmp
+            - name: nas-icmp
+              url: 172.20.20.5
+              module: icmp
+            - name: prod-apiserver-tcp
+              url: 172.20.20.101:6443
+              module: tcp_connect
+            - name: prod-argocd-http
+              url: https://argocd.levangie.dev
+              module: http_2xx
+            - name: prod-grafana-http
+              url: https://grafana.levangie.dev
+              module: http_2xx
+            - name: prod-vault-http
+              url: https://vault.levangie.dev
+              module: http_2xx
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

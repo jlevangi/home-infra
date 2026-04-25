@@ -55,6 +55,14 @@ spec:
             dashboards:
               enabled: true
               searchNamespace: ALL
+          additionalDataSources:
+            - name: Loki
+              uid: loki
+              type: loki
+              access: proxy
+              url: http://loki.monitoring.svc.cluster.local:3100
+              jsonData:
+                maxLines: 1000
 
         prometheus:
           prometheusSpec:
@@ -80,6 +88,30 @@ spec:
 
         alertmanager:
           enabled: true
+          config:
+            global:
+              resolve_timeout: 5m
+            route:
+              receiver: ntfy-prod
+              group_by:
+                - alertname
+                - namespace
+              group_wait: 30s
+              group_interval: 5m
+              repeat_interval: 4h
+              routes:
+                - receiver: ntfy-prod-critical
+                  matchers:
+                    - severity="critical"
+            receivers:
+              - name: ntfy-prod
+                webhook_configs:
+                  - url: http://ntfy.ntfy.svc.cluster.local/homelab-alerts
+                    send_resolved: true
+              - name: ntfy-prod-critical
+                webhook_configs:
+                  - url: http://ntfy.ntfy.svc.cluster.local/homelab-critical
+                    send_resolved: true
           alertmanagerSpec:
             resources:
               requests:

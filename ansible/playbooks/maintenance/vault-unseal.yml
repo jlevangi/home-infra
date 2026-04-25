@@ -172,10 +172,11 @@
         kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
         {{ vault_pod }} -- sh -c '
           vault write auth/kubernetes/config
+            token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
             kubernetes_host="https://kubernetes.default.svc:443"
+            kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
             disable_iss_validation=true
-            disable_local_ca_jwt=false
-            token_reviewer_jwt=""'
+            disable_local_ca_jwt=false'
       register: vault_k8s_auth_config
       changed_when: vault_k8s_auth_config.rc == 0
 
