@@ -251,6 +251,22 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
+            - name: Kioto
+              group: Applications
+              url: https://koito.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Plex
+              group: Media
+              url: https://plex.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
             - name: Tautulli
               group: Media
               url: https://tautulli.levangie.dev

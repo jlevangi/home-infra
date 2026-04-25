@@ -50,6 +50,10 @@ k3s_sysctl_settings:
   - { name: 'net.ipv4.conf.all.forwarding', value: '1' }
   - { name: 'net.ipv6.conf.all.forwarding', value: '1' }
   - { name: 'net.netfilter.nf_conntrack_max', value: '131072' }
+  # Inotify limits — Promtail and other log/file watchers exhaust the kernel
+  # default of 128 instances on busy nodes (50+ pods).
+  - { name: 'fs.inotify.max_user_instances', value: '512' }
+  - { name: 'fs.inotify.max_user_watches', value: '524288' }
 
 # Features
 k3s_install_kubectl: true

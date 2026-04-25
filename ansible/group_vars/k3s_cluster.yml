@@ -165,10 +165,13 @@ argocd_reposerver_cpu_request: "100m"
 argocd_reposerver_memory_request: "256Mi"
 
 # ArgoCD controller resource limits
+# Memory bumped from 1Gi/512Mi to match stage after observability rollout:
+# 1Gi was insufficient with the new applications added (Loki, Promtail,
+# Blackbox, monitoring-config resources) — controller was OOMKilled mid-sync.
 argocd_controller_cpu_limit: "1000m"
-argocd_controller_memory_limit: "1Gi"
+argocd_controller_memory_limit: "2Gi"
 argocd_controller_cpu_request: "250m"
-argocd_controller_memory_request: "512Mi"
+argocd_controller_memory_request: "1Gi"
 
 # ArgoCD redis resource limits
 argocd_redis_cpu_limit: "200m"
