@@ -1,26 +1,26 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: 3dprintcalc
+  name: printcalc
   namespace: 3dprintcalc
   labels:
-    app: 3dprintcalc
-    app.kubernetes.io/name: 3dprintcalc
+    app: printcalc
+    app.kubernetes.io/name: printcalc
 spec:
   replicas: 1
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      app: 3dprintcalc
+      app: printcalc
   template:
     metadata:
       labels:
-        app: 3dprintcalc
-        app.kubernetes.io/name: 3dprintcalc
+        app: printcalc
+        app.kubernetes.io/name: printcalc
     spec:
       containers:
-        - name: 3dprintcalc
+        - name: printcalc
           image: jlevangie/3d-print-cost-calculator
           ports:
             - containerPort: 5000

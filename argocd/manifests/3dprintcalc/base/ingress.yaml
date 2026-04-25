@@ -1,13 +1,13 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: 3dprintcalc-ingress
+  name: printcalc-ingress
   namespace: 3dprintcalc
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
   labels:
-    app: 3dprintcalc
-    app.kubernetes.io/name: 3dprintcalc
+    app: printcalc
+    app.kubernetes.io/name: printcalc
 spec:
   rules:
     - host: 3dprintcalc.levangie.org
@@ -17,6 +17,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: 3dprintcalc
+                name: printcalc
                 port:
                   number: 5000
