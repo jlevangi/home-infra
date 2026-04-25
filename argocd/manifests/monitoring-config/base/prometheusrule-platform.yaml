@@ -1,0 +1,97 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-observability
+  namespace: monitoring
+spec:
+  groups:
+    - name: platform.observability
+      rules:
+        - alert: TraefikMetricsDown
+          expr: sum(up{namespace="traefik-system", pod=~"traefik-.*"}) < 1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Traefik metrics are unavailable
+            description: Prometheus has not been able to scrape Traefik metrics for 5 minutes.
+        - alert: TraefikHigh5xxRate
+          expr: sum(rate(traefik_service_requests_total{code=~"5.."}[5m])) / clamp_min(sum(rate(traefik_service_requests_total[5m])), 1) > 0.05
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Traefik 5xx rate is elevated
+            description: More than 5% of Traefik service requests have returned 5xx responses for 10 minutes.
+        - alert: TraefikCertificateExpiringSoon
+          expr: min(traefik_tls_certs_not_after) > 0 and (min(traefik_tls_certs_not_after) - time()) < 1209600
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Traefik-managed certificate expires soon
+            description: At least one Traefik certificate will expire within 14 days.
+        - alert: ArgoCDApplicationDegraded
+          expr: argocd_app_info{health_status=~"Degraded|Missing|Suspended|Unknown"} == 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: ArgoCD application is degraded
+            description: Application {{ $labels.name }} in namespace {{ $labels.namespace }} is {{ $labels.health_status }}.
+        - alert: LonghornVolumeDegraded
+          expr: longhorn_volume_robustness{state=~"degraded|faulted"} == 1
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: Longhorn volume is degraded
+            description: Longhorn volume {{ $labels.volume }} is in {{ $labels.state }} state.
+        - alert: LonghornVolumeReadOnly
+          expr: longhorn_volume_file_system_read_only == 1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Longhorn volume filesystem is read-only
+            description: Longhorn volume {{ $labels.volume }} is mounted read-only on node {{ $labels.node }}.
+        - alert: LonghornBackupStale
+          expr: longhorn_volume_last_backup_at > 0 and (time() - longhorn_volume_last_backup_at) > 172800
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: Longhorn backup is stale
+            description: Longhorn volume {{ $labels.volume }} has not had a successful backup in over 48 hours.
+        - alert: GatusEndpointDown
+          expr: sum by (group, name) (increase(gatus_results_total{success="false"}[10m])) > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Gatus endpoint is failing
+            description: Gatus has recorded one or more failed checks for {{ $labels.group }}/{{ $labels.name }} in the last 10 minutes.
+        - alert: BlackboxProbeFailed
+          expr: probe_success == 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Blackbox probe failed
+            description: Blackbox probe {{ $labels.instance }} has been failing for 5 minutes.
+        - alert: NodeDiskPressureDetected
+          expr: kube_node_status_condition{condition="DiskPressure", status="true"} == 1
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: Kubernetes node is under disk pressure
+            description: Node {{ $labels.node }} has reported DiskPressure for 10 minutes.
+        - alert: NodeMemoryPressureDetected
+          expr: kube_node_status_condition{condition="MemoryPressure", status="true"} == 1
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: Kubernetes node is under memory pressure
+            description: Node {{ $labels.node }} has reported MemoryPressure for 10 minutes.
