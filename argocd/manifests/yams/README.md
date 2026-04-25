@@ -48,6 +48,12 @@ wizarr        -> wizarr-config-pvc:/data/database
 maintainerr   -> maintainerr-config-pvc:/opt/data
 ```
 
+`maintainerr` keeps its media-server integration state in the SQLite database on
+`maintainerr-config-pvc`; Plex/Seerr connectivity is not declaratively managed in
+Git. After any fresh cutover or PVC restore, verify that `media_server_type`,
+Plex host/token, and any Seerr integration settings are populated before relying
+on Maintainerr health checks.
+
 For an Overseerr to Seerr cutover, seed `seerr-config-pvc` from the existing
 Overseerr config while both workloads are stopped, then start Seerr and let its
 first-boot migration update the database in place before pruning the old

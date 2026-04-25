@@ -259,14 +259,6 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
-            - name: Plex
-              group: Media
-              url: https://plex.levangie.dev
-              interval: 5m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
-
             - name: Tautulli
               group: Media
               url: https://tautulli.levangie.dev
@@ -344,7 +336,7 @@ spec:
               url: https://nzbget.levangie.dev
               interval: 5m
               conditions:
-                - "[STATUS] == 200"
+                - "[STATUS] == any(200, 401)"
                 - "[RESPONSE_TIME] < 5000"
 
             - name: Wizarr
@@ -357,7 +349,7 @@ spec:
 
             - name: Maintainerr
               group: Media
-              url: https://maintainerr.levangie.dev
+              url: https://maintainerr.levangie.dev/api/media-server/type
               interval: 5m
               conditions:
                 - "[STATUS] == 200"
