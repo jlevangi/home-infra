@@ -125,11 +125,6 @@ spec:
                   - url: http://ntfy.ntfy.svc.cluster.local/
                     send_resolved: true
                     timeout: 10s
-                    http_config:
-                      http_headers:
-                        Content-Type:
-                          values:
-                            - application/json
                     payload:
                       topic: '{{ "homelab-alerts" | toJson }}'
                       title: '{{ printf "Prod %s: %s" (toUpper .Status) .CommonLabels.alertname | toJson }}'
@@ -143,11 +138,6 @@ spec:
                   - url: http://ntfy.ntfy.svc.cluster.local/
                     send_resolved: true
                     timeout: 10s
-                    http_config:
-                      http_headers:
-                        Content-Type:
-                          values:
-                            - application/json
                     payload:
                       topic: '{{ "homelab-critical" | toJson }}'
                       title: '{{ printf "Prod %s: %s" (toUpper .Status) .CommonLabels.alertname | toJson }}'
