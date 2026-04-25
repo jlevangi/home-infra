@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: git@github.com:jlevangi/home-infra.git
-    targetRevision: observability-stage
+    targetRevision: main
     path: argocd/manifests/pocketid/overlays/stage
   destination:
     server: https://kubernetes.default.svc
