@@ -7,3 +7,6 @@ resources:
   - servicemonitor-gatus.yaml
   - servicemonitor-longhorn.yaml
   - prometheusrule-platform.yaml
+  - grafana-dashboard-observability-overview.yaml
+  - grafana-dashboard-network-probes.yaml
+  - grafana-dashboard-logs-and-gitops.yaml
