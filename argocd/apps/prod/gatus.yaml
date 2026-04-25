@@ -251,14 +251,6 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
-            - name: Smokeping
-              group: Applications
-              url: https://smokeping.levangie.dev
-              interval: 5m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
-
             - name: Tautulli
               group: Media
               url: https://tautulli.levangie.dev
