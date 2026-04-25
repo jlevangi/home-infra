@@ -260,6 +260,7 @@ spec:
       port: 5690
       targetPort: 5690
       protocol: TCP
+---
 apiVersion: v1
 kind: Service
 metadata:

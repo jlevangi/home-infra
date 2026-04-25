@@ -845,6 +845,7 @@ spec:
         - name: config
           persistentVolumeClaim:
             claimName: wizarr-config-pvc
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
