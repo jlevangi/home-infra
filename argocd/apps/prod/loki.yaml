@@ -87,6 +87,12 @@ spec:
         gateway:
           enabled: false
 
+        resultsCache:
+          enabled: false
+
+        chunksCache:
+          enabled: false
+
         monitoring:
           dashboards:
             enabled: true

@@ -40,6 +40,12 @@ enable_longhorn_backup: false
 # CRDs pre-seeded before ArgoCD syncs ExternalSecret resources.
 external_secrets_bootstrap_crds: true
 
+# Stage needs more ArgoCD controller headroom during branch-isolated rollout
+# testing because the application-controller is reconciling the full app tree
+# plus new observability apps on slower storage.
+argocd_controller_memory_limit: "2Gi"
+argocd_controller_memory_request: "1Gi"
+
 # -----------------------------------------------------------------------------
 # K3S DATASTORE — SQLite (not embedded etcd)
 # -----------------------------------------------------------------------------
