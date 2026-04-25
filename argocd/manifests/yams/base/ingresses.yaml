@@ -258,28 +258,6 @@ spec:
                 name: wizarr
                 port:
                   number: 5690
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: maintainerr-ingress
-  namespace: yams
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-spec:
-  ingressClassName: traefik
-  rules:
-    - host: maintainerr.levangie.dev
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: maintainerr
-                port:
-                  number: 80
----
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
