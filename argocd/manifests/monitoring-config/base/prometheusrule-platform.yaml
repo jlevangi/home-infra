@@ -64,13 +64,13 @@ spec:
             summary: Longhorn backup is stale
             description: Longhorn volume {{ $labels.volume }} has not had a successful backup in over 48 hours.
         - alert: GatusEndpointDown
-          expr: gatus_results_endpoint_success == 0
+          expr: sum by (group, name) (increase(gatus_results_total{success="false"}[10m])) > 0
           for: 10m
           labels:
             severity: warning
           annotations:
             summary: Gatus endpoint is failing
-            description: Gatus reports {{ $labels.group }}/{{ $labels.name }} as unhealthy.
+            description: Gatus has recorded one or more failed checks for {{ $labels.group }}/{{ $labels.name }} in the last 10 minutes.
         - alert: BlackboxProbeFailed
           expr: probe_success == 0
           for: 5m
