@@ -27,6 +27,12 @@ variable "template_name" {
   default     = "debian12-server-template"
 }
 
+variable "vm_storage" {
+  description = "Proxmox storage pool for the VM disks. Default vm_data matches the existing SSD pool; set to local-lvm to land etcd/CP traffic on a dedicated NVMe pool isolated from Longhorn worker I/O."
+  type        = string
+  default     = "vm_data"
+}
+
 variable "nic_name" {
   default = "vmbr0"
 }
