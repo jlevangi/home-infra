@@ -37,7 +37,9 @@ SOURCE_ENV=""
 REBUILD_VMS=true
 RESTORE_DATA=true
 SKIP_CONFIRMATION=false
-SPECIFIC_APP=""
+SPECIFIC_NAMESPACE=""
+SPECIFIC_PVC=""
+SKIP_PVC_LIST=""
 
 # =============================================================================
 # Functions
@@ -77,14 +79,16 @@ Disaster Recovery Options:
   --test              Target test environment
 
 Recovery Mode Options:
-  --restore-only      Skip VM rebuild, only restore data
-  --rebuild-only      Only rebuild VMs and deploy K3s, no data restore
-  --from ENV          Source environment for backup data (default: prod)
-  --app NAME          Restore specific app only (e.g., bookstack, vaultwarden)
+  --restore-only          Skip VM rebuild, only restore data
+  --rebuild-only          Only rebuild VMs and deploy K3s, no data restore
+  --from ENV              Source environment for backup data (default: prod)
+  --app NAMESPACE         Restore every PVC in this namespace (e.g., --app bookstack)
+  --pvc PVC_NAME          Restore one specific PVC (e.g., --pvc bookstack-app-data-pvc)
+  --skip-pvc PVC1,PVC2    Comma-separated PVC names to skip (e.g., stale apps)
 
 Other Options:
-  -y, --yes           Skip confirmation prompts
-  -h, --help          Show this help message
+  -y, --yes               Skip confirmation prompts
+  -h, --help              Show this help message
 
 Examples:
   # Full disaster recovery for production
@@ -96,8 +100,11 @@ Examples:
   # Restore only (no VM rebuild) for production
   $(basename "$0") --prod --restore-only
 
-  # Restore just bookstack to stage
+  # Restore every PVC in the bookstack namespace
   $(basename "$0") --stage --from prod --app bookstack --restore-only
+
+  # Restore everything except known-stale PVCs (deleted apps)
+  $(basename "$0") --prod --restore-only --skip-pvc homepage-config,plex-config-pvc
 
 EOF
     exit 0
@@ -134,7 +141,15 @@ parse_args() {
                 shift 2
                 ;;
             --app)
-                SPECIFIC_APP="$2"
+                SPECIFIC_NAMESPACE="$2"
+                shift 2
+                ;;
+            --pvc)
+                SPECIFIC_PVC="$2"
+                shift 2
+                ;;
+            --skip-pvc)
+                SKIP_PVC_LIST="$2"
                 shift 2
                 ;;
             -y|--yes)
@@ -171,7 +186,9 @@ confirm_operation() {
     echo "Source Environment: $SOURCE_ENV"
     echo "Rebuild VMs: $REBUILD_VMS"
     echo "Restore Data: $RESTORE_DATA"
-    [[ -n "$SPECIFIC_APP" ]] && echo "Specific App: $SPECIFIC_APP"
+    [[ -n "$SPECIFIC_NAMESPACE" ]] && echo "Namespace filter: $SPECIFIC_NAMESPACE"
+    [[ -n "$SPECIFIC_PVC" ]] && echo "PVC filter: $SPECIFIC_PVC"
+    [[ -n "$SKIP_PVC_LIST" ]] && echo "Skip PVCs: $SKIP_PVC_LIST"
     echo ""
 
     if [[ "$REBUILD_VMS" == "true" ]]; then
@@ -287,11 +304,6 @@ restore_data() {
 
     print_step "Restoring data from $SOURCE_ENV backups..."
 
-    local app_arg=""
-    if [[ -n "$SPECIFIC_APP" ]]; then
-        app_arg="app=$SPECIFIC_APP"
-    fi
-
     # Determine inventory based on target environment
     local inventory=""
     case $TARGET_ENV in
@@ -299,6 +311,16 @@ restore_data() {
         stage) inventory="$ANSIBLE_DIR/inventories/staging/hosts.yml" ;;
         test)  inventory="$ANSIBLE_DIR/inventories/test/hosts.yml" ;;
     esac
+
+    local extra_args=()
+    [[ -n "$SPECIFIC_NAMESPACE" ]] && extra_args+=(-e "restore_namespace_only=$SPECIFIC_NAMESPACE")
+    [[ -n "$SPECIFIC_PVC" ]] && extra_args+=(-e "restore_pvc_only=$SPECIFIC_PVC")
+    if [[ -n "$SKIP_PVC_LIST" ]]; then
+        # Convert comma-separated list to JSON array for Ansible
+        local skip_json
+        skip_json=$(printf '%s' "$SKIP_PVC_LIST" | python3 -c 'import sys,json; print(json.dumps([x.strip() for x in sys.stdin.read().split(",") if x.strip()]))')
+        extra_args+=(-e "restore_pvc_skip=$skip_json")
+    fi
 
     # Run the restore playbook
     ansible-playbook \
@@ -308,7 +330,7 @@ restore_data() {
         -e "restore_action=restore" \
         -e "target_env=$TARGET_ENV" \
         -e "source_env=$SOURCE_ENV" \
-        ${app_arg:+-e "$app_arg"}
+        "${extra_args[@]}"
 }
 
 deploy_apps() {
