@@ -67,7 +67,7 @@ spec:
         prometheus:
           prometheusSpec:
             retention: 15d
-            retentionSize: 7GiB
+            retentionSize: 20GiB
             resources:
               requests:
                 cpu: 250m
@@ -82,7 +82,7 @@ spec:
                   accessModes: ["ReadWriteOnce"]
                   resources:
                     requests:
-                      storage: 10Gi
+                      storage: 25Gi
             serviceMonitorSelectorNilUsesHelmValues: false
             podMonitorSelectorNilUsesHelmValues: false
             ruleSelectorNilUsesHelmValues: false
