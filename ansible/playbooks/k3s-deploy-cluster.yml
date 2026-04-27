@@ -49,6 +49,37 @@
       when: k3s_install_telegraf | default(false)
 
   post_tasks:
+    - name: Fail if any worker failed to join
+      fail:
+        msg: |
+          Worker join FAILED.
+          Failed hosts: {{ ansible_play_hosts_all | difference(ansible_play_hosts) | join(', ') }}
+          Review the task output above for the specific error.
+      when: ansible_play_hosts_all | difference(ansible_play_hosts) | length > 0
+      run_once: true
+      delegate_to: localhost
+
+# Helm-driven infrastructure installs run AFTER masters and workers join so
+# Longhorn has eligible storage nodes when PVC-backed components (Traefik,
+# ArgoCD, Vault) reach their wait-for-ready step. Targets the first master
+# only — Helm releases would otherwise race across multiple servers.
+- name: Install infra components on first master
+  hosts: "{{ target_cluster | default('k3s_cluster') }}_master[0]"
+  become: yes
+  gather_facts: yes
+
+  vars_files:
+    - ../group_vars/k3s_cluster_vault.yml
+    - ../group_vars/k3s_cluster.yml
+    - "../group_vars/{{ target_cluster | default('k3s_cluster') }}.yml"
+
+  tasks:
+    - name: Run Helm-driven infra installs
+      include_role:
+        name: ../roles/k3s
+        tasks_from: infra-install.yml
+
+  post_tasks:
     # Fail loudly if any host dropped out of the play so the completion banner
     # below only ever runs on a real success.
     - name: Fail if any host failed during deployment
