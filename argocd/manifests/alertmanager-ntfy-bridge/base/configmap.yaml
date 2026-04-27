@@ -5,6 +5,7 @@ metadata:
   namespace: monitoring
 data:
   bridge.py: |
+    import ipaddress
     import json
     import os
     import urllib.error
@@ -15,6 +16,7 @@ data:
 
     NTFY_URL = os.environ.get("NTFY_URL", "http://ntfy.ntfy.svc.cluster.local/")
     DEFAULT_TOPIC = os.environ.get("DEFAULT_TOPIC", "homelab-alerts")
+    PUBLIC_CLICK_URL = os.environ.get("PUBLIC_CLICK_URL")
 
 
     def first_nonempty(*values):
@@ -22,6 +24,40 @@ data:
             if value:
                 return value
         return None
+
+
+    def is_internal_click_url(url):
+        if not url:
+            return False
+
+        parsed = urllib.parse.urlparse(url)
+        hostname = (parsed.hostname or "").lower()
+        if not hostname:
+            return False
+
+        if hostname == "localhost":
+            return True
+
+        if hostname.endswith(".svc") or hostname.endswith(".svc.cluster.local") or hostname.endswith(".cluster.local") or hostname.endswith(".local"):
+            return True
+
+        try:
+            address = ipaddress.ip_address(hostname)
+        except ValueError:
+            return False
+
+        return (
+            address.is_private
+            or address.is_loopback
+            or address.is_link_local
+            or address.is_reserved
+        )
+
+
+    def normalize_click_url(url):
+        if is_internal_click_url(url):
+            return PUBLIC_CLICK_URL
+        return url
 
 
     def build_details(alerts):
@@ -72,10 +108,11 @@ data:
             common_annotations.get("description")
             or "No additional description provided."
         )
-        click = first_nonempty(
+        raw_click = first_nonempty(
             alerts[0].get("generatorURL") if alerts else None,
             payload.get("externalURL"),
         )
+        click = normalize_click_url(raw_click)
 
         message_lines = [
             f"# {alertname}",
@@ -93,7 +130,8 @@ data:
             message_lines.extend(["", "**Instances:**", *details])
 
         if click:
-            message_lines.extend(["", f"[Open in Prometheus]({click})"])
+            link_label = "Open in Grafana" if click != raw_click else "Open alert"
+            message_lines.extend(["", f"[{link_label}]({click})"])
 
         is_critical = topic == "homelab-critical" or severity == "critical"
         if status == "resolved":
