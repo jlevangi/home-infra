@@ -1,0 +1,18 @@
+# Copy to terraform.tfvars and fill in real values. Do NOT commit terraform.tfvars.
+token_secret   = "REPLACE_ME"
+token_id       = "root@pam!terraform"
+ci_user        = "pierce"
+ci_password    = "REPLACE_ME"
+ssh_key        = "ssh-ed25519 AAAA... pierc@Pierce-PC"
+vault_password = "REPLACE_ME"
+
+# Network configuration for staging CP nodes (.114-.116)
+ip_base       = "172.20.20.11"
+subnet_mask   = "22"
+gateway       = "172.20.20.1"
+nameserver    = "172.20.20.4"
+search_domain = "local"
+
+# Per-VM target hosts. Each must have the debian12-server-template replicated.
+# To put everything on pve2 temporarily: ["pve2", "pve2", "pve2"]
+proxmox_hosts = ["pve1", "pve2", "pve3"]

@@ -52,7 +52,9 @@
     - inventory_hostname == groups[master_group][0]
     - k3s_install_longhorn | default(true)
 
-# LoadBalancer and Ingress Setup
+# LoadBalancer and Ingress Setup. Helm-driven installs only run on the first
+# master; multi-master HA setups would otherwise race three concurrent helm
+# upgrades against the same release.
 - name: Include MetalLB installation
   include_tasks: metallb.yml
   tags:
@@ -60,7 +62,7 @@
     - loadbalancer
     - infrastructure
   when:
-    - inventory_hostname in groups[master_group]
+    - inventory_hostname == groups[master_group][0]
     - k3s_install_metallb | default(true)
 
 - name: Include Traefik 2 installation
@@ -70,7 +72,7 @@
     - ingress
     - infrastructure
   when:
-    - inventory_hostname in groups[master_group]
+    - inventory_hostname == groups[master_group][0]
     - k3s_install_traefik | default(true)
 
 # ArgoCD GitOps Controller
@@ -81,7 +83,7 @@
     - gitops
     - infrastructure
   when:
-    - inventory_hostname in groups[master_group]
+    - inventory_hostname == groups[master_group][0]
     - k3s_install_argocd | default(true)
 
 # Vault + External Secrets bootstrap (ArgoCD-managed apps)
@@ -92,5 +94,5 @@
     - secrets
     - gitops
   when:
-    - inventory_hostname in groups[master_group]
+    - inventory_hostname == groups[master_group][0]
     - k3s_configure_vault | default(true)

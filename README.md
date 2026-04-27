@@ -33,16 +33,17 @@ cd ../../
 ./scripts/deploy-k3s-cluster.sh --prod
 ```
 
-### Deploy apps or individual components
+### Deploy infrastructure components
 
 ```bash
-# Deploy the app set for an environment
-./scripts/deploy-k3s-apps.sh --stage
-
-# Deploy a single infrastructure component or app
+# Deploy a single infra component (longhorn, metallb, traefik, argocd, vault)
 ./scripts/deploy-component.sh --prod traefik
-./scripts/deploy-component.sh --prod bookstack
+
+# Deploy all core infra in order (fresh cluster bootstrap)
+./scripts/deploy-component.sh --prod all-infra
 ```
+
+Applications are deployed by ArgoCD from `argocd/apps/<env>/` on `main`.
 
 ### Manage LXC containers
 

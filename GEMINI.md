@@ -107,7 +107,7 @@ Backup and restore operations powered by Longhorn and NFS:
 | **Ansible Vars** | `ansible/group_vars/k3s_cluster.yml` | Base cluster configuration |
 | **Env Overrides** | `ansible/group_vars/k3s_cluster_prod.yml` | Production specific settings |
 | **Secrets** | `ansible/group_vars/k3s_cluster_vault.yml` | Encrypted secrets (Vault) |
-| **App Configs** | `ansible/group_vars/k3s_cluster.yml` | Application definitions (`app_definitions`) |
+| **App Manifests** | `argocd/apps/<env>/`, `argocd/manifests/**` | Application deployments (managed by ArgoCD) |
 | **LXC Defs** | `ansible/lxc_definitions/containers/` | YAML definitions for LXC containers |
 | **Terraform** | `terraform/k3_3node_cluster_prod/` | Production VM infrastructure |
 

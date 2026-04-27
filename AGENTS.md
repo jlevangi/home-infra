@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This is a **home infrastructure automation repository** that provides infrastructure-as-code for deploying production-ready K3s Kubernetes clusters on Proxmox VE. The repository manages multiple environments (production, test, staging) with automated provisioning, configuration, and application deployment.
+This is a **home infrastructure automation repository** that provides infrastructure-as-code for deploying production-ready K3s Kubernetes clusters on Proxmox VE. The repository manages multiple environments (production, test, staging) with automated provisioning and configuration. Applications are deployed via ArgoCD (see `argocd/`), not Ansible.
 
 ## Architecture
 
@@ -32,25 +32,20 @@ This is a **home infrastructure automation repository** that provides infrastruc
 ```
 
 ### Application Deployment
-```bash
-# Deploy apps to production
-./scripts/deploy-k3s-apps.sh --prod
 
-# Deploy apps to test environment
-./scripts/deploy-k3s-apps.sh --test
-```
+Applications are deployed by ArgoCD, not Ansible. To enable, disable, or modify
+applications, edit the relevant manifests under `argocd/apps/<env>/` and
+`argocd/manifests/**` and let ArgoCD reconcile from `main`.
 
 ### Component Deployment
 ```bash
-# Deploy individual infrastructure components
+# Deploy individual infrastructure components (longhorn, metallb, traefik, argocd, vault)
 ./scripts/deploy-component.sh --prod traefik
 ./scripts/deploy-component.sh --prod metallb
 ./scripts/deploy-component.sh --prod longhorn
 
-# Deploy individual applications
-./scripts/deploy-component.sh --prod bookstack
-./scripts/deploy-component.sh --prod vaultwarden
-./scripts/deploy-component.sh --prod homepage
+# Deploy all infra components in order (fresh cluster bootstrap)
+./scripts/deploy-component.sh --prod all-infra
 
 # Force redeploy (cleanup and reinstall)
 ./scripts/deploy-component.sh --prod traefik --force
@@ -109,9 +104,6 @@ terraform init && terraform plan && terraform apply
 ```bash
 # Run cluster deployment playbook directly
 ansible-playbook -i ansible/inventories/production/hosts.yml ansible/playbooks/k3s-deploy-cluster.yml --vault-password-file ~/.ansible_vault_pass
-
-# Run app deployment playbook directly
-ansible-playbook -i ansible/inventories/production/hosts.yml ansible/playbooks/k3s-deploy-apps.yml --vault-password-file ~/.ansible_vault_pass
 ```
 
 ### Backup and Restore
@@ -166,14 +158,12 @@ ansible-vault view ansible/group_vars/lxc_vault.yml
 │   │   └── containers/          # Container definitions (nbn-srv.yml)
 │   ├── playbooks/               # Ansible playbooks
 │   │   ├── k3s-deploy-cluster.yml
-│   │   ├── k3s-deploy-apps.yml
 │   │   ├── k3s-deploy-component.yml     # Single component deployment
 │   │   ├── k3s-restore-from-backup.yml  # Longhorn backup restore
 │   │   └── lxc-deploy.yml       # LXC deployment playbook
 │   └── roles/                   # Ansible roles
 │       ├── common/
 │       ├── k3s/
-│       ├── k3s-apps/
 │       └── lxc/                 # LXC container role
 ├── terraform/                   # Infrastructure provisioning (VMs only)
 │   ├── k3_3node_cluster_prod/
@@ -181,8 +171,7 @@ ansible-vault view ansible/group_vars/lxc_vault.yml
 │   └── k3_3node_cluster_stage/
 ├── scripts/                     # Management scripts
 │   ├── deploy-k3s-cluster.sh    # K3s cluster deployment
-│   ├── deploy-k3s-apps.sh       # K3s application deployment
-│   ├── deploy-component.sh      # Single component deployment
+│   ├── deploy-component.sh      # Single infra component deployment
 │   ├── deploy-lxc.sh            # LXC container deployment
 │   ├── reset-k3s-cluster.sh     # Reset/destroy cluster
 │   ├── rebuild-k3s-cluster.sh   # Terraform rebuild cluster
@@ -226,45 +215,15 @@ The repository supports three environments:
 - Managed via `terraform/talos_cluster_test/` (uses the `siderolabs/talos` provider for bootstrap) and `scripts/helpers/import-talos-template.sh` for the Proxmox template
 - VMs have `onboot = false` and do not start on Proxmox host boot
 - No Ansible: Talos has no SSH/package manager; the existing `k3s` role does not apply here
-- App deployment (kubectl/helm, ArgoCD) still works against the cluster API if/when wired up; not yet integrated with `scripts/deploy-k3s-apps.sh` or `scripts/helpers/k3s-context-manager.sh`
+- App deployment (kubectl/helm, ArgoCD) still works against the cluster API if/when wired up; not yet integrated with `scripts/helpers/k3s-context-manager.sh`
 
 ## Application Configuration
 
-Applications are configured using a two-layer approach:
+Applications are owned by ArgoCD. There is no Ansible app-deploy pipeline.
 
-1. **Base config** (`k3s_cluster.yml`): Contains `app_definitions` with full app configurations
-2. **Environment overrides** (`k3s_cluster_{env}.yml`): Contains `enabled_apps` list and overrides
-3. **ArgoCD environment paths** (`argocd/apps/{prod,stage,test}`): Control which Application objects each cluster reconciles from `main`
-
-```yaml
-# Base config - app_definitions (full configs, no deploy flags)
-app_definitions:
-  bookstack:
-    app_url: "https://bookstack.{{ environment_domain }}"
-    service_name: "bookstack"
-    service_port: 8080
-    storage:
-      max_namespace_storage: "15Gi"
-      default_pvc_size: "5Gi"
-    secrets:
-      db_password: "{{ vault_bookstack_db_password }}"
-
-# Environment override - control what gets deployed
-enabled_apps:
-  - bookstack
-  - vaultwarden
-  - homepage
-
-force_redeploy_apps:
-  - homepage
-```
-
-Available applications:
-- **BookStack**: Documentation platform
-- **Vaultwarden**: Password manager
-- **Homepage**: Dashboard
-- **PocketID**: Identity provider
-- **Plex**: Media server (Helm-based)
+- App enablement and configuration live under `argocd/apps/<env>/` (per-cluster) and `argocd/manifests/**` (shared).
+- Secrets come from Vault via External Secrets Operator (ESO).
+- To add or remove an app: commit changes to `argocd/apps/<env>/` on `main` and let ArgoCD reconcile.
 
 ### ArgoCD Branching Model
 

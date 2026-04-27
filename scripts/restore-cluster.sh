@@ -333,17 +333,6 @@ restore_data() {
         "${extra_args[@]}"
 }
 
-deploy_apps() {
-    if [[ "$RESTORE_DATA" != "true" ]]; then
-        print_info "Skipping app deployment (--rebuild-only specified)"
-        return 0
-    fi
-
-    print_step "Deploying applications..."
-
-    "$SCRIPT_DIR/deploy-k3s-apps.sh" --$TARGET_ENV
-}
-
 verify_cluster() {
     print_step "Verifying cluster health..."
 
@@ -432,7 +421,6 @@ main() {
     deploy_k3s
     switch_context
     restore_data
-    deploy_apps
     verify_cluster
     print_summary
 }
