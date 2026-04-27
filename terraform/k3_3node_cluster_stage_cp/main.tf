@@ -48,14 +48,14 @@ resource "proxmox_vm_qemu" "cp" {
   disk {
     slot    = "ide2"
     type    = "cloudinit"
-    storage = "vm_data"
+    storage = var.vm_storage
   }
 
   disk {
     slot    = "scsi0"
     size    = "64G"
     type    = "disk"
-    storage = "vm_data"
+    storage = var.vm_storage
   }
 
   network {
