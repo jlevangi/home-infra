@@ -90,7 +90,7 @@
     # ==========================================================================
     - name: Generate restored volume name
       set_fact:
-        restored_volume_name: "{{ restore_pvc_name | regex_replace('-pvc$', '') }}-restored"
+        restored_volume_name: "{{ restore_pvc_name | regex_replace('-pvc$', '') }}"
 
     - name: Delete any existing restored volume with same name
       shell: |
