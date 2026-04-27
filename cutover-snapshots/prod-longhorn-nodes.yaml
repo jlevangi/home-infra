@@ -1,0 +1,424 @@
+apiVersion: v1
+items:
+- apiVersion: longhorn.io/v1beta2
+  kind: Node
+  metadata:
+    creationTimestamp: "2026-04-08T13:10:02Z"
+    finalizers:
+    - longhorn.io
+    generation: 3
+    name: k3s-prod-node-1
+    namespace: longhorn-system
+    resourceVersion: "82800691"
+    uid: 79f3c846-d63f-42eb-8d25-eebb13373742
+  spec:
+    allowScheduling: true
+    disks:
+      default-disk-9f28dc891e8c78fd:
+        allowScheduling: true
+        diskDriver: ""
+        diskType: filesystem
+        evictionRequested: false
+        path: /var/lib/longhorn/
+        storageReserved: 2684354560
+        tags: []
+    evictionRequested: false
+    instanceManagerCPURequest: 0
+    name: k3s-prod-node-1
+    tags: []
+  status:
+    autoEvicting: false
+    conditions:
+    - lastProbeTime: ""
+      lastTransitionTime: "2026-04-27T18:34:48Z"
+      message: Node k3s-prod-node-1 is ready
+      reason: ""
+      status: "True"
+      type: Ready
+    - lastProbeTime: ""
+      lastTransitionTime: "2026-04-24T17:31:07Z"
+      message: ""
+      reason: ""
+      status: "True"
+      type: Schedulable
+    - lastProbeTime: ""
+      lastTransitionTime: "2026-04-08T13:10:02Z"
+      message: 'Missing packages: [cryptsetup]'
+      reason: PackagesNotInstalled
+      status: "False"
+      type: RequiredPackages
+    - lastProbeTime: ""
+      lastTransitionTime: "2026-04-08T13:10:02Z"
+      message: ""
+      reason: ""
+      status: "True"
+      type: Multipathd
+    - lastProbeTime: ""
+      lastTransitionTime: "2026-04-08T13:10:02Z"
+      message: ""
+      reason: ""
+      status: "True"
+      type: NFSClientInstalled
+    - lastProbeTime: ""
+      lastTransitionTime: "2026-04-08T13:10:02Z"
+      message: Kernel modules [dm_crypt] are not loaded
+      reason: KernelModulesNotLoaded
+      status: "False"
+      type: KernelModulesLoaded
+    - lastProbeTime: ""
+      lastTransitionTime: "2026-04-08T13:10:32Z"
+      message: ""
+      reason: ""
+      status: "True"
+      type: MountPropagation
+    diskStatus:
+      default-disk-9f28dc891e8c78fd:
+        conditions:
+        - lastProbeTime: ""
+          lastTransitionTime: "2026-04-27T18:35:01Z"
+          message: Disk default-disk-9f28dc891e8c78fd(/var/lib/longhorn/) on node
+            k3s-prod-node-1 is ready
+          reason: ""
+          status: "True"
+          type: Ready
+        - lastProbeTime: ""
+          lastTransitionTime: "2026-04-27T18:35:01Z"
+          message: Disk default-disk-9f28dc891e8c78fd(/var/lib/longhorn/) on node
+            k3s-prod-node-1 is schedulable
+          reason: ""
+          status: "True"
+          type: Schedulable
+        diskDriver: ""
+        diskName: default-disk-9f28dc891e8c78fd
+        diskPath: /var/lib/longhorn/
+        diskType: filesystem
+        diskUUID: c8aaf4fd-4078-47d7-a8b0-d9a43e63f201
+        filesystemType: ext2/ext3
+        healthDataLastCollectedAt: "2026-04-27T19:30:32Z"
+        instanceManagerName: instance-manager-a2d1b5a18bc71e0ae8d715ab19930a22
+        scheduledBackingImage: {}
+        scheduledReplica:
+          bookstack-db-restored-volume-r-f70331ef: 524288000
+          linkding-data-restored-r-eac3884e: 1073741824
+          pvc-0a9ad606-68bf-4ebd-a6d7-e0e8f7503e9c-r-ca9f4d7c: 524288000
+          pvc-0d634f6e-bb08-4364-b6d7-bf6d3d6b9490-r-aaa26414: 1073741824
+          pvc-0dfabafd-2c62-4054-ada9-7ccca4bbccc0-r-a7eabbc4: 524288000
+          pvc-3a652952-9622-4c5e-89e3-83a047fdb19c-r-41698234: 21474836480
+          pvc-46da8567-b59b-4058-a452-cc991659aa51-r-14d13466: 2147483648
+          pvc-49c70f07-9cf5-48d5-9b8d-b2b7919691e7-r-a615bd79: 1073741824
+          pvc-4ed8c830-fec5-4937-b4af-b7739f5b8765-r-7f5a9f3d: 2147483648
+          pvc-6b4e458d-629a-4bab-94af-3d25839ad318-r-a71d4f5c: 524288000
+          pvc-6df02027-2684-4910-a241-80e1e5372bc4-r-8a3a97ff: 524288000
+          pvc-06cd0032-c872-452e-a5c6-9639a1ba50d6-r-d73730d9: 5368709120
+          pvc-8fd92e8e-f37d-41d0-844e-298d96480026-r-546c7904: 2147483648
+          pvc-10b8ad66-a7fa-4cff-9aa5-483d13f95fb9-r-f715853b: 5368709120
+          pvc-13a372e8-a64e-4dc6-a0a0-ef733cbd7f93-r-1a0cdfc5: 1073741824
+          pvc-70fffa8a-70e6-4872-9811-0c68033b102d-r-510d5aa6: 2147483648
+          pvc-7a67b0fb-132f-4d91-8d81-fa2a715fc791-r-db4ca91e: 524288000
+          pvc-7c9a0b56-4563-41f4-adaa-85592f982a9f-r-b5ca99eb: 1073741824
+          pvc-13f4ea1b-e774-4327-99f7-294540425097-r-4be164f2: 10737418240
+          pvc-81f7e021-9802-46ff-bb84-f20fb0bc9ec6-r-3cb8afed: 26843545600
+          pvc-8fdd40f6-e227-4aee-9ac7-f7e60045743b-r-664e8525: 5368709120
+          pvc-2506cad6-9684-4fcb-8241-559d68e22336-r-c04b9933: 524288000
+          pvc-7561b184-12a9-48a0-98be-6dd7170b5f48-r-1612f7f2: 524288000
+          pvc-9268ded4-05c9-4890-ac77-597a2eed5e79-r-b0ff4648: 10737418240
+          pvc-155259a0-6cdc-44f3-932b-2a7d15324159-r-be0ca4d9: 1073741824
+          pvc-29777356-f44b-4e42-aa0b-7a79d5f8cc60-r-9a4ca5bf: 1073741824
+          pvc-a6e95886-9026-49c9-addd-08c350196073-r-b110a30e: 1073741824
+          pvc-a8cdd0ce-279d-48f0-9956-32f21ef543fd-r-9da4270b: 2147483648
+          pvc-a7048bc1-0bbe-4350-9598-57417f954f0e-r-481d9cb7: 1073741824
+          pvc-ab146339-ec66-46a0-8b4f-fa65140eae41-r-6a5c736e: 2147483648
+          pvc-ada9c500-5f3f-4bae-abfb-4d3f3037971e-r-c9194f71: 524288000
+          pvc-b7e73005-2090-4a77-ac6b-f27a8214d4c0-r-3dbb2059: 2147483648
+          pvc-bb1eaf00-e487-44a4-a6b0-ecccec3601d0-r-017a865a: 524288000
+          pvc-bc9bf81c-341f-43e3-b677-3401b8e028d7-r-59d04e02: 5368709120
+          pvc-c19068e1-8174-4a9e-8648-22918ed5ef1b-r-5df5028e: 1073741824
+          pvc-d2dd09e3-51ae-4064-8d1f-1b400fb06bcc-r-0bc5a2e0: 524288000
+          pvc-e10b1c02-a0bb-4bb9-a6aa-a7d0bebc012e-r-938c4da8: 524288000
+          pvc-f0428da3-e003-4add-a00b-f9b0b0e9d5e8-r-2cd47bb3: 1073741824
+        storageAvailable: 122368819200
+        storageMaximum: 168923357184
+        storageScheduled: 124403056640
+    region: ""
+    snapshotCheckStatus: {}
+    zone: ""
+- apiVersion: longhorn.io/v1beta2
+  kind: Node
+  metadata:
+    creationTimestamp: "2025-09-04T23:39:51Z"
+    finalizers:
+    - longhorn.io
+    generation: 5
+    name: k3s-prod-node-2
+    namespace: longhorn-system
+    resourceVersion: "82799762"
+    uid: 173a85f2-1991-40b0-8228-c0f8d8fa5bd5
+  spec:
+    allowScheduling: true
+    disks:
+      default-disk-9f28dc891e8c78fd:
+        allowScheduling: true
+        diskDriver: ""
+        diskType: filesystem
+        evictionRequested: false
+        path: /var/lib/longhorn/
+        storageReserved: 2684354560
+        tags: []
+    evictionRequested: false
+    instanceManagerCPURequest: 0
+    name: k3s-prod-node-2
+    tags: []
+  status:
+    autoEvicting: false
+    conditions:
+    - lastProbeTime: ""
+      lastTransitionTime: "2026-04-27T03:34:47Z"
+      message: Node k3s-prod-node-2 is ready
+      reason: ""
+      status: "True"
+      type: Ready
+    - lastProbeTime: ""
+      lastTransitionTime: "2026-04-24T17:31:07Z"
+      message: ""
+      reason: ""
+      status: "True"
+      type: Schedulable
+    - lastProbeTime: ""
+      lastTransitionTime: "2025-09-04T23:39:51Z"
+      message: ""
+      reason: ""
+      status: "True"
+      type: Multipathd
+    - lastProbeTime: ""
+      lastTransitionTime: "2025-09-05T02:39:51Z"
+      message: ""
+      reason: ""
+      status: "True"
+      type: NFSClientInstalled
+    - lastProbeTime: ""
+      lastTransitionTime: "2025-09-04T23:39:51Z"
+      message: Kernel modules [dm_crypt] are not loaded
+      reason: KernelModulesNotLoaded
+      status: "False"
+      type: KernelModulesLoaded
+    - lastProbeTime: ""
+      lastTransitionTime: "2025-09-04T23:40:21Z"
+      message: ""
+      reason: ""
+      status: "True"
+      type: MountPropagation
+    - lastProbeTime: ""
+      lastTransitionTime: "2026-04-08T13:10:17Z"
+      message: 'Missing packages: [cryptsetup]'
+      reason: PackagesNotInstalled
+      status: "False"
+      type: RequiredPackages
+    diskStatus:
+      default-disk-9f28dc891e8c78fd:
+        conditions:
+        - lastProbeTime: ""
+          lastTransitionTime: "2026-04-27T03:35:17Z"
+          message: Disk default-disk-9f28dc891e8c78fd(/var/lib/longhorn/) on node
+            k3s-prod-node-2 is ready
+          reason: ""
+          status: "True"
+          type: Ready
+        - lastProbeTime: ""
+          lastTransitionTime: "2026-04-27T03:35:17Z"
+          message: Disk default-disk-9f28dc891e8c78fd(/var/lib/longhorn/) on node
+            k3s-prod-node-2 is schedulable
+          reason: ""
+          status: "True"
+          type: Schedulable
+        diskDriver: ""
+        diskName: default-disk-9f28dc891e8c78fd
+        diskPath: /var/lib/longhorn/
+        diskType: filesystem
+        diskUUID: c0a5460d-960e-4340-9978-45346add54cb
+        filesystemType: ext2/ext3
+        healthDataLastCollectedAt: "2026-04-27T19:27:47Z"
+        instanceManagerName: instance-manager-86032d204531d3b618acb06fa87afdb7
+        scheduledBackingImage: {}
+        scheduledReplica:
+          bookstack-app-restored-volume-r-a456a2e5: 1073741824
+          bookstack-db-restored-volume-r-2f35e38a: 524288000
+          linkding-data-restored-r-5a028b41: 1073741824
+          ntfy-data-restored-r-caeb77a2: 262144000
+          pvc-0a83902f-7d4a-4dd4-ad9d-fea0d923b807-r-5edee6f5: 1073741824
+          pvc-2b9b4327-1507-4950-b7cc-3fd9039a5d59-r-4c1836e9: 5368709120
+          pvc-3a652952-9622-4c5e-89e3-83a047fdb19c-r-25477232: 21474836480
+          pvc-4c2fc846-c41c-4046-829b-41ba7ec91d6f-r-7e90b300: 524288000
+          pvc-06dacdb8-9288-4aa0-88ec-f74b1f43d1a7-r-ce964aec: 524288000
+          pvc-0ff0d651-ecc3-492b-8782-891a733e3c6f-r-a51746de: 1073741824
+          pvc-16d43ed2-a46d-4adc-ba05-d883856b5262-r-61922eb8: 10737418240
+          pvc-70fffa8a-70e6-4872-9811-0c68033b102d-r-0e027d01: 2147483648
+          pvc-72cdac53-616e-4d6e-b555-c2627846d4db-r-daeefd3d: 5368709120
+          pvc-81f7e021-9802-46ff-bb84-f20fb0bc9ec6-r-cec690af: 26843545600
+          pvc-8e5ddce6-877d-417e-a950-24d691860b66-r-80c55a4b: 2147483648
+          pvc-a7048bc1-0bbe-4350-9598-57417f954f0e-r-d7016081: 1073741824
+          pvc-b76ad2df-3ab9-4ad2-90a4-7b63b6e72d6d-r-37ecca1a: 1073741824
+          pvc-b0725da2-4822-44b8-b5be-dc0e6100aaa1-r-c9ecf641: 2147483648
+          pvc-bbbc8dc9-da09-4fb8-92d1-35568336b410-r-13cf9cc4: 2147483648
+          wallos-data-restored-r-e08f948e: 1073741824
+        storageAvailable: 63963136000
+        storageMaximum: 168923357184
+        storageScheduled: 87734353920
+    region: ""
+    snapshotCheckStatus: {}
+    zone: ""
+- apiVersion: longhorn.io/v1beta2
+  kind: Node
+  metadata:
+    creationTimestamp: "2025-09-04T23:39:56Z"
+    finalizers:
+    - longhorn.io
+    generation: 5
+    name: k3s-prod-node-3
+    namespace: longhorn-system
+    resourceVersion: "82800225"
+    uid: d1e80309-75ae-45ba-a026-aa631103dd44
+  spec:
+    allowScheduling: true
+    disks:
+      default-disk-9f28dc891e8c78fd:
+        allowScheduling: true
+        diskDriver: ""
+        diskType: filesystem
+        evictionRequested: false
+        path: /var/lib/longhorn/
+        storageReserved: 2684354560
+        tags: []
+    evictionRequested: false
+    instanceManagerCPURequest: 0
+    name: k3s-prod-node-3
+    tags: []
+  status:
+    autoEvicting: false
+    conditions:
+    - lastProbeTime: ""
+      lastTransitionTime: "2026-04-24T17:31:53Z"
+      message: Node k3s-prod-node-3 is ready
+      reason: ""
+      status: "True"
+      type: Ready
+    - lastProbeTime: ""
+      lastTransitionTime: "2026-04-24T17:31:07Z"
+      message: ""
+      reason: ""
+      status: "True"
+      type: Schedulable
+    - lastProbeTime: ""
+      lastTransitionTime: "2025-09-04T23:39:56Z"
+      message: ""
+      reason: ""
+      status: "True"
+      type: Multipathd
+    - lastProbeTime: ""
+      lastTransitionTime: "2025-09-04T23:39:56Z"
+      message: ""
+      reason: ""
+      status: "True"
+      type: NFSClientInstalled
+    - lastProbeTime: ""
+      lastTransitionTime: "2025-09-04T23:39:56Z"
+      message: Kernel modules [dm_crypt] are not loaded
+      reason: KernelModulesNotLoaded
+      status: "False"
+      type: KernelModulesLoaded
+    - lastProbeTime: ""
+      lastTransitionTime: "2025-09-04T23:40:26Z"
+      message: ""
+      reason: ""
+      status: "True"
+      type: MountPropagation
+    - lastProbeTime: ""
+      lastTransitionTime: "2026-04-08T13:10:18Z"
+      message: 'Missing packages: [cryptsetup]'
+      reason: PackagesNotInstalled
+      status: "False"
+      type: RequiredPackages
+    diskStatus:
+      default-disk-9f28dc891e8c78fd:
+        conditions:
+        - lastProbeTime: ""
+          lastTransitionTime: "2026-04-24T17:32:22Z"
+          message: Disk default-disk-9f28dc891e8c78fd(/var/lib/longhorn/) on node
+            k3s-prod-node-3 is ready
+          reason: ""
+          status: "True"
+          type: Ready
+        - lastProbeTime: ""
+          lastTransitionTime: "2026-04-24T17:32:22Z"
+          message: Disk default-disk-9f28dc891e8c78fd(/var/lib/longhorn/) on node
+            k3s-prod-node-3 is schedulable
+          reason: ""
+          status: "True"
+          type: Schedulable
+        diskDriver: ""
+        diskName: default-disk-9f28dc891e8c78fd
+        diskPath: /var/lib/longhorn/
+        diskType: filesystem
+        diskUUID: a5956ff9-4150-4c06-8d94-f9f29c552a57
+        filesystemType: ext2/ext3
+        healthDataLastCollectedAt: "2026-04-27T19:27:52Z"
+        instanceManagerName: instance-manager-98ce595b870e45b354e6230347ba15c7
+        scheduledBackingImage: {}
+        scheduledReplica:
+          bookstack-app-restored-volume-r-3d6abad4: 1073741824
+          bookstack-db-restored-volume-r-b48a7294: 524288000
+          linkding-data-restored-r-a492064f: 1073741824
+          ntfy-data-restored-r-8b6598c0: 262144000
+          pvc-0a9ad606-68bf-4ebd-a6d7-e0e8f7503e9c-r-c1c8cbe2: 524288000
+          pvc-0a83902f-7d4a-4dd4-ad9d-fea0d923b807-r-dd108d43: 1073741824
+          pvc-0d634f6e-bb08-4364-b6d7-bf6d3d6b9490-r-3ebd6e5b: 1073741824
+          pvc-0dfabafd-2c62-4054-ada9-7ccca4bbccc0-r-c3f0d458: 524288000
+          pvc-0ff0d651-ecc3-492b-8782-891a733e3c6f-r-618e5985: 1073741824
+          pvc-2b9b4327-1507-4950-b7cc-3fd9039a5d59-r-767bc727: 5368709120
+          pvc-3a652952-9622-4c5e-89e3-83a047fdb19c-r-9d4f1cd1: 21474836480
+          pvc-4c2fc846-c41c-4046-829b-41ba7ec91d6f-r-fd050f01: 524288000
+          pvc-4ed8c830-fec5-4937-b4af-b7739f5b8765-r-809576b0: 2147483648
+          pvc-6b4e458d-629a-4bab-94af-3d25839ad318-r-2210998c: 524288000
+          pvc-6df02027-2684-4910-a241-80e1e5372bc4-r-b7fbf1b2: 524288000
+          pvc-06cd0032-c872-452e-a5c6-9639a1ba50d6-r-0cdc57aa: 5368709120
+          pvc-06dacdb8-9288-4aa0-88ec-f74b1f43d1a7-r-79af6e47: 524288000
+          pvc-7a67b0fb-132f-4d91-8d81-fa2a715fc791-r-ca2a588a: 524288000
+          pvc-7c9a0b56-4563-41f4-adaa-85592f982a9f-r-319eac7c: 1073741824
+          pvc-8e5ddce6-877d-417e-a950-24d691860b66-r-1edf2809: 2147483648
+          pvc-8fd92e8e-f37d-41d0-844e-298d96480026-r-eeb9d502: 2147483648
+          pvc-8fdd40f6-e227-4aee-9ac7-f7e60045743b-r-3585837d: 5368709120
+          pvc-10b8ad66-a7fa-4cff-9aa5-483d13f95fb9-r-7cbccf12: 5368709120
+          pvc-13a372e8-a64e-4dc6-a0a0-ef733cbd7f93-r-21f7f891: 1073741824
+          pvc-13f4ea1b-e774-4327-99f7-294540425097-r-9735aec8: 10737418240
+          pvc-16d43ed2-a46d-4adc-ba05-d883856b5262-r-8ed5d84c: 10737418240
+          pvc-46da8567-b59b-4058-a452-cc991659aa51-r-d13fec81: 2147483648
+          pvc-49c70f07-9cf5-48d5-9b8d-b2b7919691e7-r-cd8ccc4f: 1073741824
+          pvc-72cdac53-616e-4d6e-b555-c2627846d4db-r-ec6fdb93: 5368709120
+          pvc-2506cad6-9684-4fcb-8241-559d68e22336-r-18f56dc0: 524288000
+          pvc-7561b184-12a9-48a0-98be-6dd7170b5f48-r-2552c49a: 524288000
+          pvc-9268ded4-05c9-4890-ac77-597a2eed5e79-r-27fcbbc2: 10737418240
+          pvc-155259a0-6cdc-44f3-932b-2a7d15324159-r-99f74cba: 1073741824
+          pvc-29777356-f44b-4e42-aa0b-7a79d5f8cc60-r-01e19f27: 1073741824
+          pvc-a6e95886-9026-49c9-addd-08c350196073-r-0a088b60: 1073741824
+          pvc-a8cdd0ce-279d-48f0-9956-32f21ef543fd-r-224baa44: 2147483648
+          pvc-ab146339-ec66-46a0-8b4f-fa65140eae41-r-54167a09: 2147483648
+          pvc-ada9c500-5f3f-4bae-abfb-4d3f3037971e-r-d6944ee0: 524288000
+          pvc-b76ad2df-3ab9-4ad2-90a4-7b63b6e72d6d-r-9855a50d: 1073741824
+          pvc-b7e73005-2090-4a77-ac6b-f27a8214d4c0-r-a674583a: 2147483648
+          pvc-b0725da2-4822-44b8-b5be-dc0e6100aaa1-r-5c492459: 2147483648
+          pvc-bb1eaf00-e487-44a4-a6b0-ecccec3601d0-r-5c71bf71: 524288000
+          pvc-bbbc8dc9-da09-4fb8-92d1-35568336b410-r-b70edc0c: 2147483648
+          pvc-bc9bf81c-341f-43e3-b677-3401b8e028d7-r-b995bb49: 5368709120
+          pvc-c19068e1-8174-4a9e-8648-22918ed5ef1b-r-1cced43f: 1073741824
+          pvc-d2dd09e3-51ae-4064-8d1f-1b400fb06bcc-r-adacb1e7: 524288000
+          pvc-e10b1c02-a0bb-4bb9-a6aa-a7d0bebc012e-r-9b8654d5: 524288000
+          pvc-f0428da3-e003-4add-a00b-f9b0b0e9d5e8-r-8ea189af: 1073741824
+          wallos-data-restored-r-3d7c83b9: 1073741824
+        storageAvailable: 62495129600
+        storageMaximum: 168923357184
+        storageScheduled: 128935002112
+    region: ""
+    snapshotCheckStatus: {}
+    zone: ""
+kind: List
+metadata:
+  resourceVersion: ""

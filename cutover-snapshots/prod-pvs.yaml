@@ -1,0 +1,2452 @@
+apiVersion: v1
+items:
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolume","metadata":{"annotations":{"pv.kubernetes.io/provisioned-by":"driver.longhorn.io"},"name":"bookstack-app-restored-pv"},"spec":{"accessModes":["ReadWriteOnce"],"capacity":{"storage":"500Mi"},"csi":{"driver":"driver.longhorn.io","fsType":"ext4","volumeAttributes":{"numberOfReplicas":"2","staleReplicaTimeout":"2880"},"volumeHandle":"bookstack-app-restored-volume"},"persistentVolumeReclaimPolicy":"Retain","storageClassName":"longhorn","volumeMode":"Filesystem"}}
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/bound-by-controller: "yes"
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+    creationTimestamp: "2025-09-05T04:06:48Z"
+    finalizers:
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: bookstack-app-restored-pv
+    resourceVersion: "82309404"
+    uid: 2b03a70d-ffa3-4392-b4f9-4d593bf75cc8
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: bookstack-app-data-pvc
+      namespace: bookstack
+      resourceVersion: "48547030"
+      uid: 56a5493d-5094-46fe-bfd0-d7a4f5581a86
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "2880"
+      volumeHandle: bookstack-app-restored-volume
+    persistentVolumeReclaimPolicy: Retain
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolume","metadata":{"annotations":{"pv.kubernetes.io/provisioned-by":"driver.longhorn.io"},"name":"bookstack-db-restored-pv"},"spec":{"accessModes":["ReadWriteOnce"],"capacity":{"storage":"1Gi"},"csi":{"driver":"driver.longhorn.io","fsType":"ext4","volumeAttributes":{"numberOfReplicas":"2","staleReplicaTimeout":"2880"},"volumeHandle":"bookstack-db-restored-volume"},"persistentVolumeReclaimPolicy":"Retain","storageClassName":"longhorn","volumeMode":"Filesystem"}}
+      longhorn.io/volume-scheduling-error: replica scheduling failed
+      pv.kubernetes.io/bound-by-controller: "yes"
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+    creationTimestamp: "2025-09-05T04:06:48Z"
+    finalizers:
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: bookstack-db-restored-pv
+    resourceVersion: "82486444"
+    uid: 7b5adf0a-a878-4170-be15-3e224406f11b
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: bookstack-db-data-pvc
+      namespace: bookstack
+      resourceVersion: "48547747"
+      uid: 00c515e8-3b9e-4fb6-86c8-bca8b0179cdc
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "2880"
+      volumeHandle: bookstack-db-restored-volume
+    persistentVolumeReclaimPolicy: Retain
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolume","metadata":{"annotations":{},"name":"linkding-data-pv"},"spec":{"accessModes":["ReadWriteOnce"],"capacity":{"storage":"1Gi"},"csi":{"driver":"driver.longhorn.io","fsType":"ext4","volumeHandle":"linkding-data-restored"},"persistentVolumeReclaimPolicy":"Delete","storageClassName":"longhorn","volumeMode":"Filesystem"}}
+      longhorn.io/volume-scheduling-error: replica scheduling failed
+      pv.kubernetes.io/bound-by-controller: "yes"
+    creationTimestamp: "2026-04-10T01:02:12Z"
+    finalizers:
+    - kubernetes.io/pv-protection
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - external-attacher/driver-longhorn-io
+    name: linkding-data-pv
+    resourceVersion: "81435878"
+    uid: e995dd31-bf14-47d9-a2b3-ab3fc14ec07d
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: linkding-data-pvc
+      namespace: linkding
+      resourceVersion: "75784012"
+      uid: 670adaad-83ff-412c-8c02-e9ddf88b99ab
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeHandle: linkding-data-restored
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolume","metadata":{"annotations":{},"name":"ntfy-data-pv"},"spec":{"accessModes":["ReadWriteOnce"],"capacity":{"storage":"250Mi"},"csi":{"driver":"driver.longhorn.io","fsType":"ext4","volumeHandle":"ntfy-data-restored"},"persistentVolumeReclaimPolicy":"Delete","storageClassName":"longhorn","volumeMode":"Filesystem"}}
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/bound-by-controller: "yes"
+    creationTimestamp: "2026-04-10T01:02:12Z"
+    finalizers:
+    - kubernetes.io/pv-protection
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - external-attacher/driver-longhorn-io
+    name: ntfy-data-pv
+    resourceVersion: "81191237"
+    uid: a4fd5ec9-1deb-40cf-b506-bf7c4ae2ef48
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 250Mi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: ntfy-data-pvc
+      namespace: ntfy
+      resourceVersion: "75784021"
+      uid: 21c1d68b-ee3f-47f7-823f-ff011c932722
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeHandle: ntfy-data-restored
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-03-25T03:17:55Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-06cd0032-c872-452e-a5c6-9639a1ba50d6
+    resourceVersion: "82501325"
+    uid: 4acbada6-1b18-47f6-af12-8d85aea65109
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 5Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: paperless-data-pvc
+      namespace: paperless
+      resourceVersion: "70115782"
+      uid: 06cd0032-c872-452e-a5c6-9639a1ba50d6
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1774407418430-5607-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-06cd0032-c872-452e-a5c6-9639a1ba50d6
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-23T19:31:20Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-06dacdb8-9288-4aa0-88ec-f74b1f43d1a7
+    resourceVersion: "82784762"
+    uid: 36155e5e-24b2-4304-ad8d-b7a95e2bc09e
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: bazarr-config-pvc
+      namespace: yams
+      resourceVersion: "81007574"
+      uid: 06dacdb8-9288-4aa0-88ec-f74b1f43d1a7
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1776972659059-6697-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-06dacdb8-9288-4aa0-88ec-f74b1f43d1a7
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-24T20:41:16Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-0a83902f-7d4a-4dd4-ad9d-fea0d923b807
+    resourceVersion: "82504515"
+    uid: 5098b941-f5ba-4ddb-83da-bce63aeafeb1
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: netbootxyz-data-pvc
+      namespace: netbootxyz
+      resourceVersion: "81497741"
+      uid: 0a83902f-7d4a-4dd4-ad9d-fea0d923b807
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1777057997642-384-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-0a83902f-7d4a-4dd4-ad9d-fea0d923b807
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-24T20:41:16Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-0a9ad606-68bf-4ebd-a6d7-e0e8f7503e9c
+    resourceVersion: "82493318"
+    uid: 667c58b9-15c7-469e-b4db-e7e8d9f0e9c6
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: snippetbox-data-pvc
+      namespace: snippetbox
+      resourceVersion: "81497826"
+      uid: 0a9ad606-68bf-4ebd-a6d7-e0e8f7503e9c
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1777057997642-384-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-0a9ad606-68bf-4ebd-a6d7-e0e8f7503e9c
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-03-25T04:32:32Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-0d634f6e-bb08-4364-b6d7-bf6d3d6b9490
+    resourceVersion: "82500971"
+    uid: 2754296c-e431-4334-803f-42564b6e9669
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: microbin-data-pvc
+      namespace: microbin
+      resourceVersion: "70134146"
+      uid: 0d634f6e-bb08-4364-b6d7-bf6d3d6b9490
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1774412639117-8442-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-0d634f6e-bb08-4364-b6d7-bf6d3d6b9490
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-23T19:31:20Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-0dfabafd-2c62-4054-ada9-7ccca4bbccc0
+    resourceVersion: "82495718"
+    uid: 5ba39797-f6c8-4028-ba29-e1cb13d7e864
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: wizarr-config-pvc
+      namespace: yams
+      resourceVersion: "81007609"
+      uid: 0dfabafd-2c62-4054-ada9-7ccca4bbccc0
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1776972659059-6697-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-0dfabafd-2c62-4054-ada9-7ccca4bbccc0
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-08T13:15:57Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-0ff0d651-ecc3-492b-8782-891a733e3c6f
+    resourceVersion: "82506259"
+    uid: 7a91794d-1dc3-48cb-8bd1-a9aceff71d20
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: gatus
+      namespace: gatus
+      resourceVersion: "75204232"
+      uid: 0ff0d651-ecc3-492b-8782-891a733e3c6f
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1775654064951-7960-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-0ff0d651-ecc3-492b-8782-891a733e3c6f
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-23T19:31:20Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-10b8ad66-a7fa-4cff-9aa5-483d13f95fb9
+    resourceVersion: "81012685"
+    uid: 0b587711-b4fc-4d63-bc35-3da6571d970d
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 5Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: radarr-config-pvc
+      namespace: yams
+      resourceVersion: "81007626"
+      uid: 10b8ad66-a7fa-4cff-9aa5-483d13f95fb9
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1776972659059-6697-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-10b8ad66-a7fa-4cff-9aa5-483d13f95fb9
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-24T20:11:25Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-13a372e8-a64e-4dc6-a0a0-ef733cbd7f93
+    resourceVersion: "82493323"
+    uid: d1e45e27-d44f-42ab-82c6-3642a417dfc5
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: memos-data-pvc
+      namespace: memos
+      resourceVersion: "81488010"
+      uid: 13a372e8-a64e-4dc6-a0a0-ef733cbd7f93
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1777057997642-384-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-13a372e8-a64e-4dc6-a0a0-ef733cbd7f93
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-03-25T03:17:54Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-13f4ea1b-e774-4327-99f7-294540425097
+    resourceVersion: "82501589"
+    uid: 091ab4c3-5bee-46f9-aa4a-a1321dde7a4b
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 10Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: paperless-media-pvc
+      namespace: paperless
+      resourceVersion: "70115790"
+      uid: 13f4ea1b-e774-4327-99f7-294540425097
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1774407418430-5607-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-13f4ea1b-e774-4327-99f7-294540425097
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-24T15:34:18Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-155259a0-6cdc-44f3-932b-2a7d15324159
+    resourceVersion: "82493321"
+    uid: cf4cb133-3283-4914-be4b-fd5d05e363e5
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: private-app-metadata-pvc
+      namespace: private-app
+      resourceVersion: "81390168"
+      uid: 155259a0-6cdc-44f3-932b-2a7d15324159
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1777039890637-8635-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-155259a0-6cdc-44f3-932b-2a7d15324159
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-24T17:09:55Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-16d43ed2-a46d-4adc-ba05-d883856b5262
+    resourceVersion: "82504703"
+    uid: 8b383757-d703-4a5d-86f2-d88bdce71541
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 10Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: immich-db-pvc
+      namespace: immich
+      resourceVersion: "81424139"
+      uid: 16d43ed2-a46d-4adc-ba05-d883856b5262
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1777046050311-615-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-16d43ed2-a46d-4adc-ba05-d883856b5262
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-23T19:31:20Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-2506cad6-9684-4fcb-8241-559d68e22336
+    resourceVersion: "82500974"
+    uid: ad9abb06-0d0b-41da-a922-daa55f595bf2
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: jellyseerr-config-pvc
+      namespace: yams
+      resourceVersion: "81007576"
+      uid: 2506cad6-9684-4fcb-8241-559d68e22336
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1776972659059-6697-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-2506cad6-9684-4fcb-8241-559d68e22336
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-24T15:34:18Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-29777356-f44b-4e42-aa0b-7a79d5f8cc60
+    resourceVersion: "82493326"
+    uid: bbef2b9f-7f6e-4733-838f-0c3179fde904
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: private-app-config-pvc
+      namespace: private-app
+      resourceVersion: "81390155"
+      uid: 29777356-f44b-4e42-aa0b-7a79d5f8cc60
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1777039890637-8635-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-29777356-f44b-4e42-aa0b-7a79d5f8cc60
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-03-25T03:17:54Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-2b9b4327-1507-4950-b7cc-3fd9039a5d59
+    resourceVersion: "82504710"
+    uid: 6a5fc766-783b-426d-8597-e9cea8169892
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 5Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: paperless-export-pvc
+      namespace: paperless
+      resourceVersion: "70115780"
+      uid: 2b9b4327-1507-4950-b7cc-3fd9039a5d59
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1774407418430-5607-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-2b9b4327-1507-4950-b7cc-3fd9039a5d59
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: replica scheduling failed
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-25T19:44:40Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-3a652952-9622-4c5e-89e3-83a047fdb19c
+    resourceVersion: "82793170"
+    uid: 6f0dc48e-536f-4bf3-b31b-f5968066a73d
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 20Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: storage-loki-0
+      namespace: monitoring
+      resourceVersion: "81913581"
+      uid: 3a652952-9622-4c5e-89e3-83a047fdb19c
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1777114955845-9204-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-3a652952-9622-4c5e-89e3-83a047fdb19c
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-03-25T03:17:55Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-46da8567-b59b-4058-a452-cc991659aa51
+    resourceVersion: "80998688"
+    uid: 4e3ef0e8-a3c7-4cc5-acb5-6fbce3e44643
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 2Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: paperless-redis-pvc
+      namespace: paperless
+      resourceVersion: "70115789"
+      uid: 46da8567-b59b-4058-a452-cc991659aa51
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1774407418430-5607-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-46da8567-b59b-4058-a452-cc991659aa51
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-23T19:31:20Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-49c70f07-9cf5-48d5-9b8d-b2b7919691e7
+    resourceVersion: "82493330"
+    uid: 69737395-87b0-46fd-a1e7-460678a0ca62
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: nzbget-config-pvc
+      namespace: yams
+      resourceVersion: "81007567"
+      uid: 49c70f07-9cf5-48d5-9b8d-b2b7919691e7
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1776972659059-6697-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-49c70f07-9cf5-48d5-9b8d-b2b7919691e7
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-25T02:21:13Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-4c2fc846-c41c-4046-829b-41ba7ec91d6f
+    resourceVersion: "82784666"
+    uid: 43c7a717-4650-4299-95ce-bab0411b8d6b
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: changedetection-data-pvc
+      namespace: changedetection
+      resourceVersion: "81599647"
+      uid: 4c2fc846-c41c-4046-829b-41ba7ec91d6f
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1777083197659-3117-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-4c2fc846-c41c-4046-829b-41ba7ec91d6f
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-24T15:34:18Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-4ed8c830-fec5-4937-b4af-b7739f5b8765
+    resourceVersion: "81390461"
+    uid: cc249306-0041-4542-8d1b-7fcdf96a3162
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 2Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: kioto-postgres-data-pvc
+      namespace: kioto
+      resourceVersion: "81390098"
+      uid: 4ed8c830-fec5-4937-b4af-b7739f5b8765
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1777039890637-8635-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-4ed8c830-fec5-4937-b4af-b7739f5b8765
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-01-30T20:58:43Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-6b4e458d-629a-4bab-94af-3d25839ad318
+    resourceVersion: "82493334"
+    uid: 68bb0b75-b93a-4893-8574-886da10e0797
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: vaultwarden-data-pvc
+      namespace: vaultwarden
+      resourceVersion: "51707170"
+      uid: 6b4e458d-629a-4bab-94af-3d25839ad318
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1769472587785-892-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-6b4e458d-629a-4bab-94af-3d25839ad318
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-25T02:21:14Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-6df02027-2684-4910-a241-80e1e5372bc4
+    resourceVersion: "82501168"
+    uid: 1b33b537-5b1e-4c2c-aec8-d900b26be43a
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: hoarder-redis-pvc
+      namespace: hoarder
+      resourceVersion: "81599788"
+      uid: 6df02027-2684-4910-a241-80e1e5372bc4
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1777083197659-3117-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-6df02027-2684-4910-a241-80e1e5372bc4
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-23T19:31:20Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-70fffa8a-70e6-4872-9811-0c68033b102d
+    resourceVersion: "82507225"
+    uid: 52b3be92-993d-47b6-a74c-0c3b92063e0e
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 2Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: sonarr-config-pvc
+      namespace: yams
+      resourceVersion: "81007608"
+      uid: 70fffa8a-70e6-4872-9811-0c68033b102d
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1776972659059-6697-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-70fffa8a-70e6-4872-9811-0c68033b102d
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-01-20T20:36:27Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-72cdac53-616e-4d6e-b555-c2627846d4db
+    resourceVersion: "82784524"
+    uid: bc15e070-89fd-4931-b56b-2329ef53706c
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 5Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: data-vault-0
+      namespace: vault
+      resourceVersion: "48272091"
+      uid: 72cdac53-616e-4d6e-b555-c2627846d4db
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1768846200796-3930-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-72cdac53-616e-4d6e-b555-c2627846d4db
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-24T20:41:15Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-7561b184-12a9-48a0-98be-6dd7170b5f48
+    resourceVersion: "82493336"
+    uid: b5f6140b-2c6d-4c1b-885d-1fdba1f8a615
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: tasksmd-data-pvc
+      namespace: tasksmd
+      resourceVersion: "81497663"
+      uid: 7561b184-12a9-48a0-98be-6dd7170b5f48
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1777057997642-384-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-7561b184-12a9-48a0-98be-6dd7170b5f48
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-23T19:31:20Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-7a67b0fb-132f-4d91-8d81-fa2a715fc791
+    resourceVersion: "82493338"
+    uid: cf979b9d-15be-4d8b-b555-cd73b0f4cc4b
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: nzbget-gluetun-config-pvc
+      namespace: yams
+      resourceVersion: "81007623"
+      uid: 7a67b0fb-132f-4d91-8d81-fa2a715fc791
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1776972659059-6697-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-7a67b0fb-132f-4d91-8d81-fa2a715fc791
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2025-09-05T00:54:52Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-7c9a0b56-4563-41f4-adaa-85592f982a9f
+    resourceVersion: "82500980"
+    uid: ba26ac32-f83c-4371-ab58-56b5ae1ed90a
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: traefik
+      namespace: traefik-system
+      resourceVersion: "18679"
+      uid: 7c9a0b56-4563-41f4-adaa-85592f982a9f
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1757029523101-6712-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-7c9a0b56-4563-41f4-adaa-85592f982a9f
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-08T13:27:31Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-81f7e021-9802-46ff-bb84-f20fb0bc9ec6
+    resourceVersion: "82791338"
+    uid: 0c2eb4a1-7726-484d-9681-09e6988be8f6
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 25Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: prometheus-prometheus-prometheus-db-prometheus-prometheus-prometheus-0
+      namespace: monitoring
+      resourceVersion: "75207960"
+      uid: 81f7e021-9802-46ff-bb84-f20fb0bc9ec6
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1775654831653-9557-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-81f7e021-9802-46ff-bb84-f20fb0bc9ec6
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-24T15:34:19Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-8e5ddce6-877d-417e-a950-24d691860b66
+    resourceVersion: "82512967"
+    uid: b6fc0cf9-cec2-40ea-9659-108b25d1c567
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 2Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: private-arr-config-pvc
+      namespace: private-arr
+      resourceVersion: "81390274"
+      uid: 8e5ddce6-877d-417e-a950-24d691860b66
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1777039890637-8635-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-8e5ddce6-877d-417e-a950-24d691860b66
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-08T01:11:06Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-8fd92e8e-f37d-41d0-844e-298d96480026
+    resourceVersion: "82493340"
+    uid: eab83969-0c45-4f47-ba53-d5a3177f98e6
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 2Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: alertmanager-prometheus-alertmanager-db-alertmanager-prometheus-alertmanager-0
+      namespace: monitoring
+      resourceVersion: "75016277"
+      uid: 8fd92e8e-f37d-41d0-844e-298d96480026
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1775352550417-8644-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-8fd92e8e-f37d-41d0-844e-298d96480026
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-03-25T03:17:54Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-8fdd40f6-e227-4aee-9ac7-f7e60045743b
+    resourceVersion: "82501579"
+    uid: 441fd420-f49f-4326-b57c-048a729eb965
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 5Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: paperless-db-pvc
+      namespace: paperless
+      resourceVersion: "70115781"
+      uid: 8fdd40f6-e227-4aee-9ac7-f7e60045743b
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1774407418430-5607-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-8fdd40f6-e227-4aee-9ac7-f7e60045743b
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-24T16:56:45Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-9268ded4-05c9-4890-ac77-597a2eed5e79
+    resourceVersion: "81445206"
+    uid: a6c8290d-c788-4131-8572-9f4d7c9d654d
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 10Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: immich-model-cache-pvc
+      namespace: immich
+      resourceVersion: "81418918"
+      uid: 9268ded4-05c9-4890-ac77-597a2eed5e79
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1777044582983-3155-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-9268ded4-05c9-4890-ac77-597a2eed5e79
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-24T15:34:18Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-a6e95886-9026-49c9-addd-08c350196073
+    resourceVersion: "82493342"
+    uid: 2954a81e-0955-4df4-a256-a8b45210733b
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: private-app-cache-pvc
+      namespace: private-app
+      resourceVersion: "81390174"
+      uid: a6e95886-9026-49c9-addd-08c350196073
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1777039890637-8635-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-a6e95886-9026-49c9-addd-08c350196073
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-23T19:31:20Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-a7048bc1-0bbe-4350-9598-57417f954f0e
+    resourceVersion: "82506842"
+    uid: ccd10fea-94bf-4cd3-b119-0b0dc475da37
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: radarr4k-config-pvc
+      namespace: yams
+      resourceVersion: "81007627"
+      uid: a7048bc1-0bbe-4350-9598-57417f954f0e
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1776972659059-6697-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-a7048bc1-0bbe-4350-9598-57417f954f0e
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-24T15:34:18Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-a8cdd0ce-279d-48f0-9956-32f21ef543fd
+    resourceVersion: "82493344"
+    uid: ba9fde5f-bb0c-4fac-8799-559c62533ee2
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 2Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: private-app-generated-pvc
+      namespace: private-app
+      resourceVersion: "81390160"
+      uid: a8cdd0ce-279d-48f0-9956-32f21ef543fd
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1777039890637-8635-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-a8cdd0ce-279d-48f0-9956-32f21ef543fd
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-25T02:21:14Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-ab146339-ec66-46a0-8b4f-fa65140eae41
+    resourceVersion: "82501231"
+    uid: d8cc4908-54e4-4813-8c85-10f2042bfac2
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 2Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: hoarder-data-pvc
+      namespace: hoarder
+      resourceVersion: "81599789"
+      uid: ab146339-ec66-46a0-8b4f-fa65140eae41
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1777083197659-3117-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-ab146339-ec66-46a0-8b4f-fa65140eae41
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-01-21T15:14:45Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-ada9c500-5f3f-4bae-abfb-4d3f3037971e
+    resourceVersion: "82501335"
+    uid: 0949c987-c1d8-4736-874f-733098f7c64f
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: pocketid-data-pvc
+      namespace: pocketid
+      resourceVersion: "48534318"
+      uid: ada9c500-5f3f-4bae-abfb-4d3f3037971e
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1768846200796-3930-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-ada9c500-5f3f-4bae-abfb-4d3f3037971e
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-01-20T21:13:56Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-b0725da2-4822-44b8-b5be-dc0e6100aaa1
+    resourceVersion: "82784525"
+    uid: b4d484d2-0871-477a-9012-bc6a7c710aec
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 2Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: factorio-data
+      namespace: factorio
+      resourceVersion: "48281830"
+      uid: b0725da2-4822-44b8-b5be-dc0e6100aaa1
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1768846200796-3930-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-b0725da2-4822-44b8-b5be-dc0e6100aaa1
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-23T19:31:20Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-b76ad2df-3ab9-4ad2-90a4-7b63b6e72d6d
+    resourceVersion: "81598176"
+    uid: 9d6c2337-6de1-4770-80dd-30e0ad3efadd
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: qbittorrent-config-pvc
+      namespace: yams
+      resourceVersion: "81007596"
+      uid: b76ad2df-3ab9-4ad2-90a4-7b63b6e72d6d
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1776972659059-6697-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-b76ad2df-3ab9-4ad2-90a4-7b63b6e72d6d
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-24T15:34:18Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-b7e73005-2090-4a77-ac6b-f27a8214d4c0
+    resourceVersion: "82493346"
+    uid: 5eef097a-482c-4593-9c20-10c0cd23581b
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 2Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: kioto-app-data-pvc
+      namespace: kioto
+      resourceVersion: "81390105"
+      uid: b7e73005-2090-4a77-ac6b-f27a8214d4c0
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1777039890637-8635-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-b7e73005-2090-4a77-ac6b-f27a8214d4c0
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-25T02:21:13Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-bb1eaf00-e487-44a4-a6b0-ecccec3601d0
+    resourceVersion: "82493348"
+    uid: cb274c8f-0d8b-4793-a0d0-5d361b1724a2
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: notemark-data-pvc
+      namespace: notemark
+      resourceVersion: "81599636"
+      uid: bb1eaf00-e487-44a4-a6b0-ecccec3601d0
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1777083197659-3117-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-bb1eaf00-e487-44a4-a6b0-ecccec3601d0
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-08T01:09:45Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-bbbc8dc9-da09-4fb8-92d1-35568336b410
+    resourceVersion: "82512968"
+    uid: 7a6cc68e-0fd1-4158-97a2-ebdda1bbf70b
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 2Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: kube-prometheus-stack-grafana
+      namespace: monitoring
+      resourceVersion: "75015482"
+      uid: bbbc8dc9-da09-4fb8-92d1-35568336b410
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1775352550417-8644-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-bbbc8dc9-da09-4fb8-92d1-35568336b410
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-23T19:31:20Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-bc9bf81c-341f-43e3-b677-3401b8e028d7
+    resourceVersion: "82493350"
+    uid: 7eb97e52-8d44-4f56-9c51-65fdf4e9906c
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 5Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: tautulli-config-pvc
+      namespace: yams
+      resourceVersion: "81007620"
+      uid: bc9bf81c-341f-43e3-b677-3401b8e028d7
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1776972659059-6697-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-bc9bf81c-341f-43e3-b677-3401b8e028d7
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-23T19:31:20Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-c19068e1-8174-4a9e-8648-22918ed5ef1b
+    resourceVersion: "82493352"
+    uid: ed5d0076-b851-44b4-9daa-4f3219734855
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: prowlarr-config-pvc
+      namespace: yams
+      resourceVersion: "81007581"
+      uid: c19068e1-8174-4a9e-8648-22918ed5ef1b
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1776972659059-6697-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-c19068e1-8174-4a9e-8648-22918ed5ef1b
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-23T19:31:20Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-d2dd09e3-51ae-4064-8d1f-1b400fb06bcc
+    resourceVersion: "82041222"
+    uid: b93f1ba8-69c9-4c7c-9880-1df69ba3908b
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: seerr-config-pvc
+      namespace: yams
+      resourceVersion: "81007597"
+      uid: d2dd09e3-51ae-4064-8d1f-1b400fb06bcc
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1776972659059-6697-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-d2dd09e3-51ae-4064-8d1f-1b400fb06bcc
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-23T19:31:20Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-e10b1c02-a0bb-4bb9-a6aa-a7d0bebc012e
+    resourceVersion: "82493356"
+    uid: 4a2d8eef-5da2-4946-9ea9-01d959a48572
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: qbittorrent-gluetun-config-pvc
+      namespace: yams
+      resourceVersion: "81007559"
+      uid: e10b1c02-a0bb-4bb9-a6aa-a7d0bebc012e
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1776972659059-6697-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-e10b1c02-a0bb-4bb9-a6aa-a7d0bebc012e
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/provisioned-by: driver.longhorn.io
+      volume.kubernetes.io/provisioner-deletion-secret-name: ""
+      volume.kubernetes.io/provisioner-deletion-secret-namespace: ""
+    creationTimestamp: "2026-04-25T02:21:14Z"
+    finalizers:
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - kubernetes.io/pv-protection
+    - external-attacher/driver-longhorn-io
+    name: pvc-f0428da3-e003-4add-a00b-f9b0b0e9d5e8
+    resourceVersion: "82501615"
+    uid: b18a37db-6caf-4193-857a-a590434454f3
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: hoarder-meilisearch-pvc
+      namespace: hoarder
+      resourceVersion: "81599784"
+      uid: f0428da3-e003-4add-a00b-f9b0b0e9d5e8
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeAttributes:
+        backupTargetName: default
+        dataEngine: v1
+        dataLocality: disabled
+        disableRevisionCounter: "true"
+        fromBackup: ""
+        fsType: ext4
+        numberOfReplicas: "2"
+        staleReplicaTimeout: "30"
+        storage.kubernetes.io/csiProvisionerIdentity: 1777083197659-3117-driver.longhorn.io
+        unmapMarkSnapChainRemoved: ignored
+      volumeHandle: pvc-f0428da3-e003-4add-a00b-f9b0b0e9d5e8
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolume","metadata":{"annotations":{},"name":"wallos-data-pv"},"spec":{"accessModes":["ReadWriteOnce"],"capacity":{"storage":"1Gi"},"csi":{"driver":"driver.longhorn.io","fsType":"ext4","volumeHandle":"wallos-data-restored"},"persistentVolumeReclaimPolicy":"Delete","storageClassName":"longhorn","volumeMode":"Filesystem"}}
+      longhorn.io/volume-scheduling-error: ""
+      pv.kubernetes.io/bound-by-controller: "yes"
+    creationTimestamp: "2026-04-10T01:02:12Z"
+    finalizers:
+    - kubernetes.io/pv-protection
+    - external-provisioner.volume.kubernetes.io/finalizer
+    - external-attacher/driver-longhorn-io
+    name: wallos-data-pv
+    resourceVersion: "80988465"
+    uid: bfdbcccf-66d1-487c-835e-f6275c338beb
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: wallos-data-pvc
+      namespace: wallos
+      resourceVersion: "75784034"
+      uid: 50e65264-8424-4a1d-bed3-9580db1cb001
+    csi:
+      driver: driver.longhorn.io
+      fsType: ext4
+      volumeHandle: wallos-data-restored
+    persistentVolumeReclaimPolicy: Delete
+    storageClassName: longhorn
+    volumeMode: Filesystem
+  status:
+    phase: Bound
+kind: List
+metadata:
+  resourceVersion: ""

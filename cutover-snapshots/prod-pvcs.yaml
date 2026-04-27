@@ -1,0 +1,1855 @@
+apiVersion: v1
+items:
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: bookstack:/PersistentVolumeClaim:bookstack/bookstack-app-data-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"bookstack:/PersistentVolumeClaim:bookstack/bookstack-app-data-pvc"},"labels":{"app":"bookstack","component":"app","environment":"prod"},"name":"bookstack-app-data-pvc","namespace":"bookstack"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"100Mi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+    creationTimestamp: "2026-01-21T15:59:26Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: bookstack
+      component: app
+      environment: prod
+    name: bookstack-app-data-pvc
+    namespace: bookstack
+    resourceVersion: "80200076"
+    uid: 56a5493d-5094-46fe-bfd0-d7a4f5581a86
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 100Mi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: bookstack-app-restored-pv
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: bookstack:/PersistentVolumeClaim:bookstack/bookstack-db-data-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"bookstack:/PersistentVolumeClaim:bookstack/bookstack-db-data-pvc"},"labels":{"app":"bookstack","component":"database","environment":"prod"},"name":"bookstack-db-data-pvc","namespace":"bookstack"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"500Mi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+    creationTimestamp: "2026-01-21T16:02:08Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: bookstack
+      component: database
+      environment: prod
+    name: bookstack-db-data-pvc
+    namespace: bookstack
+    resourceVersion: "80200073"
+    uid: 00c515e8-3b9e-4fb6-86c8-bca8b0179cdc
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 500Mi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: bookstack-db-restored-pv
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: changedetection:/PersistentVolumeClaim:changedetection/changedetection-data-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"changedetection:/PersistentVolumeClaim:changedetection/changedetection-data-pvc"},"labels":{"app":"changedetection","environment":"prod"},"name":"changedetection-data-pvc","namespace":"changedetection"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"500Mi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-25T02:21:11Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: changedetection
+      environment: prod
+    name: changedetection-data-pvc
+    namespace: changedetection
+    resourceVersion: "81600062"
+    uid: 4c2fc846-c41c-4046-829b-41ba7ec91d6f
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 500Mi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-4c2fc846-c41c-4046-829b-41ba7ec91d6f
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: factorio:/PersistentVolumeClaim:factorio/factorio-data
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"factorio:/PersistentVolumeClaim:factorio/factorio-data"},"labels":{"environment":"prod"},"name":"factorio-data","namespace":"factorio"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"2Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-01-20T21:13:54Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      environment: prod
+    name: factorio-data
+    namespace: factorio
+    resourceVersion: "48281960"
+    uid: b0725da2-4822-44b8-b5be-dc0e6100aaa1
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 2Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-b0725da2-4822-44b8-b5be-dc0e6100aaa1
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 2Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: gatus-pvc:/PersistentVolumeClaim:gatus/gatus
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-08T13:15:55Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    name: gatus
+    namespace: gatus
+    resourceVersion: "82797715"
+    uid: 0ff0d651-ecc3-492b-8782-891a733e3c6f
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-0ff0d651-ecc3-492b-8782-891a733e3c6f
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: hoarder:/PersistentVolumeClaim:hoarder/hoarder-data-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"hoarder:/PersistentVolumeClaim:hoarder/hoarder-data-pvc"},"labels":{"app":"hoarder","environment":"prod"},"name":"hoarder-data-pvc","namespace":"hoarder"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"2Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-25T02:21:12Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: hoarder
+      environment: prod
+    name: hoarder-data-pvc
+    namespace: hoarder
+    resourceVersion: "81600153"
+    uid: ab146339-ec66-46a0-8b4f-fa65140eae41
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 2Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-ab146339-ec66-46a0-8b4f-fa65140eae41
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 2Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: hoarder:/PersistentVolumeClaim:hoarder/hoarder-meilisearch-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"hoarder:/PersistentVolumeClaim:hoarder/hoarder-meilisearch-pvc"},"labels":{"app":"hoarder-meilisearch","environment":"prod"},"name":"hoarder-meilisearch-pvc","namespace":"hoarder"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"1Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-25T02:21:12Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: hoarder-meilisearch
+      environment: prod
+    name: hoarder-meilisearch-pvc
+    namespace: hoarder
+    resourceVersion: "81600147"
+    uid: f0428da3-e003-4add-a00b-f9b0b0e9d5e8
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-f0428da3-e003-4add-a00b-f9b0b0e9d5e8
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: hoarder:/PersistentVolumeClaim:hoarder/hoarder-redis-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"hoarder:/PersistentVolumeClaim:hoarder/hoarder-redis-pvc"},"labels":{"app":"hoarder-redis","environment":"prod"},"name":"hoarder-redis-pvc","namespace":"hoarder"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"500Mi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-25T02:21:12Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: hoarder-redis
+      environment: prod
+    name: hoarder-redis-pvc
+    namespace: hoarder
+    resourceVersion: "81600156"
+    uid: 6df02027-2684-4910-a241-80e1e5372bc4
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 500Mi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-6df02027-2684-4910-a241-80e1e5372bc4
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: immich:/PersistentVolumeClaim:immich/immich-db-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"immich:/PersistentVolumeClaim:immich/immich-db-pvc"},"labels":{"app":"immich-postgres","environment":"prod","volume-type":"database"},"name":"immich-db-pvc","namespace":"immich"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"10Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-24T17:09:32Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: immich-postgres
+      environment: prod
+      volume-type: database
+    name: immich-db-pvc
+    namespace: immich
+    resourceVersion: "81452561"
+    uid: 16d43ed2-a46d-4adc-ba05-d883856b5262
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 10Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-16d43ed2-a46d-4adc-ba05-d883856b5262
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 10Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: immich:/PersistentVolumeClaim:immich/immich-model-cache-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"immich:/PersistentVolumeClaim:immich/immich-model-cache-pvc"},"labels":{"app":"immich-machine-learning","environment":"prod","volume-type":"cache"},"name":"immich-model-cache-pvc","namespace":"immich"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"10Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-24T16:56:43Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: immich-machine-learning
+      environment: prod
+      volume-type: cache
+    name: immich-model-cache-pvc
+    namespace: immich
+    resourceVersion: "81452560"
+    uid: 9268ded4-05c9-4890-ac77-597a2eed5e79
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 10Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-9268ded4-05c9-4890-ac77-597a2eed5e79
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 10Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{},"name":"kioto-app-data-pvc","namespace":"kioto"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"2Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-24T15:34:16Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    name: kioto-app-data-pvc
+    namespace: kioto
+    resourceVersion: "81390391"
+    uid: b7e73005-2090-4a77-ac6b-f27a8214d4c0
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 2Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-b7e73005-2090-4a77-ac6b-f27a8214d4c0
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 2Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{},"name":"kioto-postgres-data-pvc","namespace":"kioto"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"2Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-24T15:34:16Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    name: kioto-postgres-data-pvc
+    namespace: kioto
+    resourceVersion: "81390400"
+    uid: 4ed8c830-fec5-4937-b4af-b7739f5b8765
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 2Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-4ed8c830-fec5-4937-b4af-b7739f5b8765
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 2Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: linkding:/PersistentVolumeClaim:linkding/linkding-data-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"linkding:/PersistentVolumeClaim:linkding/linkding-data-pvc"},"labels":{"app":"linkding","environment":"prod"},"name":"linkding-data-pvc","namespace":"linkding"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"1Gi"}},"storageClassName":"longhorn","volumeName":"linkding-data-pv"}}
+      pv.kubernetes.io/bind-completed: "yes"
+    creationTimestamp: "2026-04-10T01:02:12Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: linkding
+      environment: prod
+    name: linkding-data-pvc
+    namespace: linkding
+    resourceVersion: "75786154"
+    uid: 670adaad-83ff-412c-8c02-e9ddf88b99ab
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: linkding-data-pv
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: memos:/PersistentVolumeClaim:memos/memos-data-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"memos:/PersistentVolumeClaim:memos/memos-data-pvc"},"labels":{"app":"memos","environment":"prod"},"name":"memos-data-pvc","namespace":"memos"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"1Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-24T20:11:23Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: memos
+      environment: prod
+    name: memos-data-pvc
+    namespace: memos
+    resourceVersion: "81488130"
+    uid: 13a372e8-a64e-4dc6-a0a0-ef733cbd7f93
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-13a372e8-a64e-4dc6-a0a0-ef733cbd7f93
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: microbin:/PersistentVolumeClaim:microbin/microbin-data-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"microbin:/PersistentVolumeClaim:microbin/microbin-data-pvc"},"labels":{"app":"microbin","environment":"prod"},"name":"microbin-data-pvc","namespace":"microbin"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"1Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-03-25T04:32:30Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: microbin
+      environment: prod
+    name: microbin-data-pvc
+    namespace: microbin
+    resourceVersion: "80200078"
+    uid: 0d634f6e-bb08-4364-b6d7-bf6d3d6b9490
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-0d634f6e-bb08-4364-b6d7-bf6d3d6b9490
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-08T01:11:04Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      alertmanager: prometheus-alertmanager
+      app.kubernetes.io/instance: prometheus-alertmanager
+      app.kubernetes.io/managed-by: prometheus-operator
+      app.kubernetes.io/name: alertmanager
+    name: alertmanager-prometheus-alertmanager-db-alertmanager-prometheus-alertmanager-0
+    namespace: monitoring
+    resourceVersion: "75016367"
+    uid: 8fd92e8e-f37d-41d0-844e-298d96480026
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 2Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-8fd92e8e-f37d-41d0-844e-298d96480026
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 2Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: grafana-pvc:/PersistentVolumeClaim:monitoring/kube-prometheus-stack-grafana
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-08T01:09:43Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    name: kube-prometheus-stack-grafana
+    namespace: monitoring
+    resourceVersion: "82797755"
+    uid: bbbc8dc9-da09-4fb8-92d1-35568336b410
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 2Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-bbbc8dc9-da09-4fb8-92d1-35568336b410
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 2Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-08T13:27:10Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app.kubernetes.io/instance: prometheus-prometheus
+      app.kubernetes.io/managed-by: prometheus-operator
+      app.kubernetes.io/name: prometheus
+      operator.prometheus.io/name: prometheus-prometheus
+      operator.prometheus.io/shard: "0"
+      prometheus: prometheus-prometheus
+    name: prometheus-prometheus-prometheus-db-prometheus-prometheus-prometheus-0
+    namespace: monitoring
+    resourceVersion: "82786063"
+    uid: 81f7e021-9802-46ff-bb84-f20fb0bc9ec6
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 25Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-81f7e021-9802-46ff-bb84-f20fb0bc9ec6
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 25Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-25T19:44:28Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app.kubernetes.io/component: single-binary
+      app.kubernetes.io/instance: loki
+      app.kubernetes.io/name: loki
+    name: storage-loki-0
+    namespace: monitoring
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: StatefulSet
+      name: loki
+      uid: c5cb3b9b-c50e-4657-b437-9e7b30fdb86f
+    resourceVersion: "81913633"
+    uid: 3a652952-9622-4c5e-89e3-83a047fdb19c
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 20Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-3a652952-9622-4c5e-89e3-83a047fdb19c
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 20Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: netbootxyz:/PersistentVolumeClaim:netbootxyz/netbootxyz-data-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"netbootxyz:/PersistentVolumeClaim:netbootxyz/netbootxyz-data-pvc"},"labels":{"app":"netbootxyz","environment":"prod"},"name":"netbootxyz-data-pvc","namespace":"netbootxyz"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"1Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-24T20:41:14Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: netbootxyz
+      environment: prod
+    name: netbootxyz-data-pvc
+    namespace: netbootxyz
+    resourceVersion: "81497955"
+    uid: 0a83902f-7d4a-4dd4-ad9d-fea0d923b807
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-0a83902f-7d4a-4dd4-ad9d-fea0d923b807
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: notemark:/PersistentVolumeClaim:notemark/notemark-data-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"notemark:/PersistentVolumeClaim:notemark/notemark-data-pvc"},"labels":{"app":"notemark","environment":"prod"},"name":"notemark-data-pvc","namespace":"notemark"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"500Mi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-25T02:21:10Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: notemark
+      environment: prod
+    name: notemark-data-pvc
+    namespace: notemark
+    resourceVersion: "81600048"
+    uid: bb1eaf00-e487-44a4-a6b0-ecccec3601d0
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 500Mi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-bb1eaf00-e487-44a4-a6b0-ecccec3601d0
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: ntfy:/PersistentVolumeClaim:ntfy/ntfy-data-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"ntfy:/PersistentVolumeClaim:ntfy/ntfy-data-pvc"},"labels":{"app":"ntfy","environment":"prod"},"name":"ntfy-data-pvc","namespace":"ntfy"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"250Mi"}},"storageClassName":"longhorn","volumeName":"ntfy-data-pv"}}
+      pv.kubernetes.io/bind-completed: "yes"
+    creationTimestamp: "2026-04-10T01:02:12Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: ntfy
+      environment: prod
+    name: ntfy-data-pvc
+    namespace: ntfy
+    resourceVersion: "75786164"
+    uid: 21c1d68b-ee3f-47f7-823f-ff011c932722
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 250Mi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: ntfy-data-pv
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 250Mi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: paperless:/PersistentVolumeClaim:paperless/paperless-data-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"paperless:/PersistentVolumeClaim:paperless/paperless-data-pvc"},"labels":{"app":"paperless","component":"data","environment":"prod"},"name":"paperless-data-pvc","namespace":"paperless"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-03-25T03:17:45Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: paperless
+      component: data
+      environment: prod
+    name: paperless-data-pvc
+    namespace: paperless
+    resourceVersion: "80200056"
+    uid: 06cd0032-c872-452e-a5c6-9639a1ba50d6
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 5Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-06cd0032-c872-452e-a5c6-9639a1ba50d6
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 5Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: paperless:/PersistentVolumeClaim:paperless/paperless-db-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"paperless:/PersistentVolumeClaim:paperless/paperless-db-pvc"},"labels":{"app":"paperless","component":"db","environment":"prod"},"name":"paperless-db-pvc","namespace":"paperless"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-03-25T03:17:45Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: paperless
+      component: db
+      environment: prod
+    name: paperless-db-pvc
+    namespace: paperless
+    resourceVersion: "80200063"
+    uid: 8fdd40f6-e227-4aee-9ac7-f7e60045743b
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 5Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-8fdd40f6-e227-4aee-9ac7-f7e60045743b
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 5Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: paperless:/PersistentVolumeClaim:paperless/paperless-export-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"paperless:/PersistentVolumeClaim:paperless/paperless-export-pvc"},"labels":{"app":"paperless","component":"export","environment":"prod"},"name":"paperless-export-pvc","namespace":"paperless"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-03-25T03:17:45Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: paperless
+      component: export
+      environment: prod
+    name: paperless-export-pvc
+    namespace: paperless
+    resourceVersion: "80200061"
+    uid: 2b9b4327-1507-4950-b7cc-3fd9039a5d59
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 5Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-2b9b4327-1507-4950-b7cc-3fd9039a5d59
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 5Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: paperless:/PersistentVolumeClaim:paperless/paperless-media-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"paperless:/PersistentVolumeClaim:paperless/paperless-media-pvc"},"labels":{"app":"paperless","component":"media","environment":"prod"},"name":"paperless-media-pvc","namespace":"paperless"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"10Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-03-25T03:17:43Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: paperless
+      component: media
+      environment: prod
+    name: paperless-media-pvc
+    namespace: paperless
+    resourceVersion: "80200059"
+    uid: 13f4ea1b-e774-4327-99f7-294540425097
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 10Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-13f4ea1b-e774-4327-99f7-294540425097
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 10Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: paperless:/PersistentVolumeClaim:paperless/paperless-redis-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"paperless:/PersistentVolumeClaim:paperless/paperless-redis-pvc"},"labels":{"app":"paperless","component":"redis","environment":"prod"},"name":"paperless-redis-pvc","namespace":"paperless"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"2Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-03-25T03:17:45Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: paperless
+      component: redis
+      environment: prod
+    name: paperless-redis-pvc
+    namespace: paperless
+    resourceVersion: "80200064"
+    uid: 46da8567-b59b-4058-a452-cc991659aa51
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 2Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-46da8567-b59b-4058-a452-cc991659aa51
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 2Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: pocketid:/PersistentVolumeClaim:pocketid/pocketid-data-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"pocketid:/PersistentVolumeClaim:pocketid/pocketid-data-pvc"},"labels":{"app":"pocketid","environment":"prod","volume-type":"data"},"name":"pocketid-data-pvc","namespace":"pocketid"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"500Mi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-01-21T15:14:43Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: pocketid
+      environment: prod
+      volume-type: data
+    name: pocketid-data-pvc
+    namespace: pocketid
+    resourceVersion: "80200010"
+    uid: ada9c500-5f3f-4bae-abfb-4d3f3037971e
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 500Mi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-ada9c500-5f3f-4bae-abfb-4d3f3037971e
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: snippetbox:/PersistentVolumeClaim:snippetbox/snippetbox-data-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"snippetbox:/PersistentVolumeClaim:snippetbox/snippetbox-data-pvc"},"labels":{"app":"snippetbox","environment":"prod"},"name":"snippetbox-data-pvc","namespace":"snippetbox"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"500Mi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-24T20:41:14Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: snippetbox
+      environment: prod
+    name: snippetbox-data-pvc
+    namespace: snippetbox
+    resourceVersion: "81497979"
+    uid: 0a9ad606-68bf-4ebd-a6d7-e0e8f7503e9c
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 500Mi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-0a9ad606-68bf-4ebd-a6d7-e0e8f7503e9c
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{},"name":"private-app-cache-pvc","namespace":"private-app"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"1Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-24T15:34:16Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    name: private-app-cache-pvc
+    namespace: private-app
+    resourceVersion: "81390409"
+    uid: a6e95886-9026-49c9-addd-08c350196073
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-a6e95886-9026-49c9-addd-08c350196073
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{},"name":"private-app-config-pvc","namespace":"private-app"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"1Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-24T15:34:16Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    name: private-app-config-pvc
+    namespace: private-app
+    resourceVersion: "81390416"
+    uid: 29777356-f44b-4e42-aa0b-7a79d5f8cc60
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-29777356-f44b-4e42-aa0b-7a79d5f8cc60
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{},"name":"private-app-generated-pvc","namespace":"private-app"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"2Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-24T15:34:16Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    name: private-app-generated-pvc
+    namespace: private-app
+    resourceVersion: "81390426"
+    uid: a8cdd0ce-279d-48f0-9956-32f21ef543fd
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 2Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-a8cdd0ce-279d-48f0-9956-32f21ef543fd
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 2Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{},"name":"private-app-metadata-pvc","namespace":"private-app"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"1Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-24T15:34:16Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    name: private-app-metadata-pvc
+    namespace: private-app
+    resourceVersion: "81390435"
+    uid: 155259a0-6cdc-44f3-932b-2a7d15324159
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-155259a0-6cdc-44f3-932b-2a7d15324159
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: tasksmd:/PersistentVolumeClaim:tasksmd/tasksmd-data-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"tasksmd:/PersistentVolumeClaim:tasksmd/tasksmd-data-pvc"},"labels":{"app":"tasksmd","environment":"prod"},"name":"tasksmd-data-pvc","namespace":"tasksmd"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"500Mi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-24T20:41:13Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: tasksmd
+      environment: prod
+    name: tasksmd-data-pvc
+    namespace: tasksmd
+    resourceVersion: "81497920"
+    uid: 7561b184-12a9-48a0-98be-6dd7170b5f48
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 500Mi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-7561b184-12a9-48a0-98be-6dd7170b5f48
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      helm.sh/resource-policy: keep
+      meta.helm.sh/release-name: traefik
+      meta.helm.sh/release-namespace: traefik-system
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2025-09-05T00:54:50Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app.kubernetes.io/instance: traefik-traefik-system
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/name: traefik
+      helm.sh/chart: traefik-39.0.8
+    name: traefik
+    namespace: traefik-system
+    resourceVersion: "81460652"
+    uid: 7c9a0b56-4563-41f4-adaa-85592f982a9f
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-7c9a0b56-4563-41f4-adaa-85592f982a9f
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-01-20T20:36:25Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app.kubernetes.io/instance: vault
+      app.kubernetes.io/name: vault
+      component: server
+    name: data-vault-0
+    namespace: vault
+    resourceVersion: "48272215"
+    uid: 72cdac53-616e-4d6e-b555-c2627846d4db
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 5Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-72cdac53-616e-4d6e-b555-c2627846d4db
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 5Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: vaultwarden:/PersistentVolumeClaim:vaultwarden/vaultwarden-data-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"vaultwarden:/PersistentVolumeClaim:vaultwarden/vaultwarden-data-pvc"},"labels":{"app":"vaultwarden","environment":"prod"},"name":"vaultwarden-data-pvc","namespace":"vaultwarden"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"500Mi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-01-30T20:58:41Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: vaultwarden
+      environment: prod
+    name: vaultwarden-data-pvc
+    namespace: vaultwarden
+    resourceVersion: "80199996"
+    uid: 6b4e458d-629a-4bab-94af-3d25839ad318
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 500Mi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-6b4e458d-629a-4bab-94af-3d25839ad318
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: wallos:/PersistentVolumeClaim:wallos/wallos-data-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"wallos:/PersistentVolumeClaim:wallos/wallos-data-pvc"},"labels":{"app":"wallos","environment":"prod"},"name":"wallos-data-pvc","namespace":"wallos"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"1Gi"}},"storageClassName":"longhorn","volumeName":"wallos-data-pv"}}
+      pv.kubernetes.io/bind-completed: "yes"
+    creationTimestamp: "2026-04-10T01:02:12Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: wallos
+      environment: prod
+    name: wallos-data-pvc
+    namespace: wallos
+    resourceVersion: "75786158"
+    uid: 50e65264-8424-4a1d-bed3-9580db1cb001
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: wallos-data-pv
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{},"name":"private-arr-config-pvc","namespace":"private-arr"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"2Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-24T15:34:16Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    name: private-arr-config-pvc
+    namespace: private-arr
+    resourceVersion: "81390449"
+    uid: 8e5ddce6-877d-417e-a950-24d691860b66
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 2Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-8e5ddce6-877d-417e-a950-24d691860b66
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 2Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: yams:/PersistentVolumeClaim:yams/bazarr-config-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"yams:/PersistentVolumeClaim:yams/bazarr-config-pvc"},"labels":{"app":"bazarr","environment":"prod","volume-type":"config"},"name":"bazarr-config-pvc","namespace":"yams"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"500Mi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-23T19:30:58Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: bazarr
+      environment: prod
+      volume-type: config
+    name: bazarr-config-pvc
+    namespace: yams
+    resourceVersion: "81408351"
+    uid: 06dacdb8-9288-4aa0-88ec-f74b1f43d1a7
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 500Mi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-06dacdb8-9288-4aa0-88ec-f74b1f43d1a7
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: yams:/PersistentVolumeClaim:yams/jellyseerr-config-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"yams:/PersistentVolumeClaim:yams/jellyseerr-config-pvc"},"labels":{"app":"jellyseerr","environment":"prod","volume-type":"config"},"name":"jellyseerr-config-pvc","namespace":"yams"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"500Mi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-23T19:30:58Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: jellyseerr
+      environment: prod
+      volume-type: config
+    name: jellyseerr-config-pvc
+    namespace: yams
+    resourceVersion: "81408354"
+    uid: 2506cad6-9684-4fcb-8241-559d68e22336
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 500Mi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-2506cad6-9684-4fcb-8241-559d68e22336
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: yams:/PersistentVolumeClaim:yams/nzbget-config-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"yams:/PersistentVolumeClaim:yams/nzbget-config-pvc"},"labels":{"app":"nzbget","component":"nzbget","environment":"prod","volume-type":"config"},"name":"nzbget-config-pvc","namespace":"yams"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"1Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-23T19:30:58Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: nzbget
+      component: nzbget
+      environment: prod
+      volume-type: config
+    name: nzbget-config-pvc
+    namespace: yams
+    resourceVersion: "81408355"
+    uid: 49c70f07-9cf5-48d5-9b8d-b2b7919691e7
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-49c70f07-9cf5-48d5-9b8d-b2b7919691e7
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: yams:/PersistentVolumeClaim:yams/nzbget-gluetun-config-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"yams:/PersistentVolumeClaim:yams/nzbget-gluetun-config-pvc"},"labels":{"app":"nzbget","component":"gluetun","environment":"prod","volume-type":"config"},"name":"nzbget-gluetun-config-pvc","namespace":"yams"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"500Mi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-23T19:30:59Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: nzbget
+      component: gluetun
+      environment: prod
+      volume-type: config
+    name: nzbget-gluetun-config-pvc
+    namespace: yams
+    resourceVersion: "81408353"
+    uid: 7a67b0fb-132f-4d91-8d81-fa2a715fc791
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 500Mi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-7a67b0fb-132f-4d91-8d81-fa2a715fc791
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: yams:/PersistentVolumeClaim:yams/prowlarr-config-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"yams:/PersistentVolumeClaim:yams/prowlarr-config-pvc"},"labels":{"app":"prowlarr","environment":"prod","volume-type":"config"},"name":"prowlarr-config-pvc","namespace":"yams"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"1Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-23T19:30:58Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: prowlarr
+      environment: prod
+      volume-type: config
+    name: prowlarr-config-pvc
+    namespace: yams
+    resourceVersion: "81408360"
+    uid: c19068e1-8174-4a9e-8648-22918ed5ef1b
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-c19068e1-8174-4a9e-8648-22918ed5ef1b
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: yams:/PersistentVolumeClaim:yams/qbittorrent-config-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"yams:/PersistentVolumeClaim:yams/qbittorrent-config-pvc"},"labels":{"app":"qbittorrent","component":"qbittorrent","environment":"prod","volume-type":"config"},"name":"qbittorrent-config-pvc","namespace":"yams"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"1Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-23T19:30:58Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: qbittorrent
+      component: qbittorrent
+      environment: prod
+      volume-type: config
+    name: qbittorrent-config-pvc
+    namespace: yams
+    resourceVersion: "81408365"
+    uid: b76ad2df-3ab9-4ad2-90a4-7b63b6e72d6d
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-b76ad2df-3ab9-4ad2-90a4-7b63b6e72d6d
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: yams:/PersistentVolumeClaim:yams/qbittorrent-gluetun-config-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"yams:/PersistentVolumeClaim:yams/qbittorrent-gluetun-config-pvc"},"labels":{"app":"qbittorrent","component":"gluetun","environment":"prod","volume-type":"config"},"name":"qbittorrent-gluetun-config-pvc","namespace":"yams"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"500Mi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-23T19:30:58Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: qbittorrent
+      component: gluetun
+      environment: prod
+      volume-type: config
+    name: qbittorrent-gluetun-config-pvc
+    namespace: yams
+    resourceVersion: "81408363"
+    uid: e10b1c02-a0bb-4bb9-a6aa-a7d0bebc012e
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 500Mi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-e10b1c02-a0bb-4bb9-a6aa-a7d0bebc012e
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: yams:/PersistentVolumeClaim:yams/radarr-config-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"yams:/PersistentVolumeClaim:yams/radarr-config-pvc"},"labels":{"app":"radarr","environment":"prod","volume-type":"config"},"name":"radarr-config-pvc","namespace":"yams"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-23T19:30:59Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: radarr
+      environment: prod
+      volume-type: config
+    name: radarr-config-pvc
+    namespace: yams
+    resourceVersion: "81408364"
+    uid: 10b8ad66-a7fa-4cff-9aa5-483d13f95fb9
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 5Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-10b8ad66-a7fa-4cff-9aa5-483d13f95fb9
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 5Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: yams:/PersistentVolumeClaim:yams/radarr4k-config-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"yams:/PersistentVolumeClaim:yams/radarr4k-config-pvc"},"labels":{"app":"radarr4k","environment":"prod","volume-type":"config"},"name":"radarr4k-config-pvc","namespace":"yams"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"1Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-23T19:30:59Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: radarr4k
+      environment: prod
+      volume-type: config
+    name: radarr4k-config-pvc
+    namespace: yams
+    resourceVersion: "81408352"
+    uid: a7048bc1-0bbe-4350-9598-57417f954f0e
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-a7048bc1-0bbe-4350-9598-57417f954f0e
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: yams:/PersistentVolumeClaim:yams/seerr-config-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"yams:/PersistentVolumeClaim:yams/seerr-config-pvc"},"labels":{"app":"seerr","environment":"prod","volume-type":"config"},"name":"seerr-config-pvc","namespace":"yams"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"500Mi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-23T19:30:58Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: seerr
+      environment: prod
+      volume-type: config
+    name: seerr-config-pvc
+    namespace: yams
+    resourceVersion: "81408356"
+    uid: d2dd09e3-51ae-4064-8d1f-1b400fb06bcc
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 500Mi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-d2dd09e3-51ae-4064-8d1f-1b400fb06bcc
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: yams:/PersistentVolumeClaim:yams/sonarr-config-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"yams:/PersistentVolumeClaim:yams/sonarr-config-pvc"},"labels":{"app":"sonarr","environment":"prod","volume-type":"config"},"name":"sonarr-config-pvc","namespace":"yams"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"2Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-23T19:30:58Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: sonarr
+      environment: prod
+      volume-type: config
+    name: sonarr-config-pvc
+    namespace: yams
+    resourceVersion: "81408366"
+    uid: 70fffa8a-70e6-4872-9811-0c68033b102d
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 2Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-70fffa8a-70e6-4872-9811-0c68033b102d
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 2Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: yams:/PersistentVolumeClaim:yams/tautulli-config-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"yams:/PersistentVolumeClaim:yams/tautulli-config-pvc"},"labels":{"app":"tautulli","environment":"prod","volume-type":"config"},"name":"tautulli-config-pvc","namespace":"yams"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-23T19:30:59Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: tautulli
+      environment: prod
+      volume-type: config
+    name: tautulli-config-pvc
+    namespace: yams
+    resourceVersion: "81408361"
+    uid: bc9bf81c-341f-43e3-b677-3401b8e028d7
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 5Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-bc9bf81c-341f-43e3-b677-3401b8e028d7
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 5Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      argocd.argoproj.io/tracking-id: yams:/PersistentVolumeClaim:yams/wizarr-config-pvc
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"yams:/PersistentVolumeClaim:yams/wizarr-config-pvc"},"labels":{"app":"wizarr","environment":"prod","volume-type":"config"},"name":"wizarr-config-pvc","namespace":"yams"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"500Mi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-04-23T19:30:58Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: wizarr
+      environment: prod
+      volume-type: config
+    name: wizarr-config-pvc
+    namespace: yams
+    resourceVersion: "81408362"
+    uid: 0dfabafd-2c62-4054-ada9-7ccca4bbccc0
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 500Mi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-0dfabafd-2c62-4054-ada9-7ccca4bbccc0
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 500Mi
+    phase: Bound
+kind: List
+metadata:
+  resourceVersion: ""
