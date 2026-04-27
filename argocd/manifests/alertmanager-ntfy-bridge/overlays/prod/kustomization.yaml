@@ -12,3 +12,13 @@ patches:
         value:
           name: PUBLIC_CLICK_URL
           value: "https://grafana.levangie.dev/alerting/list"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: PUBLIC_DOMAIN_SUFFIX
+          value: "levangie.dev"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: GATUS_CLICK_URL
+          value: "https://status.levangie.dev"

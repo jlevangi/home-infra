@@ -17,6 +17,8 @@ data:
     NTFY_URL = os.environ.get("NTFY_URL", "http://ntfy.ntfy.svc.cluster.local/")
     DEFAULT_TOPIC = os.environ.get("DEFAULT_TOPIC", "homelab-alerts")
     PUBLIC_CLICK_URL = os.environ.get("PUBLIC_CLICK_URL")
+    PUBLIC_DOMAIN_SUFFIX = os.environ.get("PUBLIC_DOMAIN_SUFFIX", "levangie.dev")
+    GATUS_CLICK_URL = os.environ.get("GATUS_CLICK_URL")
 
 
     def first_nonempty(*values):
@@ -57,7 +59,18 @@ data:
     def normalize_click_url(url):
         if is_internal_click_url(url):
             return PUBLIC_CLICK_URL
+        if url:
+            parsed = urllib.parse.urlparse(url)
+            hostname = (parsed.hostname or "").lower()
+            if PUBLIC_DOMAIN_SUFFIX and not hostname.endswith(PUBLIC_DOMAIN_SUFFIX):
+                return PUBLIC_CLICK_URL
         return url
+
+
+    def override_click_url(alertname, common_labels, topic):
+        if alertname == "GatusEndpointDown":
+            return GATUS_CLICK_URL
+        return None
 
 
     def build_details(alerts):
@@ -112,7 +125,10 @@ data:
             alerts[0].get("generatorURL") if alerts else None,
             payload.get("externalURL"),
         )
-        click = normalize_click_url(raw_click)
+        click = first_nonempty(
+            override_click_url(alertname, common_labels, topic),
+            normalize_click_url(raw_click),
+        )
 
         message_lines = [
             f"# {alertname}",
@@ -130,7 +146,11 @@ data:
             message_lines.extend(["", "**Instances:**", *details])
 
         if click:
-            link_label = "Open in Grafana" if click != raw_click else "Open alert"
+            link_label = "Open alert"
+            if click == GATUS_CLICK_URL:
+                link_label = "Open in Gatus"
+            elif click != raw_click:
+                link_label = "Open in Grafana"
             message_lines.extend(["", f"[{link_label}]({click})"])
 
         is_critical = topic == "homelab-critical" or severity == "critical"
