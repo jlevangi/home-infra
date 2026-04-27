@@ -28,7 +28,3 @@ longhorn_namespace_pod_security_warn: "privileged"
 metallb_namespace_pod_security_enforce: "privileged"
 metallb_namespace_pod_security_audit: "privileged"
 metallb_namespace_pod_security_warn: "privileged"
-
-# Root apps for Talos test are intentionally minimal in the first pass.
-enabled_apps: []
-force_redeploy_apps: []

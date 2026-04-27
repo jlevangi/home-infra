@@ -48,7 +48,7 @@
     source_kubeconfig: "/etc/rancher/k3s/k3s.yaml"
 
     # SSH to source cluster for backup info (when target != source)
-    source_cluster_host: "k3s-prod-node-1"
+    source_cluster_host: "k3s-prod-cp-1"
 
     # Mapping from backup volume names to target PVC configurations
     # Key: pattern to match in backup volume name

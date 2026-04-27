@@ -16,12 +16,8 @@ metallb_ip_range: "172.20.20.200-172.20.20.210"
 traefik_loadbalancer_ip: "172.20.20.200"
 
 # -----------------------------------------------------------------------------
-# APPLICATIONS TO DEPLOY
+# LONGHORN OVERRIDES (prod has 3 dedicated workers, masters are CP-only)
 # -----------------------------------------------------------------------------
-enabled_apps:
-  - bookstack
-  - vaultwarden
-  - homepage
-
-force_redeploy_apps:
-  - homepage
+longhorn_replica_count: 3
+longhorn_exclude_master_from_storage: true
+longhorn_guaranteed_instance_manager_cpu: 12

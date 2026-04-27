@@ -16,13 +16,6 @@ metallb_ip_range: "172.20.20.230-172.20.20.240"
 traefik_loadbalancer_ip: "172.20.20.230"
 
 # -----------------------------------------------------------------------------
-# APPLICATIONS TO DEPLOY
-# -----------------------------------------------------------------------------
-# Apps are now managed by ArgoCD - disable Ansible deployment
-enabled_apps: []
-force_redeploy_apps: []
-
-# -----------------------------------------------------------------------------
 # TEST-SPECIFIC OVERRIDES
 # -----------------------------------------------------------------------------
 # Conservative storage limits for test environment

@@ -215,6 +215,7 @@
       --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
       --set defaultSettings.storageReservedPercentageForDefaultDisk={{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }} \
       --set defaultSettings.defaultDataPath="/var/lib/longhorn/" \
+      --set defaultSettings.guaranteedInstanceManagerCPU={{ longhorn_guaranteed_instance_manager_cpu | default(12) }} \
       {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}" \
       {% endif %}--wait --timeout=1200s
   become: yes
@@ -238,6 +239,7 @@
       --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
       --set defaultSettings.storageReservedPercentageForDefaultDisk={{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }} \
       --set defaultSettings.defaultDataPath="/var/lib/longhorn/" \
+      --set defaultSettings.guaranteedInstanceManagerCPU={{ longhorn_guaranteed_instance_manager_cpu | default(12) }} \
       {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}" \
       {% endif %}--wait --timeout=600s
   become: yes
@@ -260,6 +262,7 @@
       --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
       --set defaultSettings.storageReservedPercentageForDefaultDisk={{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }} \
       --set defaultSettings.defaultDataPath="/var/lib/longhorn/" \
+      --set defaultSettings.guaranteedInstanceManagerCPU={{ longhorn_guaranteed_instance_manager_cpu | default(12) }} \
       {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}" \
       {% endif %}--wait --timeout=1200s --force
   become: yes

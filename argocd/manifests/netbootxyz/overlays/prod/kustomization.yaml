@@ -14,7 +14,7 @@ patches:
       - op: add
         path: /spec/template/spec/nodeSelector
         value:
-          kubernetes.io/hostname: k3s-prod-node-2
+          kubernetes.io/hostname: k3s-prod-worker-2
   - target:
       kind: Ingress
       name: netbootxyz-ingress

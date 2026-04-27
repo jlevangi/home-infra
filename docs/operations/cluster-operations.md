@@ -78,12 +78,13 @@ ansible-playbook -i ansible/inventories/production/hosts.yml \
 
 ### Deploy one app
 
+Applications are deployed by ArgoCD, not Ansible. Edit the relevant manifest under
+`argocd/apps/<env>/` or `argocd/manifests/**` and let ArgoCD reconcile from `main`.
+To force a sync immediately:
+
 ```bash
-ansible-playbook -i ansible/inventories/production/hosts.yml \
-  ansible/playbooks/k3s-deploy-component.yml \
-  -e deploy_single_app=bookstack \
-  -e target_cluster=k3s_cluster_prod \
-  --vault-password-file ~/.ansible_vault_pass
+kubectl -n argocd patch application <app-name> --type=merge \
+  -p '{"operation":{"sync":{}}}'
 ```
 
 ## Health Checks
