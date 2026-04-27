@@ -23,16 +23,16 @@ fi
 
 # Cluster IP configurations
 declare -A CLUSTER_IPS=(
-    ["prod"]="172.20.20.101 172.20.20.102 172.20.20.103"
-    ["test"]="172.20.20.121 172.20.20.122 172.20.20.123"  
-    ["stage"]="172.20.20.111 172.20.20.112 172.20.20.113"
+    ["prod"]="172.20.20.101 172.20.20.102 172.20.20.103 172.20.20.104 172.20.20.105 172.20.20.106"
+    ["test"]="172.20.20.121 172.20.20.122 172.20.20.123"
+    ["stage"]="172.20.20.111 172.20.20.112 172.20.20.113 172.20.20.114 172.20.20.115 172.20.20.116"
 )
 
 # Cluster hostnames (optional - if you use hostnames in addition to IPs)
 declare -A CLUSTER_HOSTNAMES=(
-    ["prod"]="k3s-prod-node-1 k3s-prod-node-2 k3s-prod-node-3"
+    ["prod"]="k3s-prod-worker-1 k3s-prod-worker-2 k3s-prod-worker-3 k3s-prod-cp-1 k3s-prod-cp-2 k3s-prod-cp-3"
     ["test"]="k3s-test-node-1 k3s-test-node-2 k3s-test-node-3"
-    ["stage"]="k3s-stage-node-1 k3s-stage-node-2 k3s-stage-node-3"
+    ["stage"]="k3s-stage-worker-1 k3s-stage-worker-2 k3s-stage-worker-3 k3s-stage-cp-1 k3s-stage-cp-2 k3s-stage-cp-3"
 )
 
 # SSH known_hosts file location

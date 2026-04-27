@@ -1,35 +1,56 @@
 ---
 # Unified K3s Cluster Deployment with NFS Authentication
-# 
+#
 # IMPORTANT: This playbook uses Ansible Vault for NFS credentials
-# 
+#
 # Usage examples:
 # Production cluster:
 #   ansible-playbook -i inventories/production/hosts.yml playbooks/k3s-deploy-cluster.yml -e target_cluster=k3s_cluster_prod --ask-vault-pass
 # Test cluster:
 #   ansible-playbook -i inventories/test/hosts.yml playbooks/k3s-deploy-cluster.yml -e target_cluster=k3s_cluster_test --ask-vault-pass
 #
-- name: Deploy K3s Cluster with Roles
-  hosts: "{{ target_cluster | default('k3s_cluster') }}"
+# Masters run with serial: 1 so the first master can finish bootstrapping
+# embedded etcd (--cluster-init) before the others attempt to join via
+# --server. Without this, joining masters would deadlock waiting for the
+# first master's API while ansible's linear strategy holds the play at
+# that task. Workers then deploy in parallel.
+
+- name: Deploy K3s masters (serial for HA bootstrap order)
+  hosts: "{{ target_cluster | default('k3s_cluster') }}_master"
   become: yes
   gather_facts: yes
-  
+  serial: 1
+
   vars_files:
     - ../group_vars/k3s_cluster_vault.yml
     - ../group_vars/k3s_cluster.yml
     - "../group_vars/{{ target_cluster | default('k3s_cluster') }}.yml"
 
   roles:
-    - ../roles/common    # Apply common system configuration
-    - ../roles/k3s       # Install and configure K3s cluster
+    - ../roles/common
+    - ../roles/k3s
+    - role: ../roles/telegraf
+      when: k3s_install_telegraf | default(false)
+
+- name: Deploy K3s workers (parallel)
+  hosts: "{{ target_cluster | default('k3s_cluster') }}_workers"
+  become: yes
+  gather_facts: yes
+
+  vars_files:
+    - ../group_vars/k3s_cluster_vault.yml
+    - ../group_vars/k3s_cluster.yml
+    - "../group_vars/{{ target_cluster | default('k3s_cluster') }}.yml"
+
+  roles:
+    - ../roles/common
+    - ../roles/k3s
     - role: ../roles/telegraf
       when: k3s_install_telegraf | default(false)
 
   post_tasks:
     # Fail loudly if any host dropped out of the play so the completion banner
-    # below only ever runs on a real success. Without this the debug task runs
-    # on the surviving hosts via delegate_to: localhost and prints a
-    # celebratory message even when the master failed mid-role.
+    # below only ever runs on a real success.
     - name: Fail if any host failed during deployment
       fail:
         msg: |
@@ -43,21 +64,18 @@
     - name: Display deployment completion message
       debug:
         msg:
-          - "🎊 K3s deployment process completed!"
+          - "K3s deployment process completed!"
           - ""
-          - "📊 REFER TO CLUSTER STATUS ABOVE for detailed health information"
-          - "   The comprehensive status summary shows if any components failed"
+          - "REFER TO CLUSTER STATUS ABOVE for detailed health information"
+          - "The comprehensive status summary shows if any components failed"
           - ""
-          - "💡 If the status shows issues (❌ or ⚠️):"
+          - "If the status shows issues:"
           - "   - Check the specific component status in the summary above"
           - "   - Review logs: kubectl logs -n <namespace> <pod-name>"
           - "   - Verify connectivity: kubectl get pods -A"
           - "   - Re-run deployment to retry failed components"
           - ""
-          - "📋 If status shows 'HEALTHY' - your cluster is ready to use!"
-          - "📋 If status shows 'DEGRADED' - troubleshooting is required"
-          - ""
-          - "🏷️ Cluster Type: {{ target_cluster | default('k3s_cluster (production)') }}"
-          - "🌐 Environment: {{ cluster_environment | default('production') }}"
+          - "Cluster Type: {{ target_cluster | default('k3s_cluster (production)') }}"
+          - "Environment: {{ cluster_environment | default('production') }}"
       run_once: true
       delegate_to: localhost
