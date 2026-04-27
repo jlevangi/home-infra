@@ -2,3 +2,13 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../base
+patches:
+  - target:
+      kind: Deployment
+      name: alertmanager-ntfy-bridge
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: PUBLIC_CLICK_URL
+          value: "https://grafana.levangie.dev/alerting/list"
