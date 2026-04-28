@@ -35,7 +35,7 @@ Use the environment-specific Terraform directory that matches the cluster you ar
 
 What the script does:
 
-- loads environment metadata from `scripts/lib/environments.conf`
+- loads built-in environment metadata from `scripts/lib/environment-functions.sh`
 - validates SSH connectivity to the target nodes
 - runs `ansible/playbooks/k3s-deploy-cluster.yml`
 - updates local kubeconfig contexts when the deployment succeeds
