@@ -90,6 +90,14 @@
         - inventory_hostname in groups[master_group]
         - k3s_configure_vault | default(true)
 
+    - name: Deploy root ArgoCD application after Vault bootstrap
+      ansible.builtin.include_role:
+        name: ../roles/k3s
+        tasks_from: argocd-root-app.yml
+      when:
+        - deploy_component == 'argocd'
+        - inventory_hostname in groups[master_group]
+
   post_tasks:
     - name: Display completion summary
       ansible.builtin.debug:
