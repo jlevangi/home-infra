@@ -31,6 +31,12 @@ variable "nic_name" {
   default = "vmbr0"
 }
 
+variable "vm_storage" {
+  description = "Proxmox storage pool for VM disks. Default vm_data (SSD). Override to local-lvm to land CP etcd on dedicated NVMe."
+  type        = string
+  default     = "vm_data"
+}
+
 variable "vlan_num" {
   default = "1"
 }

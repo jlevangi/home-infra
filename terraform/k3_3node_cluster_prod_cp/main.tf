@@ -34,28 +34,28 @@ resource "proxmox_vm_qemu" "cp" {
   os_type = "cloud-init"
 
   cpu {
-    cores   = 4
+    cores   = 2
     sockets = 1
     type    = "host"
     numa    = true
   }
 
-  memory  = 8192
-  balloon = 8192
+  memory  = 4096
+  balloon = 4096
   scsihw   = "virtio-scsi-pci"
   bootdisk = "scsi0"
 
   disk {
     slot    = "ide2"
     type    = "cloudinit"
-    storage = "vm_data"
+    storage = var.vm_storage
   }
 
   disk {
     slot    = "scsi0"
-    size    = "64G"
+    size    = "40G"
     type    = "disk"
-    storage = "vm_data"
+    storage = var.vm_storage
   }
 
   network {
