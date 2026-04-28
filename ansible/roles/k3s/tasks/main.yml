@@ -41,56 +41,9 @@
   become: yes
   when: k3s_install_longhorn | default(true)
 
-# Storage Setup - Longhorn installation on master only
-- name: Include Longhorn storage installation
-  include_tasks: longhorn.yml
-  tags:
-    - longhorn
-    - storage
-    - infrastructure
-  when:
-    - inventory_hostname == groups[master_group][0]
-    - k3s_install_longhorn | default(true)
-
-# LoadBalancer and Ingress Setup
-- name: Include MetalLB installation
-  include_tasks: metallb.yml
-  tags:
-    - metallb
-    - loadbalancer
-    - infrastructure
-  when:
-    - inventory_hostname in groups[master_group]
-    - k3s_install_metallb | default(true)
-
-- name: Include Traefik 2 installation
-  include_tasks: traefik.yml
-  tags:
-    - traefik
-    - ingress
-    - infrastructure
-  when:
-    - inventory_hostname in groups[master_group]
-    - k3s_install_traefik | default(true)
-
-# ArgoCD GitOps Controller
-- name: Include ArgoCD installation
-  include_tasks: argocd.yml
-  tags:
-    - argocd
-    - gitops
-    - infrastructure
-  when:
-    - inventory_hostname in groups[master_group]
-    - k3s_install_argocd | default(true)
-
-# Vault + External Secrets bootstrap (ArgoCD-managed apps)
-- name: Include Vault bootstrap
-  include_tasks: vault.yml
-  tags:
-    - vault
-    - secrets
-    - gitops
-  when:
-    - inventory_hostname in groups[master_group]
-    - k3s_configure_vault | default(true)
+# Helm-driven infrastructure installs (Longhorn, MetalLB, Traefik, ArgoCD,
+# Vault) live in infra-install.yml and run from k3s-deploy-cluster.yml's
+# third play, AFTER all masters and workers have joined. They cannot run
+# during the masters play because a first master alone has no eligible
+# storage nodes when longhorn_exclude_master_from_storage is true, which
+# wedges any PVC-backed component on PVC binding.

@@ -1,0 +1,58 @@
+---
+# Helm-driven infrastructure installs (Longhorn, MetalLB, Traefik, ArgoCD, Vault).
+#
+# Run this AFTER all masters and workers have joined. Splitting workloads from
+# masters means the first master alone has no eligible storage nodes when
+# longhorn_exclude_master_from_storage is true, so any PVC-backed component
+# (Traefik, ArgoCD, Vault) wedges on PVC binding if these run during the
+# masters play. Workers must exist first.
+#
+# This file is invoked from k3s-deploy-cluster.yml's third play, which targets
+# the first master only — host-level guards from main.yml are not needed here.
+
+- name: Include Longhorn storage installation
+  include_tasks: longhorn.yml
+  tags:
+    - longhorn
+    - storage
+    - infrastructure
+  when: k3s_install_longhorn | default(true)
+
+- name: Include MetalLB installation
+  include_tasks: metallb.yml
+  tags:
+    - metallb
+    - loadbalancer
+    - infrastructure
+  when: k3s_install_metallb | default(true)
+
+- name: Include Traefik 2 installation
+  include_tasks: traefik.yml
+  tags:
+    - traefik
+    - ingress
+    - infrastructure
+  when: k3s_install_traefik | default(true)
+
+- name: Include ArgoCD installation
+  include_tasks: argocd.yml
+  tags:
+    - argocd
+    - gitops
+    - infrastructure
+  when: k3s_install_argocd | default(true)
+
+- name: Include Vault bootstrap
+  include_tasks: vault.yml
+  tags:
+    - vault
+    - secrets
+    - gitops
+  when: k3s_configure_vault | default(true)
+
+- name: Deploy root ArgoCD application after Vault bootstrap
+  include_tasks: argocd-root-app.yml
+  tags:
+    - argocd
+    - gitops
+  when: k3s_install_argocd | default(true)

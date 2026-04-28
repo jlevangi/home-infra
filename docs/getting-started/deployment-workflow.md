@@ -35,26 +35,21 @@ Use the environment-specific Terraform directory that matches the cluster you ar
 
 What the script does:
 
-- loads environment metadata from `scripts/lib/environments.conf`
+- loads built-in environment metadata from `scripts/lib/environment-functions.sh`
 - validates SSH connectivity to the target nodes
 - runs `ansible/playbooks/k3s-deploy-cluster.yml`
 - updates local kubeconfig contexts when the deployment succeeds
 
-### 3. Deploy apps or targeted components
+### 3. Deploy infrastructure components
 
-Use the app deployment script for the normal environment app set:
-
-```bash
-./scripts/deploy-k3s-apps.sh --stage
-```
-
-Use component deployment for targeted work:
+Applications are deployed by ArgoCD from `argocd/apps/<env>/` on `main`. The
+component script handles only core platform pieces (longhorn, metallb, traefik,
+argocd, vault):
 
 ```bash
-./scripts/deploy-component.sh --prod traefik
+./scripts/deploy-component.sh --test all-infra      # fresh cluster bootstrap
+./scripts/deploy-component.sh --prod traefik        # single component
 ./scripts/deploy-component.sh --prod vault
-./scripts/deploy-component.sh --prod bookstack
-./scripts/deploy-component.sh --test all-infra
 ```
 
 ### 4. Verify the cluster

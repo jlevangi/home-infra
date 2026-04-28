@@ -16,21 +16,6 @@ metallb_ip_range: "172.20.20.211-172.20.20.221"
 traefik_loadbalancer_ip: "172.20.20.211"
 
 # -----------------------------------------------------------------------------
-# APPLICATIONS TO DEPLOY
-# -----------------------------------------------------------------------------
-enabled_apps:
-  - bookstack
-  - vaultwarden
-  - homepage
-  - pocketid
-
-force_redeploy_apps:
-  - bookstack
-  - vaultwarden
-  - homepage
-  - pocketid
-
-# -----------------------------------------------------------------------------
 # STAGING-SPECIFIC OVERRIDES
 # -----------------------------------------------------------------------------
 # Disable backups for stage (restores from prod backups for testing)
@@ -47,19 +32,22 @@ argocd_controller_memory_limit: "2Gi"
 argocd_controller_memory_request: "1Gi"
 
 # -----------------------------------------------------------------------------
-# K3S DATASTORE — SQLite (not embedded etcd)
+# LONGHORN TOPOLOGY (mirrors prod for HA validation)
 # -----------------------------------------------------------------------------
-# Explicit override of roles/k3s/defaults/main.yml's k3s_server_args to drop
-# `--cluster-init`. See IMPORTANT_NOTE.md at the repo root for the full story.
-#
-# Short version: `--cluster-init` switches k3s from SQLite/kine to embedded
-# etcd. Embedded etcd has a ~100ms disk fsync watchdog that our local-lvm
-# Proxmox storage cannot reliably meet during Longhorn + ArgoCD install,
-# which causes k3s to crash loop (NRestarts > 15 observed). SQLite is
-# tolerant of slower disks and we do not need HA on a 1-master cluster.
-k3s_server_args:
-  - "--disable=traefik"
-  - "--disable=servicelb"
-  - "--write-kubeconfig-mode=644"
-  - "--node-external-ip={{ ansible_default_ipv4.address }}"
-  - "--tls-san={{ load_balancer_ip | default(ansible_default_ipv4.address) }}"
+# Stage now runs 3 dedicated CP nodes + 3 dedicated workers, matching prod.
+# Longhorn replicas live only on workers; CP nodes run only kube-apiserver/etcd
+# and are excluded from storage scheduling.
+longhorn_replica_count: 3
+longhorn_exclude_master_from_storage: true
+longhorn_guaranteed_instance_manager_cpu: 12
+
+# -----------------------------------------------------------------------------
+# K3S DATASTORE — embedded etcd HA (validates prod plan)
+# -----------------------------------------------------------------------------
+# Stage previously ran SQLite on a single master to dodge the embedded-etcd
+# fsync watchdog (see IMPORTANT_NOTE.md). With 3 dedicated CP nodes that don't
+# host Longhorn or app pods, etcd should keep within the 100ms fsync bound.
+# The role default + master.yml init/join logic now drives --cluster-init on
+# cp-1 and --server <url> on cp-2/cp-3, so no override is needed here.
+# If etcd crash-loops, fall back is moving CP disks to faster storage or
+# running stage as a single-master with SQLite again.

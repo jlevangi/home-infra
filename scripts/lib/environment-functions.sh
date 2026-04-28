@@ -1,11 +1,22 @@
 #!/bin/bash
 # Environment Functions Library
-# Provides dynamic environment detection and configuration for K3s scripts
+# Provides shared environment metadata for K3s scripts.
 
-# Get the directory of this library to locate environments.conf
 _LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENVIRONMENTS_CONF="$_LIB_DIR/environments.conf"
 _PROJECT_ROOT="$(cd "$_LIB_DIR/../.." && pwd)"
+
+ENVIRONMENT_NAMES=(prod stage test)
+
+get_environment_record() {
+    local env_name="$1"
+
+    case "$env_name" in
+        prod)  echo "k3s_cluster_prod:Production:🚀:prod:" ;;
+        stage) echo "k3s_cluster_stage:Staging:🎭:stage:-v" ;;
+        test)  echo "k3s_cluster_test:Test:🧪:test:-v" ;;
+        *)     return 1 ;;
+    esac
+}
 
 # Colors for output
 RED='\033[0;31m'
@@ -29,52 +40,29 @@ require_ansible_config() {
     export ANSIBLE_CONFIG="$cfg"
 }
 
-# Parse environment configuration and return all available environments
+# Return all available K3s environments.
 get_available_environments() {
-    if [[ ! -f "$ENVIRONMENTS_CONF" ]]; then
-        echo "prod test" # Fallback for backward compatibility
-        return
-    fi
-    
-    grep -v '^#' "$ENVIRONMENTS_CONF" | grep -v '^$' | cut -d':' -f1 | grep -v '^$' | tr '\n' ' ' | xargs
+    printf '%s\n' "${ENVIRONMENT_NAMES[@]}" | xargs
 }
 
 # Get environment configuration by name
 # Usage: get_env_config "prod" "ansible_group"
-# Fields: environment_name:ansible_group:display_name:emoji:kubectl_context:default_verbosity
+# Fields: ansible_group:display_name:emoji:kubectl_context:default_verbosity
 get_env_config() {
     local env_name="$1"
     local field="$2"
-    
-    if [[ ! -f "$ENVIRONMENTS_CONF" ]]; then
-        # Fallback for backward compatibility
-        case "$env_name:$field" in
-            "prod:ansible_group") echo "k3s_cluster" ;;
-            "prod:display_name") echo "Production" ;;
-            "prod:emoji") echo "🚀" ;;
-            "prod:kubectl_context") echo "prod" ;;
-            "prod:default_verbosity") echo "" ;;
-            "test:ansible_group") echo "k3s_cluster_test" ;;
-            "test:display_name") echo "Test" ;;
-            "test:emoji") echo "🧪" ;;
-            "test:kubectl_context") echo "test" ;;
-            "test:default_verbosity") echo "-v" ;;
-            *) echo "" ;;
-        esac
-        return
-    fi
-    
-    local line=$(grep "^$env_name:" "$ENVIRONMENTS_CONF")
-    if [[ -z "$line" ]]; then
+    local record
+
+    if ! record=$(get_environment_record "$env_name"); then
         return 1
     fi
-    
+
     case "$field" in
-        "ansible_group") echo "$line" | cut -d':' -f2 ;;
-        "display_name") echo "$line" | cut -d':' -f3 ;;
-        "emoji") echo "$line" | cut -d':' -f4 ;;
-        "kubectl_context") echo "$line" | cut -d':' -f5 ;;
-        "default_verbosity") echo "$line" | cut -d':' -f6 ;;
+        "ansible_group") echo "$record" | cut -d':' -f1 ;;
+        "display_name") echo "$record" | cut -d':' -f2 ;;
+        "emoji") echo "$record" | cut -d':' -f3 ;;
+        "kubectl_context") echo "$record" | cut -d':' -f4 ;;
+        "default_verbosity") echo "$record" | cut -d':' -f5 ;;
         *) return 1 ;;
     esac
 }

@@ -1,13 +1,14 @@
 #!/bin/bash
 # K3s Component Deployment Script
-# Deploy individual infrastructure components or applications to any cluster
+# Deploy individual infrastructure components (longhorn, metallb, traefik, argocd, vault)
+# to any cluster. Applications are managed by ArgoCD, not this script.
 #
 # Usage:
-#   ./deploy-component.sh --prod traefik        # Deploy Traefik to production
-#   ./deploy-component.sh --test metallb        # Deploy MetalLB to test
-#   ./deploy-component.sh --stage bookstack     # Deploy BookStack to staging
+#   ./deploy-component.sh --prod traefik          # Deploy Traefik to production
+#   ./deploy-component.sh --test metallb          # Deploy MetalLB to test
+#   ./deploy-component.sh --stage all-infra       # Deploy all infra to stage
 #   ./deploy-component.sh --prod traefik --force  # Force redeploy
-#   ./deploy-component.sh --list                # List available components
+#   ./deploy-component.sh --list                  # List available components
 
 # Determine script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,20 +22,7 @@ require_ansible_config || exit 1
 
 # Component definitions (ordered for fresh cluster deployment)
 INFRA_COMPONENTS=("longhorn" "metallb" "traefik" "argocd" "vault")
-
-# Dynamically discover app components from ansible/roles/k3s-apps/tasks/apps/
-APP_COMPONENTS=()
-APPS_DIR="$PROJECT_ROOT/ansible/roles/k3s-apps/tasks/apps"
-if [[ -d "$APPS_DIR" ]]; then
-    for app_file in "$APPS_DIR"/*.yml; do
-        if [[ -f "$app_file" ]]; then
-            app_name=$(basename "$app_file" .yml)
-            APP_COMPONENTS+=("$app_name")
-        fi
-    done
-fi
-
-ALL_COMPONENTS=("all-infra" "${INFRA_COMPONENTS[@]}" "${APP_COMPONENTS[@]}")
+ALL_COMPONENTS=("all-infra" "${INFRA_COMPONENTS[@]}")
 
 # Default values
 TARGET_ENV=""
@@ -47,7 +35,6 @@ LIST_COMPONENTS=false
 FORCE_REDEPLOY=false
 DRY_RUN=false
 
-# Check if component is valid
 is_valid_component() {
     local comp="$1"
     for c in "${ALL_COMPONENTS[@]}"; do
@@ -58,18 +45,6 @@ is_valid_component() {
     return 1
 }
 
-# Check if component is infrastructure
-is_infra_component() {
-    local comp="$1"
-    for c in "${INFRA_COMPONENTS[@]}"; do
-        if [[ "$c" == "$comp" ]]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
-# List components
 list_components() {
     echo "Available Components"
     echo "===================="
@@ -80,15 +55,11 @@ list_components() {
         echo "  - $c"
     done
     echo ""
-    echo "Applications:"
-    for c in "${APP_COMPONENTS[@]}"; do
-        echo "  - $c"
-    done
+    echo "Note: Applications are deployed via ArgoCD (argocd/apps/<env>), not this script."
     echo ""
     echo "Usage: $0 [ENVIRONMENT] COMPONENT [OPTIONS]"
 }
 
-# Show usage
 show_usage() {
     echo "Usage: $0 [ENVIRONMENT] COMPONENT [OPTIONS]"
     echo ""
@@ -96,7 +67,6 @@ show_usage() {
     echo ""
     echo "Components:"
     echo "  Infrastructure: ${INFRA_COMPONENTS[*]}"
-    echo "  Applications:   ${APP_COMPONENTS[*]}"
     echo ""
     echo "Options:"
     echo "  --list               List all available components"
@@ -111,13 +81,11 @@ show_usage() {
     echo "  $0 --test all-infra            # Deploy all infra to test (fresh cluster)"
     echo "  $0 --prod traefik              # Deploy Traefik to production"
     echo "  $0 --test metallb              # Deploy MetalLB to test"
-    echo "  $0 --stage bookstack           # Deploy BookStack to staging"
-    echo "  $0 --prod homepage --force     # Force redeploy Homepage"
+    echo "  $0 --prod argocd --force       # Force redeploy ArgoCD"
     echo "  $0 --prod traefik --dry-run    # Show commands without executing"
     echo "  $0 --list                      # List all components"
 }
 
-# Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
         --prod|--production)
@@ -183,7 +151,6 @@ while [[ $# -gt 0 ]]; do
             exit 1
             ;;
         *)
-            # Assume it's the component name
             if [[ -z "$COMPONENT" ]]; then
                 COMPONENT="$1"
             else
@@ -195,19 +162,16 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Handle help
 if [[ "$SHOW_HELP" == "true" ]]; then
     show_usage
     exit 0
 fi
 
-# Handle list
 if [[ "$LIST_COMPONENTS" == "true" ]]; then
     list_components
     exit 0
 fi
 
-# Validate environment
 if [[ -z "$TARGET_ENV" ]]; then
     echo "Error: Target environment must be specified"
     echo ""
@@ -215,7 +179,6 @@ if [[ -z "$TARGET_ENV" ]]; then
     exit 1
 fi
 
-# Validate component
 if [[ -z "$COMPONENT" ]]; then
     echo "Error: Component name must be specified"
     echo ""
@@ -227,23 +190,20 @@ if ! is_valid_component "$COMPONENT"; then
     echo "Error: Unknown component '$COMPONENT'"
     echo ""
     echo "Available components: ${ALL_COMPONENTS[*]}"
+    echo "Note: Applications are deployed via ArgoCD, not this script."
     exit 1
 fi
 
-# Set up target-specific variables using environment functions
 if ! setup_environment_vars "$TARGET_ENV"; then
     exit 1
 fi
 
-# Set up Ansible extra vars for target cluster
 EXTRA_VARS="$EXTRA_VARS -e target_cluster=$TARGET_CLUSTER"
 
-# Apply default verbosity if not explicitly set and environment has a default
 if [[ -z "$VERBOSITY" && -n "$DEFAULT_VERBOSITY" ]]; then
     VERBOSITY="$DEFAULT_VERBOSITY"
 fi
 
-# Switch to the appropriate kubectl context
 echo "Switching to $CLUSTER_NAME cluster context..."
 if "$SCRIPT_DIR/helpers/k3s-context-manager.sh" switch "$KUBECTL_CONTEXT" 2>/dev/null; then
     echo "Successfully switched to k3s-$KUBECTL_CONTEXT context"
@@ -254,7 +214,6 @@ else
 fi
 echo ""
 
-# Display deployment info
 echo "$CLUSTER_EMOJI Deploying $COMPONENT to $CLUSTER_NAME cluster"
 echo "============================================="
 echo "Environment: $TARGET_ENV ($TARGET_CLUSTER)"
@@ -266,10 +225,8 @@ echo "Force:       $([ "$FORCE_REDEPLOY" == "true" ] && echo "yes" || echo "no")
 echo "Verbosity:   $([ -n "$VERBOSITY" ] && echo "$VERBOSITY" || echo "standard")"
 echo ""
 
-# Get the appropriate inventory path for this environment
 INVENTORY_PATH=$(get_inventory_path "$TARGET_ENV" "$PROJECT_ROOT")
 
-# Build the base ansible command (shared by single and all-infra paths)
 build_base_cmd() {
     BASE_CMD=(ansible-playbook -i "$INVENTORY_PATH" "$PROJECT_ROOT/ansible/playbooks/k3s-deploy-component.yml" --vault-password-file ~/.ansible_vault_pass)
     if [[ -n "$VERBOSITY" ]]; then
@@ -278,7 +235,6 @@ build_base_cmd() {
     BASE_CMD+=(-e "target_cluster=$TARGET_CLUSTER")
 }
 
-# Build the full ansible command for a single infra component
 build_infra_cmd() {
     local comp="$1"
     build_base_cmd
@@ -302,7 +258,6 @@ build_infra_cmd() {
     fi
 }
 
-# Run a single component and handle result
 run_component() {
     local comp="$1"
     echo "Ansible command:"
@@ -318,7 +273,6 @@ run_component() {
     return $?
 }
 
-# Show verification commands for a component
 show_verification() {
     local comp="$1"
     echo "Verification commands:"
@@ -350,11 +304,6 @@ show_verification() {
             echo "  kubectl exec -n <vault-namespace> <vault-pod> -- vault status"
             echo "  # Prod defaults: namespace vault-raft, pod vault-raft-0"
             echo "  kubectl get externalsecrets -A"
-            ;;
-        *)
-            echo "  kubectl get pods -n $comp"
-            echo "  kubectl get svc -n $comp"
-            echo "  kubectl get ingress -n $comp"
             ;;
     esac
 }
@@ -399,18 +348,8 @@ if [[ "$COMPONENT" == "all-infra" ]]; then
     exit 0
 fi
 
-# --- Single component deployment ---
-if is_infra_component "$COMPONENT"; then
-    build_infra_cmd "$COMPONENT"
-else
-    build_base_cmd
-    ANSIBLE_CMD=("${BASE_CMD[@]}" -e "deploy_single_app=$COMPONENT")
-
-    if [[ "$FORCE_REDEPLOY" == "true" ]]; then
-        ANSIBLE_CMD+=(-e "force_redeploy_apps=['$COMPONENT']")
-    fi
-fi
-
+# --- Single infra component deployment ---
+build_infra_cmd "$COMPONENT"
 run_component "$COMPONENT"
 RESULT=$?
 

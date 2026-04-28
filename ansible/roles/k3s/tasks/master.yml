@@ -35,6 +35,34 @@
       Will reinstall: {{ k3s_needs_install }}
       {{ k3s_status_check.stdout if k3s_status_check.rc == 0 else 'Will proceed with installation' }}
 
+- name: Determine first-master hostname
+  set_fact:
+    k3s_first_master: "{{ groups[master_group][0] }}"
+    k3s_is_first_master: "{{ inventory_hostname == groups[master_group][0] }}"
+
+- name: Resolve first-master API URL for joining masters
+  set_fact:
+    k3s_first_master_url: "https://{{ hostvars[k3s_first_master]['ansible_default_ipv4']['address'] }}:6443"
+
+- name: Build k3s server args (init vs join)
+  set_fact:
+    k3s_effective_server_args: >-
+      {{
+        k3s_server_args + (
+          ['--cluster-init'] if k3s_is_first_master
+          else ['--server', k3s_first_master_url]
+        )
+      }}
+
+- name: Wait for first master API server before joining
+  wait_for:
+    port: 6443
+    host: "{{ hostvars[k3s_first_master]['ansible_default_ipv4']['address'] }}"
+    timeout: 300
+  when:
+    - not k3s_is_first_master
+    - k3s_needs_install
+
 - name: Install K3s master
   shell: |
     {% if k3s_datastore_endpoint %}
@@ -42,7 +70,7 @@
     {% endif %}
     curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION={{ k3s_version }} \
     K3S_TOKEN={{ k3s_token }} \
-    sh -s - server {{ k3s_server_args | join(' ') }}
+    sh -s - server {{ k3s_effective_server_args | join(' ') }}
   register: k3s_install_result
   failed_when: k3s_install_result.rc != 0
   when: k3s_needs_install
@@ -82,6 +110,7 @@
   delegate_to: "{{ item }}"
   delegate_facts: true
   loop: "{{ groups[worker_group] }}"
+  when: k3s_is_first_master | default(true)
 
 - name: Set kubeconfig permissions for non-sudo access
   file:

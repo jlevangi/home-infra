@@ -12,7 +12,7 @@ The repo currently maintains three Kubernetes environments:
 | `stage` | Production-like validation | `172.20.20.111-113` | `stage.levangie.dev` |
 | `test` | Lower-risk testing | `172.20.20.121-123` | `test.levangie.dev` |
 
-Environment metadata used by the deployment scripts lives in `scripts/lib/environments.conf`.
+Environment metadata used by the deployment scripts lives in `scripts/lib/environment-functions.sh`.
 
 ## Current Source Of Truth
 

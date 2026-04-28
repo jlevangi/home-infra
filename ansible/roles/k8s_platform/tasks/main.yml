@@ -49,3 +49,11 @@
     - gitops
   when:
     - platform_configure_vault | default(true)
+
+- name: Deploy root ArgoCD application after Vault bootstrap
+  include_tasks: argocd-root-app.yml
+  tags:
+    - argocd
+    - gitops
+  when:
+    - platform_install_argocd | default(true)

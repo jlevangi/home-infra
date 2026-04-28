@@ -27,38 +27,44 @@
           Size: {{ pvc_size }} ({{ pvc_size_bytes }} bytes)
 
     # ==========================================================================
-    # STEP 1: Scale down deployments using this PVC
+    # STEP 1: Find and delete any pods holding this PVC, then delete the PVC
     # ==========================================================================
-    - name: Find deployments using this PVC
+    # We work at the pod level rather than scaling Deployments/StatefulSets,
+    # because the master nodes don't have jq, and pod-level cleanup is uniform
+    # across Deployment/STS/raw Pod. Workload controllers will recreate pods,
+    # but those will block on Pending PVC until we recreate it below.
+    - name: Find pods using this PVC
       shell: |
-        KUBECONFIG={{ kubeconfig }} kubectl get deployments -n {{ restore_namespace }} -o json | \
-        jq -r '.items[] | select(.spec.template.spec.volumes[]?.persistentVolumeClaim.claimName == "{{ restore_pvc_name }}") | .metadata.name'
-      register: affected_deployments
+        KUBECONFIG={{ kubeconfig }} kubectl get pods -n {{ restore_namespace }} -o json 2>/dev/null | python3 -c "
+        import json, sys
+        try:
+            data = json.load(sys.stdin)
+        except Exception:
+            sys.exit(0)
+        target = '{{ restore_pvc_name }}'
+        for p in data.get('items', []):
+            for v in (p.get('spec', {}).get('volumes') or []):
+                pc = v.get('persistentVolumeClaim') or {}
+                if pc.get('claimName') == target:
+                    print(p['metadata']['name'])
+                    break
+        "
+      register: affected_pods
       failed_when: false
       changed_when: false
 
-    - name: Display affected deployments
+    - name: Display affected pods
       debug:
-        msg: "Deployments to scale down: {{ affected_deployments.stdout_lines | default([]) }}"
+        msg: "Pods to delete: {{ affected_pods.stdout_lines | default([]) }}"
 
-    - name: Scale down affected deployments
+    - name: Delete pods using this PVC
       shell: |
-        KUBECONFIG={{ kubeconfig }} kubectl scale deployment {{ item }} -n {{ restore_namespace }} --replicas=0
-      loop: "{{ affected_deployments.stdout_lines | default([]) }}"
-      when: affected_deployments.stdout_lines | length > 0
-
-    - name: Wait for pods to terminate
-      shell: |
-        KUBECONFIG={{ kubeconfig }} kubectl get pods -n {{ restore_namespace }} -o name 2>/dev/null | wc -l
-      register: pod_count
-      until: pod_count.stdout | int == 0
-      retries: 24
-      delay: 5
+        KUBECONFIG={{ kubeconfig }} kubectl delete pod {{ item }} -n {{ restore_namespace }} --grace-period=30 --wait=false
+      loop: "{{ affected_pods.stdout_lines | default([]) }}"
       failed_when: false
-      when: affected_deployments.stdout_lines | length > 0
 
     # ==========================================================================
-    # STEP 2: Delete existing PVC and PV
+    # STEP 2: Delete existing PVC and PV (force-clear finalizer if stuck)
     # ==========================================================================
     - name: Check if PVC exists
       shell: |
@@ -69,21 +75,59 @@
 
     - name: Delete existing PVC
       shell: |
-        KUBECONFIG={{ kubeconfig }} kubectl delete pvc {{ restore_pvc_name }} -n {{ restore_namespace }} --wait=true --timeout=60s
+        KUBECONFIG={{ kubeconfig }} kubectl delete pvc {{ restore_pvc_name }} -n {{ restore_namespace }} --wait=true --timeout=30s
       when: existing_pv_name.rc == 0
       register: pvc_deleted
       failed_when: false
 
+    # If the pvc-protection finalizer is still attached because a pod was
+    # recreated by a controller before delete completed, strip it.
+    - name: Force-remove finalizer if PVC still present
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl get pvc {{ restore_pvc_name }} -n {{ restore_namespace }} >/dev/null 2>&1 && \
+        KUBECONFIG={{ kubeconfig }} kubectl patch pvc {{ restore_pvc_name }} -n {{ restore_namespace }} \
+          --type=json -p='[{"op":"remove","path":"/metadata/finalizers"}]' || true
+      when: existing_pv_name.rc == 0
+      failed_when: false
+      changed_when: false
+
+    - name: Wait for PVC fully removed
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl get pvc {{ restore_pvc_name }} -n {{ restore_namespace }} >/dev/null 2>&1 && echo "exists" || echo "gone"
+      register: pvc_check
+      until: pvc_check.stdout == "gone"
+      retries: 12
+      delay: 5
+      when: existing_pv_name.rc == 0
+      failed_when: false
+      changed_when: false
+
     - name: Delete existing PV if it was manually created
       shell: |
-        KUBECONFIG={{ kubeconfig }} kubectl delete pv {{ restore_pvc_name | regex_replace('-pvc$', '-pv') }} --wait=true --timeout=60s 2>/dev/null || true
-      when: pvc_deleted is changed
+        KUBECONFIG={{ kubeconfig }} kubectl delete pv {{ restore_pvc_name | regex_replace('-pvc$', '-pv') }} --wait=false 2>/dev/null || true
       failed_when: false
+      changed_when: false
 
-    - name: Wait for volume cleanup
-      pause:
-        seconds: 10
-      when: pvc_deleted is changed
+    # Longhorn CSI finalizers (external-provisioner, external-attacher) can pin
+    # a PV in Terminating when the underlying Longhorn volume is being replaced.
+    # Force-remove them so the PV actually goes away before we recreate it.
+    - name: Force-remove finalizers from stuck PV
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl get pv {{ restore_pvc_name | regex_replace('-pvc$', '-pv') }} >/dev/null 2>&1 && \
+        KUBECONFIG={{ kubeconfig }} kubectl patch pv {{ restore_pvc_name | regex_replace('-pvc$', '-pv') }} \
+          --type=json -p='[{"op":"remove","path":"/metadata/finalizers"}]' 2>/dev/null || true
+      failed_when: false
+      changed_when: false
+
+    - name: Wait for PV fully removed
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl get pv {{ restore_pvc_name | regex_replace('-pvc$', '-pv') }} >/dev/null 2>&1 && echo "exists" || echo "gone"
+      register: pv_check
+      until: pv_check.stdout == "gone"
+      retries: 12
+      delay: 5
+      failed_when: false
+      changed_when: false
 
     # ==========================================================================
     # STEP 3: Create Longhorn Volume from backup (READ-ONLY on NFS)
@@ -121,14 +165,9 @@
       retries: 60
       delay: 5
 
-    - name: Verify volume is healthy
-      shell: |
-        KUBECONFIG={{ kubeconfig }} kubectl get volume {{ restored_volume_name }} -n longhorn-system -o jsonpath='{.status.robustness}' 2>/dev/null
-      register: volume_health
-      until: volume_health.stdout == 'healthy'
-      retries: 30
-      delay: 10
-      failed_when: false
+    # Robustness only becomes 'healthy' after the volume is attached and replicas
+    # come up — which doesn't happen until a pod mounts the PVC. Waiting here
+    # blocks the entire restore loop on a state that cannot transition. Skip it.
 
     # ==========================================================================
     # STEP 4: Create PV and PVC bound to the restored volume
@@ -159,6 +198,12 @@
         EOF
       register: pv_created
 
+    - name: Ensure target namespace exists
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl create namespace {{ restore_namespace }} --dry-run=client -o yaml | KUBECONFIG={{ kubeconfig }} kubectl apply -f -
+      register: ns_ensured
+      changed_when: "'created' in ns_ensured.stdout"
+
     - name: Create PVC bound to restored PV
       shell: |
         KUBECONFIG={{ kubeconfig }} kubectl apply -f - <<'EOF'
@@ -186,21 +231,9 @@
       retries: 30
       delay: 5
 
-    # ==========================================================================
-    # STEP 5: Scale deployments back up
-    # ==========================================================================
-    - name: Scale up affected deployments
-      shell: |
-        KUBECONFIG={{ kubeconfig }} kubectl scale deployment {{ item }} -n {{ restore_namespace }} --replicas=1
-      loop: "{{ affected_deployments.stdout_lines | default([]) }}"
-      when: affected_deployments.stdout_lines | length > 0
-
-    - name: Wait for deployments to be ready
-      shell: |
-        KUBECONFIG={{ kubeconfig }} kubectl rollout status deployment/{{ item }} -n {{ restore_namespace }} --timeout=300s
-      loop: "{{ affected_deployments.stdout_lines | default([]) }}"
-      when: affected_deployments.stdout_lines | length > 0
-      failed_when: false
+    # Workload controllers (Deployment/STS/etc.) recreate pods automatically
+    # once we delete them above; the new pods will bind to the freshly
+    # restored PVC. No explicit scale-up step is needed.
 
     - name: "Restore complete for {{ restore_volume.volume_name }}"
       debug:

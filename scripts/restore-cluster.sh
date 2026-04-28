@@ -315,12 +315,26 @@ restore_data() {
     local extra_args=()
     [[ -n "$SPECIFIC_NAMESPACE" ]] && extra_args+=(-e "restore_namespace_only=$SPECIFIC_NAMESPACE")
     [[ -n "$SPECIFIC_PVC" ]] && extra_args+=(-e "restore_pvc_only=$SPECIFIC_PVC")
-    if [[ -n "$SKIP_PVC_LIST" ]]; then
-        # Convert comma-separated list to JSON array for Ansible
-        local skip_json
-        skip_json=$(printf '%s' "$SKIP_PVC_LIST" | python3 -c 'import sys,json; print(json.dumps([x.strip() for x in sys.stdin.read().split(",") if x.strip()]))')
-        extra_args+=(-e "restore_pvc_skip=$skip_json")
-    fi
+
+    # Build a JSON extra-vars file so list values (restore_pvc_skip) are typed
+    # as a real JSON list, not a string. ansible-playbook -e key=value treats
+    # value as a string and would iterate the JSON literal char-by-char.
+    local extra_vars_file
+    extra_vars_file=$(mktemp -t restore-extra-vars-XXXXXX.json)
+    trap 'rm -f "$extra_vars_file"' EXIT
+
+    python3 - "$SKIP_PVC_LIST" "$SKIP_CONFIRMATION" "$extra_vars_file" <<'PY'
+import json, sys
+skip_csv, skip_confirm, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
+data = {}
+if skip_csv:
+    data["restore_pvc_skip"] = [x.strip() for x in skip_csv.split(",") if x.strip()]
+if skip_confirm == "true":
+    data["skip_confirm"] = True
+with open(out_path, "w") as fh:
+    json.dump(data, fh)
+PY
+    extra_args+=(-e "@$extra_vars_file")
 
     # Run the restore playbook
     ansible-playbook \
@@ -331,17 +345,6 @@ restore_data() {
         -e "target_env=$TARGET_ENV" \
         -e "source_env=$SOURCE_ENV" \
         "${extra_args[@]}"
-}
-
-deploy_apps() {
-    if [[ "$RESTORE_DATA" != "true" ]]; then
-        print_info "Skipping app deployment (--rebuild-only specified)"
-        return 0
-    fi
-
-    print_step "Deploying applications..."
-
-    "$SCRIPT_DIR/deploy-k3s-apps.sh" --$TARGET_ENV
 }
 
 verify_cluster() {
@@ -432,7 +435,6 @@ main() {
     deploy_k3s
     switch_context
     restore_data
-    deploy_apps
     verify_cluster
     print_summary
 }
