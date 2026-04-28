@@ -10,6 +10,23 @@ images:
 # Prod uses base values (bookstack.levangie.dev) - no patches needed
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: bookstack-app-data-pvc
+    patch: |
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 1Gi
+      - op: replace
+        path: /spec/volumeName
+        value: bookstack-app-data-pv
+  - target:
+      kind: PersistentVolumeClaim
+      name: bookstack-db-data-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: bookstack-db-data-pv
+  - target:
       kind: Ingress
       name: bookstack-ingress
     patch: |

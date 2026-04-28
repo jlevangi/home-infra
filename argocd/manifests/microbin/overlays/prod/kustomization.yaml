@@ -8,6 +8,13 @@ images:
 # Prod uses base values (bin.levangie.dev) - no patches needed
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: microbin-data-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: microbin-data-pv
+  - target:
       kind: Ingress
       name: microbin-ingress
     patch: |

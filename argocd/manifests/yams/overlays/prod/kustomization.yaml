@@ -4,6 +4,97 @@ resources:
   - ../../base
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: tautulli-config-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: tautulli-config-pv
+  - target:
+      kind: PersistentVolumeClaim
+      name: seerr-config-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: seerr-config-pv
+  - target:
+      kind: PersistentVolumeClaim
+      name: jellyseerr-config-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: jellyseerr-config-pv
+  - target:
+      kind: PersistentVolumeClaim
+      name: qbittorrent-gluetun-config-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: qbittorrent-gluetun-config-pv
+  - target:
+      kind: PersistentVolumeClaim
+      name: nzbget-gluetun-config-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: nzbget-gluetun-config-pv
+  - target:
+      kind: PersistentVolumeClaim
+      name: qbittorrent-config-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: qbittorrent-config-pv
+  - target:
+      kind: PersistentVolumeClaim
+      name: nzbget-config-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: nzbget-config-pv
+  - target:
+      kind: PersistentVolumeClaim
+      name: sonarr-config-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: sonarr-config-pv
+  - target:
+      kind: PersistentVolumeClaim
+      name: radarr-config-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: radarr-config-pv
+  - target:
+      kind: PersistentVolumeClaim
+      name: radarr4k-config-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: radarr4k-config-pv
+  - target:
+      kind: PersistentVolumeClaim
+      name: bazarr-config-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: bazarr-config-pv
+  - target:
+      kind: PersistentVolumeClaim
+      name: prowlarr-config-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: prowlarr-config-pv
+  - target:
+      kind: PersistentVolumeClaim
+      name: wizarr-config-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: wizarr-config-pv
+  - target:
       kind: Deployment
     patch: |
       - op: replace

@@ -4,6 +4,27 @@ resources:
   - ../../base
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: hoarder-data-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: hoarder-data-pv
+  - target:
+      kind: PersistentVolumeClaim
+      name: hoarder-redis-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: hoarder-redis-pv
+  - target:
+      kind: PersistentVolumeClaim
+      name: hoarder-meilisearch-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: hoarder-meilisearch-pv
+  - target:
       kind: Ingress
       name: hoarder-ingress
     patch: |
