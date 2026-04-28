@@ -122,6 +122,7 @@
       register: vault_init_secret_raw
       when: vault_sealed | default(true)
       no_log: true
+      when: vault_sealed | default(true)
 
     - name: Parse unseal keys and root token
       set_fact:
@@ -131,6 +132,9 @@
           - "{{ (vault_init_secret_raw.stdout | from_json).data['unseal-key-3'] | b64decode }}"
         vault_root_token: "{{ (vault_init_secret_raw.stdout | from_json).data['root-token'] | b64decode }}"
       no_log: true
+      when:
+        - vault_sealed | default(true)
+        - vault_init_secret_raw.stdout | default('') | length > 0
 
     - name: Unseal primary Vault pod
       shell: >
@@ -209,6 +213,23 @@
       set_fact:
         vault_root_token: "{{ vault_root_token_raw.stdout | b64decode }}"
       when: vault_root_token is not defined
+      no_log: true
+
+    # ── Read root token (if we did not need the unseal path) ─────────
+    - name: Read root token from secret
+      shell: >
+        kubectl --context {{ kubectl_context }} get secret {{ vault_init_secret_name }}
+        -n {{ vault_namespace }} -o jsonpath='{.data.root-token}'
+      register: vault_root_token_raw
+      when: vault_root_token is not defined
+      no_log: true
+
+    - name: Set root token
+      set_fact:
+        vault_root_token: "{{ vault_root_token_raw.stdout | b64decode }}"
+      when:
+        - vault_root_token is not defined
+        - vault_root_token_raw.stdout | default('') | length > 0
       no_log: true
 
     # ── Reconfigure Kubernetes auth ───────────────────────────────────
