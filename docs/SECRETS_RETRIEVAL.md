@@ -8,10 +8,10 @@ Quick reference for retrieving credentials across all cluster services. Replace 
 
 ```bash
 # Root token
-kubectl get secret vault-init -n vault -o jsonpath='{.data.root-token}' | base64 -d; echo
+kubectl get secret vault-init -n vault-raft -o jsonpath='{.data.root-token}' | base64 -d; echo
 
 # Unseal keys
-kubectl get secret vault-init -n vault -o json | jq -r '.data | to_entries[] | select(.key | startswith("unseal-key")) | "\(.key): \(.value | @base64d)"'
+kubectl get secret vault-init -n vault-raft -o json | jq -r '.data | to_entries[] | select(.key | startswith("unseal-key")) | "\(.key): \(.value | @base64d)"'
 ```
 
 - **UI:** `https://vault.{domain}`
@@ -139,8 +139,8 @@ vault kv get kv/{env}/{app}
 Or from within the cluster:
 
 ```bash
-kubectl exec -n vault vault-0 -- vault kv list kv/{env}
-kubectl exec -n vault vault-0 -- vault kv get kv/{env}/{app}
+kubectl exec -n vault-raft vault-raft-0 -- vault kv list kv/{env}
+kubectl exec -n vault-raft vault-raft-0 -- vault kv get kv/{env}/{app}
 ```
 
 ## Ansible Vault (Offline Secrets)
