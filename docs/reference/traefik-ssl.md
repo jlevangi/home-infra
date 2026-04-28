@@ -100,7 +100,7 @@ dnsConfig:
     value: "2"
 ```
 
-### 3. Ingress Template (`ansible/roles/k3s-apps/templates/common/ingress.yaml.j2`)
+### 3. Ingress Template (managed per-app under `argocd/manifests/<app>/`)
 
 ```yaml
 apiVersion: networking.k8s.io/v1
@@ -172,7 +172,7 @@ vault_cloudflare_dns_api_key: "your-cloudflare-api-token"
 
 ### Step 3: Update Ingress Templates
 
-1. **Edit** `ansible/roles/k3s-apps/templates/common/ingress.yaml.j2`
+1. **Edit** the per-app Ingress manifest under `argocd/manifests/<app>/`
 2. **Add** TLS section with certificate resolver annotation
 3. **Ensure** `ingressClassName: traefik` is set
 
@@ -190,8 +190,8 @@ vault_cloudflare_dns_api_key: "your-cloudflare-api-token"
 # Deploy the cluster with updated configuration
 ./scripts/deploy-k3s-cluster.sh --test
 
-# Deploy applications with SSL-enabled ingress
-./scripts/deploy-k3s-apps.sh --test
+# Applications (with SSL-enabled ingress) are reconciled by ArgoCD from
+# argocd/apps/test on `main`.
 ```
 
 ### Step 6: Verify Implementation
