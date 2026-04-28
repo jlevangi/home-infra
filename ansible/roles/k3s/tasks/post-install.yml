@@ -175,7 +175,7 @@
         )
       }}
 
-# Configure CoreDNS to use public DNS servers for external lookups
+# Configure CoreDNS to use the internal DNS resolver for upstream lookups.
 # Tight-memory test VMs can cause the k3s API server to flap briefly under
 # load, so wait for port 6443 and retry the kubectl calls instead of letting
 # one unlucky connection-refused fail the whole play.
@@ -195,16 +195,16 @@
   delay: 10
   until: current_corefile.rc == 0
 
-- name: Configure CoreDNS to use public DNS servers
+- name: Configure CoreDNS to use internal upstream DNS
   shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch configmap coredns -n kube-system --type merge -p '{
       "data": {
-        "Corefile": ".:53 {\n    errors\n    health\n    ready\n    kubernetes cluster.local in-addr.arpa ip6.arpa {\n      pods insecure\n      fallthrough in-addr.arpa ip6.arpa\n    }\n    hosts /etc/coredns/NodeHosts {\n      ttl 60\n      reload 15s\n      fallthrough\n    }\n    prometheus :9153\n    forward . 1.1.1.1 8.8.8.8\n    cache 30\n    loop\n    reload\n    loadbalance\n    import /etc/coredns/custom/*.override\n}\nimport /etc/coredns/custom/*.server"
+        "Corefile": ".:53 {\n    errors\n    health\n    ready\n    kubernetes cluster.local in-addr.arpa ip6.arpa {\n      pods insecure\n      fallthrough in-addr.arpa ip6.arpa\n    }\n    hosts /etc/coredns/NodeHosts {\n      ttl 60\n      reload 15s\n      fallthrough\n    }\n    prometheus :9153\n    forward . {{ coredns_upstream_nameservers | join(' ') }}\n    cache 30\n    loop\n    reload\n    loadbalance\n    import /etc/coredns/custom/*.override\n}\nimport /etc/coredns/custom/*.server"
       }
     }'
   become: yes
   register: coredns_patch_result
-  when: "'forward . 1.1.1.1 8.8.8.8' not in (current_corefile.stdout | default(''))"
+  when: "'forward . ' ~ (coredns_upstream_nameservers | join(' ')) not in (current_corefile.stdout | default(''))"
   changed_when: coredns_patch_result.rc == 0
   retries: 5
   delay: 10
@@ -235,7 +235,7 @@
   debug:
     msg: |
       🌐 CoreDNS Configuration:
-      {{ '✅ Updated to use public DNS servers (1.1.1.1, 8.8.8.8) for external lookups' if coredns_patch_result.changed | default(false) else 'ℹ️  CoreDNS already configured correctly' }}
+      {{ '✅ Updated to use internal upstream DNS (' ~ (coredns_upstream_nameservers | join(', ')) ~ ')' if coredns_patch_result.changed | default(false) else 'ℹ️  CoreDNS already configured correctly' }}
 
-      🔍 This ensures ACME DNS challenges work properly for Let's Encrypt certificates
-      📋 Internal cluster DNS (.cluster.local) continues to work normally
+      🔍 This keeps pod DNS aligned with node DNS for split-horizon/internal records
+      📋 Traefik ACME still uses traefik_external_nameservers for external DNS challenges
