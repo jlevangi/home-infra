@@ -5,13 +5,10 @@ variable "ssh_key" {
   sensitive   = true
   # No default - must be set in terraform.tfvars
 }
-#Establish which Proxmox host you'd like to spin a VM up on
 variable "proxmox_hosts" {
-  description = "List of Proxmox hosts"
-  #type        = list(string) # Uncomment to use the list below when using shared storage.
-  type        = string
-  #default     = ["pve2"] # Used to cycle through Proxmox Nodes. Will go: 1--> 2--> 3--> 1...
-  default     = "pve2"
+  description = "Proxmox target nodes per worker VM (worker-1 -> hosts[0], worker-2 -> hosts[1], worker-3 -> hosts[2])."
+  type        = list(string)
+  default     = ["pve1", "pve2", "pve3"]
 }
 
 # Specify VM Name(s)

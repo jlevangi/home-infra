@@ -30,9 +30,8 @@ provider "proxmox" {
 resource "proxmox_vm_qemu" "terraform" {
 #  name = var.vm_name
   name = "${var.vm_name}-${count.index + 1}"		    # VM Name + number created
-  count = var.vm_count                              # Establishes how many instances will be created 
-  # target_node = element(var.proxmox_hosts, count.index % length(var.proxmox_hosts)) Uncomment when using a list of Proxmox nodes using Shared Storage.
-  target_node = var.proxmox_hosts
+  count = var.vm_count                              # Establishes how many instances will be created
+  target_node = element(var.proxmox_hosts, count.index)
 
   # References our vars.tf file to plug in our template name
   clone = var.template_name
@@ -46,14 +45,14 @@ resource "proxmox_vm_qemu" "terraform" {
   
   # CPU configuration for v3.x
   cpu {
-    cores = 12
+    cores = 10
     sockets = 1
     type = "host"
     numa = true
   }
 
-  memory = 24576
-  balloon = 24576
+  memory = 22528
+  balloon = 22528
   scsihw = "virtio-scsi-pci"
   bootdisk = "scsi0"
   
@@ -65,12 +64,10 @@ resource "proxmox_vm_qemu" "terraform" {
   }
 
   disk {
-    slot = "scsi0"  # Must be string format like 'scsi0' not numeric
-    size = "160G"    # Matches the expanded prod VM root disks
-    type = "disk"   # Must be 'disk', 'cdrom', 'cloudinit', or 'ignore'
-    storage = "vm_data" # Name of storage local to the host you are spinning the VM up on
-    # SSD and discard options may not be available in v3.x - removed for compatibility
-    #iothread = 1
+    slot = "scsi0"
+    size = "128G"
+    type = "disk"
+    storage = "vm_data"
   }
 
   network {
