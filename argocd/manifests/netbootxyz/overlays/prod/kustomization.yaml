@@ -16,6 +16,13 @@ patches:
         value:
           kubernetes.io/hostname: k3s-prod-worker-2
   - target:
+      kind: PersistentVolumeClaim
+      name: netbootxyz-data-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: netbootxyz-data-pv
+  - target:
       kind: Ingress
       name: netbootxyz-ingress
     patch: |

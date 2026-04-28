@@ -7,6 +7,13 @@ images:
     newTag: "0.27.1"
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: memos-data-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: memos-data-pv
+  - target:
       kind: Ingress
       name: memos-ingress
     patch: |
