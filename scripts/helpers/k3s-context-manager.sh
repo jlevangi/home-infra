@@ -16,10 +16,90 @@ _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _PROJECT_ROOT="$(cd "$_SCRIPT_DIR/../.." && pwd)"
 
 CLUSTERS=(
-    "prod:172.20.20.101"
-    "stage:172.20.20.111"
-    "test:172.20.20.121"
+    "prod"
+    "stage"
+    "test"
 )
+
+get_inventory_dir() {
+    local cluster_name="$1"
+
+    case "$cluster_name" in
+        prod)  echo "production" ;;
+        stage) echo "staging" ;;
+        *)     echo "$cluster_name" ;;
+    esac
+}
+
+get_master_group() {
+    local cluster_name="$1"
+    echo "k3s_cluster_${cluster_name}_master"
+}
+
+get_master_node() {
+    local cluster_name="$1"
+    local inv_dir
+    inv_dir=$(get_inventory_dir "$cluster_name")
+    local inv_file="$_PROJECT_ROOT/ansible/inventories/$inv_dir/hosts.yml"
+    local master_group
+    master_group=$(get_master_group "$cluster_name")
+
+    if [ ! -f "$inv_file" ]; then
+        echo ""
+        return 1
+    fi
+
+    python3 - "$inv_file" "$master_group" <<'PY'
+import sys
+
+inventory_path, master_group = sys.argv[1], sys.argv[2]
+
+with open(inventory_path, "r", encoding="utf-8") as fh:
+    lines = fh.readlines()
+
+in_group = False
+in_hosts = False
+group_indent = None
+hosts_indent = None
+
+for raw_line in lines:
+    line = raw_line.rstrip("\n")
+    stripped = line.strip()
+
+    if not stripped or stripped.startswith("#"):
+        continue
+
+    indent = len(raw_line) - len(raw_line.lstrip(" "))
+
+    if stripped == f"{master_group}:":
+        in_group = True
+        in_hosts = False
+        group_indent = indent
+        hosts_indent = None
+        continue
+
+    if in_group and indent <= group_indent and stripped.endswith(":"):
+        in_group = False
+        in_hosts = False
+
+    if not in_group:
+        continue
+
+    if stripped == "hosts:":
+        in_hosts = True
+        hosts_indent = indent
+        continue
+
+    if in_hosts and indent <= hosts_indent and stripped.endswith(":"):
+        continue
+
+    if in_hosts and stripped.startswith("ansible_host:"):
+        print(stripped.split(":", 1)[1].strip())
+        sys.exit(0)
+
+sys.exit(1)
+PY
+}
 
 # Derive the SSH user for a given cluster by mirroring Ansible's own
 # precedence: inventory ansible_user overrides ansible.cfg remote_user.
@@ -29,11 +109,7 @@ get_ssh_user() {
 
     # Map short cluster name to inventory directory
     local inv_dir
-    case "$cluster_name" in
-        prod)  inv_dir="production" ;;
-        stage) inv_dir="staging" ;;
-        *)     inv_dir="$cluster_name" ;;
-    esac
+    inv_dir=$(get_inventory_dir "$cluster_name")
 
     local inv_file="$_PROJECT_ROOT/ansible/inventories/$inv_dir/hosts.yml"
 
@@ -254,8 +330,14 @@ function setup_all_clusters() {
     local success_count=0
     local total_count=${#CLUSTERS[@]}
     
-    for cluster_config in "${CLUSTERS[@]}"; do
-        IFS=':' read -r cluster_name master_node <<< "$cluster_config"
+    for cluster_name in "${CLUSTERS[@]}"; do
+        local master_node
+        master_node=$(get_master_node "$cluster_name")
+        if [ -z "$master_node" ]; then
+            echo -e "${RED}❌ Could not determine control-plane IP for $cluster_name from inventory${NC}"
+            echo ""
+            continue
+        fi
         local master_user
         master_user=$(get_ssh_user "$cluster_name")
 
@@ -286,8 +368,7 @@ function setup_all_clusters() {
 function switch_context() {
     if [ -z "$1" ]; then
         echo "Available clusters:"
-        for cluster_config in "${CLUSTERS[@]}"; do
-            IFS=':' read -r cluster_name master_node <<< "$cluster_config"
+        for cluster_name in "${CLUSTERS[@]}"; do
             echo "  $cluster_name"
         done
         echo ""
@@ -332,8 +413,13 @@ function cleanup_all_known_hosts() {
     
     local cleaned_count=0
     
-    for cluster_config in "${CLUSTERS[@]}"; do
-        IFS=':' read -r cluster_name master_node <<< "$cluster_config"
+    for cluster_name in "${CLUSTERS[@]}"; do
+        local master_node
+        master_node=$(get_master_node "$cluster_name")
+        if [ -z "$master_node" ]; then
+            echo -e "${RED}❌ Could not determine control-plane IP for $cluster_name from inventory${NC}"
+            continue
+        fi
 
         echo -e "${YELLOW}Processing $cluster_name cluster ($master_node)...${NC}"
         cleanup_known_hosts "$master_node" "$cluster_name"
