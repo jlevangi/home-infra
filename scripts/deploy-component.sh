@@ -346,8 +346,9 @@ show_verification() {
             echo "  kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d; echo"
             ;;
         vault)
-            echo "  kubectl get pods -n vault"
-            echo "  kubectl exec -n vault vault-0 -- vault status"
+            echo "  kubectl get pods -A -l app.kubernetes.io/name=vault"
+            echo "  kubectl exec -n <vault-namespace> <vault-pod> -- vault status"
+            echo "  # Prod defaults: namespace vault-raft, pod vault-raft-0"
             echo "  kubectl get externalsecrets -A"
             ;;
         *)

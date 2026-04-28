@@ -127,7 +127,7 @@ kubectl -n longhorn-system get replicas.longhorn.io
 
 ```bash
 kubectl -n argocd get applications
-kubectl -n vault get pods
+kubectl -n vault-raft get pods
 kubectl -n external-secrets get pods
 kubectl get clustersecretstore
 ```

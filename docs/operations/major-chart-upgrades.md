@@ -106,14 +106,28 @@ Gatus uses a single RWO PVC. Set prod Gatus to `deployment.strategy: Recreate` b
 
 ## Vault
 
-Vault chart `0.32.0` updates the StatefulSet template to Vault `1.21.2`, but the chart uses `OnDelete`, so the pod does not restart automatically. After syncing the chart:
+Prod Vault now runs as a 3-node Raft StatefulSet in namespace `vault-raft`. The chart still uses `OnDelete`, so the pods do not roll automatically after a chart sync. After syncing the chart:
 
 1. Confirm the StatefulSet template image and update revision changed.
-2. Delete `vault-0` during the maintenance window.
-3. Run the maintenance unseal/auth-refresh playbook:
+2. Restart follower pods one at a time, waiting for each to return before moving on:
+   ```bash
+   kubectl --context k3s-prod delete pod -n vault-raft vault-raft-2
+   kubectl --context k3s-prod delete pod -n vault-raft vault-raft-1
+   ```
+3. Restart the leader last:
+   ```bash
+   kubectl --context k3s-prod delete pod -n vault-raft vault-raft-0
+   ```
+4. If any pod comes back sealed, run the maintenance unseal/auth-refresh playbook:
    ```bash
    ANSIBLE_LOCAL_TEMP=/tmp/ansible-tmp ANSIBLE_REMOTE_TEMP=/tmp/ansible-tmp \
      ansible-playbook ansible/playbooks/maintenance/vault-unseal.yml \
      -e kubectl_context=k3s-prod
    ```
-4. Verify Vault is unsealed, `vault-kv` is `Valid`, and all ExternalSecrets are `SecretSynced`.
+5. Verify Raft health, `vault-kv` readiness, and External Secrets recovery:
+   ```bash
+   kubectl --context k3s-prod exec -n vault-raft vault-raft-0 -- \
+     sh -ec 'VAULT_ADDR="http://vault-raft.vault-raft.svc:8200" vault operator raft list-peers'
+   kubectl --context k3s-prod get clustersecretstore vault-kv
+   kubectl --context k3s-prod get externalsecrets -A
+   ```

@@ -25,3 +25,17 @@ enabled_apps:
 
 force_redeploy_apps:
   - homepage
+
+# -----------------------------------------------------------------------------
+# VAULT HA (prod-only)
+# -----------------------------------------------------------------------------
+vault_namespace: "vault-raft"
+vault_statefulset_name: "vault-raft"
+vault_pod_name: "vault-raft-0"
+vault_primary_pod_name: "vault-raft-0"
+vault_service_name: "vault-raft"
+vault_active_service_name: "vault-raft-active"
+vault_internal_service_name: "vault-raft-internal"
+vault_ha_enabled: true
+vault_raft_enabled: true
+vault_replica_count: 3
