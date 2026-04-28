@@ -98,6 +98,11 @@ traefik_external_nameservers:
   - "8.8.8.8"
 traefik_dns_ndots: "2"
 
+# CoreDNS should use internal DNS so in-cluster workloads can resolve
+# split-horizon/internal records the same way cluster nodes do.
+coredns_upstream_nameservers:
+  - "172.20.20.4"
+
 # -----------------------------------------------------------------------------
 # DNS MANAGEMENT
 # -----------------------------------------------------------------------------
