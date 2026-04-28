@@ -190,6 +190,7 @@
       when:
         - restore_action == 'restore'
         - volumes_to_restore | length > 0
+        - not (skip_confirm | default(false) | bool)
       run_once: true
 
     - name: Restore each volume
@@ -206,6 +207,7 @@
       when:
         - restore_action == 'restore'
         - volumes_to_restore | length > 0
+      run_once: true
 
     # =========================================================================
     # SUMMARY
