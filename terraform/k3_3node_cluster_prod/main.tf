@@ -51,8 +51,8 @@ resource "proxmox_vm_qemu" "terraform" {
     numa = true
   }
 
-  memory = 22528
-  balloon = 22528
+  memory = 20480
+  balloon = 20480
   scsihw = "virtio-scsi-pci"
   bootdisk = "scsi0"
   
