@@ -1,0 +1,57 @@
+---
+# Deploy the root Application only after Vault bootstrap has configured
+# Kubernetes auth and the ESO role/policy. Otherwise the first sync can reach
+# ExternalSecret consumers before vault-kv is usable.
+
+- name: Deploy root ArgoCD application for environment
+  shell: |
+    export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
+    echo "Deploying root-{{ cluster_environment }} Application from {{ argocd_target_revision }} at argocd/apps/{{ cluster_environment }}..."
+    kubectl apply -f - <<'EOF'
+    apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: root-{{ cluster_environment }}
+      namespace: argocd
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: default
+      source:
+        repoURL: git@github.com:jlevangi/home-infra.git
+        targetRevision: {{ argocd_target_revision }}
+        path: argocd/apps/{{ cluster_environment }}
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: argocd
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+    EOF
+  register: argocd_root_app_result
+  when:
+    - inventory_hostname == groups[master_group][0]
+    - argocd_deploy_root_app | default(true)
+
+- name: Wait for root Application to sync
+  shell: |
+    export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
+    # Wait up to 2 minutes for the root app to sync
+    for i in $(seq 1 24); do
+      STATUS=$(kubectl get application root-{{ cluster_environment }} -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "Unknown")
+      if [ "$STATUS" = "Synced" ]; then
+        echo "Root application synced successfully"
+        exit 0
+      fi
+      echo "Waiting for root application to sync... (status: $STATUS)"
+      sleep 5
+    done
+    echo "WARNING: Root application not yet synced after 2 minutes"
+    kubectl get application root-{{ cluster_environment }} -n argocd -o yaml
+  when:
+    - inventory_hostname == groups[master_group][0]
+    - argocd_deploy_root_app | default(true)
+  ignore_errors: yes
