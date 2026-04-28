@@ -51,6 +51,7 @@ spec:
           dataStorage:
             enabled: true
             size: 5Gi
+            storageClass: longhorn-vault-raft
           affinity: |
             podAntiAffinity:
               requiredDuringSchedulingIgnoredDuringExecution:
