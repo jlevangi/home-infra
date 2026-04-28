@@ -45,7 +45,7 @@ spec:
               traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
               external-dns.alpha.kubernetes.io/target: k3s-prod.levangie.dev
             hosts:
-              - host: vault.levangie.dev
+              - host: vault-old.levangie.dev
                 paths:
                   - /
   destination:
