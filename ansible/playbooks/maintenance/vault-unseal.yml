@@ -120,7 +120,6 @@
         kubectl --context {{ kubectl_context }} get secret {{ vault_init_secret_name }}
         -n {{ vault_namespace }} -o json
       register: vault_init_secret_raw
-      when: vault_sealed | default(true)
       no_log: true
       when: vault_sealed | default(true)
 
