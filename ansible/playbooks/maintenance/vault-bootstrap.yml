@@ -1,0 +1,304 @@
+---
+# Bootstrap a Vault deployment that already exists in-cluster.
+#
+# This is intended for controlled maintenance operations such as standing up a
+# temporary Raft-backed cluster alongside the current production Vault.
+#
+# Usage:
+#   ansible-playbook ansible/playbooks/maintenance/vault-bootstrap.yml \
+#     -e "kubectl_context=k3s-prod \
+#         vault_namespace=vault-raft \
+#         vault_statefulset_name=vault-raft \
+#         vault_internal_service_name=vault-raft-internal \
+#         vault_service_name=vault-raft \
+#         vault_ha_enabled=true \
+#         vault_raft_enabled=true \
+#         vault_replica_count=3"
+
+- name: Bootstrap Vault in place
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    vault_namespace: "vault"
+    vault_statefulset_name: "vault"
+    vault_primary_pod_name: "{{ vault_statefulset_name }}-0"
+    vault_internal_service_name: "vault-internal"
+    vault_service_name: "vault"
+    vault_init_secret_name: "vault-init"
+    vault_ha_enabled: false
+    vault_raft_enabled: false
+    vault_replica_count: 1
+    vault_kv_path: "kv"
+    vault_api_addr: "{{ 'http://' + vault_service_name + '.' + vault_namespace + '.svc:8200' if vault_ha_enabled else 'http://127.0.0.1:8200' }}"
+    vault_raft_join_address: "http://{{ vault_primary_pod_name }}.{{ vault_internal_service_name }}:8200"
+    external_secrets_namespace: "external-secrets"
+    external_secrets_service_account: "external-secrets"
+    vault_external_secrets_policy: "external-secrets"
+    vault_external_secrets_role: "external-secrets"
+
+  pre_tasks:
+    - name: Assert kubectl_context is provided
+      ansible.builtin.assert:
+        that:
+          - kubectl_context is defined
+          - kubectl_context | length > 0
+        fail_msg: "kubectl_context is required (for example: k3s-prod)"
+
+  tasks:
+    - name: Set Vault topology facts
+      ansible.builtin.set_fact:
+        vault_expected_replicas: "{{ (vault_replica_count | int) if (vault_ha_enabled | default(false)) else 1 }}"
+
+    - name: Wait for Vault StatefulSet to exist
+      shell: >
+        kubectl --context {{ kubectl_context }} get statefulset {{ vault_statefulset_name }}
+        -n {{ vault_namespace }}
+      register: vault_sts_check
+      retries: 30
+      delay: 10
+      until: vault_sts_check.rc == 0
+      changed_when: false
+
+    - name: Wait for expected number of Vault pods
+      shell: >
+        kubectl --context {{ kubectl_context }} get pod
+        -l app.kubernetes.io/name=vault -n {{ vault_namespace }}
+        -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | sed '/^$/d' | wc -l
+      register: vault_pod_count
+      retries: 30
+      delay: 10
+      until: (vault_pod_count.stdout | int) >= (vault_expected_replicas | int)
+      changed_when: false
+
+    - name: Discover Vault pod names
+      shell: >
+        kubectl --context {{ kubectl_context }} get pod
+        -l app.kubernetes.io/name=vault -n {{ vault_namespace }}
+        -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | sed '/^$/d' | sort
+      register: vault_pod_lookup
+      changed_when: false
+
+    - name: Set Vault pod lists
+      ansible.builtin.set_fact:
+        vault_pod_names: "{{ vault_pod_lookup.stdout_lines | select('length') | list }}"
+        vault_follower_pod_names: "{{ (vault_pod_lookup.stdout_lines | select('length') | list)[1:] if (vault_ha_enabled | default(false)) else [] }}"
+
+    - name: Wait for Vault pods to be Running
+      shell: >
+        kubectl --context {{ kubectl_context }} get pod {{ item }}
+        -n {{ vault_namespace }} -o jsonpath='{.status.phase}'
+      register: vault_pod_phase
+      retries: 20
+      delay: 15
+      until: vault_pod_phase.stdout == "Running"
+      changed_when: false
+      loop: "{{ vault_pod_names }}"
+
+    - name: Wait for Vault CLI to respond
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ vault_primary_pod_name }} -- sh -c 'vault status -format=json || true'
+      register: vault_status_raw
+      retries: 30
+      delay: 10
+      until: vault_status_raw.stdout | length > 0
+      failed_when: false
+      changed_when: false
+
+    - name: Parse Vault status
+      ansible.builtin.set_fact:
+        vault_initialized: "{{ (vault_status_raw.stdout | from_json).initialized | default(false) }}"
+        vault_sealed: "{{ (vault_status_raw.stdout | from_json).sealed | default(true) }}"
+
+    - name: Initialize Vault
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ vault_primary_pod_name }} -- vault operator init -format=json
+      register: vault_init_result
+      when: not (vault_initialized | default(false))
+      no_log: true
+
+    - name: Parse Vault init data from init output
+      ansible.builtin.set_fact:
+        vault_root_token: "{{ (vault_init_result.stdout | from_json).root_token }}"
+        vault_unseal_keys: "{{ (vault_init_result.stdout | from_json).unseal_keys_b64 }}"
+      when:
+        - vault_init_result is defined
+        - vault_init_result.rc is defined
+        - vault_init_result.rc == 0
+        - vault_init_result.stdout | length > 0
+      no_log: true
+
+    - name: Store Vault init data in cluster secret
+      shell: >
+        kubectl --context {{ kubectl_context }} create secret generic {{ vault_init_secret_name }}
+        --namespace {{ vault_namespace }}
+        --from-literal=root-token='{{ vault_root_token }}'
+        --from-literal=unseal-key-1='{{ vault_unseal_keys[0] }}'
+        --from-literal=unseal-key-2='{{ vault_unseal_keys[1] }}'
+        --from-literal=unseal-key-3='{{ vault_unseal_keys[2] }}'
+        --dry-run=client -o yaml | kubectl --context {{ kubectl_context }} apply -f -
+      when:
+        - vault_root_token is defined
+        - vault_unseal_keys is defined
+      no_log: true
+
+    - name: Read stored Vault init secret when init output is unavailable
+      shell: >
+        kubectl --context {{ kubectl_context }} get secret {{ vault_init_secret_name }}
+        -n {{ vault_namespace }} -o json
+      register: vault_init_secret_raw
+      when: vault_root_token is not defined
+      no_log: true
+
+    - name: Parse Vault init secret
+      ansible.builtin.set_fact:
+        vault_root_token: "{{ (vault_init_secret_raw.stdout | from_json).data['root-token'] | b64decode }}"
+        vault_unseal_keys:
+          - "{{ (vault_init_secret_raw.stdout | from_json).data['unseal-key-1'] | b64decode }}"
+          - "{{ (vault_init_secret_raw.stdout | from_json).data['unseal-key-2'] | b64decode }}"
+          - "{{ (vault_init_secret_raw.stdout | from_json).data['unseal-key-3'] | b64decode }}"
+      when:
+        - vault_root_token is not defined
+        - vault_init_secret_raw.stdout | length > 0
+      no_log: true
+
+    - name: Unseal primary Vault pod
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ vault_primary_pod_name }} -- vault operator unseal '{{ item }}'
+      loop: "{{ vault_unseal_keys }}"
+      failed_when: false
+      when: vault_sealed | default(true)
+      no_log: true
+
+    - name: Verify primary Vault pod is unsealed
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ vault_primary_pod_name }} -- vault status -format=json
+      register: vault_post_unseal
+      retries: 5
+      delay: 5
+      until: vault_post_unseal.rc == 0 and not (vault_post_unseal.stdout | from_json).sealed
+      changed_when: false
+
+    - name: Join follower Vault pods to the Raft cluster
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ item }} -- sh -ec 'vault operator raft join {{ vault_raft_join_address }} || true'
+      loop: "{{ vault_follower_pod_names | default([]) }}"
+      failed_when: false
+      when:
+        - vault_ha_enabled | default(false)
+        - vault_raft_enabled | default(false)
+        - (vault_follower_pod_names | default([])) | length > 0
+
+    - name: Unseal follower Vault pods
+      shell: |
+        {% for key in vault_unseal_keys %}
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }} {{ item }} -- vault operator unseal '{{ key }}' >/dev/null 2>&1 || true
+        {% endfor %}
+      loop: "{{ vault_follower_pod_names | default([]) }}"
+      when:
+        - vault_ha_enabled | default(false)
+        - vault_raft_enabled | default(false)
+        - (vault_follower_pod_names | default([])) | length > 0
+      no_log: true
+
+    - name: Verify follower Vault pods are initialized and unsealed
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ item }} -- vault status -format=json
+      register: vault_follower_status
+      retries: 10
+      delay: 5
+      until:
+        - vault_follower_status.rc == 0
+        - (vault_follower_status.stdout | from_json).initialized
+        - not (vault_follower_status.stdout | from_json).sealed
+      changed_when: false
+      loop: "{{ vault_follower_pod_names | default([]) }}"
+      when:
+        - vault_ha_enabled | default(false)
+        - vault_raft_enabled | default(false)
+        - (vault_follower_pod_names | default([])) | length > 0
+
+    - name: Login to Vault
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ vault_primary_pod_name }} -- sh -ec 'VAULT_ADDR="{{ vault_api_addr }}" vault login "{{ vault_root_token }}"'
+      changed_when: false
+      no_log: true
+
+    - name: Enable KV v2 secrets engine
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ vault_primary_pod_name }} -- sh -ec 'VAULT_ADDR="{{ vault_api_addr }}" vault secrets enable -path={{ vault_kv_path }} kv-v2'
+      register: vault_kv_enable
+      failed_when: false
+      changed_when: "'already exists' not in (vault_kv_enable.stderr | default(''))"
+
+    - name: Enable Kubernetes auth
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ vault_primary_pod_name }} -- sh -ec 'VAULT_ADDR="{{ vault_api_addr }}" vault auth enable kubernetes'
+      register: vault_auth_enable
+      failed_when: false
+      changed_when: "'already exists' not in (vault_auth_enable.stderr | default(''))"
+
+    - name: Configure Kubernetes auth
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ vault_primary_pod_name }} -- sh -ec '
+          VAULT_ADDR="{{ vault_api_addr }}" vault write auth/kubernetes/config
+            token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
+            kubernetes_host="https://kubernetes.default.svc:443"
+            kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            disable_local_ca_jwt=false
+            disable_iss_validation=true'
+      register: vault_auth_config
+      changed_when: vault_auth_config.rc == 0
+
+    - name: Create ESO policy
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ vault_primary_pod_name }} -- sh -ec 'cat <<"POLICY" | VAULT_ADDR="{{ vault_api_addr }}" vault policy write {{ vault_external_secrets_policy }} -
+        path "{{ vault_kv_path }}/data/prod/*" {
+          capabilities = ["read"]
+        }
+        path "{{ vault_kv_path }}/data/stage/*" {
+          capabilities = ["read"]
+        }
+        path "{{ vault_kv_path }}/data/test/*" {
+          capabilities = ["read"]
+        }
+        path "{{ vault_kv_path }}/data/talos-test/*" {
+          capabilities = ["read"]
+        }
+        POLICY'
+      register: vault_policy_write
+      changed_when: vault_policy_write.rc == 0
+
+    - name: Create ESO Kubernetes auth role
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ vault_primary_pod_name }} -- sh -ec 'VAULT_ADDR="{{ vault_api_addr }}" vault write auth/kubernetes/role/{{ vault_external_secrets_role }}
+        bound_service_account_names={{ external_secrets_service_account }}
+        bound_service_account_namespaces={{ external_secrets_namespace }}
+        policies={{ vault_external_secrets_policy }}
+        ttl=1h'
+      register: vault_role_write
+      changed_when: vault_role_write.rc == 0
+
+    - name: Display Vault bootstrap summary
+      ansible.builtin.debug:
+        msg: |
+          Vault bootstrap complete for {{ vault_namespace }}.
+
+          Retrieve the root token:
+            kubectl --context {{ kubectl_context }} get secret {{ vault_init_secret_name }} -n {{ vault_namespace }} -o jsonpath='{.data.root-token}' | base64 -d; echo
+
+          Verify raft peers:
+            kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }} {{ vault_primary_pod_name }} -- sh -ec 'VAULT_ADDR="{{ vault_api_addr }}" vault operator raft list-peers'
