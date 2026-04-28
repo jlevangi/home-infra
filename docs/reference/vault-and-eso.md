@@ -7,7 +7,7 @@ This guide bootstraps HashiCorp Vault (in-cluster) with Kubernetes auth and Exte
 Most of the setup is automated during cluster provisioning via Ansible (Vault init/unseal, auth config, and seeding app secrets). Manual steps are only needed if the automation is disabled or fails.
 
 ## Assumptions
-- Vault is deployed via ArgoCD `vault` Application (namespace: `vault`).
+- Production Vault is deployed via the ArgoCD `vault` Application as a 3-node Raft cluster in namespace `vault-raft`.
 - ESO is deployed via ArgoCD `external-secrets` Application (namespace: `external-secrets`).
 - ClusterSecretStore is applied via ArgoCD `external-secrets-config` Application.
 - Vault is running in dev/test mode for internal-only use (TLS disabled in chart values).
@@ -21,7 +21,7 @@ When `k3s_configure_vault: true`, the Ansible Vault role bootstraps:
 - the External Secrets policy and role
 - seed secrets from Ansible Vault values
 
-The automation stores the Vault root token and unseal keys in the `vault-init` secret in the `vault` namespace. Treat that secret as highly sensitive.
+The automation stores the Vault root token and unseal keys in the `vault-init` secret in the Vault namespace. In prod that namespace is `vault-raft`. Treat that secret as highly sensitive.
 
 ## ESO Version Rollout
 
@@ -49,46 +49,46 @@ Switch to the target cluster and let ArgoCD sync:
 Then sync the new ArgoCD apps via the ArgoCD UI or CLI.
 
 ## 2) Manual init/unseal (only if automation is disabled or failed)
-Get the Vault pod name:
+For prod, use the Raft leader pod:
 
 ```bash
-kubectl -n vault get pods
+kubectl -n vault-raft get pods
 ```
 
 Initialize Vault (this outputs unseal keys + root token):
 
 ```bash
-kubectl -n vault exec -it vault-0 -- vault operator init
+kubectl -n vault-raft exec -it vault-raft-0 -- vault operator init
 ```
 
 Unseal Vault (run 3 times with different unseal keys):
 
 ```bash
-kubectl -n vault exec -it vault-0 -- vault operator unseal
+kubectl -n vault-raft exec -it vault-raft-0 -- vault operator unseal
 ```
 
 Login with the root token:
 
 ```bash
-kubectl -n vault exec -it vault-0 -- vault login
+kubectl -n vault-raft exec -it vault-raft-0 -- vault login
 ```
 
 ## 3) Enable KV v2 secrets engine
 
 ```bash
-kubectl -n vault exec -it vault-0 -- vault secrets enable -path=kv kv-v2
+kubectl -n vault-raft exec -it vault-raft-0 -- vault secrets enable -path=kv kv-v2
 ```
 
 ## 4) Enable Kubernetes auth for ESO
 
 ```bash
-kubectl -n vault exec -it vault-0 -- vault auth enable kubernetes
+kubectl -n vault-raft exec -it vault-raft-0 -- vault auth enable kubernetes
 ```
 
 Configure Kubernetes auth in Vault:
 
 ```bash
-kubectl -n vault exec -it vault-0 -- sh -c '
+kubectl -n vault-raft exec -it vault-raft-0 -- sh -c '
   vault write auth/kubernetes/config \
     token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
     kubernetes_host="https://kubernetes.default.svc:443" \
@@ -99,7 +99,7 @@ kubectl -n vault exec -it vault-0 -- sh -c '
 Create a policy for ESO:
 
 ```bash
-kubectl -n vault exec -it vault-0 -- vault policy write external-secrets - <<'POLICY'
+kubectl -n vault-raft exec -it vault-raft-0 -- vault policy write external-secrets - <<'POLICY'
 path "kv/data/prod/*" {
   capabilities = ["read"]
 }
@@ -115,7 +115,7 @@ POLICY
 Create the Kubernetes auth role for ESO:
 
 ```bash
-kubectl -n vault exec -it vault-0 -- vault write auth/kubernetes/role/external-secrets \
+kubectl -n vault-raft exec -it vault-raft-0 -- vault write auth/kubernetes/role/external-secrets \
   bound_service_account_names=external-secrets \
   bound_service_account_namespaces=external-secrets \
   policies=external-secrets \
@@ -127,21 +127,21 @@ Map the existing Ansible vault values into Vault KV:
 
 ```bash
 # Vaultwarden
-kubectl -n vault exec -it vault-0 -- vault kv put kv/test/vaultwarden \
+kubectl -n vault-raft exec -it vault-raft-0 -- vault kv put kv/test/vaultwarden \
   ADMIN_TOKEN='YOUR_ARGON2_HASH' \
   SMTP_HOST='smtp.example.com' \
   SMTP_USERNAME='smtp-user' \
   SMTP_PASSWORD='smtp-pass'
 
 # Bookstack
-kubectl -n vault exec -it vault-0 -- vault kv put kv/test/bookstack \
+kubectl -n vault-raft exec -it vault-raft-0 -- vault kv put kv/test/bookstack \
   DB_PASS='your-db-pass' \
   MYSQL_ROOT_PASSWORD='your-root-pass' \
   MYSQL_PASSWORD='your-db-pass' \
   APP_KEY='base64:your-app-key'
 
 # PocketID
-kubectl -n vault exec -it vault-0 -- vault kv put kv/test/pocketid \
+kubectl -n vault-raft exec -it vault-raft-0 -- vault kv put kv/test/pocketid \
   encryption-key='your-pocketid-key'
 ```
 

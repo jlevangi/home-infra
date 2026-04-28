@@ -3,11 +3,11 @@ set -euo pipefail
 
 KUBECTL_CONTEXT="${KUBECTL_CONTEXT:-k3s-prod}"
 SOURCE_NAMESPACE="${SOURCE_NAMESPACE:-vault}"
-SOURCE_POD="${SOURCE_POD:-vault-0}"
+SOURCE_POD="${SOURCE_POD:-}"
 SOURCE_SECRET_NAME="${SOURCE_SECRET_NAME:-vault-init}"
 SOURCE_ADDR="${SOURCE_ADDR:-http://127.0.0.1:8200}"
 DEST_NAMESPACE="${DEST_NAMESPACE:-vault-raft}"
-DEST_POD="${DEST_POD:-vault-raft-0}"
+DEST_POD="${DEST_POD:-}"
 DEST_SECRET_NAME="${DEST_SECRET_NAME:-vault-init}"
 DEST_ADDR="${DEST_ADDR:-http://vault-raft.vault-raft.svc:8200}"
 KV_MOUNT="${KV_MOUNT:-kv}"
@@ -23,6 +23,28 @@ require_bin() {
 
 require_bin kubectl
 require_bin jq
+
+discover_pod() {
+  local namespace="$1"
+  local preferred="$2"
+  local pod_names
+
+  pod_names="$(kubectl --context "$KUBECTL_CONTEXT" get pod -n "$namespace" -l app.kubernetes.io/name=vault -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | sed '/^$/d' | sort)"
+  if [[ -n "$preferred" ]] && grep -qx "$preferred" <<<"$pod_names"; then
+    printf '%s\n' "$preferred"
+    return 0
+  fi
+
+  if [[ -z "$pod_names" ]]; then
+    echo "No Vault pods found in namespace $namespace on context $KUBECTL_CONTEXT" >&2
+    exit 1
+  fi
+
+  printf '%s\n' "$pod_names" | head -n1
+}
+
+SOURCE_POD="$(discover_pod "$SOURCE_NAMESPACE" "$SOURCE_POD")"
+DEST_POD="$(discover_pod "$DEST_NAMESPACE" "$DEST_POD")"
 
 SOURCE_TOKEN="$(kubectl --context "$KUBECTL_CONTEXT" get secret "$SOURCE_SECRET_NAME" -n "$SOURCE_NAMESPACE" -o jsonpath='{.data.root-token}' | base64 -d)"
 DEST_TOKEN="$(kubectl --context "$KUBECTL_CONTEXT" get secret "$DEST_SECRET_NAME" -n "$DEST_NAMESPACE" -o jsonpath='{.data.root-token}' | base64 -d)"

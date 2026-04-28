@@ -147,8 +147,8 @@ argocd_deploy_root_app: true         # Deploy root app-of-apps Application
 k3s_configure_vault: true
 vault_namespace: "vault"
 vault_statefulset_name: "vault"
-vault_pod_name: "vault-0"
 vault_primary_pod_name: "{{ vault_statefulset_name }}-0"
+vault_pod_name: "{{ vault_primary_pod_name }}"
 vault_service_name: "vault"
 vault_active_service_name: "vault-active"
 vault_internal_service_name: "vault-internal"

@@ -26,7 +26,21 @@
   gather_facts: false
 
   vars:
-    vault_namespace: "vault"
+    vault_context_overrides:
+      k3s-prod:
+        vault_namespace: "vault-raft"
+        vault_statefulset_name: "vault-raft"
+        vault_primary_pod_name: "vault-raft-0"
+        vault_service_name: "vault-raft"
+        vault_active_service_name: "vault-raft-active"
+        vault_internal_service_name: "vault-raft-internal"
+    vault_context_defaults: "{{ vault_context_overrides.get(kubectl_context | default(''), {}) }}"
+    vault_namespace: "{{ vault_context_defaults.vault_namespace | default('vault') }}"
+    vault_statefulset_name: "{{ vault_context_defaults.vault_statefulset_name | default(vault_service_name) }}"
+    vault_primary_pod_name: "{{ vault_context_defaults.vault_primary_pod_name | default(vault_statefulset_name + '-0') }}"
+    vault_service_name: "{{ vault_context_defaults.vault_service_name | default('vault') }}"
+    vault_active_service_name: "{{ vault_context_defaults.vault_active_service_name | default('vault-active') }}"
+    vault_internal_service_name: "{{ vault_context_defaults.vault_internal_service_name | default('vault-internal') }}"
     vault_init_secret_name: "vault-init"
     external_secrets_namespace: "external-secrets"
     # How long to wait for ExternalSecrets to resync after recovery
@@ -60,9 +74,9 @@
     - name: Set Vault pod facts
       set_fact:
         vault_pods: "{{ vault_pod_check.stdout_lines | select('length') | list }}"
-        vault_primary_pod: "{{ 'vault-0' if 'vault-0' in (vault_pod_check.stdout_lines | select('length') | list) else (vault_pod_check.stdout_lines | select('length') | list | first) }}"
+        vault_primary_pod: "{{ vault_primary_pod_name if vault_primary_pod_name in (vault_pod_check.stdout_lines | select('length') | list) else (vault_pod_check.stdout_lines | select('length') | list | first) }}"
         vault_follower_pods: "{{ (vault_pod_check.stdout_lines | select('length') | list)[1:] if (vault_pod_check.stdout_lines | select('length') | list | length) > 1 else [] }}"
-        vault_api_addr: "{{ 'http://vault.vault.svc:8200' if (vault_pod_check.stdout_lines | select('length') | list | length) > 1 else 'http://127.0.0.1:8200' }}"
+        vault_api_addr: "{{ 'http://' + vault_active_service_name + '.' + vault_namespace + '.svc:8200' if (vault_pod_check.stdout_lines | select('length') | list | length) > 1 else 'http://127.0.0.1:8200' }}"
 
     - name: Wait for Vault pods to be Running
       shell: >
@@ -137,7 +151,7 @@
     - name: Join follower Vault pods to the Raft cluster
       shell: >
         kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
-        {{ item }} -- sh -ec 'vault operator raft join http://{{ vault_primary_pod }}.vault-internal:8200 || true'
+        {{ item }} -- sh -ec 'vault operator raft join http://{{ vault_primary_pod }}.{{ vault_internal_service_name }}:8200 || true'
       loop: "{{ vault_follower_pods }}"
       failed_when: false
       when:

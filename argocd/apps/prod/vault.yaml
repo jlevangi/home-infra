@@ -14,6 +14,7 @@ spec:
     chart: vault
     targetRevision: 0.32.0
     helm:
+      releaseName: vault-raft
       values: |
         global:
           enabled: true
@@ -42,7 +43,7 @@ spec:
                   path = "/vault/data"
 
                   retry_join {
-                    leader_api_addr = "http://vault-0.vault-internal:8200"
+                    leader_api_addr = "http://vault-raft-0.vault-raft-internal:8200"
                   }
                 }
 
@@ -52,12 +53,13 @@ spec:
           dataStorage:
             enabled: true
             size: 5Gi
+            storageClass: longhorn-vault-raft
           affinity: |
             podAntiAffinity:
               requiredDuringSchedulingIgnoredDuringExecution:
                 - labelSelector:
                     matchLabels:
-                      app.kubernetes.io/instance: vault
+                      app.kubernetes.io/instance: vault-raft
                       app.kubernetes.io/name: vault
                       component: server
                   topologyKey: kubernetes.io/hostname
@@ -67,7 +69,7 @@ spec:
               whenUnsatisfiable: DoNotSchedule
               labelSelector:
                 matchLabels:
-                  app.kubernetes.io/instance: vault
+                  app.kubernetes.io/instance: vault-raft
                   app.kubernetes.io/name: vault
                   component: server
           livenessProbe:
@@ -94,7 +96,7 @@ spec:
                   - /
   destination:
     server: https://kubernetes.default.svc
-    namespace: vault
+    namespace: vault-raft
   syncPolicy:
     automated:
       prune: true

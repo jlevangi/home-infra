@@ -1,19 +1,13 @@
 ---
 # Bootstrap a Vault deployment that already exists in-cluster.
 #
-# This is intended for controlled maintenance operations such as standing up a
-# temporary Raft-backed cluster alongside the current production Vault.
+# In prod, this auto-targets the canonical Raft deployment in `vault-raft`
+# when `kubectl_context=k3s-prod` is used. Override the vars below only when
+# bootstrapping a non-default namespace or a temporary migration target.
 #
 # Usage:
 #   ansible-playbook ansible/playbooks/maintenance/vault-bootstrap.yml \
-#     -e "kubectl_context=k3s-prod \
-#         vault_namespace=vault-raft \
-#         vault_statefulset_name=vault-raft \
-#         vault_internal_service_name=vault-raft-internal \
-#         vault_service_name=vault-raft \
-#         vault_ha_enabled=true \
-#         vault_raft_enabled=true \
-#         vault_replica_count=3"
+#     -e "kubectl_context=k3s-prod"
 
 - name: Bootstrap Vault in place
   hosts: localhost
@@ -21,15 +15,28 @@
   gather_facts: false
 
   vars:
-    vault_namespace: "vault"
-    vault_statefulset_name: "vault"
-    vault_primary_pod_name: "{{ vault_statefulset_name }}-0"
-    vault_internal_service_name: "vault-internal"
-    vault_service_name: "vault"
+    vault_context_overrides:
+      k3s-prod:
+        vault_namespace: "vault-raft"
+        vault_statefulset_name: "vault-raft"
+        vault_primary_pod_name: "vault-raft-0"
+        vault_internal_service_name: "vault-raft-internal"
+        vault_service_name: "vault-raft"
+        vault_active_service_name: "vault-raft-active"
+        vault_ha_enabled: true
+        vault_raft_enabled: true
+        vault_replica_count: 3
+    vault_context_defaults: "{{ vault_context_overrides.get(kubectl_context | default(''), {}) }}"
+    vault_namespace: "{{ vault_context_defaults.vault_namespace | default('vault') }}"
+    vault_statefulset_name: "{{ vault_context_defaults.vault_statefulset_name | default('vault') }}"
+    vault_primary_pod_name: "{{ vault_context_defaults.vault_primary_pod_name | default(vault_statefulset_name + '-0') }}"
+    vault_internal_service_name: "{{ vault_context_defaults.vault_internal_service_name | default('vault-internal') }}"
+    vault_service_name: "{{ vault_context_defaults.vault_service_name | default('vault') }}"
+    vault_active_service_name: "{{ vault_context_defaults.vault_active_service_name | default('vault-active') }}"
     vault_init_secret_name: "vault-init"
-    vault_ha_enabled: false
-    vault_raft_enabled: false
-    vault_replica_count: 1
+    vault_ha_enabled: "{{ vault_context_defaults.vault_ha_enabled | default(false) }}"
+    vault_raft_enabled: "{{ vault_context_defaults.vault_raft_enabled | default(false) }}"
+    vault_replica_count: "{{ vault_context_defaults.vault_replica_count | default(1) }}"
     vault_kv_path: "kv"
     vault_api_addr: "{{ 'http://' + vault_service_name + '.' + vault_namespace + '.svc:8200' if vault_ha_enabled else 'http://127.0.0.1:8200' }}"
     vault_raft_join_address: "http://{{ vault_primary_pod_name }}.{{ vault_internal_service_name }}:8200"
