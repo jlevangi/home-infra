@@ -4,3 +4,11 @@ resources:
   - ../../base
 commonLabels:
   environment: prod
+patches:
+  - target:
+      kind: ClusterSecretStore
+      name: vault-kv
+    patch: |-
+      - op: replace
+        path: /spec/provider/vault/server
+        value: http://vault-raft.vault-raft.svc:8200
