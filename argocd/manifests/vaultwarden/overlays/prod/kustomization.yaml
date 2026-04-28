@@ -8,6 +8,13 @@ images:
 # Prod uses base values (vw.levangie.dev) - no patches needed
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: vaultwarden-data-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: vaultwarden-data-pv
+  - target:
       kind: Ingress
       name: vaultwarden-ingress
     patch: |

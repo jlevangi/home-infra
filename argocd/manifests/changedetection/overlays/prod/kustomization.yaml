@@ -4,6 +4,13 @@ resources:
   - ../../base
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: changedetection-data-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: changedetection-data-pv
+  - target:
       kind: Ingress
       name: changedetection-ingress
     patch: |

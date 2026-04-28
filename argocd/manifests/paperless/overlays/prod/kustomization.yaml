@@ -17,6 +17,9 @@ patches:
       - op: replace
         path: /spec/resources/requests/storage
         value: 5Gi
+      - op: replace
+        path: /spec/volumeName
+        value: paperless-data-pv
   - target:
       kind: PersistentVolumeClaim
       name: paperless-media-pvc
@@ -24,6 +27,9 @@ patches:
       - op: replace
         path: /spec/resources/requests/storage
         value: 10Gi
+      - op: replace
+        path: /spec/volumeName
+        value: paperless-media-pv
   - target:
       kind: PersistentVolumeClaim
       name: paperless-export-pvc
@@ -31,6 +37,9 @@ patches:
       - op: replace
         path: /spec/resources/requests/storage
         value: 5Gi
+      - op: replace
+        path: /spec/volumeName
+        value: paperless-export-pv
   - target:
       kind: PersistentVolumeClaim
       name: paperless-db-pvc
@@ -38,6 +47,9 @@ patches:
       - op: replace
         path: /spec/resources/requests/storage
         value: 5Gi
+      - op: replace
+        path: /spec/volumeName
+        value: paperless-db-pv
   - target:
       kind: PersistentVolumeClaim
       name: paperless-redis-pvc
@@ -45,6 +57,9 @@ patches:
       - op: replace
         path: /spec/resources/requests/storage
         value: 2Gi
+      - op: replace
+        path: /spec/volumeName
+        value: paperless-redis-pv
   - target:
       kind: ResourceQuota
       name: paperless-storage-quota

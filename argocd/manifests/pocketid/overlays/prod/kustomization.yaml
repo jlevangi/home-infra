@@ -7,6 +7,13 @@ images:
     newTag: "v1.16.0"
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: pocketid-data-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: pocketid-data-pv
+  - target:
       kind: Ingress
       name: pocketid-ingress
     patch: |

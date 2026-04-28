@@ -7,6 +7,13 @@ images:
     newTag: "3.3.0"
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: tasksmd-data-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: tasksmd-data-pv
+  - target:
       kind: Ingress
       name: tasksmd-ingress
     patch: |

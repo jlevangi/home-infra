@@ -4,6 +4,20 @@ resources:
   - ../../base
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: immich-db-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: immich-db-pv
+  - target:
+      kind: PersistentVolumeClaim
+      name: immich-model-cache-pvc
+    patch: |
+      - op: replace
+        path: /spec/volumeName
+        value: immich-model-cache-pv
+  - target:
       kind: Ingress
       name: immich-ingress
     patch: |
