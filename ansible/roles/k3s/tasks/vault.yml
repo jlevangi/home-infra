@@ -45,46 +45,69 @@
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
 
-  - name: Wait for Vault pod to be Running
-    shell: |
-      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get pod \
-        -l app.kubernetes.io/name=vault \
-        -n {{ vault_namespace }} \
-        -o jsonpath='{.items[0].status.phase}'
-    register: vault_pod_phase_check
-    retries: 20
-    delay: 15
-    until: vault_pod_phase_check.stdout == "Running"
-    failed_when: false
-    ignore_errors: true
+  - name: Set Vault topology facts
+    set_fact:
+      vault_expected_replicas: "{{ (vault_replica_count | int) if (vault_ha_enabled | default(false)) else 1 }}"
+      vault_pod_name: "{{ vault_primary_pod_name }}"
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
 
-  - name: Discover Vault pod name
+  - name: Wait for expected number of Vault pods
     shell: |
       kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get pod \
         -l app.kubernetes.io/name=vault \
         -n {{ vault_namespace }} \
-        -o jsonpath='{.items[0].metadata.name}'
-    register: vault_pod_lookup
-    failed_when: false
+        -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | sed '/^$/d' | wc -l
+    register: vault_pod_count
+    retries: 30
+    delay: 10
+    until: (vault_pod_count.stdout | int) >= (vault_expected_replicas | int)
     changed_when: false
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
 
-  - name: Set Vault pod name
-    set_fact:
-      vault_pod_name: "{{ vault_pod_lookup.stdout }}"
+  - name: Discover Vault pod names
+    shell: |
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get pod \
+        -l app.kubernetes.io/name=vault \
+        -n {{ vault_namespace }} \
+        -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | sed '/^$/d' | sort
+    register: vault_pod_lookup
+    changed_when: false
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
-      - vault_pod_lookup.stdout | length > 0
+
+  - name: Set Vault pod lists
+    set_fact:
+      vault_pod_names: "{{ vault_pod_lookup.stdout_lines | select('length') | list }}"
+      vault_follower_pod_names: "{{ (vault_pod_lookup.stdout_lines | select('length') | list)[1:] if (vault_ha_enabled | default(false)) else [] }}"
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+      - vault_pod_lookup.stdout_lines is defined
+
+  - name: Wait for Vault pods to be Running
+    shell: |
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml get pod {{ item }} \
+        -n {{ vault_namespace }} \
+        -o jsonpath='{.status.phase}'
+    register: vault_pod_phase_check
+    retries: 20
+    delay: 15
+    until: vault_pod_phase_check.stdout == "Running"
+    failed_when: false
+    changed_when: false
+    loop: "{{ vault_pod_names | default([vault_primary_pod_name]) }}"
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
 
   - name: Wait for Vault CLI to respond
     shell: |
-      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- sh -c 'vault status -format=json || true'
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_primary_pod_name }} -- sh -c 'vault status -format=json || true'
     register: vault_status_raw
     retries: 30
     delay: 10
@@ -95,7 +118,7 @@
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
-      - vault_pod_name is defined
+      - vault_primary_pod_name is defined
 
   - name: Parse Vault status
     set_fact:
@@ -121,7 +144,7 @@
 
   - name: Initialize Vault
     shell: |
-      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- vault operator init -format=json
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_primary_pod_name }} -- vault operator init -format=json
     register: vault_init_result
     failed_when: false
     when:
@@ -210,10 +233,11 @@
 
   # --- Unseal and configure ---
 
-  - name: Unseal Vault
+  - name: Unseal primary Vault pod
     shell: |
-      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- vault operator unseal '{{ item }}'
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_primary_pod_name }} -- vault operator unseal '{{ item }}'
     loop: "{{ vault_unseal_keys }}"
+    failed_when: false
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
@@ -221,13 +245,15 @@
       - vault_sealed | default(true)
     no_log: true
 
-  - name: Verify Vault is unsealed
+  - name: Verify primary Vault pod is unsealed
     shell: |
-      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- vault status -format=json
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_primary_pod_name }} -- vault status -format=json
     register: vault_post_unseal
     retries: 5
     delay: 5
-    until: vault_post_unseal.rc == 0
+    until:
+      - vault_post_unseal.rc == 0
+      - not (vault_post_unseal.stdout | from_json).sealed
     failed_when: false
     changed_when: false
     when:
@@ -254,9 +280,56 @@
       - vault_unseal_keys is defined
       - vault_sealed | default(true)
 
+  - name: Join follower Vault pods to the Raft cluster
+    shell: |
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ item }} -- \
+        sh -ec 'vault operator raft join {{ vault_raft_join_address }} || true'
+    loop: "{{ vault_follower_pod_names | default([]) }}"
+    failed_when: false
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+      - vault_ha_enabled | default(false)
+      - vault_raft_enabled | default(false)
+      - vault_unseal_keys is defined
+
+  - name: Unseal follower Vault pods
+    shell: |
+      {% for key in vault_unseal_keys %}
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ item }} -- vault operator unseal '{{ key }}' >/dev/null 2>&1 || true
+      {% endfor %}
+    loop: "{{ vault_follower_pod_names | default([]) }}"
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+      - vault_ha_enabled | default(false)
+      - vault_raft_enabled | default(false)
+      - vault_unseal_keys is defined
+    no_log: true
+
+  - name: Verify follower Vault pods are initialized and unsealed
+    shell: |
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ item }} -- vault status -format=json
+    register: vault_follower_status
+    retries: 10
+    delay: 5
+    until:
+      - vault_follower_status.rc == 0
+      - (vault_follower_status.stdout | from_json).initialized
+      - not (vault_follower_status.stdout | from_json).sealed
+    changed_when: false
+    loop: "{{ vault_follower_pod_names | default([]) }}"
+    when:
+      - inventory_hostname == groups[master_group][0]
+      - vault_app_present | default(false)
+      - vault_ha_enabled | default(false)
+      - vault_raft_enabled | default(false)
+      - (vault_follower_pod_names | default([])) | length > 0
+
   - name: Login to Vault
     shell: |
-      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- vault login '{{ vault_root_token }}'
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- \
+        sh -ec 'VAULT_ADDR="{{ vault_api_addr }}" vault login "{{ vault_root_token }}"'
     register: vault_login
     changed_when: false
     when:
@@ -268,7 +341,8 @@
 
   - name: Enable KV v2 secrets engine
     shell: |
-      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- vault secrets enable -path={{ vault_kv_path }} kv-v2
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- \
+        sh -ec 'VAULT_ADDR="{{ vault_api_addr }}" vault secrets enable -path={{ vault_kv_path }} kv-v2'
     register: vault_kv_enable
     failed_when: false
     changed_when: "'already exists' not in (vault_kv_enable.stderr | default(''))"
@@ -279,7 +353,8 @@
 
   - name: Enable Kubernetes auth
     shell: |
-      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- vault auth enable kubernetes
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- \
+        sh -ec 'VAULT_ADDR="{{ vault_api_addr }}" vault auth enable kubernetes'
     register: vault_auth_enable
     failed_when: false
     changed_when: "'already exists' not in (vault_auth_enable.stderr | default(''))"
@@ -291,7 +366,7 @@
   - name: Configure Kubernetes auth
     shell: |
       kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- \
-        sh -c 'vault write auth/kubernetes/config \
+        sh -ec 'VAULT_ADDR="{{ vault_api_addr }}" vault write auth/kubernetes/config \
           token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
           kubernetes_host="https://kubernetes.default.svc:443" \
           kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
@@ -306,7 +381,7 @@
 
   - name: Create ESO policy
     shell: |
-      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- sh -c 'cat <<"POLICY" | vault policy write {{ vault_external_secrets_policy }} -
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- sh -ec 'cat <<"POLICY" | VAULT_ADDR="{{ vault_api_addr }}" vault policy write {{ vault_external_secrets_policy }} -
       path "{{ vault_kv_path }}/data/prod/*" {
         capabilities = ["read"]
       }
@@ -326,11 +401,12 @@
 
   - name: Create ESO Kubernetes auth role
     shell: |
-      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- vault write auth/kubernetes/role/{{ vault_external_secrets_role }} \
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- \
+        sh -ec 'VAULT_ADDR="{{ vault_api_addr }}" vault write auth/kubernetes/role/{{ vault_external_secrets_role }} \
         bound_service_account_names={{ external_secrets_service_account }} \
         bound_service_account_namespaces={{ external_secrets_namespace }} \
         policies={{ vault_external_secrets_policy }} \
-        ttl=1h
+        ttl=1h'
     register: vault_role_write
     changed_when: "vault_role_write.rc == 0"
     when:
@@ -340,11 +416,12 @@
 
   - name: Seed Vaultwarden secrets
     shell: |
-      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- vault kv put {{ vault_kv_path }}/{{ cluster_environment }}/vaultwarden \
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- \
+        sh -ec "VAULT_ADDR='{{ vault_api_addr }}' vault kv put {{ vault_kv_path }}/{{ cluster_environment }}/vaultwarden \
         ADMIN_TOKEN='{{ vault_vaultwarden_admin_token }}' \
         SMTP_HOST='{{ vault_smtp_host }}' \
         SMTP_USERNAME='{{ vault_smtp_username }}' \
-        SMTP_PASSWORD='{{ vault_smtp_password }}'
+        SMTP_PASSWORD='{{ vault_smtp_password }}'"
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
@@ -354,11 +431,12 @@
 
   - name: Seed Bookstack secrets
     shell: |
-      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- vault kv put {{ vault_kv_path }}/{{ cluster_environment }}/bookstack \
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- \
+        sh -ec "VAULT_ADDR='{{ vault_api_addr }}' vault kv put {{ vault_kv_path }}/{{ cluster_environment }}/bookstack \
         DB_PASS='{{ vault_bookstack_db_password }}' \
         MYSQL_ROOT_PASSWORD='{{ vault_bookstack_mysql_root_password }}' \
         MYSQL_PASSWORD='{{ vault_bookstack_db_password }}' \
-        APP_KEY='{{ vault_bookstack_app_key }}'
+        APP_KEY='{{ vault_bookstack_app_key }}'"
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
@@ -368,8 +446,9 @@
 
   - name: Seed PocketID secrets
     shell: |
-      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- vault kv put {{ vault_kv_path }}/{{ cluster_environment }}/pocketid \
-        encryption-key='{{ vault_pocketid_encryption_key }}'
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- \
+        sh -ec "VAULT_ADDR='{{ vault_api_addr }}' vault kv put {{ vault_kv_path }}/{{ cluster_environment }}/pocketid \
+        encryption-key='{{ vault_pocketid_encryption_key }}'"
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
@@ -379,12 +458,13 @@
 
   - name: Seed Paperless secrets
     shell: |
-      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- vault kv put {{ vault_kv_path }}/{{ cluster_environment }}/paperless \
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- \
+        sh -ec "VAULT_ADDR='{{ vault_api_addr }}' vault kv put {{ vault_kv_path }}/{{ cluster_environment }}/paperless \
         MARIADB_ROOT_PASSWORD='{{ vault_paperless_mariadb_root_password }}' \
         MARIADB_PASSWORD='{{ vault_paperless_mariadb_password }}' \
         PAPERLESS_SECRET_KEY='{{ vault_paperless_secret_key }}' \
         PAPERLESS_ADMIN_USER='{{ vault_paperless_admin_user }}' \
-        PAPERLESS_ADMIN_PASSWORD='{{ vault_paperless_admin_password }}'
+        PAPERLESS_ADMIN_PASSWORD='{{ vault_paperless_admin_password }}'"
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
@@ -394,9 +474,10 @@
 
   - name: Seed Microbin secrets
     shell: |
-      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- vault kv put {{ vault_kv_path }}/{{ cluster_environment }}/microbin \
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- \
+        sh -ec "VAULT_ADDR='{{ vault_api_addr }}' vault kv put {{ vault_kv_path }}/{{ cluster_environment }}/microbin \
         MICROBIN_ADMIN_USERNAME='{{ vault_microbin_admin_username }}' \
-        MICROBIN_ADMIN_PASSWORD='{{ vault_microbin_admin_password }}'
+        MICROBIN_ADMIN_PASSWORD='{{ vault_microbin_admin_password }}'"
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
@@ -406,9 +487,10 @@
 
   - name: Seed Monitoring secrets
     shell: |
-      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- vault kv put {{ vault_kv_path }}/{{ cluster_environment }}/monitoring \
+      kubectl --kubeconfig={{ k3s_config_dir }}/k3s.yaml exec -n {{ vault_namespace }} {{ vault_pod_name }} -- \
+        sh -ec "VAULT_ADDR='{{ vault_api_addr }}' vault kv put {{ vault_kv_path }}/{{ cluster_environment }}/monitoring \
         admin-user='{{ vault_grafana_admin_username | default("admin") }}' \
-        admin-password='{{ vault_grafana_admin_password }}'
+        admin-password='{{ vault_grafana_admin_password }}'"
     when:
       - inventory_hostname == groups[master_group][0]
       - vault_app_present | default(false)
@@ -434,7 +516,7 @@
 
         Verification Commands:
         kubectl get pods -n {{ vault_namespace }}
-        kubectl exec -n {{ vault_namespace }} {{ vault_pod_name }} -- vault status
+        kubectl exec -n {{ vault_namespace }} {{ vault_primary_pod_name }} -- vault status
     when: inventory_hostname == groups[master_group][0]
   tags:
     - vault

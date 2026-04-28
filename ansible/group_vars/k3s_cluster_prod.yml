@@ -21,3 +21,10 @@ traefik_loadbalancer_ip: "172.20.20.200"
 longhorn_replica_count: 3
 longhorn_exclude_master_from_storage: true
 longhorn_guaranteed_instance_manager_cpu: 12
+
+# -----------------------------------------------------------------------------
+# VAULT HA (prod-only)
+# -----------------------------------------------------------------------------
+vault_ha_enabled: true
+vault_raft_enabled: true
+vault_replica_count: 3

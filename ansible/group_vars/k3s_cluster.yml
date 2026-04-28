@@ -148,6 +148,15 @@ k3s_configure_vault: true
 vault_namespace: "vault"
 vault_statefulset_name: "vault"
 vault_pod_name: "vault-0"
+vault_primary_pod_name: "{{ vault_statefulset_name }}-0"
+vault_service_name: "vault"
+vault_active_service_name: "vault-active"
+vault_internal_service_name: "vault-internal"
+vault_ha_enabled: false
+vault_raft_enabled: false
+vault_replica_count: 1
+vault_raft_join_address: "http://{{ vault_primary_pod_name }}.{{ vault_internal_service_name }}:8200"
+vault_api_addr: "{{ 'http://' + vault_active_service_name + '.' + vault_namespace + '.svc:8200' if vault_ha_enabled else 'http://127.0.0.1:8200' }}"
 vault_kv_path: "kv"
 vault_init_secret_name: "vault-init"
 external_secrets_namespace: "external-secrets"
