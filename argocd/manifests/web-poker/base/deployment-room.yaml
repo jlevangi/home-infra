@@ -17,6 +17,9 @@ spec:
     spec:
       nodeSelector:
         kubernetes.io/os: linux
+      securityContext:
+        fsGroup: 101
+        fsGroupChangePolicy: OnRootMismatch
       initContainers:
         - name: wait-for-orchestrator
           image: busybox:1.36
