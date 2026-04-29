@@ -29,7 +29,7 @@ spec:
               done
       containers:
         - name: api
-          image: jlevangie/gamble-king:api-20260429-1
+          image: jlevangie/gamble-king:api-20260429-2
           imagePullPolicy: IfNotPresent
           env:
             - name: SIGNUP_CHIPS
