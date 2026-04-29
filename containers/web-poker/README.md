@@ -10,7 +10,7 @@ four images that match the Kubernetes manifests under
 docker build -f containers/web-poker/frontend/Dockerfile -t jlevangie/gamble-king:frontend-20260429-1 .
 docker build -f containers/web-poker/backend/Dockerfile.api -t jlevangie/gamble-king:api-20260429-2 .
 docker build -f containers/web-poker/backend/Dockerfile.orchestrator -t jlevangie/gamble-king:orchestrator-20260429-2 .
-docker build -f containers/web-poker/backend/Dockerfile.room -t jlevangie/gamble-king:room-20260429-1 .
+docker build -f containers/web-poker/backend/Dockerfile.room -t jlevangie/gamble-king:room-20260429-2 .
 ```
 
 All four builds accept `--build-arg WEB_POKER_REF=<branch-or-tag>` and default

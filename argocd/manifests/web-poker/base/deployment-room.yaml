@@ -29,7 +29,7 @@ spec:
               done
       containers:
         - name: room
-          image: jlevangie/gamble-king:room-20260429-1
+          image: jlevangie/gamble-king:room-20260429-2
           imagePullPolicy: IfNotPresent
           env:
             - name: SERVER_PORT
