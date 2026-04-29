@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - pvc-mysql.yaml
+  - pvc-room.yaml
+  - configmap.yaml
+  - external-secret.yaml
+  - deployment-mysql.yaml
+  - deployment-orchestrator.yaml
+  - deployment-api.yaml
+  - deployment-room.yaml
+  - deployment-frontend.yaml
+  - service-mysql.yaml
+  - service-orchestrator.yaml
+  - service-api.yaml
+  - service-room.yaml
+  - service-frontend.yaml
+  - ingress.yaml
+  - resource-quota.yaml
+  - limit-range.yaml
