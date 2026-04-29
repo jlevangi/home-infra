@@ -100,6 +100,16 @@ kubectl get secret microbin-secrets -n microbin -o json | jq -r '.data | to_entr
 - **Vault path:** `kv/{env}/microbin`
 - **Vault keys:** `MICROBIN_ADMIN_USERNAME`, `MICROBIN_ADMIN_PASSWORD`
 
+### Web Poker
+
+```bash
+kubectl get secret web-poker-secrets -n web-poker -o json | jq -r '.data | to_entries[] | "\(.key): \(.value | @base64d)"'
+```
+
+- **UI:** `https://poker.{domain}`
+- **Vault path:** `kv/{env}/web-poker`
+- **Vault keys:** `DB_USER`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM`
+
 ## Monitoring Services
 
 ### Gatus

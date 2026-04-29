@@ -1,0 +1,55 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web-poker-ingress
+  namespace: web-poker
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: poker.levangie.dev
+      http:
+        paths:
+          - path: /public
+            pathType: Prefix
+            backend:
+              service:
+                name: web-poker-api
+                port:
+                  number: 8083
+          - path: /friends
+            pathType: Prefix
+            backend:
+              service:
+                name: web-poker-api
+                port:
+                  number: 8083
+          - path: /users/profile
+            pathType: Prefix
+            backend:
+              service:
+                name: web-poker-api
+                port:
+                  number: 8083
+          - path: /lobby/rooms
+            pathType: Prefix
+            backend:
+              service:
+                name: web-poker-api
+                port:
+                  number: 8083
+          - path: /external
+            pathType: Prefix
+            backend:
+              service:
+                name: web-poker-room
+                port:
+                  number: 8081
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web-poker-frontend
+                port:
+                  number: 80
