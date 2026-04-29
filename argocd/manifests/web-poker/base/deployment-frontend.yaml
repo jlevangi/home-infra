@@ -19,7 +19,7 @@ spec:
         kubernetes.io/os: linux
       containers:
         - name: frontend
-          image: jlevangie/gamble-king:frontend-20260429-1
+          image: jlevangie/gamble-king:frontend-20260429-2
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
