@@ -74,7 +74,7 @@ spec:
               url: 172.20.20.5
               module: icmp
             - name: prod-apiserver-tcp
-              url: 172.20.20.101:6443
+              url: kubernetes.default.svc:443
               module: tcp_connect
             - name: prod-argocd-http
               url: https://argocd.levangie.dev
