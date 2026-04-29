@@ -29,7 +29,7 @@ spec:
               done
       containers:
         - name: orchestrator
-          image: jlevangie/gamble-king:orchestrator-20260429-1
+          image: jlevangie/gamble-king:orchestrator-20260429-2
           imagePullPolicy: IfNotPresent
           env:
             - name: SERVER_PORT

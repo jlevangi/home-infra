@@ -8,7 +8,9 @@ COPY containers/web-poker/overrides/backend/ApiServer/src/main/java/ar/com/tandi
 FROM maven:3.9.9-eclipse-temurin-11 AS build
 WORKDIR /work
 COPY --from=source /src/web-poker/ ./
+COPY containers/web-poker/overrides/backend/ApiServer/src/main/java/ar/com/tandilweb/ApiServer/utils/DockerSecretProcessor.java /work/backend/ApiServer/src/main/java/ar/com/tandilweb/ApiServer/utils/DockerSecretProcessor.java
 RUN set -eux; \
+    sed -i 's/<version>2.10.0.pr1<\/version>/<version>2.9.5<\/version>/' backend/ApiServer/pom.xml; \
     mvn -f backend/exchange/pom.xml clean install; \
     mvn -f backend/persistence/pom.xml clean install; \
     mvn -f backend/room-int/pom.xml clean install; \
