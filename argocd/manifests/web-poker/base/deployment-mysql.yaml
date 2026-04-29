@@ -77,4 +77,4 @@ spec:
       volumes:
         - name: mysql-data
           persistentVolumeClaim:
-            claimName: web-poker-mysql-pvc
+            claimName: web-poker-mysql-pvc-v2
