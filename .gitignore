@@ -138,5 +138,8 @@ coverage/
 *.claude
 .aider*
 
+# Opencode
+.opencode/
+
 # Local-only private app bundle
 .private-apps/

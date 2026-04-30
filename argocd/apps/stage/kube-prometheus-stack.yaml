@@ -95,6 +95,12 @@ spec:
                 - receiver: ntfy-stage-critical
                   matchers:
                     - severity="critical"
+            inhibit_rules:
+              - source_matchers:
+                  - alertname="KubernetesNodeNotReady"
+                  - severity="critical"
+                target_matchers:
+                  - alertname="LonghornVolumesDegraded"
             receivers:
               - name: ntfy-stage
                 webhook_configs:

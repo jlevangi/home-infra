@@ -118,6 +118,12 @@ spec:
                 - receiver: ntfy-prod-critical
                   matchers:
                     - severity="critical"
+            inhibit_rules:
+              - source_matchers:
+                  - alertname="KubernetesNodeNotReady"
+                  - severity="critical"
+                target_matchers:
+                  - alertname="LonghornVolumesDegraded"
             receivers:
               - name: ntfy-null
               - name: ntfy-prod
