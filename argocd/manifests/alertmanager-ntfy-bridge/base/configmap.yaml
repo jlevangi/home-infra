@@ -155,12 +155,8 @@ data:
 
         is_critical = topic == "homelab-critical" or severity == "critical"
         if status == "resolved":
-            priority = 4 if is_critical else 3
-            tags = (
-                ["white_check_mark", "rotating_light"]
-                if is_critical
-                else ["white_check_mark", "mailbox_with_mail"]
-            )
+            priority = 1
+            tags = ["white_check_mark"]
         else:
             priority = 5 if is_critical else 4
             tags = (

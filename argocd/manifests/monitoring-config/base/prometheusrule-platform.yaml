@@ -39,14 +39,14 @@ spec:
           annotations:
             summary: ArgoCD application is degraded
             description: Application {{ $labels.name }} in namespace {{ $labels.namespace }} is {{ $labels.health_status }}.
-        - alert: LonghornVolumeDegraded
-          expr: longhorn_volume_robustness{state=~"degraded|faulted"} == 1
+        - alert: LonghornVolumesDegraded
+          expr: count by (state) (longhorn_volume_robustness{state=~"degraded|faulted"} == 1) > 0
           for: 10m
           labels:
             severity: critical
           annotations:
-            summary: Longhorn volume is degraded
-            description: Longhorn volume {{ $labels.volume }} is in {{ $labels.state }} state.
+            summary: "{{ $value }} Longhorn volume(s) are {{ $labels.state }}"
+            description: "{{ $value }} volume(s) in {{ $labels.state }} state."
         - alert: LonghornVolumeReadOnly
           expr: longhorn_volume_file_system_read_only == 1
           for: 5m
