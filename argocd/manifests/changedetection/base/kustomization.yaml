@@ -4,7 +4,9 @@ resources:
   - namespace.yaml
   - pvc.yaml
   - deployment.yaml
+  - browser-deployment.yaml
   - service.yaml
+  - browser-service.yaml
   - ingress.yaml
   - resource-quota.yaml
   - limit-range.yaml
