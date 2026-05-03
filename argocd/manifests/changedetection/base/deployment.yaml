@@ -25,6 +25,14 @@ spec:
           env:
             - name: PORT
               value: "5000"
+            - name: WEBDRIVER_URL
+              value: "http://browser-chrome:4444/wd/hub"
+            - name: WEBDRIVER_CONNECTION_TIMEOUT
+              value: "180"
+            - name: WEBDRIVER_PAGELOAD_TIMEOUT
+              value: "180"
+            - name: WEBDRIVER_DELAY_BEFORE_CONTENT_READY
+              value: "5"
           ports:
             - containerPort: 5000
           resources:
