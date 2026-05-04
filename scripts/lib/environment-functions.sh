@@ -40,6 +40,27 @@ require_ansible_config() {
     export ANSIBLE_CONFIG="$cfg"
 }
 
+get_user_home_dir() {
+    local passwd_home
+
+    passwd_home="$(getent passwd "$(id -un)" | cut -d: -f6)"
+    if [[ -n "$passwd_home" ]]; then
+        printf '%s\n' "$passwd_home"
+        return 0
+    fi
+
+    printf '%s\n' "$HOME"
+}
+
+get_ansible_vault_password_file() {
+    if [[ -n "${ANSIBLE_VAULT_PASSWORD_FILE:-}" ]]; then
+        printf '%s\n' "$ANSIBLE_VAULT_PASSWORD_FILE"
+        return 0
+    fi
+
+    printf '%s/.ansible_vault_pass\n' "$(get_user_home_dir)"
+}
+
 # Return all available K3s environments.
 get_available_environments() {
     printf '%s\n' "${ENVIRONMENT_NAMES[@]}" | xargs

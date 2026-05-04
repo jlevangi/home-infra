@@ -2,6 +2,9 @@
 
 Prod Vault is now a canonical 3-node Raft deployment managed by `root-prod`.
 This runbook covers bootstrap and recovery for that steady-state layout.
+The recovery playbook is Raft-aware: it can recover a primary-only seal, a
+follower-only seal, or a full-cluster seal without assuming the first pod is
+always the one that needs unsealing.
 
 ## Canonical Files
 
@@ -20,7 +23,7 @@ This runbook covers bootstrap and recovery for that steady-state layout.
 
 It does **not** solve auto-unseal by itself. With the current Shamir-only setup,
 cold restarts still require unseal keys. For hands-off restart recovery you
-still need an external seal provider.
+still need an external seal provider such as KMS-backed auto-unseal.
 
 ## Bootstrap Or Rebuild
 
@@ -50,11 +53,23 @@ kubectl --context k3s-prod exec -n vault-raft vault-raft-0 -- \
 4. If Vault restarted sealed, recover it with:
 
 ```bash
+./scripts/recover-vault.sh --prod
+```
+
+Or run the playbook directly:
+
+```bash
 ANSIBLE_LOCAL_TEMP=/tmp/ansible-tmp \
 ANSIBLE_REMOTE_TEMP=/tmp/ansible-tmp \
 ansible-playbook ansible/playbooks/maintenance/vault-unseal.yml \
   -e "kubectl_context=k3s-prod"
 ```
+
+That playbook now handles these cases:
+
+- Primary sealed, followers sealed
+- Primary already unsealed, one or more followers sealed
+- Everything already unsealed, so only the auth refresh and ESO recovery run
 
 ## Restoring KV Data
 
