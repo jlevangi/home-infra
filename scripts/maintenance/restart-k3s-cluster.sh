@@ -15,6 +15,8 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 source "$SCRIPT_DIR/../lib/environment-functions.sh"
 
+VAULT_PASSWORD_FILE="$(get_ansible_vault_password_file)"
+
 TARGET_ENV=""
 VERBOSITY=""
 SKIP_VAULT_UNSEAL=false
@@ -67,7 +69,7 @@ echo ""
 ANSIBLE_CMD=(ansible-playbook
     -i "$INVENTORY_PATH"
     "$PROJECT_ROOT/ansible/playbooks/maintenance/restart-k3s-cluster.yml"
-    --vault-password-file ~/.ansible_vault_pass
+    --vault-password-file "$VAULT_PASSWORD_FILE"
     -e "target_cluster=$TARGET_CLUSTER"
     -e "kubectl_context=k3s-$KUBECTL_CONTEXT"
 )
@@ -98,7 +100,7 @@ echo ""
 VAULT_UNSEAL_CMD=(ansible-playbook
     -i "$INVENTORY_PATH"
     "$PROJECT_ROOT/ansible/playbooks/maintenance/vault-unseal.yml"
-    --vault-password-file ~/.ansible_vault_pass
+    --vault-password-file "$VAULT_PASSWORD_FILE"
     -e "kubectl_context=k3s-$KUBECTL_CONTEXT"
 )
 
@@ -113,6 +115,6 @@ if [ $RESULT -eq 0 ]; then
 else
     echo "❌ Vault unseal/auth refresh failed (exit code: $RESULT)"
     echo "ℹ️  You can rerun it manually:"
-    echo "   ansible-playbook ansible/playbooks/maintenance/vault-unseal.yml -e \"kubectl_context=k3s-$KUBECTL_CONTEXT\""
+    echo "   ./scripts/recover-vault.sh --env $TARGET_ENV"
     exit $RESULT
 fi

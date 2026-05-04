@@ -23,6 +23,10 @@ When `k3s_configure_vault: true`, the Ansible Vault role bootstraps:
 
 The automation stores the Vault root token and unseal keys in the `vault-init` secret in the Vault namespace. In prod that namespace is `vault-raft`. Treat that secret as highly sensitive.
 
+The current steady-state recovery path is still Shamir-based. If you want
+restart-safe recovery without manual unseal, add a KMS-backed auto-unseal
+provider to the Vault chart and keep `vault-init` only for break-glass access.
+
 ## ESO Version Rollout
 
 Stage and test track the newer External Secrets Operator chart first. The `external-secrets` ArgoCD Application for those environments uses `targetRevision: 2.3.0` with `installCRDs: false`, `namespaceOverride: external-secrets`, and `ServerSideApply=true`, and their manifests render `external-secrets.io/v1` custom resources.
@@ -72,6 +76,9 @@ Login with the root token:
 ```bash
 kubectl -n vault-raft exec -it vault-raft-0 -- vault login
 ```
+
+If only a follower pod is sealed, the maintenance playbook can now rejoin and
+unseal that follower without requiring the whole cluster to be sealed.
 
 ## 3) Enable KV v2 secrets engine
 
