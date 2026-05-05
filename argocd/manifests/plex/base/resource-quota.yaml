@@ -5,6 +5,6 @@ metadata:
   namespace: plex
 spec:
   hard:
-    requests.storage: "100Gi"
+    requests.storage: "150Gi"
     persistentvolumeclaims: "20"
-    longhorn.io/requests.storage: "100Gi"
+    longhorn.io/requests.storage: "150Gi"

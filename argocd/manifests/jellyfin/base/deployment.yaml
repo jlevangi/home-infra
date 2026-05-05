@@ -1,30 +1,30 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: plex
-  namespace: plex
+  name: jellyfin
+  namespace: jellyfin
 spec:
   replicas: 1
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      app: plex
+      app: jellyfin
   template:
     metadata:
       labels:
-        app: plex
+        app: jellyfin
     spec:
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000
         fsGroup: 1000
       containers:
-        - name: plex
-          image: lscr.io/linuxserver/plex:latest
+        - name: jellyfin
+          image: lscr.io/linuxserver/jellyfin:latest
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 32400
+            - containerPort: 8096
               protocol: TCP
               name: http
           env:
@@ -34,8 +34,8 @@ spec:
               value: "1000"
             - name: TZ
               value: "America/New_York"
-            - name: VERSION
-              value: "docker"
+            - name: JELLYFIN_PublishedServerUrl
+              value: "https://jellyfin.levangie.org"
           resources:
             requests:
               cpu: 500m
@@ -45,16 +45,16 @@ spec:
               memory: 6Gi
           livenessProbe:
             httpGet:
-              path: /identity
-              port: 32400
+              path: /health
+              port: 8096
             initialDelaySeconds: 60
             periodSeconds: 30
             timeoutSeconds: 10
             failureThreshold: 5
           readinessProbe:
             httpGet:
-              path: /identity
-              port: 32400
+              path: /health
+              port: 8096
             initialDelaySeconds: 15
             periodSeconds: 10
             timeoutSeconds: 5
@@ -68,7 +68,7 @@ spec:
       volumes:
         - name: config
           persistentVolumeClaim:
-            claimName: plex-config-pvc
+            claimName: jellyfin-config-pvc
         - name: media
           nfs:
             server: 172.20.20.5
