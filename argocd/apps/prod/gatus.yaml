@@ -349,6 +349,35 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
+            - name: Plex
+              group: Media
+              url: https://plex.levangie.dev/identity
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+                - "[BODY] == pat(*MediaContainer*)"
+
+            - name: Jellyfin
+              group: Media
+              url: https://jellyfin.levangie.org/health
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+                - "[BODY] == Healthy"
+
+            - name: Tracearr
+              group: Media
+              url: https://tracearr.levangie.org/health
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+                - "[BODY].status == ok"
+                - "[BODY].db == true"
+                - "[BODY].redis == true"
+
   destination:
     server: https://kubernetes.default.svc
     namespace: gatus
