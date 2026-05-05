@@ -59,7 +59,20 @@ spec:
             - name: config
               mountPath: /config
             - name: media
-              mountPath: /mnt/media
+              mountPath: /data/tvshows
+              subPath: tv
+              readOnly: true
+            - name: media
+              mountPath: /data/movies
+              subPath: movies
+              readOnly: true
+            - name: media
+              mountPath: /data/anime
+              subPath: anime
+              readOnly: true
+            - name: media
+              mountPath: /data/music
+              subPath: music
               readOnly: true
       volumes:
         - name: config
