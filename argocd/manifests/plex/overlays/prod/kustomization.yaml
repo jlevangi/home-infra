@@ -10,14 +10,5 @@ patches:
       - op: add
         path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
         value: "k3s-prod.levangie.dev"
-  # TEMPORARY: keep deployment scaled to 0 until config data is rsynced from LXC.
-  # Remove this patch after pre-stage rsync completes to allow the pod to start.
-  - target:
-      kind: Deployment
-      name: plex
-    patch: |
-      - op: replace
-        path: /spec/replicas
-        value: 0
 commonLabels:
   environment: prod
