@@ -7,11 +7,12 @@ metadata:
     metallb.universe.tf/loadBalancerIPs: 172.20.20.203
 spec:
   type: LoadBalancer
-  externalTrafficPolicy: Local
+  externalTrafficPolicy: Cluster
   selector:
     app: plex
   ports:
     - name: pms
+      nodePort: 32400
       port: 32400
       targetPort: 32400
       protocol: TCP
