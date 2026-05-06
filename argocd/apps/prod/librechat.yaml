@@ -1,0 +1,138 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: librechat
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: ghcr.io/danny-avila/librechat-chart
+    chart: librechat
+    targetRevision: 2.0.2
+    helm:
+      values: |
+        replicaCount: 1
+
+        global:
+          librechat:
+            existingSecretName: librechat-credentials-env
+            existingSecretApiKey: OPENAI_API_KEY
+
+        image:
+          registry: ghcr.io
+          repository: danny-avila/librechat
+          tag: latest
+          pullPolicy: IfNotPresent
+
+        librechat:
+          existingSecretName: librechat-credentials-env
+          imageVolume:
+            enabled: true
+            size: 10G
+            accessModes: ReadWriteOnce
+            storageClassName: longhorn
+          configEnv:
+            ALLOW_EMAIL_LOGIN: "true"
+            ALLOW_REGISTRATION: "true"
+            ALLOW_SOCIAL_LOGIN: "false"
+            DEBUG_LOGGING: "false"
+          configYamlContent: |
+            version: 1.2.1
+            cache: true
+            interface:
+              endpointsMenu: true
+              modelSelect: true
+              parameters: true
+              sidePanel: true
+              presets: true
+            endpoints:
+              custom:
+                - name: "llama-cpp"
+                  apiKey: "not-needed"
+                  baseURL: "http://pierce-pc.levangie.org:9080/v1"
+                  models:
+                    default: ["default"]
+                    fetch: true
+                  titleConvo: true
+                  titleModel: "current_model"
+                  modelDisplayLabel: "llama.cpp"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+
+        service:
+          type: ClusterIP
+          port: 3080
+          targetPort: 3080
+          containerPort: 3080
+
+        ingress:
+          enabled: true
+          className: traefik
+          annotations:
+            traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+            external-dns.alpha.kubernetes.io/target: k3s-prod.levangie.dev
+          hosts:
+            - host: librechat.levangie.dev
+              paths:
+                - path: /
+                  pathType: Prefix
+
+        mongodb:
+          enabled: true
+          image:
+            registry: docker.io
+            repository: bitnamilegacy/mongodb
+          auth:
+            enabled: false
+          databases:
+            - LibreChat
+          persistence:
+            enabled: true
+            storageClass: longhorn
+            size: 8Gi
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+
+        meilisearch:
+          enabled: true
+          persistence:
+            enabled: true
+            storageClass: longhorn
+            size: 5Gi
+          auth:
+            existingMasterKeySecret: librechat-credentials-env
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+        redis:
+          enabled: false
+
+        librechat-rag-api:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: librechat
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
