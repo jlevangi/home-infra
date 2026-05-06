@@ -65,7 +65,7 @@ resource "proxmox_vm_qemu" "terraform" {
 
   disk {
     slot = "scsi0"
-    size = "200G"
+    size = "300G"
     type = "disk"
     storage = "vm_data"
   }
