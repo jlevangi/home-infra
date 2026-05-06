@@ -38,7 +38,8 @@ spec:
               memory: 1Gi
             limits:
               cpu: 6000m
-              memory: 6Gi
+              # Headroom for the 8Gi tmpfs transcode volume which counts against pod memory.
+              memory: 14Gi
           livenessProbe:
             httpGet:
               path: /identity
@@ -58,6 +59,8 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
+            - name: transcode
+              mountPath: /transcode
             - name: media
               mountPath: /tv
               subPath: tv
@@ -86,6 +89,12 @@ spec:
         - name: config
           persistentVolumeClaim:
             claimName: plex-config-pvc
+        # tmpfs for transcode segments — keeps short-lived streaming writes off Longhorn.
+        # Set Settings → Transcoder → "Transcoder temporary directory" to /transcode after first deploy.
+        - name: transcode
+          emptyDir:
+            medium: Memory
+            sizeLimit: 8Gi
         - name: media
           nfs:
             server: 172.20.20.5
