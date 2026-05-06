@@ -6,16 +6,49 @@ images:
   - name: factoriotools/factorio
     newTag: "2.0.76"
 patches:
-  # Pin Factorio to a specific node for stable hostPort access
-  # Port forward on router: external 34197 -> 172.20.20.102:34197 (UDP)
+  # Use a stable LoadBalancer VIP for LAN access and fixed NodePorts for router forwarding.
+  # Port forward on router: external 34197/UDP -> <stable-node-ip>:32097/UDP
+  # Optional RCON forward: external 27015/TCP -> <stable-node-ip>:32015/TCP
   - target:
       kind: Deployment
       name: factorio
     patch: |
-      - op: add
-        path: /spec/template/spec/nodeSelector
+      - op: replace
+        path: /spec/template/spec/containers/0/ports
         value:
-          kubernetes.io/hostname: k3s-prod-worker-2
+          - containerPort: 34197
+            protocol: UDP
+            name: game
+          - containerPort: 27015
+            protocol: TCP
+            name: rcon
+  - target:
+      kind: Service
+      name: factorio
+    patch: |
+      - op: add
+        path: /metadata/annotations
+        value:
+          metallb.universe.tf/loadBalancerIPs: 172.20.20.204
+      - op: replace
+        path: /spec/type
+        value: LoadBalancer
+      - op: add
+        path: /spec/externalTrafficPolicy
+        value: Cluster
+      - op: replace
+        path: /spec/ports
+        value:
+          - name: game
+            port: 34197
+            targetPort: 34197
+            protocol: UDP
+            nodePort: 32097
+          - name: rcon
+            port: 27015
+            targetPort: 27015
+            protocol: TCP
+            nodePort: 32015
   - target:
       kind: PersistentVolumeClaim
       name: factorio-data
@@ -23,7 +56,7 @@ patches:
       - op: add
         path: /spec/volumeName
         value: factorio-data
-  # DNS hook - creates factorio.levangie.dev -> 172.20.20.102 (node IP)
+  # DNS hook - creates factorio.levangie.dev -> 172.20.20.204 (MetalLB VIP)
   - target:
       kind: Job
       name: factorio-dns-record
@@ -33,6 +66,6 @@ patches:
         value: "factorio"
       - op: replace
         path: /spec/template/spec/containers/0/env/4/value
-        value: "172.20.20.102"
+        value: "172.20.20.204"
 commonLabels:
   environment: prod
