@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vpa
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://charts.fairwinds.com/stable
+    chart: vpa
+    targetRevision: 4.11.0
+    helm:
+      values: |
+        # Recommend-only deployment. Updater and admission controller are
+        # disabled so VPA physically cannot evict pods or mutate specs
+        # regardless of how individual VPA resources are configured.
+        recommender:
+          enabled: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 500Mi
+            limits:
+              cpu: 200m
+              memory: 1Gi
+        updater:
+          enabled: false
+        admissionController:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vpa
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
