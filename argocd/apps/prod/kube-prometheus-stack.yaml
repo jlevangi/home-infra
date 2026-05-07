@@ -184,6 +184,129 @@ spec:
             limits:
               cpu: 200m
               memory: 256Mi
+          # Scrape VerticalPodAutoscaler CRs via the Custom Resource State
+          # collector. KSM 2.9 deprecated built-in VPA metrics; the dashboard
+          # consumes kube_customresource_vpa_containerrecommendations_target
+          # (with resource={cpu,memory} label) produced by the config below.
+          rbac:
+            extraRules:
+              - apiGroups: ["autoscaling.k8s.io"]
+                resources: ["verticalpodautoscalers"]
+                verbs: ["get", "list", "watch"]
+          customResourceState:
+            enabled: true
+            config:
+              kind: CustomResourceStateMetrics
+              spec:
+                resources:
+                  - groupVersionKind:
+                      group: autoscaling.k8s.io
+                      kind: "VerticalPodAutoscaler"
+                      version: "v1"
+                    labelsFromPath:
+                      verticalpodautoscaler: [metadata, name]
+                      namespace: [metadata, namespace]
+                      target_api_version: [spec, targetRef, apiVersion]
+                      target_kind: [spec, targetRef, kind]
+                      target_name: [spec, targetRef, name]
+                    metricNamePrefix: "kube_customresource_vpa"
+                    metrics:
+                      - name: "containerrecommendations_target"
+                        help: "VPA container recommendation: target."
+                        commonLabels:
+                          resource: "cpu"
+                          unit: "core"
+                        each:
+                          type: Gauge
+                          gauge:
+                            path: [status, recommendation, containerRecommendations]
+                            labelsFromPath:
+                              container: [containerName]
+                            valueFrom: [target, cpu]
+                      - name: "containerrecommendations_target"
+                        help: "VPA container recommendation: target."
+                        commonLabels:
+                          resource: "memory"
+                          unit: "byte"
+                        each:
+                          type: Gauge
+                          gauge:
+                            path: [status, recommendation, containerRecommendations]
+                            labelsFromPath:
+                              container: [containerName]
+                            valueFrom: [target, memory]
+                      - name: "containerrecommendations_lowerbound"
+                        help: "VPA container recommendation: lower bound."
+                        commonLabels:
+                          resource: "cpu"
+                          unit: "core"
+                        each:
+                          type: Gauge
+                          gauge:
+                            path: [status, recommendation, containerRecommendations]
+                            labelsFromPath:
+                              container: [containerName]
+                            valueFrom: [lowerBound, cpu]
+                      - name: "containerrecommendations_lowerbound"
+                        help: "VPA container recommendation: lower bound."
+                        commonLabels:
+                          resource: "memory"
+                          unit: "byte"
+                        each:
+                          type: Gauge
+                          gauge:
+                            path: [status, recommendation, containerRecommendations]
+                            labelsFromPath:
+                              container: [containerName]
+                            valueFrom: [lowerBound, memory]
+                      - name: "containerrecommendations_upperbound"
+                        help: "VPA container recommendation: upper bound."
+                        commonLabels:
+                          resource: "cpu"
+                          unit: "core"
+                        each:
+                          type: Gauge
+                          gauge:
+                            path: [status, recommendation, containerRecommendations]
+                            labelsFromPath:
+                              container: [containerName]
+                            valueFrom: [upperBound, cpu]
+                      - name: "containerrecommendations_upperbound"
+                        help: "VPA container recommendation: upper bound."
+                        commonLabels:
+                          resource: "memory"
+                          unit: "byte"
+                        each:
+                          type: Gauge
+                          gauge:
+                            path: [status, recommendation, containerRecommendations]
+                            labelsFromPath:
+                              container: [containerName]
+                            valueFrom: [upperBound, memory]
+                      - name: "containerrecommendations_uncappedtarget"
+                        help: "VPA container recommendation: uncapped target."
+                        commonLabels:
+                          resource: "cpu"
+                          unit: "core"
+                        each:
+                          type: Gauge
+                          gauge:
+                            path: [status, recommendation, containerRecommendations]
+                            labelsFromPath:
+                              container: [containerName]
+                            valueFrom: [uncappedTarget, cpu]
+                      - name: "containerrecommendations_uncappedtarget"
+                        help: "VPA container recommendation: uncapped target."
+                        commonLabels:
+                          resource: "memory"
+                          unit: "byte"
+                        each:
+                          type: Gauge
+                          gauge:
+                            path: [status, recommendation, containerRecommendations]
+                            labelsFromPath:
+                              container: [containerName]
+                            valueFrom: [uncappedTarget, memory]
 
         kubeEtcd:
           enabled: false
