@@ -31,10 +31,13 @@ spec:
               memory: 1Gi
             limits:
               cpu: "1"
-              memory: 2Gi
+              # Headroom for the 1Gi /dev/shm + 2Gi /tmp tmpfs which count against pod memory.
+              memory: 5Gi
           volumeMounts:
             - name: dshm
               mountPath: /dev/shm
+            - name: tmp
+              mountPath: /tmp
           readinessProbe:
             httpGet:
               path: /status
@@ -52,3 +55,9 @@ spec:
           emptyDir:
             medium: Memory
             sizeLimit: 1Gi
+        # tmpfs for Chrome's user-data-dir, cache, and downloads — keeps Selenium's
+        # bursty session writes (multi-GB during crawls) off the node's overlayfs/SSD.
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi
