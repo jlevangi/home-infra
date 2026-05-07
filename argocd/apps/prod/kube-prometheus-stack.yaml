@@ -115,6 +115,13 @@ spec:
                 - receiver: ntfy-null
                   matchers:
                     - alertname="InfoInhibitor"
+                # Upstream node-exporter rule fires on load/core>2 for 15m, which is
+                # too sensitive for a homelab where bursty IO-wait spikes are normal.
+                # Drop notifications here; NodeSustainedSaturation (custom rule, load/core>4
+                # for 30m) handles the cases we actually want to be paged for.
+                - receiver: ntfy-null
+                  matchers:
+                    - alertname="NodeSystemSaturation"
                 - receiver: ntfy-prod-critical
                   matchers:
                     - severity="critical"
