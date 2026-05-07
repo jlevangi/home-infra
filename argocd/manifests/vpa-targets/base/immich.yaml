@@ -1,0 +1,51 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: immich-server
+  namespace: immich
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: immich-server
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: immich-machine-learning
+  namespace: immich
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: immich-machine-learning
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: immich-postgres
+  namespace: immich
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: immich-postgres
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: immich-redis
+  namespace: immich
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: immich-redis
+  updatePolicy:
+    updateMode: "Off"
