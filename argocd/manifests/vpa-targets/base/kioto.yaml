@@ -1,0 +1,25 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: kioto
+  namespace: kioto
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: kioto
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: kioto-postgres
+  namespace: kioto
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: kioto-postgres
+  updatePolicy:
+    updateMode: "Off"

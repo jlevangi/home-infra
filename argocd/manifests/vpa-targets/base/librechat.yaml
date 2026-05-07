@@ -1,0 +1,38 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: librechat
+  namespace: librechat
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: librechat-librechat
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: librechat-mongodb
+  namespace: librechat
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: librechat-mongodb
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: librechat-meilisearch
+  namespace: librechat
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: librechat-meilisearch
+  updatePolicy:
+    updateMode: "Off"
