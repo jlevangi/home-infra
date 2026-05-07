@@ -8,8 +8,9 @@ kubectl_version: "v1.28.4"
 # dynamically in tasks/master.yml based on whether the current host is the
 # first master (gets --cluster-init) or a joining master (gets --server URL).
 k3s_server_args:
-  - "--disable=traefik"      # Disable built-in Traefik (will install Traefik 2 manually)
-  - "--disable=servicelb"    # Disable built-in service LB (will use MetalLB)
+  - "--disable=traefik"         # Disable built-in Traefik (will install Traefik 2 manually)
+  - "--disable=servicelb"       # Disable built-in service LB (will use MetalLB)
+  - "--disable=metrics-server"  # Disable built-in metrics-server (deployed via ArgoCD chart)
   - "--write-kubeconfig-mode=644"
   - "--node-external-ip={{ ansible_default_ipv4.address }}"
   - "--tls-san={{ load_balancer_ip | default(ansible_default_ipv4.address) }}"  # Support load balancer
