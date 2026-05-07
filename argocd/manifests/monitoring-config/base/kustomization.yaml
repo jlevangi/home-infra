@@ -10,3 +10,4 @@ resources:
   - grafana-dashboard-observability-overview.yaml
   - grafana-dashboard-network-probes.yaml
   - grafana-dashboard-logs-and-gitops.yaml
+  - grafana-dashboard-vpa-recommendations.yaml
