@@ -1,0 +1,51 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: hoarder
+  namespace: hoarder
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hoarder
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: hoarder-chrome
+  namespace: hoarder
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hoarder-chrome
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: hoarder-meilisearch
+  namespace: hoarder
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hoarder-meilisearch
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: hoarder-redis
+  namespace: hoarder
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hoarder-redis
+  updatePolicy:
+    updateMode: "Off"

@@ -7,3 +7,9 @@ resources:
   - immich.yaml
   - paperless.yaml
   - bookstack.yaml
+  - vault.yaml
+  - changedetection.yaml
+  - hoarder.yaml
+  - librechat.yaml
+  - kioto.yaml
+  - poker-maison.yaml

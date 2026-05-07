@@ -1,0 +1,51 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: poker-maison-client
+  namespace: poker-maison
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: poker-maison-client
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: poker-maison-server
+  namespace: poker-maison
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: poker-maison-server
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: poker-maison-postgresql
+  namespace: poker-maison
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: poker-maison-postgresql
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: poker-maison-redis
+  namespace: poker-maison
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: poker-maison-redis
+  updatePolicy:
+    updateMode: "Off"
