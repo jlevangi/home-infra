@@ -33,6 +33,36 @@
   become: yes
   when: k3s_install_longhorn | default(true)
 
+- name: Tune iSCSI noop_out_interval for Longhorn
+  ansible.builtin.lineinfile:
+    path: /etc/iscsi/iscsid.conf
+    regexp: '^\s*node\.conn\[0\]\.timeo\.noop_out_interval\s*='
+    line: "node.conn[0].timeo.noop_out_interval = {{ k3s_iscsi_noop_out_interval }}"
+    state: present
+  become: yes
+  when: k3s_install_longhorn | default(true)
+  notify: restart iscsid
+
+- name: Tune iSCSI noop_out_timeout for Longhorn
+  ansible.builtin.lineinfile:
+    path: /etc/iscsi/iscsid.conf
+    regexp: '^\s*node\.conn\[0\]\.timeo\.noop_out_timeout\s*='
+    line: "node.conn[0].timeo.noop_out_timeout = {{ k3s_iscsi_noop_out_timeout }}"
+    state: present
+  become: yes
+  when: k3s_install_longhorn | default(true)
+  notify: restart iscsid
+
+- name: Tune iSCSI session replacement_timeout for Longhorn
+  ansible.builtin.lineinfile:
+    path: /etc/iscsi/iscsid.conf
+    regexp: '^\s*node\.session\.timeo\.replacement_timeout\s*='
+    line: "node.session.timeo.replacement_timeout = {{ k3s_iscsi_replacement_timeout }}"
+    state: present
+  become: yes
+  when: k3s_install_longhorn | default(true)
+  notify: restart iscsid
+
 - name: Start and enable iscsid service on all nodes
   ansible.builtin.systemd:
     name: iscsid

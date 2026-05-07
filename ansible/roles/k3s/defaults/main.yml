@@ -57,6 +57,15 @@ k3s_sysctl_settings:
   - { name: 'fs.inotify.max_user_instances', value: '512' }
   - { name: 'fs.inotify.max_user_watches', value: '524288' }
 
+# iSCSI timeouts for Longhorn. Defaults are too aggressive — a 5s noop
+# timeout drops sessions whenever the Proxmox host has a brief disk-IO
+# spike, which marks the device offline and forces the replica
+# filesystem read-only. These values match the Longhorn-recommended
+# tuning.
+k3s_iscsi_noop_out_interval: 10
+k3s_iscsi_noop_out_timeout: 30
+k3s_iscsi_replacement_timeout: 86400
+
 # Features
 k3s_install_kubectl: true
 k3s_install_helm: true
