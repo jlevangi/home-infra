@@ -22,3 +22,9 @@
     name: nfs-utils
     state: restarted
   become: yes
+
+- name: restart iscsid
+  systemd:
+    name: iscsid
+    state: restarted
+  become: yes
