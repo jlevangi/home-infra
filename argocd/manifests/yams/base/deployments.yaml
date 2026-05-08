@@ -257,6 +257,22 @@ spec:
         app.kubernetes.io/name: qbittorrent
         app.kubernetes.io/part-of: yams
     spec:
+      # qBittorrent's lockfile + ipc-socket persist across pod restarts on
+      # the config PVC. After an unclean SIGKILL (e.g. cluster shutdown),
+      # the new pod sees the stale files, sends "show window" to the dead
+      # IPC socket, and exits — s6 then crash-loops the process. Wiping
+      # them on every pod start is safe because no qBittorrent instance is
+      # actually running at this point.
+      initContainers:
+        - name: clear-stale-qbit-lock
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - rm -f /config/qBittorrent/lockfile /config/qBittorrent/ipc-socket
+          volumeMounts:
+            - name: qbittorrent-config
+              mountPath: /config
       containers:
         - name: gluetun
           image: ghcr.io/qdm12/gluetun:latest
