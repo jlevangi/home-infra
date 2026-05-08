@@ -42,6 +42,13 @@ longhorn_exclude_master_from_storage: true
 longhorn_guaranteed_instance_manager_cpu: 12
 
 # -----------------------------------------------------------------------------
+# CONTROL-PLANE NODE TAINT
+# -----------------------------------------------------------------------------
+# Keep regular workloads off the master/CP nodes. Matches the Longhorn
+# taintToleration so Longhorn pods continue to run on CP nodes.
+k3s_master_workload_taint: "CriticalAddonsOnly=true:NoExecute"
+
+# -----------------------------------------------------------------------------
 # K3S DATASTORE — embedded etcd HA (validates prod plan)
 # -----------------------------------------------------------------------------
 # Stage previously ran SQLite on a single master to dodge the embedded-etcd
