@@ -9,6 +9,12 @@
 - name: Include system preparation tasks
   include_tasks: prepare.yml
 
+- name: Mount Longhorn data disk on hosts that have one
+  include_tasks: longhorn-data-disk.yml
+  when:
+    - longhorn_data_disk_device is defined
+    - longhorn_data_disk_device | length > 0
+
 # - name: Include simplified NFS host mounting
 #   include_tasks: nfs-simple-mount.yml
 #   when: enable_nfs_storage | default(true)
