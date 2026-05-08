@@ -136,18 +136,25 @@
   ignore_errors: yes
 
 - name: Install Traefik 2 using Helm
+  # --skip-crds: the chart bundles Gateway API CRDs (currently v1.5.1) whose
+  # x-kubernetes-validations use the CEL `isIP()` builtin, which is only
+  # available on Kubernetes 1.30+. On 1.28 the CRD install fails and the
+  # whole release rolls back. The Traefik core CRDs (ingressroutes,
+  # middlewares, etc.) are installed once at cluster bootstrap and persist
+  # across helm uninstall/reinstall cycles, so skipping CRDs here is safe.
   shell: |
     export KUBECONFIG={{ k3s_config_dir }}/k3s.yaml
     echo "Installing Traefik with SSL support..."
     helm upgrade --install traefik traefik/traefik \
       --namespace traefik-system \
       --values /tmp/traefik-values.yaml \
+      --skip-crds \
       --wait \
       --timeout=15m
   register: traefik_install_result
   retries: 2
   delay: 60
-  when: 
+  when:
     - inventory_hostname == groups[master_group][0]
     - traefik_needs_deployment | default(true)
 
