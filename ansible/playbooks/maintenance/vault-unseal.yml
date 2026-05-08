@@ -233,6 +233,7 @@
         - (vault_follower_status.stdout | from_json).initialized
         - not (vault_follower_status.stdout | from_json).sealed
       changed_when: false
+      loop: "{{ vault_follower_sealed_pods }}"
       when:
         - vault_follower_sealed_pods | length > 0
 
