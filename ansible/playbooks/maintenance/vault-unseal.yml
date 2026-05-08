@@ -94,12 +94,19 @@
 
     # ── Check seal status ─────────────────────────────────────────────
     - name: Get Vault status for every pod
+      # After a cluster restart the pod can be Running for several seconds
+      # before the Vault server inside is ready to answer; an empty stdout
+      # then breaks the from_json filter in the next task. Retry until each
+      # pod returns a parseable JSON document.
       shell: >
         kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
         {{ item }} -- vault status -format=json
       register: vault_status_checks
       failed_when: false
       changed_when: false
+      retries: 30
+      delay: 5
+      until: (vault_status_checks.stdout | default('') | trim | length) > 0
       loop: "{{ vault_pods }}"
 
     - name: Parse Vault pod status
@@ -248,11 +255,19 @@
     # may be stale. Re-writing the config forces Vault to pick up the
     # fresh token from its mounted service account.
     - name: Login to Vault
+      # vault_api_addr points at the cluster-wide active service which has
+      # no endpoints until raft elects a leader. After a fresh cluster
+      # restart that election can take 30-60s after pods unseal, so retry
+      # while the active service is still backendless.
       shell: >
         kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
         {{ vault_primary_pod }} -- sh -ec 'VAULT_ADDR="{{ vault_api_addr }}" vault login "{{ vault_root_token }}"'
+      register: vault_login
       changed_when: false
       no_log: true
+      retries: 12
+      delay: 10
+      until: vault_login.rc == 0
 
     - name: Reconfigure Kubernetes auth backend
       shell: >
