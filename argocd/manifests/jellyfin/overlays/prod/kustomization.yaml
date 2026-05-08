@@ -17,5 +17,29 @@ patches:
       - op: add
         path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
         value: "k3s-prod.levangie.dev"
+  - target:
+      kind: Deployment
+      name: jellyfin
+    patch: |
+      - op: add
+        path: /spec/template/spec/runtimeClassName
+        value: nvidia
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          accelerator: nvidia
+      - op: add
+        path: /spec/template/spec/tolerations
+        value:
+          - key: accelerator
+            operator: Equal
+            value: nvidia
+            effect: NoSchedule
+      - op: add
+        path: /spec/template/spec/containers/0/resources/requests/nvidia.com~1gpu
+        value: 1
+      - op: add
+        path: /spec/template/spec/containers/0/resources/limits/nvidia.com~1gpu
+        value: 1
 commonLabels:
   environment: prod
