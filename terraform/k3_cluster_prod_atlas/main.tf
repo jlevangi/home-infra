@@ -32,6 +32,7 @@ resource "proxmox_vm_qemu" "terraform" {
 
   agent   = 1
   os_type = "cloud-init"
+  onboot  = true
 
   cpu {
     cores   = 12
