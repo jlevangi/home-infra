@@ -41,6 +41,10 @@ spec:
           - key: CriticalAddonsOnly
             effect: NoExecute
             operator: Exists
+          - key: accelerator
+            operator: Equal
+            value: nvidia
+            effect: NoSchedule
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring

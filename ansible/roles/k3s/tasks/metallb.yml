@@ -114,6 +114,7 @@
     helm upgrade --install metallb metallb/metallb \
       --namespace metallb-system \
       --create-namespace \
+      --set-json='speaker.tolerations=[{"key":"node-role.kubernetes.io/master","effect":"NoSchedule","operator":"Exists"},{"key":"node-role.kubernetes.io/control-plane","effect":"NoSchedule","operator":"Exists"},{"key":"accelerator","operator":"Equal","value":"nvidia","effect":"NoSchedule"}]' \
       --wait \
       --timeout=10m
   register: metallb_install_result

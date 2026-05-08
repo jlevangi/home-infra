@@ -168,6 +168,10 @@ spec:
               operator: Equal
               value: "true"
               effect: NoExecute
+            - key: accelerator
+              operator: Equal
+              value: nvidia
+              effect: NoSchedule
           resources:
             requests:
               cpu: 50m
