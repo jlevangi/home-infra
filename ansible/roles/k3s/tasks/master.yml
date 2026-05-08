@@ -51,6 +51,10 @@
         k3s_server_args + (
           ['--cluster-init'] if k3s_is_first_master
           else ['--server', k3s_first_master_url]
+        ) + (
+          ['--node-taint=' ~ k3s_master_workload_taint]
+          if (k3s_master_workload_taint | default('') | length > 0)
+          else []
         )
       }}
 
