@@ -31,7 +31,7 @@
   hosts: "{{ target_cluster }}_master"
   gather_facts: no
   vars:
-    drain_timeout: "120s"
+    drain_timeout: "60s"
   tasks:
     - name: Get list of all cluster nodes
       command: kubectl --context {{ kubectl_context }} get nodes -o jsonpath='{.items[*].metadata.name}'
@@ -56,11 +56,17 @@
       changed_when: true
 
     - name: Drain all nodes
+      # --disable-eviction bypasses PodDisruptionBudgets and uses raw DELETE.
+      # Required for shutdown because Longhorn instance-managers have a PDB
+      # that blocks eviction whenever every node is draining at once. Pods
+      # die with the VM anyway, so PDB-protected availability isn't relevant
+      # in a full-cluster shutdown.
       command: >
         kubectl --context {{ kubectl_context }} drain {{ item }}
         --ignore-daemonsets
         --delete-emptydir-data
         --force
+        --disable-eviction
         --timeout={{ drain_timeout }}
       delegate_to: localhost
       become: no
