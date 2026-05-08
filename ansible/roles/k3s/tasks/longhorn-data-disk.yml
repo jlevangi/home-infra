@@ -1,0 +1,44 @@
+---
+# Format and mount a dedicated block device at /var/lib/longhorn.
+# Activated by setting `longhorn_data_disk_device` (e.g. /dev/sdb) in host_vars
+# for hosts whose Longhorn data lives on a separate disk (e.g. Atlas-hosted
+# workers with a tank-backed scsi1 disk). Unset = no-op everywhere else.
+
+- name: Stat Longhorn data disk
+  ansible.builtin.stat:
+    path: "{{ longhorn_data_disk_device }}"
+  register: longhorn_data_disk
+  become: yes
+
+- name: Fail if Longhorn data disk is missing
+  ansible.builtin.fail:
+    msg: "longhorn_data_disk_device={{ longhorn_data_disk_device }} not found on {{ inventory_hostname }}"
+  when: not longhorn_data_disk.stat.exists
+
+- name: Format Longhorn data disk as ext4
+  community.general.filesystem:
+    fstype: ext4
+    dev: "{{ longhorn_data_disk_device }}"
+  become: yes
+
+- name: Resolve Longhorn data disk UUID
+  ansible.builtin.command: blkid -s UUID -o value {{ longhorn_data_disk_device }}
+  register: longhorn_disk_uuid
+  changed_when: false
+  become: yes
+
+- name: Ensure /var/lib/longhorn exists
+  ansible.builtin.file:
+    path: /var/lib/longhorn
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Mount Longhorn data disk at /var/lib/longhorn
+  ansible.posix.mount:
+    src: "UUID={{ longhorn_disk_uuid.stdout }}"
+    path: /var/lib/longhorn
+    fstype: ext4
+    opts: defaults,noatime
+    state: mounted
+  become: yes
