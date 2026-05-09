@@ -1,0 +1,142 @@
+---
+# Prepare GPU-capable worker nodes for NVIDIA passthrough workloads.
+
+- name: Enable Debian non-free repositories for NVIDIA packages
+  ansible.builtin.apt_repository:
+    repo: "{{ item }}"
+    filename: debian-nonfree
+    state: present
+    update_cache: no
+  loop:
+    - "deb http://deb.debian.org/debian bookworm contrib non-free non-free-firmware"
+    - "deb http://deb.debian.org/debian bookworm-updates contrib non-free non-free-firmware"
+    - "deb http://security.debian.org/debian-security bookworm-security contrib non-free non-free-firmware"
+  become: yes
+
+- name: Install NVIDIA container toolkit repo key
+  ansible.builtin.shell: |
+    set -euo pipefail
+    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \
+      | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+  args:
+    creates: /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+    executable: /bin/bash
+  become: yes
+
+- name: Install NVIDIA container toolkit repo list
+  ansible.builtin.shell: |
+    set -euo pipefail
+    curl -s -L {{ nvidia_container_toolkit_repo | quote }} \
+      | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' \
+      > /etc/apt/sources.list.d/nvidia-container-toolkit.list
+  args:
+    creates: /etc/apt/sources.list.d/nvidia-container-toolkit.list
+    executable: /bin/bash
+  become: yes
+
+- name: Refresh apt cache after NVIDIA repo changes
+  ansible.builtin.apt:
+    update_cache: yes
+  become: yes
+
+- name: Install NVIDIA guest driver and runtime packages
+  ansible.builtin.apt:
+    name:
+      - "linux-headers-{{ ansible_kernel }}"
+      - dkms
+      - firmware-misc-nonfree
+      - nvidia-driver
+      - nvidia-smi
+      - nvidia-container-toolkit
+      - nvidia-container-runtime
+    state: present
+  register: nvidia_guest_packages
+  become: yes
+
+- name: Blacklist nouveau on GPU workers
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/blacklist-nouveau.conf
+    mode: "0644"
+    content: |
+      blacklist nouveau
+      options nouveau modeset=0
+  register: nvidia_nouveau_blacklist
+  become: yes
+
+- name: Refresh initramfs after NVIDIA driver changes
+  ansible.builtin.command: update-initramfs -u
+  when:
+    - nvidia_guest_packages.changed or nvidia_nouveau_blacklist.changed
+  become: yes
+
+- name: Check which driver currently owns the NVIDIA GPU
+  ansible.builtin.shell: |
+    set -eu
+    lspci -nnk | awk '
+      /NVIDIA Corporation/ { seen=1; next }
+      seen && /Kernel driver in use:/ { print $5; exit }
+    '
+  args:
+    executable: /bin/bash
+  register: nvidia_gpu_bound_driver
+  changed_when: false
+  failed_when: nvidia_gpu_bound_driver.stdout | trim | length == 0
+  become: yes
+
+- name: Reboot GPU worker to switch from nouveau to NVIDIA
+  ansible.builtin.reboot:
+    reboot_timeout: 900
+    post_reboot_delay: 15
+  when:
+    - nvidia_guest_packages.changed
+      or nvidia_nouveau_blacklist.changed
+      or nvidia_gpu_bound_driver.stdout == "nouveau"
+  become: yes
+
+- name: Ensure NVIDIA kernel modules load at boot
+  ansible.builtin.lineinfile:
+    path: /etc/modules-load.d/nvidia.conf
+    line: "{{ item }}"
+    create: yes
+  loop:
+    - nvidia
+    - nvidia_uvm
+  become: yes
+
+- name: Load NVIDIA kernel modules now
+  modprobe:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - nvidia
+    - nvidia_uvm
+  become: yes
+
+- name: Check if k3s-agent service exists
+  ansible.builtin.shell: systemctl list-unit-files k3s-agent.service --no-legend | awk '{print $1}'
+  register: k3s_agent_service_check
+  changed_when: false
+  failed_when: false
+
+- name: Restart k3s-agent so K3s detects the NVIDIA runtime
+  ansible.builtin.systemd:
+    name: k3s-agent
+    state: restarted
+  become: yes
+  when: k3s_agent_service_check.stdout == "k3s-agent.service"
+
+- name: Verify K3s containerd config includes the NVIDIA runtime
+  ansible.builtin.shell: grep -q nvidia /var/lib/rancher/k3s/agent/etc/containerd/config.toml
+  register: nvidia_runtime_config_check
+  changed_when: false
+  failed_when: false
+  when: k3s_agent_service_check.stdout == "k3s-agent.service"
+
+- name: Wait for nvidia-smi to work inside the guest
+  ansible.builtin.command: nvidia-smi -L
+  register: nvidia_smi_check
+  changed_when: false
+  retries: 10
+  delay: 15
+  until: nvidia_smi_check.rc == 0
+  become: yes

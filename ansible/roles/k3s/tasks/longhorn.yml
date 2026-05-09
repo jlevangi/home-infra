@@ -211,6 +211,10 @@
       --set-string global.tolerations[0].operator=Equal \
       --set-string global.tolerations[0].value=true \
       --set-string global.tolerations[0].effect=NoExecute \
+      --set-string global.tolerations[1].key=accelerator \
+      --set-string global.tolerations[1].operator=Equal \
+      --set-string global.tolerations[1].value=nvidia \
+      --set-string global.tolerations[1].effect=NoSchedule \
       --set-string defaultSettings.taintToleration='CriticalAddonsOnly=true:NoExecute' \
       --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
       --set defaultSettings.storageReservedPercentageForDefaultDisk={{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }} \
@@ -236,6 +240,10 @@
       --set-string global.tolerations[0].operator=Equal \
       --set-string global.tolerations[0].value=true \
       --set-string global.tolerations[0].effect=NoExecute \
+      --set-string global.tolerations[1].key=accelerator \
+      --set-string global.tolerations[1].operator=Equal \
+      --set-string global.tolerations[1].value=nvidia \
+      --set-string global.tolerations[1].effect=NoSchedule \
       --set-string defaultSettings.taintToleration='CriticalAddonsOnly=true:NoExecute' \
       --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
       --set defaultSettings.storageReservedPercentageForDefaultDisk={{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }} \
@@ -260,6 +268,10 @@
       --set-string global.tolerations[0].operator=Equal \
       --set-string global.tolerations[0].value=true \
       --set-string global.tolerations[0].effect=NoExecute \
+      --set-string global.tolerations[1].key=accelerator \
+      --set-string global.tolerations[1].operator=Equal \
+      --set-string global.tolerations[1].value=nvidia \
+      --set-string global.tolerations[1].effect=NoSchedule \
       --set-string defaultSettings.taintToleration='CriticalAddonsOnly=true:NoExecute' \
       --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
       --set defaultSettings.storageReservedPercentageForDefaultDisk={{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }} \
@@ -313,6 +325,45 @@
   changed_when: false
   become: yes
   ignore_errors: yes
+
+- name: List Longhorn daemonsets that must tolerate GPU worker taints
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get daemonset -n longhorn-system -o name
+  args:
+    executable: /bin/bash
+  register: longhorn_daemonsets
+  changed_when: false
+  become: yes
+
+- name: Patch Longhorn daemonsets to tolerate accelerator=nvidia
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch {{ item }} -n longhorn-system --type='merge' -p='{
+      "spec": {
+        "template": {
+          "spec": {
+            "tolerations": [
+              {"key":"CriticalAddonsOnly","operator":"Equal","value":"true","effect":"NoExecute"},
+              {"key":"accelerator","operator":"Equal","value":"nvidia","effect":"NoSchedule"}
+            ]
+          }
+        }
+      }
+    }'
+  args:
+    executable: /bin/bash
+  loop: "{{ longhorn_daemonsets.stdout_lines | default([]) }}"
+  become: yes
+  register: longhorn_gpu_toleration_patch
+  when: longhorn_daemonsets.stdout_lines | default([]) | length > 0
+
+- name: Wait for patched Longhorn daemonsets to roll out
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl rollout status {{ item }} -n longhorn-system --timeout=300s
+  args:
+    executable: /bin/bash
+  loop: "{{ longhorn_daemonsets.stdout_lines | default([]) }}"
+  become: yes
+  when: longhorn_daemonsets.stdout_lines | default([]) | length > 0
 
 - name: Check Longhorn storage class is available
   ansible.builtin.shell: |
@@ -672,6 +723,33 @@
     - volume_count.stdout | int > 0
     - ((incorrect_replica_volumes.stdout_lines | default([])) + (incorrect_replica_auto_balance_volumes.stdout_lines | default([]))) | length > 0
   ignore_errors: yes
+
+- name: Disable Longhorn scheduling on non-storage worker nodes
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes.longhorn.io {{ item }} -n longhorn-system
+  args:
+    executable: /bin/bash
+  loop: "{{ groups[worker_group] | default([]) }}"
+  become: yes
+  register: longhorn_nonstorage_nodes_present
+  retries: 20
+  delay: 15
+  until: longhorn_nonstorage_nodes_present.rc == 0
+  when: hostvars[item].longhorn_exclude_from_storage | default(false)
+
+- name: Disable Longhorn scheduling on non-storage worker nodes
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch nodes.longhorn.io {{ item }} -n longhorn-system \
+      --type='merge' -p='{"spec":{"allowScheduling":false}}'
+  args:
+    executable: /bin/bash
+  loop: "{{ groups[worker_group] | default([]) }}"
+  become: yes
+  register: longhorn_nonstorage_patch
+  retries: 10
+  delay: 15
+  until: longhorn_nonstorage_patch.rc == 0
+  when: hostvars[item].longhorn_exclude_from_storage | default(false)
 
 - name: Patch Longhorn frontend service to NodePort
   shell: |

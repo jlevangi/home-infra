@@ -211,6 +211,10 @@
       --set-string global.tolerations[0].operator=Equal \
       --set-string global.tolerations[0].value=true \
       --set-string global.tolerations[0].effect=NoExecute \
+      --set-string global.tolerations[1].key=accelerator \
+      --set-string global.tolerations[1].operator=Equal \
+      --set-string global.tolerations[1].value=nvidia \
+      --set-string global.tolerations[1].effect=NoSchedule \
       --set-string defaultSettings.taintToleration='CriticalAddonsOnly=true:NoExecute' \
       --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
       --set defaultSettings.storageReservedPercentageForDefaultDisk={{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }} \
@@ -233,6 +237,10 @@
       --set-string global.tolerations[0].operator=Equal \
       --set-string global.tolerations[0].value=true \
       --set-string global.tolerations[0].effect=NoExecute \
+      --set-string global.tolerations[1].key=accelerator \
+      --set-string global.tolerations[1].operator=Equal \
+      --set-string global.tolerations[1].value=nvidia \
+      --set-string global.tolerations[1].effect=NoSchedule \
       --set-string defaultSettings.taintToleration='CriticalAddonsOnly=true:NoExecute' \
       --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
       --set defaultSettings.storageReservedPercentageForDefaultDisk={{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }} \
@@ -254,6 +262,10 @@
       --set-string global.tolerations[0].operator=Equal \
       --set-string global.tolerations[0].value=true \
       --set-string global.tolerations[0].effect=NoExecute \
+      --set-string global.tolerations[1].key=accelerator \
+      --set-string global.tolerations[1].operator=Equal \
+      --set-string global.tolerations[1].value=nvidia \
+      --set-string global.tolerations[1].effect=NoSchedule \
       --set-string defaultSettings.taintToleration='CriticalAddonsOnly=true:NoExecute' \
       --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
       --set defaultSettings.storageReservedPercentageForDefaultDisk={{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }} \
