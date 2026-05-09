@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: firefox
+  namespace: firefox
+  labels:
+    app: firefox
+    app.kubernetes.io/name: firefox
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: firefox
+  template:
+    metadata:
+      labels:
+        app: firefox
+        app.kubernetes.io/name: firefox
+    spec:
+      containers:
+        - name: gluetun
+          image: ghcr.io/qdm12/gluetun:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+          env:
+            - name: VPN_SERVICE_PROVIDER
+              value: surfshark
+            - name: VPN_TYPE
+              value: openvpn
+            - name: OPENVPN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: firefox-secrets
+                  key: OPENVPN_USER
+            - name: OPENVPN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: firefox-secrets
+                  key: OPENVPN_PASSWORD
+            - name: SERVER_CITIES
+              value: New York
+            # Allow inbound to the firefox web UI port through gluetun's firewall.
+            - name: FIREWALL_INPUT_PORTS
+              value: "3000"
+          volumeMounts:
+            - name: gluetun-config
+              mountPath: /config
+            - name: dev-net-tun
+              mountPath: /dev/net/tun
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+        - name: firefox
+          image: lscr.io/linuxserver/firefox:latest
+          imagePullPolicy: IfNotPresent
+          # Mirrors docker-compose `security_opt: seccomp:unconfined`. Firefox's
+          # sandbox uses syscalls that the default kubelet seccomp profile blocks.
+          securityContext:
+            seccompProfile:
+              type: Unconfined
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: America/New_York
+          ports:
+            - name: firefox-http
+              containerPort: 3000
+              protocol: TCP
+          volumeMounts:
+            - name: firefox-config
+              mountPath: /config
+            - name: dshm
+              mountPath: /dev/shm
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 3Gi
+      volumes:
+        - name: gluetun-config
+          persistentVolumeClaim:
+            claimName: firefox-gluetun-config-pvc
+        - name: firefox-config
+          persistentVolumeClaim:
+            claimName: firefox-config-pvc
+        # Replaces docker-compose `shm_size: 2gb`. Firefox needs a sizable
+        # /dev/shm for tab/process IPC; 2Gi tracks the compose value.
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi
+        - name: dev-net-tun
+          hostPath:
+            path: /dev/net/tun
+            type: CharDevice
