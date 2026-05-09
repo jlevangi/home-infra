@@ -26,7 +26,7 @@
 
   vars:
     master_group: "{{ target_cluster }}_master"
-    worker_group: "{{ target_cluster }}_worker"
+    worker_group: "{{ target_cluster }}_workers"
 
   pre_tasks:
     - name: Display deployment target information
@@ -55,7 +55,7 @@
         tasks_from: longhorn.yml
       when:
         - deploy_component == 'longhorn'
-        - inventory_hostname in groups[master_group]
+        - inventory_hostname == groups[master_group][0]
 
     - name: Deploy MetalLB load balancer
       ansible.builtin.include_role:
@@ -63,7 +63,7 @@
         tasks_from: metallb.yml
       when:
         - deploy_component == 'metallb'
-        - inventory_hostname in groups[master_group]
+        - inventory_hostname == groups[master_group][0]
 
     - name: Deploy Traefik ingress controller
       ansible.builtin.include_role:
@@ -71,7 +71,7 @@
         tasks_from: traefik.yml
       when:
         - deploy_component == 'traefik'
-        - inventory_hostname in groups[master_group]
+        - inventory_hostname == groups[master_group][0]
 
     - name: Deploy ArgoCD GitOps controller
       ansible.builtin.include_role:
@@ -79,7 +79,7 @@
         tasks_from: argocd.yml
       when:
         - deploy_component == 'argocd'
-        - inventory_hostname in groups[master_group]
+        - inventory_hostname == groups[master_group][0]
 
     - name: Bootstrap Vault (init, unseal, configure, seed secrets)
       ansible.builtin.include_role:
@@ -87,7 +87,7 @@
         tasks_from: vault.yml
       when:
         - deploy_component in ['argocd', 'vault']
-        - inventory_hostname in groups[master_group]
+        - inventory_hostname == groups[master_group][0]
         - k3s_configure_vault | default(true)
 
     - name: Deploy root ArgoCD application after Vault bootstrap
@@ -96,7 +96,7 @@
         tasks_from: argocd-root-app.yml
       when:
         - deploy_component == 'argocd'
-        - inventory_hostname in groups[master_group]
+        - inventory_hostname == groups[master_group][0]
 
   post_tasks:
     - name: Display completion summary

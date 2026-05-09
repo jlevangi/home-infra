@@ -249,6 +249,16 @@ longhorn_backup_retain_daily: 7
 longhorn_backup_retain_weekly: 4
 
 # -----------------------------------------------------------------------------
+# NVIDIA GPU WORKER CONFIGURATION
+# -----------------------------------------------------------------------------
+# Intentionally leave node-role toggles undefined here so inventory host_vars can
+# opt specific workers into GPU behavior and Longhorn replica exclusion.
+nvidia_gpu_node_label_key: "accelerator"
+nvidia_gpu_node_label_value: "nvidia"
+nvidia_gpu_node_taint: "accelerator=nvidia:NoSchedule"
+nvidia_container_toolkit_repo: "https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list"
+
+# -----------------------------------------------------------------------------
 # SMTP CONFIGURATION
 # -----------------------------------------------------------------------------
 smtp_host: "{{ vault_smtp_host }}"
