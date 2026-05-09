@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: immich-power-tools
+  namespace: immich
+  labels:
+    app: immich-power-tools
+    app.kubernetes.io/name: immich-power-tools
+    app.kubernetes.io/part-of: immich
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: immich-power-tools
+  template:
+    metadata:
+      labels:
+        app: immich-power-tools
+        app.kubernetes.io/name: immich-power-tools
+        app.kubernetes.io/part-of: immich
+    spec:
+      containers:
+        - name: immich-power-tools
+          image: ghcr.io/immich-power-tools/immich-power-tools:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            # Talks to the in-cluster Immich server, not the public ingress.
+            - name: IMMICH_URL
+              value: http://immich-server:2283
+            - name: EXTERNAL_IMMICH_URL
+              value: https://photos.levangie.org
+            # Reuses the same Postgres instance Immich does.
+            - name: DB_HOST
+              value: immich-postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USERNAME
+              value: postgres
+            - name: DB_DATABASE
+              value: immich
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: immich-secrets
+                  key: DB_PASSWORD
+            - name: IMMICH_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: immich-secrets
+                  key: IMMICH_API_KEY
+            - name: TZ
+              value: America/New_York
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: immich-power-tools-data-pvc

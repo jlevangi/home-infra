@@ -181,6 +181,14 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
+            - name: Immich Power Tools
+              group: Applications
+              url: https://immich-tools.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
             - name: Memos
               group: Applications
               url: https://memos.levangie.org

@@ -24,6 +24,13 @@ patches:
       - op: add
         path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
         value: "k3s-prod.levangie.dev"
+  - target:
+      kind: Ingress
+      name: immich-power-tools-ingress
+    patch: |
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: "k3s-prod.levangie.dev"
 labels:
   - pairs:
       environment: prod
