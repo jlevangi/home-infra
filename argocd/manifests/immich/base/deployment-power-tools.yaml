@@ -21,6 +21,12 @@ spec:
         app.kubernetes.io/name: immich-power-tools
         app.kubernetes.io/part-of: immich
     spec:
+      # Power Tools' Next.js process runs as the "node" user (uid/gid 1000)
+      # and writes a local SQLite DB to /app/data. fsGroup makes the kubelet
+      # chown the freshly-mounted Longhorn volume to gid 1000 on mount so the
+      # process can create app.db.
+      securityContext:
+        fsGroup: 1000
       containers:
         - name: immich-power-tools
           image: ghcr.io/immich-power-tools/immich-power-tools:latest
