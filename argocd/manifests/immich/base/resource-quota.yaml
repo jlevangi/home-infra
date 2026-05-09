@@ -5,6 +5,6 @@ metadata:
   namespace: immich
 spec:
   hard:
-    requests.storage: "20Gi"
+    requests.storage: "25Gi"
     persistentvolumeclaims: "5"
-    longhorn.io/requests.storage: "20Gi"
+    longhorn.io/requests.storage: "25Gi"
