@@ -36,8 +36,9 @@ argocd_controller_memory_request: "1Gi"
 # -----------------------------------------------------------------------------
 # Stage now runs 3 dedicated CP nodes + 3 dedicated workers, matching prod.
 # Longhorn replicas live only on workers; CP nodes run only kube-apiserver/etcd
-# and are excluded from storage scheduling.
-longhorn_replica_count: 3
+# and are excluded from storage scheduling. Workers share a single Proxmox host,
+# so 2-way replication is the practical ceiling for redundancy.
+longhorn_replica_count: 2
 longhorn_exclude_master_from_storage: true
 longhorn_guaranteed_instance_manager_cpu: 12
 
