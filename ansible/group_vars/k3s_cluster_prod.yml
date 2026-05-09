@@ -17,8 +17,10 @@ traefik_loadbalancer_ip: "172.20.20.200"
 
 # -----------------------------------------------------------------------------
 # LONGHORN OVERRIDES (prod has 3 dedicated workers, masters are CP-only)
+# All workers live on a single Proxmox host, so 3-way replication adds no
+# hardware redundancy beyond 2-way; backups (NFS) cover host-level loss.
 # -----------------------------------------------------------------------------
-longhorn_replica_count: 3
+longhorn_replica_count: 2
 longhorn_exclude_master_from_storage: true
 longhorn_guaranteed_instance_manager_cpu: 12
 
