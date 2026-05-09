@@ -68,6 +68,12 @@ spec:
               value: https://search.levangie.dev/
             - name: INSTANCE_NAME
               value: search.levangie.dev
+            # Override K8s-injected SEARXNG_PORT (set by the Service named
+            # "searxng" to a tcp://... URL, which the entrypoint can't parse).
+            - name: SEARXNG_PORT
+              value: "8080"
+            - name: SEARXNG_BIND_ADDRESS
+              value: "0.0.0.0"
           ports:
             - name: searxng-http
               containerPort: 8080
@@ -76,7 +82,6 @@ spec:
             - name: searxng-config
               mountPath: /etc/searxng/settings.yml
               subPath: settings.yml
-              readOnly: true
           readinessProbe:
             httpGet:
               path: /healthz
