@@ -1,0 +1,9 @@
+---
+# Dedicated GPU worker on Atlas. This node is intentionally excluded from
+# Longhorn storage scheduling and is reserved for media workloads that use
+# the passthrough Quadro P4000.
+nvidia_gpu_worker: true
+longhorn_exclude_from_storage: true
+k3s_agent_args:
+  - "--node-label=accelerator=nvidia"
+  - "--node-taint=accelerator=nvidia:NoSchedule"

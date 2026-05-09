@@ -1,0 +1,20 @@
+# Atlas API token
+token_id     = "terraform@pam!tf-token"
+token_secret = "replace-me"
+
+# Cloud-init user (matches existing prod tfvars)
+ci_user     = "pierce"
+ci_password = "replace-me"
+
+ssh_key = "ssh-ed25519 AAAA... replace-me"
+
+# Network configuration
+ip_address    = "172.20.20.107"
+subnet_mask   = "22"
+gateway       = "172.20.20.1"
+nameserver    = "172.20.20.4"
+search_domain = "local"
+
+# Atlas-local storage for this dedicated GPU worker
+vm_storage   = "local-lvm"
+os_disk_size = "80G"
