@@ -7,3 +7,4 @@
 
 ## Cutover Notes
 - Use `docs/recovery/production-cutover-checklist.md` before syncing changes.
+- GPU passthrough rollout steps live in `docs/operations/nvidia-gpu-passthrough.md`.
