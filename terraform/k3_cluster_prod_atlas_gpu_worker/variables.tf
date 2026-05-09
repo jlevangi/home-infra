@@ -38,9 +38,21 @@ variable "vm_storage" {
 }
 
 variable "os_disk_size" {
-  description = "GPU worker OS disk size."
+  description = "GPU worker OS disk size. /var/lib/longhorn lives on data_disk, so OS disk only carries the OS + container images."
   type        = string
   default     = "80G"
+}
+
+variable "data_disk_storage" {
+  description = "Proxmox storage pool for the Longhorn data disk (scsi1). tank = ZFS HDD pool on Atlas; move to NVMe later."
+  type        = string
+  default     = "tank"
+}
+
+variable "data_disk_size" {
+  description = "Longhorn data disk size for the GPU worker. Sized for Plex + Jellyfin config volumes plus headroom."
+  type        = string
+  default     = "200G"
 }
 
 variable "api_url" {

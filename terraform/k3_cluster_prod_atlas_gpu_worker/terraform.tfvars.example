@@ -15,6 +15,10 @@ gateway       = "172.20.20.1"
 nameserver    = "172.20.20.4"
 search_domain = "local"
 
-# Atlas-local storage for this dedicated GPU worker
-vm_storage   = "local-lvm"
-os_disk_size = "80G"
+# Storage layout on Atlas:
+#   - OS + cloud-init on local-lvm (SSD thin LVM)
+#   - Longhorn data on tank (ZFS HDD pool); shared pattern with k3s-prod-worker-{1,2,3}
+vm_storage        = "local-lvm"
+os_disk_size      = "80G"
+data_disk_storage = "tank"
+data_disk_size    = "200G"

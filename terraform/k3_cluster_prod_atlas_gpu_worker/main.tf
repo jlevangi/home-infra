@@ -66,6 +66,14 @@ resource "proxmox_vm_qemu" "gpu_worker" {
     storage = var.vm_storage
   }
 
+  # Longhorn data disk (mounted at /var/lib/longhorn by Ansible)
+  disk {
+    slot    = "scsi1"
+    size    = var.data_disk_size
+    type    = "disk"
+    storage = var.data_disk_storage
+  }
+
   pci {
     id     = "0"
     raw_id = var.gpu_pci_address
