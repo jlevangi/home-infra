@@ -149,6 +149,36 @@
     calculated_replica_count: "{{ [groups[cluster_group] | default([]) | length, 3] | min }}"
   when: longhorn_replica_count is not defined
 
+- name: Build Longhorn scheduling values
+  set_fact:
+    longhorn_global_tolerations_json: >-
+      {{
+        (
+          ([
+            {
+              'key': 'CriticalAddonsOnly',
+              'operator': 'Equal',
+              'value': 'true',
+              'effect': 'NoExecute'
+            }
+          ] if not (longhorn_exclude_master_from_storage | default(false) | bool) else [])
+          + [
+            {
+              'key': 'accelerator',
+              'operator': 'Equal',
+              'value': 'nvidia',
+              'effect': 'NoSchedule'
+            }
+          ]
+        ) | to_json
+      }}
+    longhorn_taint_toleration_value: >-
+      {{
+        ''
+        if (longhorn_exclude_master_from_storage | default(false) | bool)
+        else 'CriticalAddonsOnly=true:NoExecute'
+      }}
+
 - name: Display Longhorn replica count calculation
   debug:
     msg: |
@@ -207,15 +237,8 @@
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm install longhorn longhorn/longhorn \
       --namespace longhorn-system \
       --create-namespace \
-      --set-string global.tolerations[0].key=CriticalAddonsOnly \
-      --set-string global.tolerations[0].operator=Equal \
-      --set-string global.tolerations[0].value=true \
-      --set-string global.tolerations[0].effect=NoExecute \
-      --set-string global.tolerations[1].key=accelerator \
-      --set-string global.tolerations[1].operator=Equal \
-      --set-string global.tolerations[1].value=nvidia \
-      --set-string global.tolerations[1].effect=NoSchedule \
-      --set-string defaultSettings.taintToleration='CriticalAddonsOnly=true:NoExecute' \
+      --set-json='global.tolerations={{ longhorn_global_tolerations_json }}' \
+      --set-string defaultSettings.taintToleration='{{ longhorn_taint_toleration_value }}' \
       --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
       --set defaultSettings.storageReservedPercentageForDefaultDisk={{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }} \
       --set defaultSettings.defaultDataPath="/var/lib/longhorn/" \
@@ -236,15 +259,8 @@
   ansible.builtin.shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm upgrade longhorn longhorn/longhorn \
       --namespace longhorn-system \
-      --set-string global.tolerations[0].key=CriticalAddonsOnly \
-      --set-string global.tolerations[0].operator=Equal \
-      --set-string global.tolerations[0].value=true \
-      --set-string global.tolerations[0].effect=NoExecute \
-      --set-string global.tolerations[1].key=accelerator \
-      --set-string global.tolerations[1].operator=Equal \
-      --set-string global.tolerations[1].value=nvidia \
-      --set-string global.tolerations[1].effect=NoSchedule \
-      --set-string defaultSettings.taintToleration='CriticalAddonsOnly=true:NoExecute' \
+      --set-json='global.tolerations={{ longhorn_global_tolerations_json }}' \
+      --set-string defaultSettings.taintToleration='{{ longhorn_taint_toleration_value }}' \
       --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
       --set defaultSettings.storageReservedPercentageForDefaultDisk={{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }} \
       --set defaultSettings.defaultDataPath="/var/lib/longhorn/" \
@@ -264,15 +280,8 @@
   ansible.builtin.shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm upgrade --install longhorn longhorn/longhorn \
       --namespace longhorn-system \
-      --set-string global.tolerations[0].key=CriticalAddonsOnly \
-      --set-string global.tolerations[0].operator=Equal \
-      --set-string global.tolerations[0].value=true \
-      --set-string global.tolerations[0].effect=NoExecute \
-      --set-string global.tolerations[1].key=accelerator \
-      --set-string global.tolerations[1].operator=Equal \
-      --set-string global.tolerations[1].value=nvidia \
-      --set-string global.tolerations[1].effect=NoSchedule \
-      --set-string defaultSettings.taintToleration='CriticalAddonsOnly=true:NoExecute' \
+      --set-json='global.tolerations={{ longhorn_global_tolerations_json }}' \
+      --set-string defaultSettings.taintToleration='{{ longhorn_taint_toleration_value }}' \
       --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
       --set defaultSettings.storageReservedPercentageForDefaultDisk={{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }} \
       --set defaultSettings.defaultDataPath="/var/lib/longhorn/" \
@@ -341,10 +350,7 @@
       "spec": {
         "template": {
           "spec": {
-            "tolerations": [
-              {"key":"CriticalAddonsOnly","operator":"Equal","value":"true","effect":"NoExecute"},
-              {"key":"accelerator","operator":"Equal","value":"nvidia","effect":"NoSchedule"}
-            ]
+            "tolerations": {{ longhorn_global_tolerations_json }}
           }
         }
       }
@@ -364,6 +370,66 @@
   loop: "{{ longhorn_daemonsets.stdout_lines | default([]) }}"
   become: yes
   when: longhorn_daemonsets.stdout_lines | default([]) | length > 0
+
+- name: List Longhorn deployments that should stay off control-plane nodes
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get deployment -n longhorn-system -o name
+  args:
+    executable: /bin/bash
+  register: longhorn_deployments
+  changed_when: false
+  become: yes
+  when: longhorn_exclude_master_from_storage | default(false) | bool
+
+- name: Patch Longhorn deployments to run only on worker nodes
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch {{ item }} -n longhorn-system --type='merge' -p='{
+      "spec": {
+        "template": {
+          "spec": {
+            "tolerations": [],
+            "affinity": {
+              "nodeAffinity": {
+                "requiredDuringSchedulingIgnoredDuringExecution": {
+                  "nodeSelectorTerms": [
+                    {
+                      "matchExpressions": [
+                        {
+                          "key": "node-role.kubernetes.io/control-plane",
+                          "operator": "DoesNotExist"
+                        },
+                        {
+                          "key": "node-role.kubernetes.io/master",
+                          "operator": "DoesNotExist"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }'
+  args:
+    executable: /bin/bash
+  loop: "{{ longhorn_deployments.stdout_lines | default([]) }}"
+  become: yes
+  when:
+    - longhorn_exclude_master_from_storage | default(false) | bool
+    - longhorn_deployments.stdout_lines | default([]) | length > 0
+
+- name: Wait for patched Longhorn deployments to roll out
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl rollout status {{ item }} -n longhorn-system --timeout=300s
+  args:
+    executable: /bin/bash
+  loop: "{{ longhorn_deployments.stdout_lines | default([]) }}"
+  become: yes
+  when:
+    - longhorn_exclude_master_from_storage | default(false) | bool
+    - longhorn_deployments.stdout_lines | default([]) | length > 0
 
 - name: Check Longhorn storage class is available
   ansible.builtin.shell: |
