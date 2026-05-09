@@ -37,13 +37,18 @@ spec:
               value: http://immich-server:2283
             - name: EXTERNAL_IMMICH_URL
               value: https://photos.levangie.org
-            # Reuses the same Postgres instance Immich does.
+            # Reuses the same Postgres instance Immich does. Power Tools
+            # follows the Immich env-var schema (DB_HOSTNAME, DB_DATABASE_NAME).
+            - name: DB_HOSTNAME
+              value: immich-postgres
             - name: DB_HOST
               value: immich-postgres
             - name: DB_PORT
               value: "5432"
             - name: DB_USERNAME
               value: postgres
+            - name: DB_DATABASE_NAME
+              value: immich
             - name: DB_DATABASE
               value: immich
             - name: DB_PASSWORD
