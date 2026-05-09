@@ -151,33 +151,30 @@
 
 - name: Build Longhorn scheduling values
   set_fact:
+    # Always tolerate the control-plane CriticalAddonsOnly taint and the GPU
+    # accelerator taint so Longhorn's daemonsets land on every node. Whether
+    # CP nodes actually host replicas is enforced separately via per-node
+    # nodes.longhorn.io allowScheduling=false (see longhorn_exclude_master_from_storage
+    # patch below). This keeps CP nodes visible in the Longhorn UI as
+    # "schedulable=false" rather than "Down".
     longhorn_global_tolerations_json: >-
       {{
-        (
-          ([
-            {
-              'key': 'CriticalAddonsOnly',
-              'operator': 'Equal',
-              'value': 'true',
-              'effect': 'NoExecute'
-            }
-          ] if not (longhorn_exclude_master_from_storage | default(false) | bool) else [])
-          + [
-            {
-              'key': 'accelerator',
-              'operator': 'Equal',
-              'value': 'nvidia',
-              'effect': 'NoSchedule'
-            }
-          ]
-        ) | to_json
+        [
+          {
+            'key': 'CriticalAddonsOnly',
+            'operator': 'Equal',
+            'value': 'true',
+            'effect': 'NoExecute'
+          },
+          {
+            'key': 'accelerator',
+            'operator': 'Equal',
+            'value': 'nvidia',
+            'effect': 'NoSchedule'
+          }
+        ] | to_json
       }}
-    longhorn_taint_toleration_value: >-
-      {{
-        ''
-        if (longhorn_exclude_master_from_storage | default(false) | bool)
-        else 'CriticalAddonsOnly=true:NoExecute'
-      }}
+    longhorn_taint_toleration_value: 'CriticalAddonsOnly=true:NoExecute'
 
 - name: Display Longhorn replica count calculation
   debug:
