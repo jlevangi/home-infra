@@ -14,6 +14,10 @@ resources:
   - service-machine-learning.yaml
   - deployment-server.yaml
   - service-server.yaml
+  - pvc-power-tools.yaml
+  - deployment-power-tools.yaml
+  - service-power-tools.yaml
+  - ingress-power-tools.yaml
   - ingress.yaml
   - resource-quota.yaml
   - limit-range.yaml
