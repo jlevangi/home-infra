@@ -46,6 +46,7 @@
   hosts: "{{ target_cluster }}_master"
   become: yes
   gather_facts: no
+  serial: 1
   tasks:
     - name: Start k3s service
       systemd:
@@ -101,6 +102,7 @@
       delay: 10
       until: (node_count.stdout | trim | int) >= (expected_node_count | int)
       changed_when: false
+      run_once: true
 
     - name: Get list of all cluster nodes
       command: kubectl --context {{ kubectl_context }} get nodes -o jsonpath='{.items[*].metadata.name}'
@@ -108,10 +110,12 @@
       become: no
       register: node_list
       changed_when: false
+      run_once: true
 
     - name: Set node names
       set_fact:
         cluster_nodes: "{{ node_list.stdout.split() }}"
+      run_once: true
 
     - name: Uncordon all nodes
       command: kubectl --context {{ kubectl_context }} uncordon {{ item }}
@@ -119,6 +123,7 @@
       become: no
       loop: "{{ cluster_nodes }}"
       changed_when: true
+      run_once: true
 
     - name: Wait for all nodes to be Ready
       shell: >
@@ -131,6 +136,7 @@
       delay: 10
       until: (ready_count.stdout | trim | int) >= (expected_node_count | int)
       changed_when: false
+      run_once: true
 
     - name: Wait for kube-system pods to be running
       shell: >
@@ -143,27 +149,26 @@
       delay: 10
       until: (unhealthy_pods.stdout | trim | int) == 0
       changed_when: false
+      run_once: true
 
-    - name: Wait for Longhorn manager pods to be running on all nodes
-      shell: >
-        kubectl --context {{ kubectl_context }} get pods -n longhorn-system
-        -l app=longhorn-manager --no-headers |
-        grep -c 'Running' || true
-      delegate_to: localhost
-      become: no
-      register: longhorn_manager_count
-      retries: 60
-      delay: 10
-      until: (longhorn_manager_count.stdout | trim | int) >= (expected_node_count | int)
-      changed_when: false
-
-    - name: Rolling restart Longhorn CSI plugin DaemonSet
+    - name: Wait for Longhorn manager pods to be Ready
       command: >
-        kubectl --context {{ kubectl_context }} rollout restart
-        daemonset/longhorn-csi-plugin -n longhorn-system
+        kubectl --context {{ kubectl_context }} wait
+        --for=condition=Ready pod -l app=longhorn-manager
+        -n longhorn-system --timeout=600s
       delegate_to: localhost
       become: no
-      changed_when: true
+      changed_when: false
+      run_once: true
+
+    - name: Wait for Longhorn manager DaemonSet rollout to complete
+      command: >
+        kubectl --context {{ kubectl_context }} rollout status
+        daemonset/longhorn-manager -n longhorn-system --timeout=300s
+      delegate_to: localhost
+      become: no
+      changed_when: false
+      run_once: true
 
     - name: Wait for Longhorn CSI plugin rollout to complete
       command: >
@@ -172,23 +177,23 @@
       delegate_to: localhost
       become: no
       changed_when: false
+      run_once: true
 
     - name: Wait for Longhorn CSI sidecars to be healthy
-      shell: >
-        kubectl --context {{ kubectl_context }} get pods -n longhorn-system --no-headers |
-        grep -E 'csi-attacher|csi-provisioner|csi-resizer|csi-snapshotter' |
-        grep -v -E 'Running' | wc -l
+      shell: |
+        kubectl --context {{ kubectl_context }} wait --for=condition=Ready pod -l app=csi-attacher -n longhorn-system --timeout=120s
+        kubectl --context {{ kubectl_context }} wait --for=condition=Ready pod -l app=csi-provisioner -n longhorn-system --timeout=120s
+        kubectl --context {{ kubectl_context }} wait --for=condition=Ready pod -l app=csi-resizer -n longhorn-system --timeout=120s
+        kubectl --context {{ kubectl_context }} wait --for=condition=Ready pod -l app=csi-snapshotter -n longhorn-system --timeout=120s
       delegate_to: localhost
       become: no
-      register: unhealthy_csi
-      retries: 60
-      delay: 10
-      until: (unhealthy_csi.stdout | trim | int) == 0
       changed_when: false
+      run_once: true
 
-    - name: Longhorn storage is healthy
+    - name: Longhorn storage control plane is ready
       debug:
-        msg: "Longhorn manager, CSI plugin, and CSI sidecars are all running"
+        msg: "Longhorn manager and CSI control-plane pods are Ready"
+      run_once: true
 
     - name: Get final cluster status
       command: kubectl --context {{ kubectl_context }} get nodes -o wide
@@ -196,10 +201,12 @@
       become: no
       register: final_nodes
       changed_when: false
+      run_once: true
 
     - name: Display cluster status
       debug:
         msg: "{{ final_nodes.stdout_lines }}"
+      run_once: true
 
     - name: Get kube-system pod status
       command: kubectl --context {{ kubectl_context }} get pods -n kube-system
@@ -207,10 +214,12 @@
       become: no
       register: system_pods
       changed_when: false
+      run_once: true
 
     - name: Display system pods
       debug:
         msg: "{{ system_pods.stdout_lines }}"
+      run_once: true
 
     - name: Get Longhorn pod status
       command: kubectl --context {{ kubectl_context }} get pods -n longhorn-system
@@ -218,11 +227,14 @@
       become: no
       register: longhorn_pods
       changed_when: false
+      run_once: true
 
     - name: Display Longhorn pods
       debug:
         msg: "{{ longhorn_pods.stdout_lines }}"
+      run_once: true
 
     - name: Cluster is healthy
       debug:
-        msg: "All {{ expected_node_count }} nodes are Ready, kube-system pods running, Longhorn storage healthy"
+        msg: "All {{ expected_node_count }} nodes are Ready, kube-system pods are running, and Longhorn control-plane pods are Ready"
+      run_once: true

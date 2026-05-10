@@ -44,7 +44,7 @@
     vault_init_secret_name: "vault-init"
     external_secrets_namespace: "external-secrets"
     # How long to wait for ExternalSecrets to resync after recovery
-    es_recovery_retries: 12
+    es_recovery_retries: 18
     es_recovery_delay: 10
 
   pre_tasks:
@@ -250,6 +250,43 @@
       when:
         - vault_unseal_keys is defined
 
+    - name: Re-read Vault status after recovery
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ item }} -- vault status -format=json
+      register: vault_status_after_recovery
+      changed_when: false
+      retries: 12
+      delay: 5
+      until: (vault_status_after_recovery.stdout | default('') | trim | length) > 0
+      loop: "{{ vault_pods }}"
+
+    - name: Parse Vault status after recovery
+      set_fact:
+        vault_pod_statuses_after_recovery: >-
+          {{
+            dict(
+              vault_status_after_recovery.results
+              | map(attribute='item')
+              | zip(vault_status_after_recovery.results | map(attribute='stdout') | map('trim') | map('from_json'))
+            )
+          }}
+
+    - name: Assert all Vault pods are unsealed
+      ansible.builtin.assert:
+        that:
+          - (vault_pod_statuses_after_recovery | dict2items | selectattr('value.sealed', 'equalto', true) | list | length) == 0
+        fail_msg: >-
+          Vault is still sealed on pod(s):
+          {{
+            vault_pod_statuses_after_recovery
+            | dict2items
+            | selectattr('value.sealed', 'equalto', true)
+            | map(attribute='key')
+            | join(', ')
+          }}
+        success_msg: "All Vault pods are unsealed."
+
     # ── Reconfigure Kubernetes auth ───────────────────────────────────
     # After a pod restart, Vault's internal SA token for token review
     # may be stale. Re-writing the config forces Vault to pick up the
@@ -280,40 +317,12 @@
       debug:
         msg: "Vault Kubernetes auth backend has been refreshed with current SA token."
 
-    # ── Restart External Secrets operator ─────────────────────────────
+    # ── Recover External Secrets operator ─────────────────────────────
     - name: Check if external-secrets namespace exists
       shell: >
         kubectl --context {{ kubectl_context }} get namespace {{ external_secrets_namespace }}
       register: es_ns_check
       failed_when: false
-      changed_when: false
-
-    - name: Get external-secrets deployments
-      shell: >
-        kubectl --context {{ kubectl_context }} get deployments
-        -n {{ external_secrets_namespace }}
-        -o jsonpath='{.items[*].metadata.name}'
-      register: es_deployments
-      when: es_ns_check.rc == 0
-      changed_when: false
-
-    - name: Restart external-secrets deployments
-      shell: >
-        kubectl --context {{ kubectl_context }} rollout restart
-        deployment {{ item }} -n {{ external_secrets_namespace }}
-      loop: "{{ es_deployments.stdout.split() }}"
-      when:
-        - es_ns_check.rc == 0
-        - es_deployments.stdout | length > 0
-
-    - name: Wait for external-secrets rollouts
-      shell: >
-        kubectl --context {{ kubectl_context }} rollout status
-        deployment {{ item }} -n {{ external_secrets_namespace }} --timeout=120s
-      loop: "{{ es_deployments.stdout.split() }}"
-      when:
-        - es_ns_check.rc == 0
-        - es_deployments.stdout | length > 0
       changed_when: false
 
     # ── Force ClusterSecretStore resync ───────────────────────────────
@@ -335,7 +344,6 @@
         - es_ns_check.rc == 0
         - css_names.stdout | default('') | length > 0
 
-    # ── Verify recovery ──────────────────────────────────────────────
     - name: Wait for ClusterSecretStores to become Ready
       shell: >
         kubectl --context {{ kubectl_context }} get clustersecretstores
@@ -349,6 +357,63 @@
         - es_ns_check.rc == 0
         - css_names.stdout | default('') | length > 0
 
+    - name: Get external-secrets deployments
+      shell: >
+        kubectl --context {{ kubectl_context }} get deployments
+        -n {{ external_secrets_namespace }}
+        -o jsonpath='{.items[*].metadata.name}'
+      register: es_deployments
+      when: es_ns_check.rc == 0
+      changed_when: false
+
+    - name: Restart external-secrets deployments after store is healthy
+      shell: >
+        kubectl --context {{ kubectl_context }} rollout restart
+        deployment {{ item }} -n {{ external_secrets_namespace }}
+      loop: "{{ es_deployments.stdout.split() }}"
+      when:
+        - es_ns_check.rc == 0
+        - es_deployments.stdout | length > 0
+
+    - name: Wait for external-secrets rollouts
+      shell: >
+        kubectl --context {{ kubectl_context }} rollout status
+        deployment {{ item }} -n {{ external_secrets_namespace }} --timeout=180s
+      loop: "{{ es_deployments.stdout.split() }}"
+      when:
+        - es_ns_check.rc == 0
+        - es_deployments.stdout | length > 0
+      changed_when: false
+
+    - name: Get ExternalSecret resources
+      shell: >
+        kubectl --context {{ kubectl_context }} get externalsecrets -A -o json
+      register: external_secrets_raw
+      when: es_ns_check.rc == 0
+      changed_when: false
+
+    - name: Parse ExternalSecret resources
+      set_fact:
+        external_secrets_resources: "{{ (external_secrets_raw.stdout | from_json)['items'] | default([]) }}"
+      when:
+        - es_ns_check.rc == 0
+        - external_secrets_raw.stdout | default('') | length > 0
+
+    - name: Force ExternalSecret resync
+      shell: >
+        kubectl --context {{ kubectl_context }} annotate externalsecret
+        -n {{ item.metadata.namespace }} {{ item.metadata.name }}
+        external-secrets.io/force-sync="{{ lookup('pipe', 'date +%s') }}"
+        --overwrite
+      loop: "{{ external_secrets_resources | default([]) }}"
+      loop_control:
+        label: "{{ item.metadata.namespace }}/{{ item.metadata.name }}"
+      when:
+        - es_ns_check.rc == 0
+        - external_secrets_resources | default([]) | length > 0
+
+    # ── Verify recovery ──────────────────────────────────────────────
+
     - name: Check ExternalSecrets sync status
       shell: >
         kubectl --context {{ kubectl_context }} get externalsecrets -A
@@ -360,6 +425,88 @@
       changed_when: false
       failed_when: false
       when: es_ns_check.rc == 0
+
+    - name: Get ExternalSecret resources after recovery
+      shell: >
+        kubectl --context {{ kubectl_context }} get externalsecrets -A -o json
+      register: external_secrets_after_recovery_raw
+      when: es_ns_check.rc == 0
+      changed_when: false
+
+    - name: Parse ExternalSecret resources after recovery
+      set_fact:
+        external_secrets_after_recovery: "{{ (external_secrets_after_recovery_raw.stdout | from_json)['items'] | default([]) }}"
+        failing_external_secrets: >-
+          {{
+            (external_secrets_after_recovery_raw.stdout | from_json)['items']
+            | rejectattr('status.conditions', 'undefined')
+            | selectattr('status.conditions', 'defined')
+            | selectattr('status.conditions.0.type', 'equalto', 'Ready')
+            | rejectattr('status.conditions.0.status', 'equalto', 'True')
+            | list
+          }}
+      when:
+        - es_ns_check.rc == 0
+        - external_secrets_after_recovery_raw.stdout | default('') | length > 0
+
+    - name: Check target Secret presence for failing ExternalSecrets
+      shell: >
+        kubectl --context {{ kubectl_context }} get secret
+        -n {{ item.metadata.namespace }}
+        {{ item.spec.target.name | default(item.metadata.name) }}
+      register: failing_external_secret_target_checks
+      failed_when: false
+      changed_when: false
+      loop: "{{ failing_external_secrets | default([]) }}"
+      loop_control:
+        label: "{{ item.metadata.namespace }}/{{ item.metadata.name }}"
+      when:
+        - es_ns_check.rc == 0
+        - failing_external_secrets | default([]) | length > 0
+
+    - name: Derive blocking ExternalSecrets
+      set_fact:
+        blocking_external_secret_failures: >-
+          {{
+            failing_external_secret_target_checks.results
+            | default([])
+            | rejectattr('rc', 'equalto', 0)
+            | map(attribute='item')
+            | list
+          }}
+      when:
+        - es_ns_check.rc == 0
+        - failing_external_secrets | default([]) | length > 0
+
+    - name: Warn about stale ExternalSecret status with existing target Secret
+      debug:
+        msg: >-
+          ExternalSecret {{ item.item.metadata.namespace }}/{{ item.item.metadata.name }}
+          still reports {{ item.item.status.conditions[0].reason | default('unknown') }},
+          but target Secret {{ item.item.spec.target.name | default(item.item.metadata.name) }}
+          exists. Treating this as a stale ESO status after provider recovery.
+      loop: "{{ failing_external_secret_target_checks.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.metadata.namespace }}/{{ item.item.metadata.name }}"
+      when:
+        - es_ns_check.rc == 0
+        - item.rc == 0
+
+    - name: Fail if ExternalSecret recovery is still blocked
+      ansible.builtin.fail:
+        msg: >-
+          ExternalSecret recovery is still blocked for:
+          {{
+            blocking_external_secret_failures
+            | map(attribute='metadata')
+            | map(attribute='namespace')
+            | zip(blocking_external_secret_failures | map(attribute='metadata') | map(attribute='name'))
+            | map('join', '/')
+            | join(', ')
+          }}
+      when:
+        - es_ns_check.rc == 0
+        - blocking_external_secret_failures | default([]) | length > 0
 
     - name: Display final status
       shell: |

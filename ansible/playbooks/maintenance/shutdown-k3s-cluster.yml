@@ -39,14 +39,17 @@
       become: no
       register: node_list
       changed_when: false
+      run_once: true
 
     - name: Set node names
       set_fact:
         cluster_nodes: "{{ node_list.stdout.split() }}"
+      run_once: true
 
     - name: Display nodes to be shut down
       debug:
         msg: "Shutting down nodes: {{ cluster_nodes | join(', ') }}"
+      run_once: true
 
     - name: Cordon all nodes
       command: kubectl --context {{ kubectl_context }} cordon {{ item }}
@@ -54,6 +57,7 @@
       become: no
       loop: "{{ cluster_nodes }}"
       changed_when: true
+      run_once: true
 
     - name: Drain all nodes
       # --disable-eviction bypasses PodDisruptionBudgets and uses raw DELETE.
@@ -74,6 +78,7 @@
       register: drain_results
       changed_when: true
       ignore_errors: yes
+      run_once: true
 
     - name: Warn about drain failures
       debug:
@@ -82,10 +87,41 @@
       loop_control:
         label: "{{ item.item }}"
       when: item.rc is defined and item.rc != 0
+      run_once: true
+
+    - name: Check if Longhorn volume CRD exists
+      command: kubectl --context {{ kubectl_context }} get crd volumes.longhorn.io
+      delegate_to: localhost
+      become: no
+      register: longhorn_volume_crd
+      failed_when: false
+      changed_when: false
+      run_once: true
+
+    - name: Wait for Longhorn volumes to detach after drain
+      shell: >
+        kubectl --context {{ kubectl_context }} get volumes.longhorn.io -n longhorn-system
+        -o jsonpath='{range .items[?(@.status.state!="detached")]}{.metadata.name}{" "}{end}'
+      delegate_to: localhost
+      become: no
+      register: attached_longhorn_volumes
+      retries: 60
+      delay: 10
+      until: (attached_longhorn_volumes.stdout | trim) == ""
+      changed_when: false
+      run_once: true
+      when: longhorn_volume_crd.rc == 0
+
+    - name: Longhorn volumes detached
+      debug:
+        msg: "All Longhorn volumes are detached after drain"
+      run_once: true
+      when: longhorn_volume_crd.rc == 0
 
     - name: All nodes drained
       debug:
-        msg: "All nodes cordoned and drained"
+        msg: "All nodes cordoned and drained; shutdown can proceed"
+      run_once: true
 
 - name: Stop K3s agent on worker nodes
   hosts: "{{ target_cluster }}_workers"
