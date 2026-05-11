@@ -32,6 +32,7 @@ The intended configuration pattern is:
 ./scripts/helpers/list-backups.sh
 ./scripts/helpers/list-backups.sh --detailed
 ./scripts/helpers/list-backups.sh --all
+./scripts/helpers/list-backups.sh --stage
 ```
 
 ### Full disaster recovery
@@ -52,10 +53,20 @@ The intended configuration pattern is:
 ./scripts/restore-cluster.sh --prod --restore-only
 ```
 
+By default, restore discovery now uses Longhorn `BackupVolume` and `Backup`
+CR metadata from the cluster API. Force the slower direct NFS backupstore scan
+only when that metadata is missing or stale:
+
+```bash
+./scripts/restore-cluster.sh --prod --restore-only --discovery-mode nfs-scan
+```
+
 ### Restore one app only
 
 ```bash
-./scripts/restore-cluster.sh --stage --from prod --app bookstack --restore-only
+./scripts/restore-app.sh --stage --from prod --app bookstack
+./scripts/restore-app.sh --prod --pvc factorio-data
+./scripts/restore-app.sh --prod --app factorio --list
 ```
 
 ## What `restore-cluster.sh` Handles
@@ -67,6 +78,15 @@ Depending on flags, the script can:
 - switch cluster context
 - run `ansible/playbooks/k3s-restore-from-backup.yml`
 - redeploy apps after the restore phase
+
+## What `restore-app.sh` Handles
+
+Use this when you only want to restore one namespace or one PVC.
+
+- runs `ansible/playbooks/k3s-restore-from-backup.yml` directly
+- defaults to Longhorn CR discovery (`longhorn-cr`)
+- supports `--list` preview mode before making changes
+- avoids the broader VM rebuild and cluster-verification flow in `restore-cluster.sh`
 
 ## Manual Longhorn Restore Pattern
 
@@ -148,12 +168,28 @@ kubectl patch backuptarget default -n longhorn-system --type=merge \
 
 ## Adding A New Restorable App
 
-When a new stateful app needs backup/restore support, update `backup_to_pvc_mapping` in `ansible/playbooks/k3s-restore-from-backup.yml`.
+No static restore mapping is required anymore.
 
-Keep both of these values aligned:
+As long as the app stores data on a Longhorn PVC and Longhorn backups exist for
+that PVC, the restore playbook will discover it automatically from Longhorn
+metadata. The NFS scan fallback uses the same PVC labels embedded in the
+backupstore.
 
-- human-readable size such as `500Mi`
-- matching byte size such as `536870912`
+If a new app does not appear in restore discovery, check these first:
+
+- the PVC is backed by Longhorn
+- the backup objects include `KubernetesStatus` with the expected namespace and PVC name
+- the backup target is healthy and `kubectl -n longhorn-system get backupvolumes,backups` shows the volume
+
+## Backup Cleanup
+
+Use the maintenance helper to list or delete Longhorn backups through the API
+without scanning NFS:
+
+```bash
+./scripts/maintenance/prune-longhorn-backups.sh --context k3s-prod --namespace factorio --pvc factorio-data
+./scripts/maintenance/prune-longhorn-backups.sh --context k3s-prod --backup-id backup-04931f82cedd445f --delete
+```
 
 ## Related Docs
 

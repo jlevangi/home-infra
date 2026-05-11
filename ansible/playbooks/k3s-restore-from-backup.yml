@@ -1,10 +1,11 @@
 ---
 # =============================================================================
-# K3s Cluster Restore from Longhorn Backup (dynamic NFS enumeration)
+# K3s Cluster Restore from Longhorn Backup
 # =============================================================================
-# Walks the Longhorn NFS backupstore directly and restores every (namespace,
-# pvcName) it finds — no static mapping. The source of truth is what is on
-# NFS, so newly-added apps with backups get covered automatically.
+# Discovers the latest Longhorn backup per (namespace, pvcName) and restores it
+# without a static mapping. By default it uses Longhorn BackupVolume / Backup
+# CRs for fast discovery, with an explicit NFS scan fallback mode retained for
+# recovery edge cases.
 #
 # Use Cases:
 #   1. Disaster Recovery: Rebuild prod cluster and restore all data
@@ -12,11 +13,15 @@
 #   3. Single PVC / namespace restore: Restore a specific volume or namespace
 #
 # Usage:
-#   # List discovered backups (does not change anything)
+#   # List discovered backups from Longhorn CR metadata
 #   ansible-playbook k3s-restore-from-backup.yml \
 #     -e "restore_action=list target_env=prod"
 #
-#   # Restore everything to stage from prod's NFS backups
+#   # Force the slower NFS scan path
+#   ansible-playbook k3s-restore-from-backup.yml \
+#     -e "restore_action=list target_env=prod discovery_mode=nfs-scan"
+#
+#   # Restore everything to stage from prod's latest backups
 #   ansible-playbook k3s-restore-from-backup.yml \
 #     -e "restore_action=restore target_env=stage"
 #
@@ -58,6 +63,12 @@
     restore_pvc_skip: []        # PVC names to skip even if discovered
 
     kubeconfig: "/etc/rancher/k3s/k3s.yaml"
+    longhorn_namespace: "longhorn-system"
+
+    # Discovery defaults to Longhorn CR metadata for speed. When that returns
+    # no backups, optionally fall back to the slower direct NFS scan.
+    discovery_mode: "longhorn-cr"
+    discovery_fallback_to_nfs: true
 
     # NFS backupstore (matches the Longhorn backup target on the cluster)
     nfs_server: "172.20.20.5"
@@ -83,8 +94,9 @@
           Longhorn Backup {{ 'Listing' if restore_action == 'list' else 'Restore' }} Operation
           ====================================================
           Action: {{ restore_action }}
-          Source Environment: {{ source_env }} (always prod)
+          Source Environment: {{ source_env }}
           Target Environment: {{ target_env }}
+          Discovery Mode: {{ discovery_mode }}
           PVC filter: {{ restore_pvc_only | default('(all)', true) }}
           Namespace filter: {{ restore_namespace_only | default('(all)', true) }}
           Skip list: {{ restore_pvc_skip | default([]) | join(', ') | default('(none)', true) }}
@@ -92,9 +104,39 @@
       run_once: true
 
     # =========================================================================
-    # DISCOVER BACKUPS BY WALKING NFS
+    # DISCOVER BACKUPS
     # =========================================================================
-    - name: Mount NFS backupstore read-only and discover backups
+    - name: Validate discovery mode
+      assert:
+        that:
+          - discovery_mode in ['longhorn-cr', 'nfs-scan']
+        fail_msg: "discovery_mode must be one of: longhorn-cr, nfs-scan"
+      run_once: true
+
+    - name: Discover backups from Longhorn CR metadata
+      when: discovery_mode == 'longhorn-cr'
+      block:
+        - name: Run Longhorn CR discovery script
+          ansible.builtin.script: >
+            {{ playbook_dir }}/../roles/k3s/files/discover-backups.py
+            --mode longhorn-cr
+            --kubeconfig {{ kubeconfig }}
+            --longhorn-namespace {{ longhorn_namespace }}
+            --cluster-filter {{ source_env }}
+          register: discovery_longhorn_raw
+          changed_when: false
+
+        - name: Parse Longhorn CR discovery output
+          ansible.builtin.set_fact:
+            discovered_backups: "{{ discovery_longhorn_raw.stdout | from_json }}"
+            discovery_source: "longhorn-cr"
+      run_once: true
+
+    - name: Fall back to NFS scan when Longhorn CR discovery returns no backups
+      when:
+        - discovery_mode == 'longhorn-cr'
+        - discovery_fallback_to_nfs | bool
+        - discovered_backups | default([]) | length == 0
       block:
         - name: Ensure NFS mount point exists
           ansible.builtin.file:
@@ -110,21 +152,63 @@
             opts: ro
             state: ephemeral
 
-        - name: Run backup discovery script
+        - name: Run NFS backup discovery script
           ansible.builtin.script: >
             {{ playbook_dir }}/../roles/k3s/files/discover-backups.py
+            --mode nfs-scan
             {{ nfs_mount_point }}
             {{ nfs_server }}
             {{ nfs_path }}
             --cluster-filter {{ source_env }}
-          register: discovery_raw
+          register: discovery_nfs_raw
           changed_when: false
 
-        - name: Parse discovery output
+        - name: Parse NFS discovery output
           ansible.builtin.set_fact:
-            discovered_backups: "{{ discovery_raw.stdout | from_json }}"
+            discovered_backups: "{{ discovery_nfs_raw.stdout | from_json }}"
+            discovery_source: "nfs-scan-fallback"
       always:
-        - name: Unmount NFS backupstore
+        - name: Unmount NFS backupstore after fallback discovery
+          ansible.posix.mount:
+            path: "{{ nfs_mount_point }}"
+            state: unmounted
+          failed_when: false
+      run_once: true
+
+    - name: Discover backups directly from NFS backupstore
+      when: discovery_mode == 'nfs-scan'
+      block:
+        - name: Ensure NFS mount point exists
+          ansible.builtin.file:
+            path: "{{ nfs_mount_point }}"
+            state: directory
+            mode: '0755'
+
+        - name: Mount NFS backupstore (read-only)
+          ansible.posix.mount:
+            path: "{{ nfs_mount_point }}"
+            src: "{{ nfs_server }}:{{ nfs_path }}"
+            fstype: nfs
+            opts: ro
+            state: ephemeral
+
+        - name: Run NFS backup discovery script
+          ansible.builtin.script: >
+            {{ playbook_dir }}/../roles/k3s/files/discover-backups.py
+            --mode nfs-scan
+            {{ nfs_mount_point }}
+            {{ nfs_server }}
+            {{ nfs_path }}
+            --cluster-filter {{ source_env }}
+          register: discovery_nfs_raw
+          changed_when: false
+
+        - name: Parse NFS discovery output
+          ansible.builtin.set_fact:
+            discovered_backups: "{{ discovery_nfs_raw.stdout | from_json }}"
+            discovery_source: "nfs-scan"
+      always:
+        - name: Unmount NFS backupstore after direct discovery
           ansible.posix.mount:
             path: "{{ nfs_mount_point }}"
             state: unmounted
@@ -160,7 +244,7 @@
       debug:
         msg: |
           ====================================================
-          Discovered Backups (from {{ source_env }} on NFS)
+          Discovered Backups (from {{ source_env }} via {{ discovery_source | default(discovery_mode) }})
           ====================================================
           {% for vol in volumes_to_restore %}
           - {{ vol.namespace }}/{{ vol.pvc_name }}
