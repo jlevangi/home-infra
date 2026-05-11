@@ -2,33 +2,76 @@
 # =============================================================================
 # List Available Longhorn Backups
 # =============================================================================
-# Quick script to list all available Longhorn backups from NFS storage.
+# Lists backups from Longhorn Backup CR metadata. This is much faster than
+# walking the shared NFS backupstore directly and matches the restore
+# playbook's default discovery path.
 #
 # Usage:
-#   ./list_backups.sh              # List backups (summary, deduplicated)
-#   ./list_backups.sh --detailed   # Show individual backup timestamps
-#   ./list_backups.sh --all        # Show all volume instances (not deduplicated)
+#   ./list-backups.sh                  # List prod backups from k3s-prod
+#   ./list-backups.sh --detailed       # Show individual backup IDs/timestamps
+#   ./list-backups.sh --all            # Show all volume instances separately
+#   ./list-backups.sh --stage          # Query the stage cluster's Longhorn API
+#   ./list-backups.sh --source-env prod
 # =============================================================================
 
-set -e
+set -euo pipefail
 
-# Colors
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[1;36m'
 NC='\033[0m'
 
-# Configuration
-NFS_SERVER="172.20.20.5"
-NFS_PATH="/volume1/k3s-storage/longhorn/shared"
-MOUNT_POINT="/tmp/longhorn-backup-list"
-SSH_HOST="k3s-prod-node-1"
+TARGET_ENV="prod"
+SOURCE_ENV="prod"
+KUBE_CONTEXT=""
+LONGHORN_NAMESPACE="longhorn-system"
 DETAILED=false
 SHOW_ALL=false
 
-# Parse args
+usage() {
+    cat <<'EOF'
+Usage: list-backups.sh [OPTIONS]
+
+Options:
+  --prod                 Query the prod cluster Longhorn API (default)
+  --stage                Query the stage cluster Longhorn API
+  --test                 Query the test cluster Longhorn API
+  --source-env ENV       Only include backups labeled for this source env (default: prod)
+  --context NAME         Override the kubectl context to query
+  --longhorn-namespace   Longhorn namespace (default: longhorn-system)
+  --detailed, -d         Show individual backup IDs and timestamps
+  --all, -a              Show all volume instances separately
+  -h, --help             Show this help
+EOF
+}
+
 while [[ $# -gt 0 ]]; do
-    case $1 in
+    case "$1" in
+        --prod)
+            TARGET_ENV="prod"
+            shift
+            ;;
+        --stage)
+            TARGET_ENV="stage"
+            shift
+            ;;
+        --test)
+            TARGET_ENV="test"
+            shift
+            ;;
+        --source-env)
+            SOURCE_ENV="$2"
+            shift 2
+            ;;
+        --context)
+            KUBE_CONTEXT="$2"
+            shift 2
+            ;;
+        --longhorn-namespace)
+            LONGHORN_NAMESPACE="$2"
+            shift 2
+            ;;
         --detailed|-d)
             DETAILED=true
             shift
@@ -37,179 +80,173 @@ while [[ $# -gt 0 ]]; do
             SHOW_ALL=true
             shift
             ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
         *)
-            shift
+            echo "Unknown option: $1" >&2
+            usage >&2
+            exit 1
             ;;
     esac
 done
+
+if [[ -z "$KUBE_CONTEXT" ]]; then
+    KUBE_CONTEXT="k3s-$TARGET_ENV"
+fi
+
+tmp_json=$(mktemp -t longhorn-backups-list-XXXXXX.json)
+trap 'rm -f "$tmp_json"' EXIT
 
 echo -e "${BLUE}======================================================${NC}"
 echo -e "${BLUE}  Available Longhorn Backups${NC}"
 echo -e "${BLUE}======================================================${NC}"
 echo ""
+echo "Cluster Context: $KUBE_CONTEXT"
+echo "Source Filter: $SOURCE_ENV"
+echo ""
 
-# Run the listing on the cluster node using Python for reliable JSON parsing
-ssh "$SSH_HOST" bash -s "$NFS_SERVER" "$NFS_PATH" "$MOUNT_POINT" "$DETAILED" "$SHOW_ALL" << 'REMOTE_SCRIPT'
-NFS_SERVER="$1"
-NFS_PATH="$2"
-MOUNT_POINT="$3"
-DETAILED="$4"
-SHOW_ALL="$5"
+kubectl --context "$KUBE_CONTEXT" -n "$LONGHORN_NAMESPACE" get backups.longhorn.io -o json > "$tmp_json"
 
-# Mount NFS
-sudo mkdir -p "$MOUNT_POINT"
-sudo mount -t nfs -o ro "$NFS_SERVER:$NFS_PATH" "$MOUNT_POINT" 2>/dev/null || true
-
-cleanup() {
-    sudo umount "$MOUNT_POINT" 2>/dev/null || true
-    sudo rmdir "$MOUNT_POINT" 2>/dev/null || true
-}
-trap cleanup EXIT
-
-BACKUP_ROOT="$MOUNT_POINT/backupstore/volumes"
-
-if [ ! -d "$BACKUP_ROOT" ]; then
-    echo "No backups found at $BACKUP_ROOT"
-    exit 0
-fi
-
-# Use Python for reliable JSON parsing
-python3 << PYTHON_SCRIPT
-import os
+python3 - "$tmp_json" "$DETAILED" "$SHOW_ALL" "$SOURCE_ENV" <<'PY'
 import json
-from pathlib import Path
-from datetime import datetime
+import sys
 from collections import defaultdict
+from datetime import datetime
 
-backup_root = "$BACKUP_ROOT"
-detailed = "$DETAILED" == "true"
-show_all = "$SHOW_ALL" == "true"
+json_path, detailed_flag, show_all_flag, source_env = sys.argv[1:5]
+detailed = detailed_flag == "true"
+show_all = show_all_flag == "true"
+cyan = "\033[1;36m"
+nc = "\033[0m"
 
-volumes = []
 
-# Find all volume.cfg files
-for volume_cfg in Path(backup_root).rglob("volume.cfg"):
-    volume_dir = volume_cfg.parent
-    backup_dir = volume_dir / "backups"
-
+def parse_nested_json(raw):
+    if isinstance(raw, dict):
+        return raw
+    if not raw:
+        return {}
     try:
-        with open(volume_cfg) as f:
-            vol_data = json.load(f)
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
 
-        volume_name = vol_data.get("Name", "unknown")
-        labels = vol_data.get("Labels", {})
 
-        # Parse KubernetesStatus (it's a JSON string inside Labels)
-        k8s_status_str = labels.get("KubernetesStatus", "{}")
-        try:
-            k8s_status = json.loads(k8s_status_str)
-            namespace = k8s_status.get("namespace", "unknown")
-            pvc_name = k8s_status.get("pvcName", volume_name)
-        except:
-            namespace = "unknown"
-            pvc_name = volume_name
+def parse_int(raw):
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return 0
 
-        cluster = labels.get("cluster", "prod")
 
-        # Get backup info
-        backups = []
-        if backup_dir.exists():
-            for backup_file in backup_dir.glob("backup_*.cfg"):
-                try:
-                    with open(backup_file) as f:
-                        backup_data = json.load(f)
-                    backups.append({
-                        "name": backup_data.get("Name", "unknown"),
-                        "created": backup_data.get("CreatedTime", ""),
-                        "size": int(backup_data.get("Size", 0))
-                    })
-                except:
-                    pass
+def fmt_time(raw):
+    try:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00")).strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        return raw or "unknown"
 
-        if backups:
-            # Sort by created time (newest first)
-            backups.sort(key=lambda x: x["created"], reverse=True)
-            latest = backups[0]["created"]
 
-            volumes.append({
-                "namespace": namespace,
-                "pvc_name": pvc_name,
-                "volume_name": volume_name,
-                "cluster": cluster,
-                "backup_count": len(backups),
-                "latest": latest,
-                "backups": backups
-            })
-    except Exception as e:
-        pass
+with open(json_path, "r", encoding="utf-8") as fh:
+    payload = json.load(fh)
 
-# Sort by latest backup time (newest first), then by namespace, pvc_name
-volumes.sort(key=lambda x: (x["namespace"], x["pvc_name"], x["latest"]), reverse=False)
+groups = {}
+group_backups = defaultdict(list)
 
-# Deduplicate: keep only the entry with the most recent backup per namespace/pvc_name
-if not show_all:
-    deduped = {}
-    for vol in volumes:
-        key = (vol["namespace"], vol["pvc_name"])
-        if key not in deduped or vol["latest"] > deduped[key]["latest"]:
-            # Merge backup counts for display
-            if key in deduped:
-                vol["backup_count"] += deduped[key]["backup_count"]
-                vol["backups"] = sorted(vol["backups"] + deduped[key]["backups"],
-                                       key=lambda x: x["created"], reverse=True)
-            deduped[key] = vol
-    volumes = list(deduped.values())
-    volumes.sort(key=lambda x: (x["namespace"], x["pvc_name"]))
+for item in payload.get("items", []):
+    metadata = item.get("metadata") or {}
+    spec = item.get("spec") or {}
+    status = item.get("status") or {}
+    labels = status.get("labels") or spec.get("labels") or {}
+    k8s = parse_nested_json(labels.get("KubernetesStatus"))
 
-# Print results
-current_ns = None
+    namespace = k8s.get("namespace") or "unknown"
+    pvc_name = k8s.get("pvcName") or metadata.get("labels", {}).get("backup-volume") or "unknown"
+    cluster = labels.get("cluster") or "unknown"
+    volume_name = status.get("volumeName") or metadata.get("labels", {}).get("backup-volume") or "unknown"
+    backup_id = metadata.get("name") or "unknown"
+    created = status.get("snapshotCreatedAt") or status.get("backupCreatedAt") or metadata.get("creationTimestamp") or ""
+    state = status.get("state") or "unknown"
+    size_bytes = parse_int(status.get("size"))
+
+    if source_env and cluster != source_env:
+        continue
+
+    if show_all:
+        key = (namespace, pvc_name, volume_name, cluster)
+    else:
+        key = (namespace, pvc_name)
+
+    group = groups.get(key)
+    if group is None:
+        group = {
+            "namespace": namespace,
+            "pvc_name": pvc_name,
+            "volume_name": volume_name,
+            "cluster": cluster,
+            "latest": created,
+        }
+        groups[key] = group
+    elif created > group["latest"]:
+        group["latest"] = created
+
+    group_backups[key].append(
+        {
+            "backup_id": backup_id,
+            "created": created,
+            "state": state,
+            "size_bytes": size_bytes,
+        }
+    )
+
+if not groups:
+    print("No matching backups found.")
+    sys.exit(0)
+
+ordered_keys = sorted(groups.keys(), key=lambda key: (groups[key]["namespace"], groups[key]["pvc_name"], groups[key]["latest"]))
+current_namespace = None
 total_backups = 0
-for vol in volumes:
-    if vol["namespace"] != current_ns:
-        if current_ns is not None:
+
+for key in ordered_keys:
+    group = groups[key]
+    backups = sorted(group_backups[key], key=lambda b: (b["created"], b["backup_id"]), reverse=True)
+    total_backups += len(backups)
+
+    if group["namespace"] != current_namespace:
+        if current_namespace is not None:
             print()
-        print(f"\033[1;36m{vol['namespace']}\033[0m")
-        current_ns = vol["namespace"]
+        print(f"{cyan}{group['namespace']}{nc}")
+        current_namespace = group["namespace"]
 
-    # Format the latest time nicely
-    try:
-        dt = datetime.fromisoformat(vol["latest"].replace("Z", "+00:00"))
-        latest_fmt = dt.strftime("%Y-%m-%d %H:%M")
-    except:
-        latest_fmt = vol["latest"]
+    suffix = f" [{group['cluster']}]"
+    if show_all:
+        suffix += f" volume={group['volume_name']}"
 
-    total_backups += vol["backup_count"]
-    suffix = ""
-    if show_all and vol.get("cluster"):
-        suffix = f" [{vol['cluster']}]"
-
-    print(f"  {vol['pvc_name']:<40} ({vol['backup_count']:>2} backups, latest: {latest_fmt}){suffix}")
+    print(
+        f"  {group['pvc_name']:<40} "
+        f"({len(backups):>2} backups, latest: {fmt_time(group['latest'])}){suffix}"
+    )
 
     if detailed:
-        shown = 0
-        for backup in vol["backups"][:5]:  # Show max 5 in detailed mode
-            try:
-                dt = datetime.fromisoformat(backup["created"].replace("Z", "+00:00"))
-                created_fmt = dt.strftime("%Y-%m-%d %H:%M")
-            except:
-                created_fmt = backup["created"]
-            size_mb = backup["size"] // (1024 * 1024)
-            print(f"      └─ {backup['name']:<35} {created_fmt} ({size_mb} MB)")
-            shown += 1
-        if len(vol["backups"]) > 5:
-            print(f"      ... and {len(vol['backups']) - 5} more backups")
+        for backup in backups[:5]:
+            size_mb = backup["size_bytes"] // (1024 * 1024)
+            print(
+                f"      - {backup['backup_id']:<24} "
+                f"{fmt_time(backup['created'])} ({size_mb} MB, {backup['state']})"
+            )
+        if len(backups) > 5:
+            print(f"      ... and {len(backups) - 5} more backups")
 
 print()
-print(f"\033[1mTotal: {len(volumes)} PVCs with {total_backups} backups\033[0m")
-PYTHON_SCRIPT
-REMOTE_SCRIPT
+print(f"Total: {len(groups)} PVC groups with {total_backups} backups")
+PY
 
 echo ""
 echo -e "${YELLOW}Options:${NC}"
-echo "  --detailed  Show individual backup timestamps"
-echo "  --all       Show all volume instances (including old cluster data)"
+echo "  --detailed      Show individual backup IDs and timestamps"
+echo "  --all           Show separate volume instances for the same PVC"
+echo "  --stage|--test  Query a different cluster's Longhorn API"
 echo ""
 echo -e "${GREEN}To restore backups, use:${NC}"
-echo "  ./restore_cluster.sh --stage --from prod    # Clone prod to stage"
-echo "  ./restore_cluster.sh --prod --restore-only  # Restore to existing prod"
-echo "  ./restore_cluster.sh --prod --app bookstack # Restore specific app"
+echo "  ./scripts/restore-app.sh --prod --app bookstack"
+echo "  ./scripts/restore-cluster.sh --stage --from prod"

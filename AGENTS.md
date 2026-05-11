@@ -110,6 +110,8 @@ ansible-playbook -i ansible/inventories/production/hosts.yml ansible/playbooks/k
 ```bash
 # List available backups
 ./scripts/helpers/list-backups.sh
+./scripts/helpers/list-backups.sh --detailed
+./scripts/helpers/list-backups.sh --all
 
 # Full disaster recovery for production
 ./scripts/restore-cluster.sh --prod
@@ -121,7 +123,8 @@ ansible-playbook -i ansible/inventories/production/hosts.yml ansible/playbooks/k
 ./scripts/restore-cluster.sh --prod --restore-only
 
 # Restore specific app only
-./scripts/restore-cluster.sh --stage --from prod --app bookstack --restore-only
+./scripts/restore-app.sh --stage --from prod --app bookstack
+./scripts/restore-app.sh --prod --pvc factorio-data
 ```
 
 ### Vault Management
@@ -277,7 +280,7 @@ The restore process uses Longhorn's native backup restoration. Key technical not
 ### Restore Commands
 
 ```bash
-# List available backups from NFS
+# List available backups
 ./scripts/helpers/list-backups.sh
 ./scripts/helpers/list-backups.sh --detailed   # Show individual backup timestamps
 ./scripts/helpers/list-backups.sh --all        # Show all volume instances
@@ -292,7 +295,8 @@ The restore process uses Longhorn's native backup restoration. Key technical not
 ./scripts/restore-cluster.sh --prod --restore-only
 
 # Restore specific application
-./scripts/restore-cluster.sh --stage --from prod --app bookstack --restore-only
+./scripts/restore-app.sh --stage --from prod --app bookstack
+./scripts/restore-app.sh --prod --pvc factorio-data
 
 # Using Ansible playbook directly
 ansible-playbook -i ansible/inventories/staging/hosts.yml \
@@ -306,18 +310,15 @@ ansible-playbook -i ansible/inventories/staging/hosts.yml \
   --vault-password-file ~/.ansible_vault_pass
 ```
 
-### Adding New Applications to Restore Mapping
+### Adding New Applications to Restore Discovery
 
-When adding a new application with persistent storage, update the `backup_to_pvc_mapping` in `ansible/playbooks/k3s-restore-from-backup.yml`:
+No static restore mapping is required.
 
-```yaml
-backup_to_pvc_mapping:
-  new-app:
-    pvc_name: "new-app-data-pvc"
-    namespace: "new-app"
-    size: "500Mi"
-    size_bytes: 536870912  # Must match size in bytes
-```
+As long as the application stores data on a Longhorn PVC and Longhorn backups
+exist for that PVC, `ansible/playbooks/k3s-restore-from-backup.yml` will
+discover it automatically from Longhorn metadata. The default path uses
+`BackupVolume` and `Backup` CRs, with the slower direct NFS scan retained as a
+fallback.
 
 ## Vault Password Management
 
@@ -402,7 +403,7 @@ The `ansible/group_vars/lxc_vault.yml` contains:
 
 ### Backup/Restore Issues
 - **Script won't execute**: Run `dos2unix scripts/helpers/list-backups.sh scripts/restore-cluster.sh` (Windows CRLF issue)
-- **Backups showing wrong names**: The list-backups.sh script parses nested JSON in `volume.cfg` - ensure Python3 is available on the cluster node
+- **Backups not appearing in the fast list view**: Check `kubectl -n longhorn-system get backupvolumes,backups` on the target cluster; `list-backups.sh` now reads Longhorn CR metadata instead of parsing `volume.cfg` over NFS
 - **Restore fails with "volume not found"**: Ensure the backup URL uses `nfs://` format, not `s3://`
 - **PVC stuck in Pending after restore**: Check that PV was created with correct `volumeHandle` matching the Longhorn volume name
 - **Backup creation fails with "backup target default is not available"**: Check `backuptarget/default` in `longhorn-system`; if the URL is empty, patch it to `nfs://172.20.20.5:/volume1/k3s-storage/longhorn/shared`

@@ -40,6 +40,7 @@ SKIP_CONFIRMATION=false
 SPECIFIC_NAMESPACE=""
 SPECIFIC_PVC=""
 SKIP_PVC_LIST=""
+DISCOVERY_MODE="longhorn-cr"
 
 # =============================================================================
 # Functions
@@ -85,6 +86,7 @@ Recovery Mode Options:
   --app NAMESPACE         Restore every PVC in this namespace (e.g., --app bookstack)
   --pvc PVC_NAME          Restore one specific PVC (e.g., --pvc bookstack-app-data-pvc)
   --skip-pvc PVC1,PVC2    Comma-separated PVC names to skip (e.g., stale apps)
+  --discovery-mode MODE   Backup discovery mode: longhorn-cr or nfs-scan
 
 Other Options:
   -y, --yes               Skip confirmation prompts
@@ -105,6 +107,9 @@ Examples:
 
   # Restore everything except known-stale PVCs (deleted apps)
   $(basename "$0") --prod --restore-only --skip-pvc homepage-config,plex-config-pvc
+
+  # Force the slower direct NFS backupstore scan
+  $(basename "$0") --prod --restore-only --discovery-mode nfs-scan
 
 EOF
     exit 0
@@ -152,6 +157,10 @@ parse_args() {
                 SKIP_PVC_LIST="$2"
                 shift 2
                 ;;
+            --discovery-mode)
+                DISCOVERY_MODE="$2"
+                shift 2
+                ;;
             -y|--yes)
                 SKIP_CONFIRMATION=true
                 shift
@@ -170,6 +179,11 @@ parse_args() {
         print_error "Target environment required (--prod, --stage, or --test)"
         usage
     fi
+
+    if [[ "$DISCOVERY_MODE" != "longhorn-cr" && "$DISCOVERY_MODE" != "nfs-scan" ]]; then
+        print_error "Invalid --discovery-mode: $DISCOVERY_MODE"
+        usage
+    fi
 }
 
 confirm_operation() {
@@ -186,6 +200,7 @@ confirm_operation() {
     echo "Source Environment: $SOURCE_ENV"
     echo "Rebuild VMs: $REBUILD_VMS"
     echo "Restore Data: $RESTORE_DATA"
+    echo "Discovery Mode: $DISCOVERY_MODE"
     [[ -n "$SPECIFIC_NAMESPACE" ]] && echo "Namespace filter: $SPECIFIC_NAMESPACE"
     [[ -n "$SPECIFIC_PVC" ]] && echo "PVC filter: $SPECIFIC_PVC"
     [[ -n "$SKIP_PVC_LIST" ]] && echo "Skip PVCs: $SKIP_PVC_LIST"
@@ -323,14 +338,15 @@ restore_data() {
     extra_vars_file=$(mktemp -t restore-extra-vars-XXXXXX.json)
     trap 'rm -f "$extra_vars_file"' EXIT
 
-    python3 - "$SKIP_PVC_LIST" "$SKIP_CONFIRMATION" "$extra_vars_file" <<'PY'
+    python3 - "$SKIP_PVC_LIST" "$SKIP_CONFIRMATION" "$extra_vars_file" "$DISCOVERY_MODE" <<'PY'
 import json, sys
-skip_csv, skip_confirm, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
+skip_csv, skip_confirm, out_path, discovery_mode = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 data = {}
 if skip_csv:
     data["restore_pvc_skip"] = [x.strip() for x in skip_csv.split(",") if x.strip()]
 if skip_confirm == "true":
     data["skip_confirm"] = True
+data["discovery_mode"] = discovery_mode
 with open(out_path, "w") as fh:
     json.dump(data, fh)
 PY
