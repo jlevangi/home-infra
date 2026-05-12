@@ -1,6 +1,18 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
+  - 3dprintcalc.yaml
+  - firefox.yaml
+  - ittools.yaml
+  - lazydj.yaml
+  - linkding.yaml
+  - memos.yaml
+  - microbin.yaml
+  - netbootxyz.yaml
+  - notemark.yaml
+  - ntfy.yaml
+  - pairdrop.yaml
+  - pocketid.yaml
   - plex.yaml
   - jellyfin.yaml
   - factorio.yaml
@@ -13,3 +25,9 @@ resources:
   - librechat.yaml
   - kioto.yaml
   - poker-maison.yaml
+  - searxng.yaml
+  - snippetbox.yaml
+  - tasksmd.yaml
+  - vaultwarden.yaml
+  - wallos.yaml
+  - yams.yaml

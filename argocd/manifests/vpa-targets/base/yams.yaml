@@ -1,0 +1,168 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: jellyplex-watched
+  namespace: yams
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: jellyplex-watched
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: tautulli
+  namespace: yams
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: tautulli
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: seerr
+  namespace: yams
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: seerr
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: jellyseerr
+  namespace: yams
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: jellyseerr
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: qbittorrent
+  namespace: yams
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: qbittorrent
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: nzbget
+  namespace: yams
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nzbget
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: sonarr
+  namespace: yams
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sonarr
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: radarr
+  namespace: yams
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: radarr
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: radarr4k
+  namespace: yams
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: radarr4k
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: bazarr
+  namespace: yams
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: bazarr
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: prowlarr
+  namespace: yams
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: prowlarr
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: wizarr
+  namespace: yams
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: wizarr
+  updatePolicy:
+    updateMode: "Off"
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: flaresolverr
+  namespace: yams
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: flaresolverr
+  updatePolicy:
+    updateMode: "Off"
