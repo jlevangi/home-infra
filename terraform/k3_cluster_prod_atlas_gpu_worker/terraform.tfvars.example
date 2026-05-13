@@ -16,9 +16,9 @@ nameserver    = "172.20.20.4"
 search_domain = "local"
 
 # Storage layout on Atlas:
-#   - OS + cloud-init on local-lvm (SSD thin LVM)
-#   - Longhorn data on tank (ZFS HDD pool); shared pattern with k3s-prod-worker-{1,2,3}
-vm_storage        = "local-lvm"
+#   - OS + cloud-init on flash
+#   - Longhorn data on flash; stage/test workers still keep data disks on tank
+vm_storage        = "flash"
 os_disk_size      = "80G"
-data_disk_storage = "tank"
+data_disk_storage = "flash"
 data_disk_size    = "200G"
