@@ -18,7 +18,8 @@ Environment metadata used by the deployment scripts lives in `scripts/lib/enviro
 
 ### Infrastructure provisioning
 
-- Terraform under `terraform/k3_3node_cluster_<env>/` provisions the VM layer.
+- Terraform under `terraform/stacks/**` provisions the active VM layer.
+- Legacy Terraform roots that predate the `modules/` + `stacks/` layout live under `terraform/archive/`.
 - Ansible under `ansible/` configures the cluster, installs platform services, and runs maintenance.
 
 ### GitOps
