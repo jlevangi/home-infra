@@ -6,6 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a **home infrastructure automation repository** that provides infrastructure-as-code for deploying production-ready K3s Kubernetes clusters on Proxmox VE. The repository manages multiple environments (production, test, staging) with automated provisioning and configuration. Applications are deployed via ArgoCD (see `argocd/`), not Ansible.
 
+## Quick Orientation
+
+- **VM lifecycle**: Use Terraform stacks under `terraform/stacks/**` to provision or rebuild cluster nodes on Proxmox VE.
+- **Cluster configuration**: Use Ansible for K3s bootstrap, infrastructure components, restores, and LXC container management.
+- **Application management**: Treat ArgoCD manifests under `argocd/apps/<env>/` and `argocd/manifests/**` as the source of truth for apps.
+- **Secrets**: Store sensitive values in Ansible Vault and keep the vault password in `~/.ansible_vault_pass`.
+- **Safer workflow**: Prefer repo scripts in `scripts/` over raw Terraform or Ansible commands because they encode environment-specific behavior.
+- **Change discipline**: Test in `--test` or `--stage` first when the risk warrants it, then promote by committing to `main`.
+
 ## Architecture
 
 - **Terraform**: VM provisioning on Proxmox VE with cloud-init templates
@@ -16,6 +25,13 @@ This is a **home infrastructure automation repository** that provides infrastruc
 - **MetalLB**: Load balancer for bare metal Kubernetes
 - **NFS Storage**: Backup target and legacy storage integration
 - **LXC Containers**: Lightweight containers for standalone services (Docker-capable)
+
+## Key References
+
+- `README.md`: project overview and prerequisites
+- `AGENTS.md`: canonical repository workflow and operations reference
+- `docs/operations/cluster-operations.md`: cluster management and troubleshooting runbook
+- `docs/recovery/backup-and-restore.md`: backup, restore, and disaster recovery procedures
 
 ## Common Commands
 
@@ -89,14 +105,19 @@ For detailed troubleshooting and manual operations, see [docs/operations/cluster
 
 ### Terraform Operations
 ```bash
-# Deploy production VMs
-cd terraform/k3_3node_cluster_prod
+# Deploy legacy compact 3-node production VMs
+cd terraform/stacks/k3s/compact-3node/prod
 terraform init
 terraform plan
 terraform apply
 
-# Deploy test VMs
-cd terraform/k3_3node_cluster_test
+# Deploy Atlas-backed split test VMs
+cd terraform/stacks/k3s/atlas/test/workers
+terraform init
+terraform plan
+terraform apply
+
+cd ../control-plane
 terraform init && terraform plan && terraform apply
 ```
 
@@ -169,9 +190,10 @@ ansible-vault view ansible/group_vars/lxc_vault.yml
 │       ├── k3s/
 │       └── lxc/                 # LXC container role
 ├── terraform/                   # Infrastructure provisioning (VMs only)
-│   ├── k3_3node_cluster_prod/
-│   ├── k3_3node_cluster_test/
-│   └── k3_3node_cluster_stage/
+│   ├── modules/                 # Reusable Proxmox VM modules
+│   └── stacks/                  # Root Terraform stacks by cluster family/env
+│       ├── k3s/
+│       └── talos/
 ├── scripts/                     # Management scripts
 │   ├── deploy-k3s-cluster.sh    # K3s cluster deployment
 │   ├── deploy-component.sh      # Single infra component deployment
@@ -202,7 +224,7 @@ The repository supports three environments:
 - Production-grade applications
 
 ### Test (`--test`)  
-- Cluster nodes: 172.20.20.121-123
+- Cluster nodes: 172.20.20.121-125
 - Domain: `test.levangie.dev`
 - Simplified configuration for testing
 - Safe environment for experiments
@@ -215,8 +237,8 @@ The repository supports three environments:
 ### Talos Test (experimental)
 - Cluster nodes: 172.20.20.131-133
 - Distribution: **Talos Linux** + upstream Kubernetes (not K3s, not Debian)
-- Managed via `terraform/talos_cluster_test/` (uses the `siderolabs/talos` provider for bootstrap) and `scripts/helpers/import-talos-template.sh` for the Proxmox template
-- VMs have `onboot = false` and do not start on Proxmox host boot
+- Managed via `terraform/stacks/talos/test/` (uses the `siderolabs/talos` provider for bootstrap) and `scripts/helpers/import-talos-template.sh` for the Atlas Proxmox template
+- VMs have `start_at_node_boot = false` and do not start on Proxmox host boot
 - No Ansible: Talos has no SSH/package manager; the existing `k3s` role does not apply here
 - App deployment (kubectl/helm, ArgoCD) still works against the cluster API if/when wired up; not yet integrated with `scripts/helpers/k3s-context-manager.sh`
 
