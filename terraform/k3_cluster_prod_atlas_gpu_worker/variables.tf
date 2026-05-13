@@ -40,7 +40,7 @@ variable "nic_name" {
 variable "vm_storage" {
   description = "Proxmox storage pool for OS disk + cloud-init drive."
   type        = string
-  default     = "local-lvm"
+  default     = "flash"
 }
 
 variable "os_disk_size" {
@@ -52,7 +52,7 @@ variable "os_disk_size" {
 variable "data_disk_storage" {
   description = "Proxmox storage pool for the Longhorn data disk (scsi1). tank = ZFS HDD pool on Atlas; move to NVMe later."
   type        = string
-  default     = "tank"
+  default     = "flash"
 }
 
 variable "data_disk_size" {
