@@ -22,37 +22,28 @@ provider "proxmox" {
   }
 }
 
-resource "proxmox_vm_qemu" "gpu_worker" {
-  name        = var.vm_name
-  vmid        = var.vm_id
-  target_node = var.proxmox_host
-  tags        = length(var.proxmox_tags) > 0 ? join(";", sort(distinct(var.proxmox_tags))) : null
+resource "proxmox_vm_qemu" "cp" {
+  name        = "${var.vm_name}-${count.index + 1}"
+  count       = var.vm_count
+  target_node = element(var.proxmox_hosts, count.index)
 
   clone      = var.template_name
   full_clone = "true"
 
-  agent              = 1
-  os_type            = "cloud-init"
-  start_at_node_boot = true
-  bios               = "ovmf"
-  machine            = "q35"
+  agent   = 1
+  os_type = "cloud-init"
 
   cpu {
-    cores   = 12
+    cores   = 2
     sockets = 1
     type    = "host"
     numa    = true
   }
 
-  memory   = 32768
-  balloon  = 32768
+  memory   = 4096
+  balloon  = 4096
   scsihw   = "virtio-scsi-pci"
   bootdisk = "scsi0"
-
-  efidisk {
-    storage = var.vm_storage
-    efitype = "4m"
-  }
 
   disk {
     slot    = "ide2"
@@ -62,41 +53,19 @@ resource "proxmox_vm_qemu" "gpu_worker" {
 
   disk {
     slot    = "scsi0"
-    size    = var.os_disk_size
+    size    = "40G"
     type    = "disk"
     storage = var.vm_storage
-  }
-
-  # Longhorn data disk (mounted at /var/lib/longhorn by Ansible)
-  disk {
-    slot    = "scsi1"
-    size    = var.data_disk_size
-    type    = "disk"
-    storage = var.data_disk_storage
-  }
-
-  pci {
-    id     = "0"
-    raw_id = var.gpu_pci_address
-    pcie   = true
-    rombar = true
-  }
-
-  pci {
-    id     = "1"
-    raw_id = var.gpu_audio_pci_address
-    pcie   = true
-    rombar = true
   }
 
   network {
     id      = 0
     model   = "virtio"
     bridge  = var.nic_name
-    macaddr = var.mac_address
+    macaddr = "76:5A:F1:57:5A:1${count.index + 1}"
   }
 
-  ipconfig0    = "ip=${var.ip_address}/${var.subnet_mask},gw=${var.gateway}"
+  ipconfig0    = "ip=${var.ip_base}${count.index + 4}/${var.subnet_mask},gw=${var.gateway}"
   nameserver   = var.nameserver
   searchdomain = var.search_domain
 

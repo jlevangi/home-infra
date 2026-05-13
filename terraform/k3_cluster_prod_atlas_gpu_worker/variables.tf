@@ -27,6 +27,12 @@ variable "template_name" {
   default     = "debian12-server-template"
 }
 
+variable "proxmox_tags" {
+  description = "Proxmox tags applied to the dedicated GPU worker."
+  type        = list(string)
+  default     = ["k3s", "prod"]
+}
+
 variable "nic_name" {
   default = "vmbr0"
 }

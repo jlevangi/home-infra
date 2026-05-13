@@ -22,11 +22,10 @@ provider "proxmox" {
   }
 }
 
-resource "proxmox_vm_qemu" "gpu_worker" {
-  name        = var.vm_name
-  vmid        = var.vm_id
-  target_node = var.proxmox_host
-  tags        = length(var.proxmox_tags) > 0 ? join(";", sort(distinct(var.proxmox_tags))) : null
+resource "proxmox_vm_qemu" "terraform" {
+  name        = "${var.vm_name}-${count.index + 1}"
+  count       = var.vm_count
+  target_node = element(var.proxmox_hosts, count.index)
 
   clone      = var.template_name
   full_clone = "true"
@@ -34,8 +33,6 @@ resource "proxmox_vm_qemu" "gpu_worker" {
   agent              = 1
   os_type            = "cloud-init"
   start_at_node_boot = true
-  bios               = "ovmf"
-  machine            = "q35"
 
   cpu {
     cores   = 12
@@ -44,22 +41,19 @@ resource "proxmox_vm_qemu" "gpu_worker" {
     numa    = true
   }
 
-  memory   = 32768
-  balloon  = 32768
+  memory   = 16384
+  balloon  = 16384
   scsihw   = "virtio-scsi-pci"
   bootdisk = "scsi0"
 
-  efidisk {
-    storage = var.vm_storage
-    efitype = "4m"
-  }
-
+  # Cloud-init drive must come first to avoid slot conflicts
   disk {
     slot    = "ide2"
     type    = "cloudinit"
     storage = var.vm_storage
   }
 
+  # OS disk
   disk {
     slot    = "scsi0"
     size    = var.os_disk_size
@@ -75,28 +69,14 @@ resource "proxmox_vm_qemu" "gpu_worker" {
     storage = var.data_disk_storage
   }
 
-  pci {
-    id     = "0"
-    raw_id = var.gpu_pci_address
-    pcie   = true
-    rombar = true
-  }
-
-  pci {
-    id     = "1"
-    raw_id = var.gpu_audio_pci_address
-    pcie   = true
-    rombar = true
-  }
-
   network {
     id      = 0
     model   = "virtio"
     bridge  = var.nic_name
-    macaddr = var.mac_address
+    macaddr = "76:5A:F2:57:5B:0${count.index + 1}"
   }
 
-  ipconfig0    = "ip=${var.ip_address}/${var.subnet_mask},gw=${var.gateway}"
+  ipconfig0    = "ip=${var.ip_base}${count.index + 1}/${var.subnet_mask},gw=${var.gateway}"
   nameserver   = var.nameserver
   searchdomain = var.search_domain
 
