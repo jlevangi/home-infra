@@ -26,6 +26,50 @@
           Target PVC: {{ restore_pvc_name }}
           Size: {{ pvc_size }} ({{ pvc_size_bytes }} bytes)
 
+    - name: Find workload controllers referencing this PVC
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl get deployment,statefulset -n {{ restore_namespace }} -o json 2>/dev/null | python3 -c "
+        import json, sys
+        try:
+            data = json.load(sys.stdin)
+        except Exception:
+            print('[]')
+            sys.exit(0)
+        target = '{{ restore_pvc_name }}'
+        matches = []
+        for item in data.get('items', []):
+            volumes = (((item.get('spec') or {}).get('template') or {}).get('spec') or {}).get('volumes') or []
+            if not any((v.get('persistentVolumeClaim') or {}).get('claimName') == target for v in volumes):
+                continue
+            spec = item.get('spec') or {}
+            matches.append({
+                'kind': (item.get('kind') or '').lower(),
+                'name': (item.get('metadata') or {}).get('name'),
+                'replicas': spec.get('replicas', 1),
+            })
+        print(json.dumps(matches))
+        "
+      register: workload_controllers_raw
+      failed_when: false
+      changed_when: false
+
+    - name: Parse workload controllers referencing this PVC
+      set_fact:
+        workload_controllers: "{{ workload_controllers_raw.stdout | default('[]') | from_json }}"
+
+    - name: Display workload controllers to scale down
+      debug:
+        msg: "Workload controllers to scale down: {{ workload_controllers | default([]) }}"
+
+    - name: Scale workload controllers down to zero
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl scale {{ item.kind }}/{{ item.name }} -n {{ restore_namespace }} --replicas=0
+      loop: "{{ workload_controllers }}"
+      loop_control:
+        label: "{{ item.kind }}/{{ item.name }}"
+      when: workload_controllers | length > 0
+      failed_when: false
+
     # ==========================================================================
     # STEP 1: Find and delete any pods holding this PVC, then delete the PVC
     # ==========================================================================
@@ -99,6 +143,30 @@
       retries: 12
       delay: 5
       when: existing_pv_name.rc == 0
+      failed_when: false
+      changed_when: false
+
+    - name: Force-remove finalizer from PVC if it still exists after retries
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl get pvc {{ restore_pvc_name }} -n {{ restore_namespace }} >/dev/null 2>&1 && \
+        KUBECONFIG={{ kubeconfig }} kubectl patch pvc {{ restore_pvc_name }} -n {{ restore_namespace }} \
+          --type=json -p='[{"op":"remove","path":"/metadata/finalizers"}]' || true
+      when:
+        - existing_pv_name.rc == 0
+        - pvc_check.stdout != "gone"
+      failed_when: false
+      changed_when: false
+
+    - name: Re-check PVC removal after force-clearing finalizer
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl get pvc {{ restore_pvc_name }} -n {{ restore_namespace }} >/dev/null 2>&1 && echo "exists" || echo "gone"
+      register: pvc_check_after_force
+      until: pvc_check_after_force.stdout == "gone"
+      retries: 12
+      delay: 5
+      when:
+        - existing_pv_name.rc == 0
+        - pvc_check.stdout != "gone"
       failed_when: false
       changed_when: false
 
@@ -231,10 +299,6 @@
       retries: 30
       delay: 5
 
-    # Workload controllers (Deployment/STS/etc.) recreate pods automatically
-    # once we delete them above; the new pods will bind to the freshly
-    # restored PVC. No explicit scale-up step is needed.
-
     - name: "Restore complete for {{ restore_volume.volume_name }}"
       debug:
         msg: |
@@ -248,3 +312,12 @@
           Target PVC: {{ restore_pvc_name }}
           Namespace: {{ restore_namespace }}
           ====================================================
+  always:
+    - name: Scale workload controllers back to original replica counts
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl scale {{ item.kind }}/{{ item.name }} -n {{ restore_namespace }} --replicas={{ item.replicas }}
+      loop: "{{ workload_controllers | default([]) }}"
+      loop_control:
+        label: "{{ item.kind }}/{{ item.name }}"
+      when: (workload_controllers | default([])) | length > 0
+      failed_when: false

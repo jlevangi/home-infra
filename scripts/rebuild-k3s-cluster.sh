@@ -3,9 +3,12 @@
 # Unified K3s cluster rebuild script
 # Allows target selection and verbosity
 
+set -euo pipefail
+
 TARGET_CLUSTER=""
 SHOW_HELP=false
 VERBOSITY=""
+TF_DIRS=()
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -81,28 +84,36 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
 if [[ "$TARGET_CLUSTER" == "test" ]]; then
-  TF_DIR="$REPO_ROOT/terraform/k3_3node_cluster_test"
+  TF_DIRS=(
+    "$REPO_ROOT/terraform/stacks/k3s/atlas/test/workers"
+    "$REPO_ROOT/terraform/stacks/k3s/atlas/test/control-plane"
+  )
   CLUSTER_NAME="Test"
   CLUSTER_EMOJI="🧪"
 elif [[ "$TARGET_CLUSTER" == "stage" ]]; then
-  TF_DIR="$REPO_ROOT/terraform/k3_3node_cluster_stage"
+  TF_DIRS=("$REPO_ROOT/terraform/stacks/k3s/compact-3node/stage")
   CLUSTER_NAME="Staging"
   CLUSTER_EMOJI="🎭"
 else
-  TF_DIR="$REPO_ROOT/terraform/k3_3node_cluster_prod"
+  TF_DIRS=("$REPO_ROOT/terraform/stacks/k3s/compact-3node/prod")
   CLUSTER_NAME="Production"
   CLUSTER_EMOJI="🚀"
 fi
 
-pushd "$TF_DIR"
+for TF_DIR in "${TF_DIRS[@]}"; do
+  pushd "$TF_DIR" >/dev/null
 
-echo "$CLUSTER_EMOJI Destroying existing $CLUSTER_NAME cluster with Terraform..."
-terraform destroy --auto-approve $VERBOSITY
+  echo "$CLUSTER_EMOJI Initializing Terraform in $TF_DIR..."
+  terraform init
 
-echo "$CLUSTER_EMOJI Deploying $CLUSTER_NAME cluster with Terraform..."
-terraform apply --auto-approve $VERBOSITY
+  echo "$CLUSTER_EMOJI Destroying existing $CLUSTER_NAME resources in $TF_DIR..."
+  terraform destroy --auto-approve $VERBOSITY
 
-popd
+  echo "$CLUSTER_EMOJI Deploying $CLUSTER_NAME resources in $TF_DIR..."
+  terraform apply --auto-approve $VERBOSITY
+
+  popd >/dev/null
+done
 
 # Clear stale SSH host keys (VMs get new host keys on rebuild)
 INVENTORY_PATH="$REPO_ROOT/ansible/inventories/$TARGET_CLUSTER/hosts.yml"

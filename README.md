@@ -23,7 +23,7 @@ The repo currently operates three Kubernetes environments:
 
 ```bash
 # Provision VMs
-cd terraform/k3_3node_cluster_prod
+cd terraform/stacks/k3s/compact-3node/prod
 terraform init
 terraform plan
 terraform apply
@@ -73,7 +73,7 @@ ansible/     Configuration, playbooks, roles, inventories, and LXC definitions
 argocd/      Root apps, environment app sets, and shared manifests
 docs/        Current docs, recovery runbooks, and archived historical notes
 scripts/     Operator entry points for deploy, restore, rebuild, and helpers
-terraform/   Environment-specific VM provisioning for K3s clusters
+terraform/   Reusable modules plus root stacks for K3s and Talos VM provisioning
 ```
 
 ## Operational Notes

@@ -271,9 +271,9 @@ rebuild_vms() {
         # Manual terraform destroy/apply
         local terraform_dir=""
         case $TARGET_ENV in
-            prod)  terraform_dir="$REPO_ROOT/terraform/k3_3node_cluster_prod" ;;
-            stage) terraform_dir="$REPO_ROOT/terraform/k3_3node_cluster_stage" ;;
-            test)  terraform_dir="$REPO_ROOT/terraform/k3_3node_cluster_test" ;;
+            prod)  terraform_dir="$REPO_ROOT/terraform/stacks/k3s/compact-3node/prod" ;;
+            stage) terraform_dir="$REPO_ROOT/terraform/stacks/k3s/compact-3node/stage" ;;
+            test)  terraform_dir="$REPO_ROOT/terraform/stacks/k3s/compact-3node/test" ;;
         esac
 
         if [[ -d "$terraform_dir" ]]; then

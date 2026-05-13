@@ -64,6 +64,8 @@
 
     kubeconfig: "/etc/rancher/k3s/k3s.yaml"
     longhorn_namespace: "longhorn-system"
+    argocd_namespace: "argocd"
+    argocd_root_app: "root-{{ target_env }}"
 
     # Discovery defaults to Longhorn CR metadata for speed. When that returns
     # no backups, optionally fall back to the slower direct NFS scan.
@@ -277,20 +279,86 @@
         - not (skip_confirm | default(false) | bool)
       run_once: true
 
-    - name: Restore each volume
-      ansible.builtin.include_tasks: ../roles/k3s/tasks/restore-volume.yml
-      vars:
-        restore_namespace: "{{ restore_volume.namespace }}"
-        restore_pvc_name: "{{ restore_volume.pvc_name }}"
-        pvc_size: "{{ restore_volume.size_bytes }}"
-        pvc_size_bytes: "{{ restore_volume.size_bytes }}"
-      loop: "{{ volumes_to_restore }}"
-      loop_control:
-        loop_var: restore_volume
-        label: "{{ restore_volume.namespace }}/{{ restore_volume.pvc_name }}"
+    - name: Restore each volume with ArgoCD sync paused
       when:
         - restore_action == 'restore'
         - volumes_to_restore | length > 0
+      block:
+        - name: Build namespace list for targeted restore
+          ansible.builtin.set_fact:
+            restore_namespaces: "{{ volumes_to_restore | map(attribute='namespace') | unique | list }}"
+          run_once: true
+
+        - name: Capture ArgoCD applications whose automated sync must be paused
+          ansible.builtin.shell: |
+            set -euo pipefail
+            KUBECONFIG={{ kubeconfig }} kubectl get applications.argoproj.io -n {{ argocd_namespace }} -o json | \
+              python3 - <<'PY'
+            import json
+            import sys
+
+            root_app = {{ argocd_root_app | to_json }}
+            namespaces = set({{ restore_namespaces | to_json }})
+            data = json.load(sys.stdin)
+            paused = []
+
+            for item in data.get("items", []):
+                metadata = item.get("metadata") or {}
+                spec = item.get("spec") or {}
+                sync_policy = spec.get("syncPolicy") or {}
+                automated = sync_policy.get("automated")
+                if automated is None:
+                    continue
+
+                name = metadata.get("name")
+                dest_namespace = (spec.get("destination") or {}).get("namespace")
+                if name == root_app or dest_namespace in namespaces:
+                    paused.append({
+                        "name": name,
+                        "automated": automated,
+                    })
+
+            print(json.dumps(paused))
+            PY
+          register: argocd_paused_apps_raw
+          changed_when: false
+          run_once: true
+
+        - name: Parse ArgoCD applications to pause
+          ansible.builtin.set_fact:
+            argocd_paused_apps: "{{ argocd_paused_apps_raw.stdout | default('[]') | from_json }}"
+          run_once: true
+
+        - name: Disable automated sync on targeted ArgoCD applications
+          ansible.builtin.shell: |
+            KUBECONFIG={{ kubeconfig }} kubectl patch application {{ item.name }} -n {{ argocd_namespace }} \
+              --type=json -p='[{"op":"remove","path":"/spec/syncPolicy/automated"}]'
+          loop: "{{ argocd_paused_apps }}"
+          loop_control:
+            label: "{{ item.name }}"
+          when: argocd_paused_apps | length > 0
+          run_once: true
+
+        - name: Restore each volume
+          ansible.builtin.include_tasks: ../roles/k3s/tasks/restore-volume.yml
+          vars:
+            restore_namespace: "{{ restore_volume.namespace }}"
+            restore_pvc_name: "{{ restore_volume.pvc_name }}"
+            pvc_size: "{{ restore_volume.size_bytes }}"
+            pvc_size_bytes: "{{ restore_volume.size_bytes }}"
+          loop: "{{ volumes_to_restore }}"
+          loop_control:
+            loop_var: restore_volume
+            label: "{{ restore_volume.namespace }}/{{ restore_volume.pvc_name }}"
+      always:
+        - name: Re-enable automated sync on previously paused ArgoCD applications
+          ansible.builtin.shell: |
+            KUBECONFIG={{ kubeconfig }} kubectl patch application {{ item.name }} -n {{ argocd_namespace }} \
+              --type=merge -p '{{ {"spec": {"syncPolicy": {"automated": item.automated}}} | to_json }}'
+          loop: "{{ argocd_paused_apps | default([]) }}"
+          loop_control:
+            label: "{{ item.name }}"
+          when: (argocd_paused_apps | default([])) | length > 0
       run_once: true
 
     # =========================================================================
