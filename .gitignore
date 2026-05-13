@@ -141,5 +141,8 @@ coverage/
 # Opencode
 .opencode/
 
+# Pi Agent
+.pi/
+
 # Local-only private app bundle
 .private-apps/

@@ -4,7 +4,7 @@
 # Fetches a Talos Linux image from factory.talos.dev with the system
 # extensions our Talos Proxmox clusters need (qemu-guest-agent,
 # iscsi-tools, util-linux-tools) and imports it into Proxmox as a VM
-# template that terraform/talos_cluster_test/ clones from.
+# template that terraform/stacks/talos/test/ clones from.
 #
 # Re-run for new Talos versions with a distinct --vmid/--name so prior
 # templates remain available for rollback. See the top of the file for
@@ -20,9 +20,9 @@ NC='\033[0m'
 
 # Defaults (every setting is overridable via env var or --flag).
 TALOS_VERSION="${TALOS_VERSION:-v1.12.6}"
-PROXMOX_HOST="${PROXMOX_HOST:-pve2}"
+PROXMOX_HOST="${PROXMOX_HOST:-atlas}"
 PROXMOX_SSH_USER="${PROXMOX_SSH_USER:-root}"
-PROXMOX_STORAGE="${PROXMOX_STORAGE:-vm_data}"
+PROXMOX_STORAGE="${PROXMOX_STORAGE:-tank}"
 PROXMOX_BRIDGE="${PROXMOX_BRIDGE:-vmbr0}"
 TEMPLATE_VMID="${TEMPLATE_VMID:-9100}"
 TEMPLATE_NAME="${TEMPLATE_NAME:-}"
@@ -166,4 +166,4 @@ echo -e "${BLUE}Cleaning up temp files on ${PROXMOX_HOST}${NC}"
 
 echo ""
 echo -e "${GREEN}Template ready: ${TEMPLATE_NAME} (vmid ${TEMPLATE_VMID}) on ${PROXMOX_HOST}${NC}"
-echo -e "${YELLOW}Next:${NC} set 'template_name = \"${TEMPLATE_NAME}\"' in terraform/talos_cluster_test/terraform.tfvars"
+echo -e "${YELLOW}Next:${NC} set 'template_name = \"${TEMPLATE_NAME}\"' in terraform/stacks/talos/test/terraform.tfvars"
