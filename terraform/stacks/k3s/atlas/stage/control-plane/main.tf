@@ -138,7 +138,7 @@ variable "os_disk_size" {
 variable "ip_base" {
   description = "Base IP fragment; CP IPs become .114-.116."
   type        = string
-  default     = "172.20.20.11"
+  default     = "172.20.21.11"
 }
 
 variable "subnet_mask" {

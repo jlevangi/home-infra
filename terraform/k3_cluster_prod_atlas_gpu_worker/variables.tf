@@ -40,7 +40,7 @@ variable "nic_name" {
 variable "vm_storage" {
   description = "Proxmox storage pool for OS disk + cloud-init drive."
   type        = string
-  default     = "flash"
+  default     = "local-lvm"
 }
 
 variable "os_disk_size" {
