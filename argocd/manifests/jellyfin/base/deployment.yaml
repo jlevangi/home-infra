@@ -48,6 +48,16 @@ spec:
             periodSeconds: 30
             timeoutSeconds: 10
             failureThreshold: 5
+          # Existing Jellyfin config/plugins can take a few minutes to initialize on cold start.
+          # Gate liveness/readiness until startup completes so Kubernetes doesn't treat warm-up
+          # as a failure.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8096
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
           readinessProbe:
             httpGet:
               path: /health
