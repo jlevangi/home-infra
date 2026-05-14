@@ -62,19 +62,19 @@ spec:
             scrapeTimeout: 10s
           targets:
             - name: stage-node-1-icmp
-              url: 172.20.20.111
+              url: 172.20.21.111
               module: icmp
             - name: stage-node-2-icmp
-              url: 172.20.20.112
+              url: 172.20.21.112
               module: icmp
             - name: stage-node-3-icmp
-              url: 172.20.20.113
+              url: 172.20.21.113
               module: icmp
             - name: nas-icmp
               url: 172.20.20.5
               module: icmp
             - name: stage-apiserver-tcp
-              url: 172.20.20.111:6443
+              url: 172.20.21.100:6443
               module: tcp_connect
             - name: stage-argocd-http
               url: https://argocd.stage.levangie.dev

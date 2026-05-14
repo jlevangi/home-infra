@@ -10,7 +10,7 @@
     app_namespace: "vaultwarden"
     nfs_mount_base: "/mnt/k3s-storage"
     migration_backup_dir: "/tmp/vaultwarden-migration-backup"
-    test_cluster_master: "172.20.20.111"
+    test_cluster_master: "172.20.21.124"
     
   tasks:
     - name: Display migration overview

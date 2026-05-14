@@ -37,12 +37,21 @@
 
 - name: Determine first-master hostname
   set_fact:
-    k3s_first_master: "{{ groups[master_group][0] }}"
-    k3s_is_first_master: "{{ inventory_hostname == groups[master_group][0] }}"
+    k3s_first_master: "{{ k3s_primary_master | default('') | trim if (k3s_primary_master | default('') | trim | length > 0) else groups[master_group][0] }}"
+    k3s_is_first_master: "{{ inventory_hostname == (k3s_primary_master | default('') | trim if (k3s_primary_master | default('') | trim | length > 0) else groups[master_group][0]) }}"
 
 - name: Resolve first-master API URL for joining masters
   set_fact:
-    k3s_first_master_url: "https://{{ hostvars[k3s_first_master]['ansible_default_ipv4']['address'] }}:6443"
+    k3s_join_server_host: >-
+      {{
+        hostvars[k3s_first_master]['ansible_host']
+        | default(hostvars[k3s_first_master]['inventory_hostname'])
+      }}
+    k3s_join_server_url: >-
+      https://{{
+        hostvars[k3s_first_master]['ansible_host']
+        | default(hostvars[k3s_first_master]['inventory_hostname'])
+      }}:{{ k3s_api_port | default(6443) }}
 
 - name: Build k3s server args (init vs join)
   set_fact:
@@ -50,7 +59,7 @@
       {{
         k3s_server_args + (
           ['--cluster-init'] if k3s_is_first_master
-          else ['--server', k3s_first_master_url]
+          else ['--server', k3s_join_server_url]
         ) + (
           ['--node-taint=' ~ k3s_master_workload_taint]
           if (k3s_master_workload_taint | default('') | length > 0)
@@ -60,8 +69,8 @@
 
 - name: Wait for first master API server before joining
   wait_for:
-    port: 6443
-    host: "{{ hostvars[k3s_first_master]['ansible_default_ipv4']['address'] }}"
+    port: "{{ k3s_api_port | default(6443) }}"
+    host: "{{ k3s_join_server_host }}"
     timeout: 300
   when:
     - not k3s_is_first_master

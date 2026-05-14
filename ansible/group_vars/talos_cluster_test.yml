@@ -15,8 +15,8 @@ platform_cluster_nodes:
   - "talos-test-node-3"
 platform_cluster_node_count: 3
 
-metallb_ip_range: "172.20.20.241-172.20.20.250"
-traefik_loadbalancer_ip: "172.20.20.241"
+metallb_ip_range: "172.20.21.220-172.20.21.230"
+traefik_loadbalancer_ip: "172.20.21.220"
 
 # Match the current test environment's backup posture until Talos has been
 # exercised long enough to trust as a backup source.

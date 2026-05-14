@@ -224,13 +224,13 @@ The repository supports three environments:
 - Production-grade applications
 
 ### Test (`--test`)  
-- Cluster nodes: 172.20.20.121-125
+- Cluster nodes: 172.20.21.121-125
 - Domain: `test.levangie.dev`
 - Simplified configuration for testing
 - Safe environment for experiments
 
 ### Staging (`--stage`)
-- Cluster nodes: 172.20.20.111-113  
+- Cluster nodes: 172.20.21.111-116  
 - Domain: `stage.levangie.dev`
 - Production-like testing environment
 

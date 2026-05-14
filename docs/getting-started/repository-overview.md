@@ -9,8 +9,8 @@ The repo currently maintains three Kubernetes environments:
 | Environment | Purpose | Node Range | Domain |
 | --- | --- | --- | --- |
 | `prod` | Primary production cluster | `172.20.20.101-103` | `levangie.dev` |
-| `stage` | Production-like validation | `172.20.20.111-113` | `stage.levangie.dev` |
-| `test` | Lower-risk testing | `172.20.20.121-123` | `test.levangie.dev` |
+| `stage` | Production-like validation | `172.20.21.111-113` | `stage.levangie.dev` |
+| `test` | Lower-risk testing | `172.20.21.121-123` | `test.levangie.dev` |
 
 Environment metadata used by the deployment scripts lives in `scripts/lib/environment-functions.sh`.
 

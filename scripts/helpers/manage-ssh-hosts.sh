@@ -24,8 +24,8 @@ fi
 # Cluster IP configurations
 declare -A CLUSTER_IPS=(
     ["prod"]="172.20.20.101 172.20.20.102 172.20.20.103 172.20.20.104 172.20.20.105 172.20.20.106"
-    ["test"]="172.20.20.121 172.20.20.122 172.20.20.123 172.20.20.124 172.20.20.125"
-    ["stage"]="172.20.20.111 172.20.20.112 172.20.20.113 172.20.20.114 172.20.20.115 172.20.20.116"
+    ["test"]="172.20.21.121 172.20.21.122 172.20.21.123 172.20.21.124 172.20.21.125"
+    ["stage"]="172.20.21.111 172.20.21.112 172.20.21.113 172.20.21.114 172.20.21.115 172.20.21.116"
 )
 
 # Cluster hostnames (optional - if you use hostnames in addition to IPs)
@@ -213,8 +213,8 @@ ${YELLOW}Commands:${NC}
 
 ${YELLOW}Available Clusters:${NC}
   ${GREEN}prod${NC}    - Production cluster (172.20.20.101-103)
-  ${GREEN}test${NC}    - Test cluster (172.20.20.121-125)
-  ${GREEN}stage${NC}   - Staging cluster (172.20.20.111-113)
+  ${GREEN}test${NC}    - Test cluster (172.20.21.121-125)
+  ${GREEN}stage${NC}   - Staging cluster (172.20.21.111-116)
 
 ${YELLOW}Examples:${NC}
   $0 refresh stage          # Refresh staging cluster hosts after rebuild
