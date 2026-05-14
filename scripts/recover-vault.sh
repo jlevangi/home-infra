@@ -73,6 +73,8 @@ fi
 
 setup_environment_vars "$TARGET_ENV" || exit 1
 
+INVENTORY_PATH=$(get_inventory_path "$TARGET_ENV" "$PROJECT_ROOT")
+
 if [[ -z "$VERBOSITY" && -n "$DEFAULT_VERBOSITY" ]]; then
     VERBOSITY="$DEFAULT_VERBOSITY"
 fi
@@ -97,8 +99,10 @@ echo ""
 
 ANSIBLE_CMD=(
     ansible-playbook
+    -i "$INVENTORY_PATH"
     "$PROJECT_ROOT/ansible/playbooks/maintenance/vault-unseal.yml"
     --vault-password-file "$VAULT_PASSWORD_FILE"
+    -e "target_cluster=$TARGET_CLUSTER"
     -e "kubectl_context=k3s-$KUBECTL_CONTEXT"
 )
 
