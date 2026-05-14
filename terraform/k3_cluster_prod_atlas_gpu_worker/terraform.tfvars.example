@@ -18,7 +18,7 @@ search_domain = "local"
 # Storage layout on Atlas:
 #   - OS + cloud-init on flash
 #   - Longhorn data on flash; stage/test workers still keep data disks on tank
-vm_storage        = "flash"
+vm_storage        = "local-lvm"
 os_disk_size      = "80G"
 data_disk_storage = "flash"
 data_disk_size    = "200G"

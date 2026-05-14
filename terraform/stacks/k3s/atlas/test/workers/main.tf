@@ -114,7 +114,7 @@ variable "vm_storage" {
 variable "data_disk_storage" {
   description = "Storage pool for the Longhorn data disk."
   type        = string
-  default     = "tank"
+  default     = "flash"
 }
 
 variable "cpu_cores" {
@@ -144,13 +144,13 @@ variable "os_disk_size" {
 variable "data_disk_size" {
   description = "Longhorn data disk size."
   type        = string
-  default     = "100G"
+  default     = "50G"
 }
 
 variable "ip_base" {
   description = "Base IP fragment; worker IPs become .121-.123."
   type        = string
-  default     = "172.20.20.12"
+  default     = "172.20.21.12"
 }
 
 variable "subnet_mask" {
