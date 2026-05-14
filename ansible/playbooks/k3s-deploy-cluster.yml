@@ -73,6 +73,11 @@
     - ../group_vars/k3s_cluster.yml
     - "../group_vars/{{ target_cluster | default('k3s_cluster') }}.yml"
 
+  pre_tasks:
+    - name: Skip infra-install play when requested
+      meta: end_play
+      when: skip_infra_install | default(false) | bool
+
   tasks:
     - name: Run Helm-driven infra installs
       include_role:
