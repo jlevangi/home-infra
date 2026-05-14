@@ -292,14 +292,17 @@
         - name: Capture ArgoCD applications whose automated sync must be paused
           ansible.builtin.shell: |
             set -euo pipefail
-            KUBECONFIG={{ kubeconfig }} kubectl get applications.argoproj.io -n {{ argocd_namespace }} -o json | \
-              python3 - <<'PY'
+            applications_json_file="$(mktemp)"
+            trap 'rm -f "$applications_json_file"' EXIT
+            KUBECONFIG={{ kubeconfig }} kubectl get applications.argoproj.io -n {{ argocd_namespace }} -o json > "$applications_json_file"
+            python3 - "$applications_json_file" <<'PY'
             import json
             import sys
 
             root_app = {{ argocd_root_app | to_json }}
             namespaces = set({{ restore_namespaces | to_json }})
-            data = json.load(sys.stdin)
+            with open(sys.argv[1], encoding="utf-8") as fh:
+                data = json.load(fh)
             paused = []
 
             for item in data.get("items", []):
@@ -320,6 +323,8 @@
 
             print(json.dumps(paused))
             PY
+          args:
+            executable: /bin/bash
           register: argocd_paused_apps_raw
           changed_when: false
           run_once: true

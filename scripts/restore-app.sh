@@ -24,6 +24,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 ANSIBLE_DIR="$REPO_ROOT/ansible"
 
+# WSL/sandbox runs can expose ~/.ansible as read-only. Force Ansible temp files
+# into /tmp so restore operations can run consistently.
+export TMPDIR="${TMPDIR:-/tmp}"
+export ANSIBLE_LOCAL_TEMP="${ANSIBLE_LOCAL_TEMP:-/tmp/.ansible-local}"
+export ANSIBLE_REMOTE_TEMP="${ANSIBLE_REMOTE_TEMP:-/tmp/.ansible-remote}"
+export ANSIBLE_SSH_CONTROL_PATH_DIR="${ANSIBLE_SSH_CONTROL_PATH_DIR:-/tmp/.ansible-cp}"
+mkdir -p "$ANSIBLE_LOCAL_TEMP" "$ANSIBLE_REMOTE_TEMP" "$ANSIBLE_SSH_CONTROL_PATH_DIR"
+
 TARGET_ENV=""
 SOURCE_ENV=""
 RESTORE_NAMESPACE=""
