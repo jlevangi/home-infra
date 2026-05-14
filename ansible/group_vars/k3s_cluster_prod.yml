@@ -28,6 +28,9 @@ k3s_primary_master: "k3s-prod-cp-2"
 longhorn_replica_count: 2
 longhorn_exclude_master_from_storage: true
 longhorn_guaranteed_instance_manager_cpu: 12
+longhorn_default_node_selector: "general-storage"
+longhorn_media_node_selector: "media-storage"
+longhorn_media_storage_class_name: "longhorn-media"
 
 # -----------------------------------------------------------------------------
 # CONTROL-PLANE NODE TAINT

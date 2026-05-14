@@ -489,7 +489,7 @@
 - name: Update Longhorn StorageClass ConfigMap to match replica count
   ansible.builtin.shell: |
     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch configmap longhorn-storageclass -n longhorn-system \
-      --type='merge' -p='{"data":{"storageclass.yaml":"kind: StorageClass\napiVersion: storage.k8s.io/v1\nmetadata:\n  name: longhorn\n  annotations:\n    storageclass.kubernetes.io/is-default-class: \"true\"\nprovisioner: driver.longhorn.io\nallowVolumeExpansion: true\nreclaimPolicy: \"Delete\"\nvolumeBindingMode: Immediate\nparameters:\n  numberOfReplicas: \"{{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}\"\n  replicaAutoBalance: \"{{ longhorn_replica_auto_balance | default('best-effort') }}\"\n  staleReplicaTimeout: \"30\"\n  fromBackup: \"\"\n  fsType: \"ext4\"\n  dataLocality: \"best-effort\"\n  unmapMarkSnapChainRemoved: \"ignored\"\n  disableRevisionCounter: \"true\"\n  dataEngine: \"v1\"\n  backupTargetName: \"default\"\n"}}'
+      --type='merge' -p='{"data":{"storageclass.yaml":"kind: StorageClass\napiVersion: storage.k8s.io/v1\nmetadata:\n  name: longhorn\n  annotations:\n    storageclass.kubernetes.io/is-default-class: \"true\"\nprovisioner: driver.longhorn.io\nallowVolumeExpansion: true\nreclaimPolicy: \"Delete\"\nvolumeBindingMode: Immediate\nparameters:\n  numberOfReplicas: \"{{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}\"\n  replicaAutoBalance: \"{{ longhorn_replica_auto_balance | default('best-effort') }}\"\n  staleReplicaTimeout: \"30\"\n  fromBackup: \"\"\n  fsType: \"ext4\"\n  dataLocality: \"best-effort\"\n  unmapMarkSnapChainRemoved: \"ignored\"\n  disableRevisionCounter: \"true\"\n  dataEngine: \"v1\"\n  backupTargetName: \"default\"\n{% if longhorn_default_node_selector | default('') | length > 0 %}  nodeSelector: \"{{ longhorn_default_node_selector }}\"\n{% endif %}"}}'
   become: yes
   register: storageclass_configmap_update_result
   failed_when: false
@@ -524,10 +524,42 @@
       disableRevisionCounter: "true"
       dataEngine: "v1"
       backupTargetName: "default"
+      {% if longhorn_default_node_selector | default('') | length > 0 %}
+      nodeSelector: "{{ longhorn_default_node_selector }}"
+      {% endif %}
     EOF
   become: yes
   register: storageclass_update_result
   failed_when: false
+
+- name: Create or update Longhorn media StorageClass
+  ansible.builtin.shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f - <<EOF
+    kind: StorageClass
+    apiVersion: storage.k8s.io/v1
+    metadata:
+      name: {{ longhorn_media_storage_class_name | default('longhorn-media') }}
+    provisioner: driver.longhorn.io
+    allowVolumeExpansion: true
+    reclaimPolicy: "Delete"
+    volumeBindingMode: Immediate
+    parameters:
+      numberOfReplicas: "{{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}"
+      replicaAutoBalance: "{{ longhorn_replica_auto_balance | default('best-effort') }}"
+      staleReplicaTimeout: "30"
+      fromBackup: ""
+      fsType: "ext4"
+      dataLocality: "best-effort"
+      unmapMarkSnapChainRemoved: "ignored"
+      disableRevisionCounter: "true"
+      dataEngine: "v1"
+      backupTargetName: "default"
+      nodeSelector: "{{ longhorn_media_node_selector }}"
+    EOF
+  become: yes
+  register: media_storageclass_update_result
+  failed_when: false
+  when: longhorn_media_node_selector | default('') | length > 0
 
 - name: Display StorageClass update result
   debug:
@@ -542,6 +574,13 @@
       ✅ Successfully recreated StorageClass with {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} replicas
       {% else %}
       ⚠️  StorageClass recreation failed: {{ storageclass_update_result.stderr | default('Unknown error') }}
+      {% endif %}
+      {% if longhorn_media_node_selector | default('') | length > 0 %}
+      {% if media_storageclass_update_result.rc == 0 %}
+      ✅ Successfully applied {{ longhorn_media_storage_class_name | default('longhorn-media') }} for nodeSelector={{ longhorn_media_node_selector }}
+      {% else %}
+      ⚠️  Media StorageClass update failed: {{ media_storageclass_update_result.stderr | default('Unknown error') }}
+      {% endif %}
       {% endif %}
 
 - name: Wait for API server before BackupTarget update
@@ -693,6 +732,38 @@
       {% endfor %}
   when:
     - master_longhorn_check is defined
+
+- name: Check if worker nodes with Longhorn tags are registered
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes.longhorn.io {{ item }} -n longhorn-system >/dev/null 2>&1
+  loop: "{{ groups[worker_group] | default([]) }}"
+  become: yes
+  register: tagged_worker_longhorn_check
+  failed_when: false
+  when: hostvars[item].longhorn_node_tags is defined
+
+- name: Reconcile Longhorn node tags on worker storage nodes
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch nodes.longhorn.io {{ item.item }} -n longhorn-system \
+      --type='merge' -p='{"spec":{"tags":{{ hostvars[item.item].longhorn_node_tags | to_json }}}}'
+  loop: "{{ tagged_worker_longhorn_check.results | default([]) }}"
+  become: yes
+  when:
+    - item.rc == 0
+
+- name: Display Longhorn worker tag status
+  debug:
+    msg: |
+      📊 Longhorn Worker Tag Status:
+      {% for result in tagged_worker_longhorn_check.results | default([]) %}
+      {% if result.rc == 0 %}
+      ✅ {{ result.item }}: tags={{ hostvars[result.item].longhorn_node_tags | default([]) | join(',') }}
+      {% else %}
+      ℹ️  {{ result.item }}: Not registered with Longhorn yet
+      {% endif %}
+      {% endfor %}
+  when:
+    - tagged_worker_longhorn_check is defined
 
 - name: Check if any Longhorn volumes exist
   shell: |

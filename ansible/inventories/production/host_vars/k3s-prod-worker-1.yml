@@ -2,4 +2,7 @@
 # Worker-1 lives on Atlas with a dedicated 300G tank-backed disk for Longhorn.
 # This triggers ansible/roles/k3s/tasks/longhorn-data-disk.yml to format and
 # mount /dev/sdb at /var/lib/longhorn before Longhorn schedules replicas.
+longhorn_node_tags:
+  - general-storage
+  - media-storage
 longhorn_data_disk_device: /dev/sdb
