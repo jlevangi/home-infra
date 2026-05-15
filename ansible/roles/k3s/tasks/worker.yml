@@ -46,6 +46,33 @@
       Will reinstall: {{ k3s_needs_install }}
       {{ k3s_agent_status_check.stdout if k3s_agent_status_check.rc == 0 else 'Will proceed with installation' }}
 
+- name: Fetch K3s node token from registration master when not already available
+  ansible.builtin.slurp:
+    src: "{{ k3s_data_dir }}/server/node-token"
+  register: k3s_registration_node_token_file
+  delegate_to: "{{ k3s_registration_source_host }}"
+  delegate_facts: false
+  become: yes
+  when:
+    - k3s_needs_install
+    - hostvars[k3s_registration_source_host]['k3s_node_token'] is not defined
+
+- name: Resolve K3s registration token
+  ansible.builtin.set_fact:
+    k3s_registration_token: >-
+      {{
+        hostvars[k3s_registration_source_host]['k3s_node_token']
+        | default(k3s_registration_node_token_file.content | b64decode | trim)
+      }}
+  when: k3s_needs_install
+
+- name: Fail if K3s registration token is unavailable
+  ansible.builtin.fail:
+    msg: "Unable to resolve K3s node token from {{ k3s_registration_source_host }} for {{ inventory_hostname }}"
+  when:
+    - k3s_needs_install
+    - k3s_registration_token | default('') | trim | length == 0
+
 - name: Download K3s installation script
   get_url:
     url: https://get.k3s.io
@@ -65,12 +92,11 @@
   shell: |
     curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION={{ k3s_version }} \
     K3S_URL={{ k3s_registration_url }} \
-    K3S_TOKEN={{ hostvars[k3s_registration_source_host]['k3s_node_token'] }} \
+    K3S_TOKEN={{ k3s_registration_token }} \
     sh -s - agent {% if k3s_agent_args %}{{ k3s_agent_args | join(' ') }}{% endif %}
   register: k3s_worker_install
   failed_when: k3s_worker_install.rc != 0
   when: 
-    - hostvars[k3s_registration_source_host]['k3s_node_token'] is defined
     - k3s_needs_install
 
 - name: Ensure K3s agent uses the configured registration endpoint
