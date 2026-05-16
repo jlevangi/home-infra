@@ -749,6 +749,7 @@
   loop: "{{ tagged_worker_longhorn_check.results | default([]) }}"
   become: yes
   when:
+    - item.rc is defined
     - item.rc == 0
 
 - name: Display Longhorn worker tag status
@@ -756,7 +757,9 @@
     msg: |
       📊 Longhorn Worker Tag Status:
       {% for result in tagged_worker_longhorn_check.results | default([]) %}
-      {% if result.rc == 0 %}
+      {% if result.skipped | default(false) %}
+      ℹ️  {{ result.item }}: No Longhorn tags configured
+      {% elif result.rc | default(1) == 0 %}
       ✅ {{ result.item }}: tags={{ hostvars[result.item].longhorn_node_tags | default([]) | join(',') }}
       {% else %}
       ℹ️  {{ result.item }}: Not registered with Longhorn yet

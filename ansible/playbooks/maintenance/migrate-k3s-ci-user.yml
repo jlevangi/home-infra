@@ -1,0 +1,103 @@
+---
+# Live migration for existing K3s nodes that still authenticate as the legacy
+# SSH user even though inventory/cloud-init now expect `ansible`.
+#
+# Example usage:
+#   ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook \
+#     -i ansible/inventories/production/hosts.yml \
+#     -i ansible/inventories/staging/hosts.yml \
+#     ansible/playbooks/maintenance/migrate-k3s-ci-user.yml
+#
+# Optional overrides:
+#   -e legacy_ssh_user=pierce
+#   -e target_clusters='k3s_cluster_stage'
+#   -e migration_user=ansible
+
+- name: Create ansible SSH user from legacy account
+  hosts: "{{ target_clusters | default('k3s_cluster_prod:k3s_cluster_stage') }}"
+  become: yes
+  gather_facts: no
+
+  vars:
+    ansible_user: "{{ legacy_ssh_user | default('pierce') }}"
+    target_login_user: "{{ migration_user | default('ansible') }}"
+    migration_shell: /bin/bash
+    migration_groups:
+      - sudo
+    migration_sudoers_path: "/etc/sudoers.d/90-{{ target_login_user }}"
+    legacy_authorized_keys_path: "/home/{{ legacy_ssh_user | default('pierce') }}/.ssh/authorized_keys"
+
+  tasks:
+    - name: Ensure target login user exists
+      ansible.builtin.user:
+        name: "{{ target_login_user }}"
+        shell: "{{ migration_shell }}"
+        create_home: yes
+        groups: "{{ migration_groups }}"
+        append: yes
+        state: present
+
+    - name: Check legacy authorized_keys presence
+      ansible.builtin.stat:
+        path: "{{ legacy_authorized_keys_path }}"
+      register: legacy_authorized_keys_stat
+
+    - name: Fail when legacy authorized_keys is missing
+      ansible.builtin.fail:
+        msg: "Missing {{ legacy_authorized_keys_path }} on {{ inventory_hostname }}"
+      when: not legacy_authorized_keys_stat.stat.exists
+
+    - name: Read legacy authorized_keys
+      ansible.builtin.slurp:
+        src: "{{ legacy_authorized_keys_path }}"
+      register: legacy_authorized_keys
+
+    - name: Install legacy SSH keys for target user
+      ansible.posix.authorized_key:
+        user: "{{ target_login_user }}"
+        key: "{{ legacy_authorized_keys.content | b64decode }}"
+        state: present
+        manage_dir: yes
+        exclusive: false
+
+    - name: Grant passwordless sudo to target user
+      ansible.builtin.copy:
+        dest: "{{ migration_sudoers_path }}"
+        content: "{{ target_login_user }} ALL=(ALL) NOPASSWD: ALL\n"
+        owner: root
+        group: root
+        mode: "0440"
+        validate: "/usr/sbin/visudo -cf %s"
+
+    - name: Ensure target home ownership is correct
+      ansible.builtin.file:
+        path: "/home/{{ target_login_user }}"
+        owner: "{{ target_login_user }}"
+        group: "{{ target_login_user }}"
+        state: directory
+
+    - name: Verify target user entry
+      ansible.builtin.command: "getent passwd {{ target_login_user }}"
+      changed_when: false
+
+- name: Verify SSH login and sudo as ansible user
+  hosts: "{{ target_clusters | default('k3s_cluster_prod:k3s_cluster_stage') }}"
+  become: no
+  gather_facts: yes
+
+  vars:
+    ansible_user: "{{ migration_user | default('ansible') }}"
+
+  tasks:
+    - name: Verify sudo works without a password
+      ansible.builtin.command: sudo -n true
+      changed_when: false
+
+    - name: Show verified login identity
+      ansible.builtin.command: whoami
+      register: verified_login_user
+      changed_when: false
+
+    - name: Display migration verification result
+      ansible.builtin.debug:
+        msg: "Verified {{ inventory_hostname }} via SSH as {{ verified_login_user.stdout }}"
