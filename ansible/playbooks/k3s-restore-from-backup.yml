@@ -2,10 +2,11 @@
 # =============================================================================
 # K3s Cluster Restore from Longhorn Backup
 # =============================================================================
-# Discovers the latest Longhorn backup per (namespace, pvcName) and restores it
-# without a static mapping. By default it uses Longhorn BackupVolume / Backup
-# CRs for fast discovery, with an explicit NFS scan fallback mode retained for
-# recovery edge cases.
+# Discovers the latest eligible Longhorn backup per (namespace, pvcName) and
+# restores it without a static mapping. By default it uses Longhorn Backup /
+# BackupVolume CRs for fast discovery, with an explicit NFS scan fallback mode
+# retained for recovery edge cases. A backup cutoff can be supplied to restore
+# an older point in time instead of the newest backup.
 #
 # Use Cases:
 #   1. Disaster Recovery: Rebuild prod cluster and restore all data
@@ -20,6 +21,10 @@
 #   # Force the slower NFS scan path
 #   ansible-playbook k3s-restore-from-backup.yml \
 #     -e "restore_action=list target_env=prod discovery_mode=nfs-scan"
+#
+#   # Restore the newest backup strictly older than 2026-05-11
+#   ansible-playbook k3s-restore-from-backup.yml \
+#     -e "restore_action=restore target_env=prod restore_backup_before=2026-05-11"
 #
 #   # Restore everything to stage from prod's latest backups
 #   ansible-playbook k3s-restore-from-backup.yml \
@@ -61,6 +66,8 @@
     restore_pvc_only: ""        # exact PVC name; only this one is restored
     restore_namespace_only: ""  # only restore PVCs in this namespace
     restore_pvc_skip: []        # PVC names to skip even if discovered
+    restore_backup_before: ""   # only consider backups strictly older than this ISO timestamp/date
+    restore_backup_id: ""       # restore this exact backup ID if supplied
 
     kubeconfig: "/etc/rancher/k3s/k3s.yaml"
     longhorn_namespace: "longhorn-system"
@@ -99,6 +106,8 @@
           Source Environment: {{ source_env }}
           Target Environment: {{ target_env }}
           Discovery Mode: {{ discovery_mode }}
+          Backup Before: {{ restore_backup_before | default('(none)', true) }}
+          Backup ID: {{ restore_backup_id | default('(none)', true) }}
           PVC filter: {{ restore_pvc_only | default('(all)', true) }}
           Namespace filter: {{ restore_namespace_only | default('(all)', true) }}
           Skip list: {{ restore_pvc_skip | default([]) | join(', ') | default('(none)', true) }}
@@ -125,6 +134,8 @@
             --kubeconfig {{ kubeconfig }}
             --longhorn-namespace {{ longhorn_namespace }}
             --cluster-filter {{ source_env }}
+            {% if restore_backup_before != '' %} --backup-before {{ restore_backup_before }}{% endif %}
+            {% if restore_backup_id != '' %} --backup-id {{ restore_backup_id }}{% endif %}
           register: discovery_longhorn_raw
           changed_when: false
 
@@ -162,6 +173,8 @@
             {{ nfs_server }}
             {{ nfs_path }}
             --cluster-filter {{ source_env }}
+            {% if restore_backup_before != '' %} --backup-before {{ restore_backup_before }}{% endif %}
+            {% if restore_backup_id != '' %} --backup-id {{ restore_backup_id }}{% endif %}
           register: discovery_nfs_raw
           changed_when: false
 
@@ -237,6 +250,20 @@
       when:
         - restore_namespace_only != ''
         - restore_pvc_only == ''
+      run_once: true
+
+    - name: Fail when no backups match the selected restore filters
+      ansible.builtin.fail:
+        msg: >
+          No backups matched restore_backup_before={{ restore_backup_before | default('(none)', true) }},
+          restore_backup_id={{ restore_backup_id | default('(none)', true) }},
+          restore_pvc_only={{ restore_pvc_only | default('(none)', true) }},
+          restore_namespace_only={{ restore_namespace_only | default('(none)', true) }},
+          restore_pvc_skip={{ restore_pvc_skip | default([]) | join(', ') | default('(none)', true) }}.
+          Check Longhorn backup availability or relax the filters.
+      when:
+        - restore_action == 'restore'
+        - volumes_to_restore | length == 0
       run_once: true
 
     # =========================================================================
