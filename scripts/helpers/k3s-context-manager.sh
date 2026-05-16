@@ -15,6 +15,10 @@ NC='\033[0m' # No Color
 _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _PROJECT_ROOT="$(cd "$_SCRIPT_DIR/../.." && pwd)"
 
+# shellcheck source=../lib/environment-functions.sh
+source "$_PROJECT_ROOT/scripts/lib/environment-functions.sh"
+require_ansible_config
+
 CLUSTERS=(
     "prod"
     "stage"
@@ -220,6 +224,73 @@ get_ssh_user() {
     echo "ansible"
 }
 
+expand_path() {
+    local path="$1"
+
+    case "$path" in
+        "~")
+            path="$HOME"
+            ;;
+        "~/"*)
+            path="$HOME/${path#\~/}"
+            ;;
+    esac
+
+    if [ -e "$path" ]; then
+        readlink -f "$path"
+    else
+        printf '%s\n' "$path"
+    fi
+}
+
+get_ssh_private_key() {
+    local cluster_name="$1"
+    local cfg="$_PROJECT_ROOT/ansible/ansible.cfg"
+
+    local inv_dir
+    inv_dir=$(get_inventory_dir "$cluster_name")
+
+    local inv_file="$_PROJECT_ROOT/ansible/inventories/$inv_dir/hosts.yml"
+
+    if [ -f "$inv_file" ]; then
+        local inv_key
+        inv_key=$(grep -m1 'ansible_ssh_private_key_file:' "$inv_file" 2>/dev/null | awk '{print $2}' | tr -d "\"'")
+        if [ -n "$inv_key" ]; then
+            expand_path "$inv_key"
+            return
+        fi
+    fi
+
+    if [ -f "$cfg" ]; then
+        local cfg_key
+        cfg_key=$(grep -m1 '^private_key_file' "$cfg" 2>/dev/null | awk '{print $3}' | tr -d "\"'")
+        if [ -n "$cfg_key" ]; then
+            expand_path "$cfg_key"
+            return
+        fi
+    fi
+}
+
+build_ssh_opts() {
+    local cluster_name="$1"
+    local ssh_key
+    ssh_key=$(get_ssh_private_key "$cluster_name")
+
+    local -a ssh_opts=(
+        -F /dev/null
+        -o ConnectTimeout=5
+        -o StrictHostKeyChecking=no
+        -o UserKnownHostsFile=/dev/null
+        -o LogLevel=ERROR
+    )
+
+    if [ -n "$ssh_key" ]; then
+        ssh_opts+=(-i "$ssh_key")
+    fi
+
+    printf '%s\n' "${ssh_opts[@]}"
+}
+
 LOCAL_KUBECONFIG_DIR="$HOME/.kube"
 MASTER_KUBECONFIG="$LOCAL_KUBECONFIG_DIR/config"
 REMOTE_KUBECONFIG="/etc/rancher/k3s/k3s.yaml"
@@ -273,6 +344,9 @@ function test_connectivity() {
     local cluster_name="$1"
     local master_node="$2"
     local master_user="$3"
+    local -a ssh_opts=()
+
+    mapfile -t ssh_opts < <(build_ssh_opts "$cluster_name")
     
     echo -e "${YELLOW}📡 Testing connectivity to $cluster_name cluster ($master_node)...${NC}"
     
@@ -284,12 +358,12 @@ function test_connectivity() {
     # Clean up old SSH host keys before attempting connection
     cleanup_known_hosts "$master_node" "$cluster_name"
     
-    if ! ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "$master_user@$master_node" "echo 'SSH connection successful'" > /dev/null 2>&1; then
+    if ! ssh "${ssh_opts[@]}" "$master_user@$master_node" "echo 'SSH connection successful'" > /dev/null 2>&1; then
         echo -e "${RED}❌ Cannot SSH to master node${NC}"
         return 1
     fi
     
-    if ! ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "$master_user@$master_node" "systemctl is-active k3s" > /dev/null 2>&1; then
+    if ! ssh "${ssh_opts[@]}" "$master_user@$master_node" "systemctl is-active k3s" > /dev/null 2>&1; then
         echo -e "${RED}❌ K3s service is not running on master node${NC}"
         return 1
     fi
@@ -303,6 +377,9 @@ function setup_cluster() {
     local source_node="$2"
     local master_user="$3"
     local api_endpoint="$4"
+    local -a ssh_opts=()
+
+    mapfile -t ssh_opts < <(build_ssh_opts "$cluster_name")
     
     echo -e "${BLUE}🔧 Setting up kubeconfig for $cluster_name cluster...${NC}"
     
@@ -320,7 +397,7 @@ function setup_cluster() {
     
     # Download kubeconfig
     echo -e "${YELLOW}📥 Downloading kubeconfig from $cluster_name cluster...${NC}"
-    if ! scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "$master_user@$source_node:$REMOTE_KUBECONFIG" "$temp_config"; then
+    if ! scp "${ssh_opts[@]}" "$master_user@$source_node:$REMOTE_KUBECONFIG" "$temp_config"; then
         echo -e "${RED}❌ Failed to download kubeconfig for $cluster_name${NC}"
         return 1
     fi
