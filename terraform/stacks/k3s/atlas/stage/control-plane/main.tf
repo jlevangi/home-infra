@@ -84,7 +84,7 @@ variable "vm_name_prefix" {
 variable "vm_count" {
   description = "Number of control-plane VMs."
   type        = number
-  default     = 3
+  default     = 1
 }
 
 variable "template_name" {
@@ -108,31 +108,31 @@ variable "nic_name" {
 variable "vm_storage" {
   description = "Storage pool for control-plane disks."
   type        = string
-  default     = "flash"
+  default     = "tank"
 }
 
 variable "cpu_cores" {
   description = "CPU cores per control-plane VM."
   type        = number
-  default     = 4
+  default     = 8
 }
 
 variable "memory" {
   description = "Memory in MB."
   type        = number
-  default     = 8192
+  default     = 16384
 }
 
 variable "balloon" {
   description = "Balloon memory in MB."
   type        = number
-  default     = 8192
+  default     = 16384
 }
 
 variable "os_disk_size" {
   description = "OS disk size."
   type        = string
-  default     = "40G"
+  default     = "80G"
 }
 
 variable "ip_base" {

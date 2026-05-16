@@ -109,6 +109,10 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
+# Source shared environment helpers so inventory paths stay aligned with the
+# rest of the operator scripts.
+source "$SCRIPT_DIR/lib/environment-functions.sh"
+
 if [[ "$TARGET_CLUSTER" == "test" ]]; then
   TF_DIRS=(
     "$REPO_ROOT/terraform/stacks/k3s/atlas/test/workers"
@@ -158,7 +162,7 @@ for TF_DIR in "${TF_DIRS[@]}"; do
   pushd "$TF_DIR" >/dev/null
 
   echo "$CLUSTER_EMOJI Initializing Terraform in $TF_DIR..."
-  terraform init
+  terraform init -input=false
 
   if [[ ${#TF_TARGETS[@]} -gt 0 ]]; then
     echo "$CLUSTER_EMOJI Applying targeted $CLUSTER_NAME resources in $TF_DIR..."
@@ -166,26 +170,29 @@ for TF_DIR in "${TF_DIRS[@]}"; do
     for TF_TARGET in "${TF_TARGETS[@]}"; do
       TARGET_ARGS+=("-target=$TF_TARGET")
     done
-    terraform apply --auto-approve $VERBOSITY "${TARGET_ARGS[@]}"
+    terraform apply -input=false --auto-approve $VERBOSITY "${TARGET_ARGS[@]}"
   else
     echo "$CLUSTER_EMOJI Destroying existing $CLUSTER_NAME resources in $TF_DIR..."
-    terraform destroy --auto-approve $VERBOSITY
+    terraform destroy -input=false --auto-approve $VERBOSITY
 
     echo "$CLUSTER_EMOJI Deploying $CLUSTER_NAME resources in $TF_DIR..."
-    terraform apply --auto-approve $VERBOSITY
+    terraform apply -input=false --auto-approve $VERBOSITY
   fi
 
   popd >/dev/null
 done
 
 # Clear stale SSH host keys (VMs get new host keys on rebuild)
-INVENTORY_PATH="$REPO_ROOT/ansible/inventories/$TARGET_CLUSTER/hosts.yml"
+INVENTORY_PATH="$(get_inventory_path "$TARGET_CLUSTER" "$REPO_ROOT")"
+KNOWN_HOSTS_FILE="$HOME/.ssh/known_hosts"
 if [[ -f "$INVENTORY_PATH" ]]; then
   echo ""
   echo "🔑 Clearing stale SSH host keys for $CLUSTER_NAME nodes..."
   NODE_IPS=$(grep -E '^\s+ansible_host:' "$INVENTORY_PATH" | awk '{print $2}')
-  for ip in $NODE_IPS; do
-    ssh-keygen -f "$HOME/.ssh/known_hosts" -R "$ip" 2>/dev/null
-  done
+  if [[ -f "$KNOWN_HOSTS_FILE" ]]; then
+    for ip in $NODE_IPS; do
+      ssh-keygen -f "$KNOWN_HOSTS_FILE" -R "$ip" >/dev/null 2>&1 || true
+    done
+  fi
   echo "✅ SSH host keys cleared"
 fi
