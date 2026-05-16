@@ -22,8 +22,13 @@
 - name: Update kubeconfig server address
   replace:
     path: "/home/{{ k3s_user }}/.kube/config"
-    regexp: 'https://:6443'
-    replace: 'https://{{ load_balancer_ip | default(ansible_default_ipv4.address) }}:6443'
+    regexp: 'https://127\.0\.0\.1:6443'
+    replace: >-
+      https://{{
+        (k3s_api_endpoint | default('') | trim)
+        if (k3s_api_endpoint | default('') | trim | length > 0)
+        else (load_balancer_ip | default(ansible_default_ipv4.address))
+      }}:{{ k3s_api_port | default(6443) }}
   become: yes
   when: k3s_setup_kubeconfig
 
@@ -31,6 +36,50 @@
   shell: kubectl completion bash > /etc/bash_completion.d/kubectl
   become: yes
   when: k3s_install_bash_completion
+
+- name: Ensure kube-vip API manifests directory exists
+  file:
+    path: "{{ k3s_data_dir }}/server/manifests"
+    state: directory
+    mode: '0755'
+  become: yes
+  when:
+    - inventory_hostname == k3s_first_master
+    - k3s_install_kube_vip | default(true)
+    - k3s_api_endpoint | default('') | trim | length > 0
+
+- name: Install kube-vip API VIP manifest
+  template:
+    src: kube-vip-api.yaml.j2
+    dest: "{{ k3s_data_dir }}/server/manifests/kube-vip-api.yaml"
+    mode: '0644'
+  become: yes
+  when:
+    - inventory_hostname == k3s_first_master
+    - k3s_install_kube_vip | default(true)
+    - k3s_api_endpoint | default('') | trim | length > 0
+
+- name: Apply kube-vip API VIP manifest
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f {{ k3s_data_dir }}/server/manifests/kube-vip-api.yaml
+  become: yes
+  when:
+    - inventory_hostname == k3s_first_master
+    - k3s_install_kube_vip | default(true)
+    - k3s_api_endpoint | default('') | trim | length > 0
+  register: kube_vip_apply
+  retries: 10
+  delay: 10
+  until: kube_vip_apply.rc == 0
+
+- name: Wait for kube-vip API VIP daemonset rollout
+  shell: |
+    KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl -n kube-system rollout status daemonset/kube-vip-ds --timeout=180s
+  become: yes
+  when:
+    - inventory_hostname == k3s_first_master
+    - k3s_install_kube_vip | default(true)
+    - k3s_api_endpoint | default('') | trim | length > 0
 
 - name: Add kubectl aliases
   lineinfile:
@@ -58,6 +107,7 @@
   delay: 10
   become: yes
   failed_when: false
+  when: not (skip_infra_install | default(false) | bool)
 
 - name: Display node readiness status for debugging
   debug:
@@ -68,18 +118,24 @@
       Cluster group nodes: {{ groups[cluster_group] }}
       
       📊 Current node status:
-  when: ready_nodes.stdout | int != groups[cluster_group] | length
+  when:
+    - not (skip_infra_install | default(false) | bool)
+    - ready_nodes.stdout | int != groups[cluster_group] | length
 
 - name: Show detailed node status if not all ready
   shell: KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes -o wide
   register: node_details
   become: yes
-  when: ready_nodes.stdout | int != groups[cluster_group] | length
+  when:
+    - not (skip_infra_install | default(false) | bool)
+    - ready_nodes.stdout | int != groups[cluster_group] | length
 
 - name: Display detailed node information
   debug:
     var: node_details.stdout_lines
-  when: ready_nodes.stdout | int != groups[cluster_group] | length
+  when:
+    - not (skip_infra_install | default(false) | bool)
+    - ready_nodes.stdout | int != groups[cluster_group] | length
 
 - name: Continue deployment even if not all nodes are ready
   debug:
@@ -93,7 +149,9 @@
       - Network connectivity is being established
       
       The deployment will continue, but some features may not work until all nodes are ready.
-  when: ready_nodes.stdout | int != groups[cluster_group] | length
+  when:
+    - not (skip_infra_install | default(false) | bool)
+    - ready_nodes.stdout | int != groups[cluster_group] | length
 
 - name: Display storage architecture information
   debug:
@@ -174,6 +232,7 @@
         (['Longhorn not running'] if k3s_install_longhorn | default(true) and (longhorn_status.stdout | int) == 0 else [])
         )
       }}
+  when: not (skip_infra_install | default(false) | bool)
 
 # Configure CoreDNS to use the internal DNS resolver for upstream lookups.
 # Tight-memory test VMs can cause the k3s API server to flap briefly under

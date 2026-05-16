@@ -67,7 +67,17 @@ only when that metadata is missing or stale:
 ./scripts/restore-app.sh --stage --from prod --app bookstack
 ./scripts/restore-app.sh --prod --pvc factorio-data
 ./scripts/restore-app.sh --prod --app factorio --list
+./scripts/restore-app.sh --prod --app gatus --backup-before 2026-05-11
+./scripts/restore-app.sh --prod --app gatus --backup-before 2026-05-11 --list
 ```
+
+To target an older restore point, use `--backup-before` with an ISO date or
+timestamp. The cutoff is exclusive, so `--backup-before 2026-05-11` selects the
+newest backup strictly older than `2026-05-11T00:00:00Z` and therefore allows
+backups from May 10th or earlier.
+
+If you already know the exact Longhorn backup ID, `--backup-id` restores that
+specific snapshot instead of selecting the newest eligible one.
 
 ## What `restore-cluster.sh` Handles
 
@@ -86,6 +96,8 @@ Use this when you only want to restore one namespace or one PVC.
 - runs `ansible/playbooks/k3s-restore-from-backup.yml` directly
 - defaults to Longhorn CR discovery (`longhorn-cr`)
 - supports `--list` preview mode before making changes
+- supports `--backup-before` for restoring an older backup point in time
+- supports `--backup-id` for exact backup selection
 - avoids the broader VM rebuild and cluster-verification flow in `restore-cluster.sh`
 
 ## Manual Longhorn Restore Pattern
@@ -174,6 +186,13 @@ As long as the app stores data on a Longhorn PVC and Longhorn backups exist for
 that PVC, the restore playbook will discover it automatically from Longhorn
 metadata. The NFS scan fallback uses the same PVC labels embedded in the
 backupstore.
+
+When selecting an older restore point, pass `restore_backup_before` through the
+wrapper script or the Ansible playbook. For example:
+
+```bash
+./scripts/restore-app.sh --prod --app paperless --backup-before 2026-05-11
+```
 
 If a new app does not appear in restore discovery, check these first:
 

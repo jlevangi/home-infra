@@ -18,6 +18,13 @@ SHOW_HELP=false
 AUTO_APPROVE=false
 MACHINE_CONFIG_APPLY_MODE="${TALOS_MACHINE_CONFIG_MODE:-auto}"
 
+get_talos_env_field() {
+  local env_name="$1"
+  local field="$2"
+
+  grep "^${env_name}:" "${ENVIRONMENTS_CONF}" 2>/dev/null | cut -d: -f"${field}"
+}
+
 require_command() {
   local cmd="$1"
   local reason="$2"
@@ -116,12 +123,20 @@ if [[ -n "${DEFAULT_VERBOSITY}" && -z "${VERBOSITY}" ]]; then
   VERBOSITY="${DEFAULT_VERBOSITY}"
 fi
 
-TERRAFORM_DIR="${PROJECT_ROOT}/terraform/${TARGET_CLUSTER}"
+TALOS_CONTEXT="$(get_talos_env_field "${TARGET_ENV}" 5)"
+TALOS_DEFAULT_VERBOSITY="$(get_talos_env_field "${TARGET_ENV}" 6)"
+if [[ -z "${TALOS_CONTEXT}" ]]; then
+  TALOS_CONTEXT="talos-${TARGET_ENV}"
+fi
+if [[ -n "${TALOS_DEFAULT_VERBOSITY}" && -z "${VERBOSITY}" ]]; then
+  VERBOSITY="${TALOS_DEFAULT_VERBOSITY}"
+fi
+
+TERRAFORM_DIR="${PROJECT_ROOT}/terraform/stacks/talos/${TARGET_ENV}"
 LOCAL_KUBECONFIG_DIR="${HOME}/.kube"
 LOCAL_TALOSCONFIG_DIR="${HOME}/.talos"
-TALOS_KUBECONFIG="${LOCAL_KUBECONFIG_DIR}/config-${KUBECTL_CONTEXT}"
-TALOSCONFIG_FILE="${LOCAL_TALOSCONFIG_DIR}/config-${KUBECTL_CONTEXT}"
-TALOS_CONTEXT="${KUBECTL_CONTEXT}"
+TALOS_KUBECONFIG="${LOCAL_KUBECONFIG_DIR}/config-${TALOS_CONTEXT}"
+TALOSCONFIG_FILE="${LOCAL_TALOSCONFIG_DIR}/config-${TALOS_CONTEXT}"
 
 require_command terraform "Talos VM/bootstrap provisioning"
 require_command ansible-playbook "shared Kubernetes platform bootstrap"

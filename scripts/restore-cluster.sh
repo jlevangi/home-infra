@@ -269,25 +269,43 @@ rebuild_vms() {
         "$SCRIPT_DIR/rebuild-k3s-cluster.sh" --$TARGET_ENV --yes
     else
         # Manual terraform destroy/apply
-        local terraform_dir=""
+        local terraform_dirs=()
         case $TARGET_ENV in
-            prod)  terraform_dir="$REPO_ROOT/terraform/k3_3node_cluster_prod" ;;
-            stage) terraform_dir="$REPO_ROOT/terraform/k3_3node_cluster_stage" ;;
-            test)  terraform_dir="$REPO_ROOT/terraform/k3_3node_cluster_test" ;;
+            prod)
+                terraform_dirs=(
+                    "$REPO_ROOT/terraform/stacks/k3s/atlas/prod/workers"
+                    "$REPO_ROOT/terraform/stacks/k3s/atlas/prod/control-plane"
+                )
+                ;;
+            stage)
+                terraform_dirs=(
+                    "$REPO_ROOT/terraform/stacks/k3s/atlas/stage/workers"
+                    "$REPO_ROOT/terraform/stacks/k3s/atlas/stage/control-plane"
+                )
+                ;;
+            test)
+                terraform_dirs=(
+                    "$REPO_ROOT/terraform/stacks/k3s/atlas/test/workers"
+                    "$REPO_ROOT/terraform/stacks/k3s/atlas/test/control-plane"
+                )
+                ;;
         esac
 
-        if [[ -d "$terraform_dir" ]]; then
-            print_step "Destroying existing VMs..."
+        for terraform_dir in "${terraform_dirs[@]}"; do
+            if [[ ! -d "$terraform_dir" ]]; then
+                print_error "Terraform directory not found: $terraform_dir"
+                exit 1
+            fi
+
+            print_step "Destroying existing VMs in $terraform_dir..."
             cd "$terraform_dir"
             terraform destroy -auto-approve
 
-            print_step "Creating new VMs..."
+            print_step "Creating new VMs in $terraform_dir..."
             terraform apply -auto-approve
-            cd "$REPO_ROOT"
-        else
-            print_error "Terraform directory not found: $terraform_dir"
-            exit 1
-        fi
+        done
+
+        cd "$REPO_ROOT"
     fi
 
     # Wait for VMs to be ready

@@ -24,7 +24,6 @@ resources:
   - hoarder.yaml
   - librechat.yaml
   - kioto.yaml
-  - poker-maison.yaml
   - searxng.yaml
   - snippetbox.yaml
   - tasksmd.yaml

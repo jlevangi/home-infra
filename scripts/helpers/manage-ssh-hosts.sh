@@ -24,14 +24,14 @@ fi
 # Cluster IP configurations
 declare -A CLUSTER_IPS=(
     ["prod"]="172.20.20.101 172.20.20.102 172.20.20.103 172.20.20.104 172.20.20.105 172.20.20.106"
-    ["test"]="172.20.20.121 172.20.20.122 172.20.20.123"
-    ["stage"]="172.20.20.111 172.20.20.112 172.20.20.113 172.20.20.114 172.20.20.115 172.20.20.116"
+    ["test"]="172.20.21.121 172.20.21.122 172.20.21.123 172.20.21.124 172.20.21.125"
+    ["stage"]="172.20.21.111 172.20.21.112 172.20.21.113 172.20.21.114 172.20.21.115 172.20.21.116"
 )
 
 # Cluster hostnames (optional - if you use hostnames in addition to IPs)
 declare -A CLUSTER_HOSTNAMES=(
     ["prod"]="k3s-prod-worker-1 k3s-prod-worker-2 k3s-prod-worker-3 k3s-prod-cp-1 k3s-prod-cp-2 k3s-prod-cp-3"
-    ["test"]="k3s-test-node-1 k3s-test-node-2 k3s-test-node-3"
+    ["test"]="k3s-test-worker-1 k3s-test-worker-2 k3s-test-worker-3 k3s-test-cp-1 k3s-test-cp-2"
     ["stage"]="k3s-stage-worker-1 k3s-stage-worker-2 k3s-stage-worker-3 k3s-stage-cp-1 k3s-stage-cp-2 k3s-stage-cp-3"
 )
 
@@ -213,8 +213,8 @@ ${YELLOW}Commands:${NC}
 
 ${YELLOW}Available Clusters:${NC}
   ${GREEN}prod${NC}    - Production cluster (172.20.20.101-103)
-  ${GREEN}test${NC}    - Test cluster (172.20.20.121-123)
-  ${GREEN}stage${NC}   - Staging cluster (172.20.20.111-113)
+  ${GREEN}test${NC}    - Test cluster (172.20.21.121-125)
+  ${GREEN}stage${NC}   - Staging cluster (172.20.21.111-116)
 
 ${YELLOW}Examples:${NC}
   $0 refresh stage          # Refresh staging cluster hosts after rebuild

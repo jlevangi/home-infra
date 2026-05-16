@@ -4,7 +4,7 @@ resources:
   - ../../base
 patches:
   # Pin Factorio to a specific node for stable hostPort access
-  # Port forward on router: external 34197 -> 172.20.20.122:34197 (UDP)
+  # Port forward on router: external 34197 -> 172.20.21.122:34197 (UDP)
   - target:
       kind: Deployment
       name: factorio

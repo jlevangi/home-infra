@@ -8,7 +8,7 @@ Use this document for the current end-to-end flow of provisioning cluster infras
 - Terraform, Ansible, `kubectl`, and SSH access
 - `~/.ansible_vault_pass`
 - Correct values in:
-  - `terraform/k3_3node_cluster_<env>/`
+  - `terraform/stacks/k3s/compact-3node/<env>/` or `terraform/stacks/k3s/atlas/<env>/`
   - `ansible/group_vars/`
   - `ansible/inventories/<environment>/hosts.yml`
 
@@ -17,13 +17,13 @@ Use this document for the current end-to-end flow of provisioning cluster infras
 ### 1. Provision the VMs with Terraform
 
 ```bash
-cd terraform/k3_3node_cluster_prod
+cd terraform/stacks/k3s/compact-3node/prod
 terraform init
 terraform plan
 terraform apply
 ```
 
-Use the environment-specific Terraform directory that matches the cluster you are building.
+Use the environment-specific Terraform stack that matches the cluster shape you are building.
 
 ### 2. Deploy K3s and core platform services
 

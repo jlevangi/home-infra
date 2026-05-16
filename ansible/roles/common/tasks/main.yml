@@ -25,13 +25,13 @@
     enabled: yes
     state: started
 
-- name: Copy bash_aliases to the user's home directory
-  ansible.builtin.copy:
-    src: bash_aliases
-    dest: '/home/{{ ansible_user }}/.bash_aliases'
-    owner: '{{ ansible_user }}'
-    group: '{{ ansible_user }}'
-    mode: '0644'
+# - name: Copy bash_aliases to the user's home directory
+#   ansible.builtin.copy:
+#     src: bash_aliases
+#     dest: '/home/{{ ansible_user }}/.bash_aliases'
+#     owner: '{{ ansible_user }}'
+#     group: '{{ ansible_user }}'
+#     mode: '0644'
 
-- name: Convert .bash_aliases to Unix format
-  command: dos2unix '/home/{{ ansible_user }}/.bash_aliases'
+# - name: Convert .bash_aliases to Unix format
+#   command: dos2unix '/home/{{ ansible_user }}/.bash_aliases'

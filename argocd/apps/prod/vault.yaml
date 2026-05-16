@@ -45,6 +45,12 @@ spec:
                   retry_join {
                     leader_api_addr = "http://vault-raft-0.vault-raft-internal:8200"
                   }
+                  retry_join {
+                    leader_api_addr = "http://vault-raft-1.vault-raft-internal:8200"
+                  }
+                  retry_join {
+                    leader_api_addr = "http://vault-raft-2.vault-raft-internal:8200"
+                  }
                 }
 
                 service_registration "kubernetes" {}
