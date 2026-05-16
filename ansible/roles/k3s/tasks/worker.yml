@@ -12,12 +12,66 @@
   set_fact:
     k3s_needs_install: "{{ k3s_agent_status_check.rc != 0 }}"
 
+- name: Determine worker registration endpoint
+  set_fact:
+    k3s_registration_source_host: >-
+      {{
+        k3s_primary_master | default('') | trim
+        if (k3s_primary_master | default('') | trim | length > 0)
+        else groups[master_group][0]
+      }}
+    k3s_registration_host: >-
+      {{
+        (k3s_api_endpoint | default('') | trim)
+        if (k3s_api_endpoint | default('') | trim | length > 0)
+        else (
+          hostvars[k3s_registration_source_host]['ansible_host']
+          | default(hostvars[k3s_registration_source_host]['inventory_hostname'])
+        )
+      }}
+    k3s_registration_url: >-
+      https://{{
+        (k3s_api_endpoint | default('') | trim)
+        if (k3s_api_endpoint | default('') | trim | length > 0)
+        else (
+          hostvars[k3s_registration_source_host]['ansible_host']
+          | default(hostvars[k3s_registration_source_host]['inventory_hostname'])
+        )
+      }}:{{ k3s_api_port | default(6443) }}
+
 - name: Display current K3s agent status
   debug:
     msg: |
       K3s Agent Status: {{ 'Running' if k3s_agent_status_check.rc == 0 else 'Not running or not installed' }}
       Will reinstall: {{ k3s_needs_install }}
       {{ k3s_agent_status_check.stdout if k3s_agent_status_check.rc == 0 else 'Will proceed with installation' }}
+
+- name: Fetch K3s node token from registration master when not already available
+  ansible.builtin.slurp:
+    src: "{{ k3s_data_dir }}/server/node-token"
+  register: k3s_registration_node_token_file
+  delegate_to: "{{ k3s_registration_source_host }}"
+  delegate_facts: false
+  become: yes
+  when:
+    - k3s_needs_install
+    - hostvars[k3s_registration_source_host]['k3s_node_token'] is not defined
+
+- name: Resolve K3s registration token
+  ansible.builtin.set_fact:
+    k3s_registration_token: >-
+      {{
+        hostvars[k3s_registration_source_host]['k3s_node_token']
+        | default(k3s_registration_node_token_file.content | b64decode | trim)
+      }}
+  when: k3s_needs_install
+
+- name: Fail if K3s registration token is unavailable
+  ansible.builtin.fail:
+    msg: "Unable to resolve K3s node token from {{ k3s_registration_source_host }} for {{ inventory_hostname }}"
+  when:
+    - k3s_needs_install
+    - k3s_registration_token | default('') | trim | length == 0
 
 - name: Download K3s installation script
   get_url:
@@ -28,8 +82,8 @@
 
 - name: Wait for master to be ready
   wait_for:
-    port: 6443
-    host: "{{ hostvars[groups[master_group][0]]['ansible_default_ipv4']['address'] }}"
+    port: "{{ k3s_api_port | default(6443) }}"
+    host: "{{ k3s_registration_host }}"
     delay: 10
     timeout: 300
   when: k3s_needs_install
@@ -37,14 +91,32 @@
 - name: Install K3s worker
   shell: |
     curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION={{ k3s_version }} \
-    K3S_URL=https://{{ hostvars[groups[master_group][0]]['ansible_default_ipv4']['address'] }}:6443 \
-    K3S_TOKEN={{ hostvars[groups[master_group][0]]['k3s_node_token'] }} \
+    K3S_URL={{ k3s_registration_url }} \
+    K3S_TOKEN={{ k3s_registration_token }} \
     sh -s - agent {% if k3s_agent_args %}{{ k3s_agent_args | join(' ') }}{% endif %}
   register: k3s_worker_install
   failed_when: k3s_worker_install.rc != 0
   when: 
-    - hostvars[groups[master_group][0]]['k3s_node_token'] is defined
     - k3s_needs_install
+
+- name: Ensure K3s agent uses the configured registration endpoint
+  lineinfile:
+    path: /etc/systemd/system/k3s-agent.service.env
+    regexp: '^K3S_URL='
+    line: "K3S_URL='{{ k3s_registration_url }}'"
+  register: k3s_agent_url_config
+  become: yes
+  when: not k3s_needs_install
+
+- name: Restart K3s agent after registration endpoint update
+  systemd:
+    name: k3s-agent
+    daemon_reload: yes
+    state: restarted
+  become: yes
+  when:
+    - not k3s_needs_install
+    - k3s_agent_url_config.changed
 
 - name: Display K3s worker installation output
   debug:

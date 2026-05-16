@@ -18,6 +18,8 @@ TARGET_CLUSTER=""
 EXTRA_VARS=""
 VERBOSITY=""
 SHOW_HELP=false
+LIMIT_HOSTS=""
+SKIP_INFRA=false
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -63,6 +65,19 @@ while [[ $# -gt 0 ]]; do
       VERBOSITY=""
       shift
       ;;
+    --limit-hosts)
+      if [[ -n "$2" && "$2" != -* ]]; then
+        LIMIT_HOSTS="$2"
+        shift 2
+      else
+        echo "❌ Error: --limit-hosts requires a comma-separated host list"
+        exit 1
+      fi
+      ;;
+    --skip-infra)
+      SKIP_INFRA=true
+      shift
+      ;;
     --help|-h)
       SHOW_HELP=true
       shift
@@ -84,6 +99,8 @@ if [[ "$SHOW_HELP" == "true" ]] || [[ -z "$TARGET_ENV" ]]; then
   echo "  -v, --verbose          Enable verbose output"
   echo "  -vv, -vvv              Enable more verbose output"
   echo "  -q, --quiet            Disable verbose output"
+  echo "  --limit-hosts HOSTS    Limit Ansible to a comma-separated host list"
+  echo "  --skip-infra           Skip infra-install play (Longhorn/MetalLB/Traefik/ArgoCD/Vault)"
   echo "  -h, --help             Show this help message"
   echo ""
   
@@ -103,6 +120,9 @@ fi
 
 # Set up Ansible extra vars for target cluster
 EXTRA_VARS="$EXTRA_VARS -e target_cluster=$TARGET_CLUSTER"
+if [[ "$SKIP_INFRA" == "true" ]]; then
+  EXTRA_VARS="$EXTRA_VARS -e skip_infra_install=true"
+fi
 
 # Apply default verbosity if not explicitly set and environment has a default
 if [[ -z "$VERBOSITY" && -n "$DEFAULT_VERBOSITY" ]]; then
@@ -122,6 +142,9 @@ echo ""
 echo "$CLUSTER_EMOJI Deploying K3s $CLUSTER_NAME Cluster..."
 echo "📂 Using unified deployment playbook: k3s-deploy-cluster.yml"
 echo "🎯 Target: $CLUSTER_NAME cluster ($TARGET_CLUSTER)"
+if [[ -n "$LIMIT_HOSTS" ]]; then
+  echo "🧭 Host limit: $LIMIT_HOSTS"
+fi
 echo "🔊 Verbosity: $([ -n "$VERBOSITY" ] && echo "$VERBOSITY" || echo "Standard")"
 echo ""
 
@@ -140,6 +163,9 @@ INVENTORY_PATH=$(get_inventory_path "$TARGET_ENV" "$PROJECT_ROOT")
 # Preflight SSH connectivity check
 echo "🔍 Preflight: Checking SSH connectivity to all nodes in $TARGET_CLUSTER..."
 PING_CMD=(ansible -i "$INVENTORY_PATH" "$TARGET_CLUSTER" -m ping)
+if [[ -n "$LIMIT_HOSTS" ]]; then
+  PING_CMD+=(--limit "$LIMIT_HOSTS")
+fi
 if [[ -n "$VERBOSITY" ]]; then
   PING_CMD+=("$VERBOSITY")
 fi
@@ -157,6 +183,10 @@ ANSIBLE_CMD=(ansible-playbook -i "$INVENTORY_PATH" "$PROJECT_ROOT/ansible/playbo
 # Add verbosity if set
 if [[ -n "$VERBOSITY" ]]; then
   ANSIBLE_CMD+=("$VERBOSITY")
+fi
+
+if [[ -n "$LIMIT_HOSTS" ]]; then
+  ANSIBLE_CMD+=(--limit "$LIMIT_HOSTS")
 fi
 
 # Add extra vars if set

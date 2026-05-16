@@ -2,10 +2,11 @@
 # =============================================================================
 # K3s Cluster Restore from Longhorn Backup
 # =============================================================================
-# Discovers the latest Longhorn backup per (namespace, pvcName) and restores it
-# without a static mapping. By default it uses Longhorn BackupVolume / Backup
-# CRs for fast discovery, with an explicit NFS scan fallback mode retained for
-# recovery edge cases.
+# Discovers the latest eligible Longhorn backup per (namespace, pvcName) and
+# restores it without a static mapping. By default it uses Longhorn Backup /
+# BackupVolume CRs for fast discovery, with an explicit NFS scan fallback mode
+# retained for recovery edge cases. A backup cutoff can be supplied to restore
+# an older point in time instead of the newest backup.
 #
 # Use Cases:
 #   1. Disaster Recovery: Rebuild prod cluster and restore all data
@@ -20,6 +21,10 @@
 #   # Force the slower NFS scan path
 #   ansible-playbook k3s-restore-from-backup.yml \
 #     -e "restore_action=list target_env=prod discovery_mode=nfs-scan"
+#
+#   # Restore the newest backup strictly older than 2026-05-11
+#   ansible-playbook k3s-restore-from-backup.yml \
+#     -e "restore_action=restore target_env=prod restore_backup_before=2026-05-11"
 #
 #   # Restore everything to stage from prod's latest backups
 #   ansible-playbook k3s-restore-from-backup.yml \
@@ -61,9 +66,13 @@
     restore_pvc_only: ""        # exact PVC name; only this one is restored
     restore_namespace_only: ""  # only restore PVCs in this namespace
     restore_pvc_skip: []        # PVC names to skip even if discovered
+    restore_backup_before: ""   # only consider backups strictly older than this ISO timestamp/date
+    restore_backup_id: ""       # restore this exact backup ID if supplied
 
     kubeconfig: "/etc/rancher/k3s/k3s.yaml"
     longhorn_namespace: "longhorn-system"
+    argocd_namespace: "argocd"
+    argocd_root_app: "root-{{ target_env }}"
 
     # Discovery defaults to Longhorn CR metadata for speed. When that returns
     # no backups, optionally fall back to the slower direct NFS scan.
@@ -97,6 +106,8 @@
           Source Environment: {{ source_env }}
           Target Environment: {{ target_env }}
           Discovery Mode: {{ discovery_mode }}
+          Backup Before: {{ restore_backup_before | default('(none)', true) }}
+          Backup ID: {{ restore_backup_id | default('(none)', true) }}
           PVC filter: {{ restore_pvc_only | default('(all)', true) }}
           Namespace filter: {{ restore_namespace_only | default('(all)', true) }}
           Skip list: {{ restore_pvc_skip | default([]) | join(', ') | default('(none)', true) }}
@@ -123,6 +134,8 @@
             --kubeconfig {{ kubeconfig }}
             --longhorn-namespace {{ longhorn_namespace }}
             --cluster-filter {{ source_env }}
+            {% if restore_backup_before != '' %} --backup-before {{ restore_backup_before }}{% endif %}
+            {% if restore_backup_id != '' %} --backup-id {{ restore_backup_id }}{% endif %}
           register: discovery_longhorn_raw
           changed_when: false
 
@@ -160,6 +173,8 @@
             {{ nfs_server }}
             {{ nfs_path }}
             --cluster-filter {{ source_env }}
+            {% if restore_backup_before != '' %} --backup-before {{ restore_backup_before }}{% endif %}
+            {% if restore_backup_id != '' %} --backup-id {{ restore_backup_id }}{% endif %}
           register: discovery_nfs_raw
           changed_when: false
 
@@ -237,6 +252,20 @@
         - restore_pvc_only == ''
       run_once: true
 
+    - name: Fail when no backups match the selected restore filters
+      ansible.builtin.fail:
+        msg: >
+          No backups matched restore_backup_before={{ restore_backup_before | default('(none)', true) }},
+          restore_backup_id={{ restore_backup_id | default('(none)', true) }},
+          restore_pvc_only={{ restore_pvc_only | default('(none)', true) }},
+          restore_namespace_only={{ restore_namespace_only | default('(none)', true) }},
+          restore_pvc_skip={{ restore_pvc_skip | default([]) | join(', ') | default('(none)', true) }}.
+          Check Longhorn backup availability or relax the filters.
+      when:
+        - restore_action == 'restore'
+        - volumes_to_restore | length == 0
+      run_once: true
+
     # =========================================================================
     # LIST or RESTORE
     # =========================================================================
@@ -277,20 +306,91 @@
         - not (skip_confirm | default(false) | bool)
       run_once: true
 
-    - name: Restore each volume
-      ansible.builtin.include_tasks: ../roles/k3s/tasks/restore-volume.yml
-      vars:
-        restore_namespace: "{{ restore_volume.namespace }}"
-        restore_pvc_name: "{{ restore_volume.pvc_name }}"
-        pvc_size: "{{ restore_volume.size_bytes }}"
-        pvc_size_bytes: "{{ restore_volume.size_bytes }}"
-      loop: "{{ volumes_to_restore }}"
-      loop_control:
-        loop_var: restore_volume
-        label: "{{ restore_volume.namespace }}/{{ restore_volume.pvc_name }}"
+    - name: Restore each volume with ArgoCD sync paused
       when:
         - restore_action == 'restore'
         - volumes_to_restore | length > 0
+      block:
+        - name: Build namespace list for targeted restore
+          ansible.builtin.set_fact:
+            restore_namespaces: "{{ volumes_to_restore | map(attribute='namespace') | unique | list }}"
+          run_once: true
+
+        - name: Capture ArgoCD applications whose automated sync must be paused
+          ansible.builtin.shell: |
+            set -euo pipefail
+            applications_json_file="$(mktemp)"
+            trap 'rm -f "$applications_json_file"' EXIT
+            KUBECONFIG={{ kubeconfig }} kubectl get applications.argoproj.io -n {{ argocd_namespace }} -o json > "$applications_json_file"
+            python3 - "$applications_json_file" <<'PY'
+            import json
+            import sys
+
+            root_app = {{ argocd_root_app | to_json }}
+            namespaces = set({{ restore_namespaces | to_json }})
+            with open(sys.argv[1], encoding="utf-8") as fh:
+                data = json.load(fh)
+            paused = []
+
+            for item in data.get("items", []):
+                metadata = item.get("metadata") or {}
+                spec = item.get("spec") or {}
+                sync_policy = spec.get("syncPolicy") or {}
+                automated = sync_policy.get("automated")
+                if automated is None:
+                    continue
+
+                name = metadata.get("name")
+                dest_namespace = (spec.get("destination") or {}).get("namespace")
+                if name == root_app or dest_namespace in namespaces:
+                    paused.append({
+                        "name": name,
+                        "automated": automated,
+                    })
+
+            print(json.dumps(paused))
+            PY
+          args:
+            executable: /bin/bash
+          register: argocd_paused_apps_raw
+          changed_when: false
+          run_once: true
+
+        - name: Parse ArgoCD applications to pause
+          ansible.builtin.set_fact:
+            argocd_paused_apps: "{{ argocd_paused_apps_raw.stdout | default('[]') | from_json }}"
+          run_once: true
+
+        - name: Disable automated sync on targeted ArgoCD applications
+          ansible.builtin.shell: |
+            KUBECONFIG={{ kubeconfig }} kubectl patch application {{ item.name }} -n {{ argocd_namespace }} \
+              --type=json -p='[{"op":"remove","path":"/spec/syncPolicy/automated"}]'
+          loop: "{{ argocd_paused_apps }}"
+          loop_control:
+            label: "{{ item.name }}"
+          when: argocd_paused_apps | length > 0
+          run_once: true
+
+        - name: Restore each volume
+          ansible.builtin.include_tasks: ../roles/k3s/tasks/restore-volume.yml
+          vars:
+            restore_namespace: "{{ restore_volume.namespace }}"
+            restore_pvc_name: "{{ restore_volume.pvc_name }}"
+            pvc_size: "{{ restore_volume.size_bytes }}"
+            pvc_size_bytes: "{{ restore_volume.size_bytes }}"
+          loop: "{{ volumes_to_restore }}"
+          loop_control:
+            loop_var: restore_volume
+            label: "{{ restore_volume.namespace }}/{{ restore_volume.pvc_name }}"
+      always:
+        - name: Re-enable automated sync on previously paused ArgoCD applications
+          ansible.builtin.shell: |
+            KUBECONFIG={{ kubeconfig }} kubectl patch application {{ item.name }} -n {{ argocd_namespace }} \
+              --type=merge -p '{{ {"spec": {"syncPolicy": {"automated": item.automated}}} | to_json }}'
+          loop: "{{ argocd_paused_apps | default([]) }}"
+          loop_control:
+            label: "{{ item.name }}"
+          when: (argocd_paused_apps | default([])) | length > 0
       run_once: true
 
     # =========================================================================

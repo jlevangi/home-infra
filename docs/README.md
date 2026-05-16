@@ -27,6 +27,11 @@ This directory is organized around current operator workflows first. Historical 
 - [Production Cutover Checklist](recovery/production-cutover-checklist.md)
   Pre-flight and post-flight checks for stage-to-prod changes.
 
+## Post-Mortems
+
+- [2026-05-16 — Longhorn Cascade Triggered by Failing SSD](post-mortems/2026-05-16-longhorn-cascade-failing-ssd.md)
+  Hardware-rooted cascade where a failing SATA SSD in the `flash` ZFS pool's raidz1 caused Longhorn-wide flapping. Compounded by a stuck Longhorn engine upgrade, recurring tgtd orphans, and DIMM CE errors. Useful reference for Longhorn triage signals, known failure patterns, and recovery workarounds (PVC LimitRange, live engine upgrade, force-detach, etc.).
+
 ## Reference
 
 - [Vault And External Secrets](reference/vault-and-eso.md)

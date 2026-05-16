@@ -55,7 +55,7 @@
       - "nesting={{ '1' if container_nesting else '0' }}"
     nameserver: "{{ lxc_nameservers | join(' ') }}"
     searchdomain: "local"
-    onboot: true
+    start_at_node_boot: true
     state: present
   register: container_created
   when: not container_exists

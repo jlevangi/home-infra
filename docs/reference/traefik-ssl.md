@@ -147,7 +147,7 @@ traefik_acme_email: "admin@yourdomain.com"
 traefik_acme_dns_provider: "cloudflare"
 
 # Traefik LoadBalancer IP
-traefik_loadbalancer_ip: "172.20.20.230"  # Your cluster's external IP
+traefik_loadbalancer_ip: "172.20.21.201"  # Your cluster's external IP
 ```
 
 ## Implementation Steps
@@ -178,7 +178,7 @@ vault_cloudflare_dns_api_key: "your-cloudflare-api-token"
 
 ### Step 4: Configure DNS
 
-1. **Create A record** for cluster: `k3s-test.yourdomain.com → 172.20.20.230`
+1. **Create A record** for cluster: `k3s-test.yourdomain.com → 172.20.21.201`
 2. **Create CNAME records** for applications:
    - `test.vw.yourdomain.com → k3s-test.yourdomain.com`
    - `test.bookstack.yourdomain.com → k3s-test.yourdomain.com`

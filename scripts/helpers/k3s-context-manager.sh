@@ -15,6 +15,10 @@ NC='\033[0m' # No Color
 _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _PROJECT_ROOT="$(cd "$_SCRIPT_DIR/../.." && pwd)"
 
+# shellcheck source=../lib/environment-functions.sh
+source "$_PROJECT_ROOT/scripts/lib/environment-functions.sh"
+require_ansible_config
+
 CLUSTERS=(
     "prod"
     "stage"
@@ -101,6 +105,89 @@ sys.exit(1)
 PY
 }
 
+get_master_nodes() {
+    local cluster_name="$1"
+    local inv_dir
+    inv_dir=$(get_inventory_dir "$cluster_name")
+    local inv_file="$_PROJECT_ROOT/ansible/inventories/$inv_dir/hosts.yml"
+    local master_group
+    master_group=$(get_master_group "$cluster_name")
+
+    if [ ! -f "$inv_file" ]; then
+        return 1
+    fi
+
+    python3 - "$inv_file" "$master_group" <<'PY'
+import sys
+
+inventory_path, master_group = sys.argv[1], sys.argv[2]
+
+with open(inventory_path, "r", encoding="utf-8") as fh:
+    lines = fh.readlines()
+
+in_group = False
+in_hosts = False
+group_indent = None
+hosts_indent = None
+
+for raw_line in lines:
+    line = raw_line.rstrip("\n")
+    stripped = line.strip()
+
+    if not stripped or stripped.startswith("#"):
+        continue
+
+    indent = len(raw_line) - len(raw_line.lstrip(" "))
+
+    if stripped == f"{master_group}:":
+        in_group = True
+        in_hosts = False
+        group_indent = indent
+        hosts_indent = None
+        continue
+
+    if in_group and indent <= group_indent and stripped.endswith(":"):
+        in_group = False
+        in_hosts = False
+
+    if not in_group:
+        continue
+
+    if stripped == "hosts:":
+        in_hosts = True
+        hosts_indent = indent
+        continue
+
+    if in_hosts and indent <= hosts_indent and stripped.endswith(":"):
+        continue
+
+    if in_hosts and stripped.startswith("ansible_host:"):
+        print(stripped.split(":", 1)[1].strip())
+PY
+}
+
+get_api_endpoint() {
+    local cluster_name="$1"
+    local group_vars_file="$_PROJECT_ROOT/ansible/group_vars/k3s_cluster_${cluster_name}.yml"
+
+    if [ ! -f "$group_vars_file" ]; then
+        echo ""
+        return 0
+    fi
+
+    python3 - "$group_vars_file" <<'PY'
+import sys
+import yaml
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as fh:
+    data = yaml.safe_load(fh) or {}
+
+value = data.get("k3s_api_endpoint", "")
+print(value if isinstance(value, str) else "")
+PY
+}
+
 # Derive the SSH user for a given cluster by mirroring Ansible's own
 # precedence: inventory ansible_user overrides ansible.cfg remote_user.
 get_ssh_user() {
@@ -135,6 +222,73 @@ get_ssh_user() {
 
     # Ultimate fallback
     echo "ansible"
+}
+
+expand_path() {
+    local path="$1"
+
+    case "$path" in
+        "~")
+            path="$HOME"
+            ;;
+        "~/"*)
+            path="$HOME/${path#\~/}"
+            ;;
+    esac
+
+    if [ -e "$path" ]; then
+        readlink -f "$path"
+    else
+        printf '%s\n' "$path"
+    fi
+}
+
+get_ssh_private_key() {
+    local cluster_name="$1"
+    local cfg="$_PROJECT_ROOT/ansible/ansible.cfg"
+
+    local inv_dir
+    inv_dir=$(get_inventory_dir "$cluster_name")
+
+    local inv_file="$_PROJECT_ROOT/ansible/inventories/$inv_dir/hosts.yml"
+
+    if [ -f "$inv_file" ]; then
+        local inv_key
+        inv_key=$(grep -m1 'ansible_ssh_private_key_file:' "$inv_file" 2>/dev/null | awk '{print $2}' | tr -d "\"'")
+        if [ -n "$inv_key" ]; then
+            expand_path "$inv_key"
+            return
+        fi
+    fi
+
+    if [ -f "$cfg" ]; then
+        local cfg_key
+        cfg_key=$(grep -m1 '^private_key_file' "$cfg" 2>/dev/null | awk '{print $3}' | tr -d "\"'")
+        if [ -n "$cfg_key" ]; then
+            expand_path "$cfg_key"
+            return
+        fi
+    fi
+}
+
+build_ssh_opts() {
+    local cluster_name="$1"
+    local ssh_key
+    ssh_key=$(get_ssh_private_key "$cluster_name")
+
+    local -a ssh_opts=(
+        -F /dev/null
+        -o ConnectTimeout=5
+        -o StrictHostKeyChecking=no
+        -o UserKnownHostsFile=/dev/null
+        -o LogLevel=ERROR
+    )
+
+    if [ -n "$ssh_key" ]; then
+        ssh_opts+=(-i "$ssh_key")
+    fi
+
+    printf '%s\n' "${ssh_opts[@]}"
 }
 
 LOCAL_KUBECONFIG_DIR="$HOME/.kube"
@@ -190,6 +344,9 @@ function test_connectivity() {
     local cluster_name="$1"
     local master_node="$2"
     local master_user="$3"
+    local -a ssh_opts=()
+
+    mapfile -t ssh_opts < <(build_ssh_opts "$cluster_name")
     
     echo -e "${YELLOW}📡 Testing connectivity to $cluster_name cluster ($master_node)...${NC}"
     
@@ -201,12 +358,12 @@ function test_connectivity() {
     # Clean up old SSH host keys before attempting connection
     cleanup_known_hosts "$master_node" "$cluster_name"
     
-    if ! ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "$master_user@$master_node" "echo 'SSH connection successful'" > /dev/null 2>&1; then
+    if ! ssh "${ssh_opts[@]}" "$master_user@$master_node" "echo 'SSH connection successful'" > /dev/null 2>&1; then
         echo -e "${RED}❌ Cannot SSH to master node${NC}"
         return 1
     fi
     
-    if ! ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "$master_user@$master_node" "systemctl is-active k3s" > /dev/null 2>&1; then
+    if ! ssh "${ssh_opts[@]}" "$master_user@$master_node" "systemctl is-active k3s" > /dev/null 2>&1; then
         echo -e "${RED}❌ K3s service is not running on master node${NC}"
         return 1
     fi
@@ -217,14 +374,18 @@ function test_connectivity() {
 
 function setup_cluster() {
     local cluster_name="$1"
-    local master_node="$2"
+    local source_node="$2"
     local master_user="$3"
+    local api_endpoint="$4"
+    local -a ssh_opts=()
+
+    mapfile -t ssh_opts < <(build_ssh_opts "$cluster_name")
     
     echo -e "${BLUE}🔧 Setting up kubeconfig for $cluster_name cluster...${NC}"
     
     # Test connectivity first (disable exit on error temporarily)
     set +e
-    if ! test_connectivity "$cluster_name" "$master_node" "$master_user"; then
+    if ! test_connectivity "$cluster_name" "$source_node" "$master_user"; then
         echo -e "${RED}❌ Skipping $cluster_name cluster due to connectivity issues${NC}"
         set -e
         return 1
@@ -236,14 +397,18 @@ function setup_cluster() {
     
     # Download kubeconfig
     echo -e "${YELLOW}📥 Downloading kubeconfig from $cluster_name cluster...${NC}"
-    if ! scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "$master_user@$master_node:$REMOTE_KUBECONFIG" "$temp_config"; then
+    if ! scp "${ssh_opts[@]}" "$master_user@$source_node:$REMOTE_KUBECONFIG" "$temp_config"; then
         echo -e "${RED}❌ Failed to download kubeconfig for $cluster_name${NC}"
         return 1
     fi
     
     # Update server address and context names
     echo -e "${YELLOW}🔧 Configuring context for $cluster_name cluster...${NC}"
-    sed -i "s/127.0.0.1/$master_node/g" "$temp_config"
+    local kubeconfig_endpoint="$source_node"
+    if [ -n "$api_endpoint" ]; then
+        kubeconfig_endpoint="$api_endpoint"
+    fi
+    sed -i "s/127.0.0.1/$kubeconfig_endpoint/g" "$temp_config"
     sed -i "s/name: default/name: k3s-$cluster_name/g" "$temp_config"
     sed -i "s/cluster: default/cluster: k3s-$cluster_name/g" "$temp_config"
     sed -i "s/user: default/user: k3s-$cluster_name/g" "$temp_config"
@@ -331,18 +496,32 @@ function setup_all_clusters() {
     local total_count=${#CLUSTERS[@]}
     
     for cluster_name in "${CLUSTERS[@]}"; do
-        local master_node
-        master_node=$(get_master_node "$cluster_name")
-        if [ -z "$master_node" ]; then
+        local master_nodes
+        mapfile -t master_nodes < <(get_master_nodes "$cluster_name")
+        if [ ${#master_nodes[@]} -eq 0 ]; then
             echo -e "${RED}❌ Could not determine control-plane IP for $cluster_name from inventory${NC}"
             echo ""
             continue
         fi
+
+        local source_node=""
+        local candidate
+        for candidate in "${master_nodes[@]}"; do
+            if ping -c 1 "$candidate" > /dev/null 2>&1; then
+                source_node="$candidate"
+                break
+            fi
+        done
+        if [ -z "$source_node" ]; then
+            source_node="${master_nodes[0]}"
+        fi
         local master_user
         master_user=$(get_ssh_user "$cluster_name")
+        local api_endpoint
+        api_endpoint=$(get_api_endpoint "$cluster_name")
 
-        echo -e "${YELLOW}Processing cluster: $cluster_name ($master_node)${NC}"
-        if setup_cluster "$cluster_name" "$master_node" "$master_user"; then
+        echo -e "${YELLOW}Processing cluster: $cluster_name ($source_node)${NC}"
+        if setup_cluster "$cluster_name" "$source_node" "$master_user" "$api_endpoint"; then
             success_count=$((success_count + 1))
         else
             echo -e "${RED}❌ Failed to setup $cluster_name cluster${NC}"

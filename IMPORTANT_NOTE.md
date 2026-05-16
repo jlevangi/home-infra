@@ -62,7 +62,7 @@ The on-disk format of embedded etcd and SQLite is incompatible. You
 
 2. **Full VM rebuild** via Terraform:
    ```bash
-   cd terraform/k3_3node_cluster_test
+   cd terraform/stacks/k3s/compact-3node/test
    terraform destroy -auto-approve
    terraform apply -auto-approve
    cd ../..

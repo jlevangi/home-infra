@@ -1,10 +1,10 @@
 ---
-# Dedicated GPU worker on Atlas. Has a tank-backed scsi1 disk mounted at
-# /var/lib/longhorn so it can host Longhorn replicas like the regular workers.
-# Plex and Jellyfin run here for hardware transcoding (NVIDIA Quadro P4000
-# passthrough); the Longhorn data-locality preference will naturally place a
-# replica of their config volumes on this node.
+# Dedicated GPU worker on Atlas. Plex and Jellyfin run here for hardware
+# transcoding (NVIDIA Quadro P4000 passthrough). Longhorn uses node tags so
+# only media-focused volumes can place replicas here.
 nvidia_gpu_worker: true
+longhorn_node_tags:
+  - media-storage
 # Stable scsi1 path (by-id) — /dev/sd* enumeration is unreliable on this node
 # because Longhorn CSI iSCSI volumes attached for Plex/Jellyfin grab earlier
 # sd letters before the local data disk would.
