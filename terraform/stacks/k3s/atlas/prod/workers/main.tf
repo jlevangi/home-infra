@@ -114,7 +114,7 @@ variable "vm_storage" {
 variable "data_disk_storage" {
   description = "Storage pool for the Longhorn data disk."
   type        = string
-  default     = "flash"
+  default     = "tank"
 }
 
 variable "cpu_cores" {

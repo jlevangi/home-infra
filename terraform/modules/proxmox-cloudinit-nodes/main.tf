@@ -11,6 +11,7 @@ resource "proxmox_vm_qemu" "this" {
   name        = "${var.vm_name_prefix}-${count.index + 1}"
   target_node = element(var.target_nodes, count.index)
   tags        = length(var.proxmox_tags) > 0 ? join(";", sort(distinct(var.proxmox_tags))) : null
+  description = "Managed by Terraform."
 
   clone      = var.template_name
   full_clone = true
@@ -32,12 +33,15 @@ resource "proxmox_vm_qemu" "this" {
   bootdisk = var.bootdisk
 
   disk {
+    format  = "raw"
     slot    = "ide2"
     type    = "cloudinit"
     storage = var.vm_storage
   }
 
   disk {
+    format  = "raw"
+    replicate = false
     slot    = "scsi0"
     size    = var.os_disk_size
     type    = "disk"
@@ -47,6 +51,8 @@ resource "proxmox_vm_qemu" "this" {
   dynamic "disk" {
     for_each = var.data_disk_enabled ? [1] : []
     content {
+      format  = "raw"
+      replicate = false
       slot    = "scsi1"
       size    = var.data_disk_size
       type    = "disk"
@@ -74,6 +80,12 @@ resource "proxmox_vm_qemu" "this" {
     create = var.create_timeout
     update = var.update_timeout
     delete = var.delete_timeout
+  }
+
+  startup_shutdown {
+    order            = -1
+    shutdown_timeout = -1
+    startup_delay    = -1
   }
 
   lifecycle {
