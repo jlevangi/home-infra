@@ -53,7 +53,7 @@ variable "ssh_key" {
 variable "ci_user" {
   description = "Cloud-init username."
   type        = string
-  default     = "pierce"
+  default     = "ansible"
 }
 
 variable "ci_password" {
