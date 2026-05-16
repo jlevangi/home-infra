@@ -108,13 +108,13 @@ variable "nic_name" {
 variable "vm_storage" {
   description = "Storage pool for the OS disk and cloud-init drive."
   type        = string
-  default     = "flash"
+  default     = "tank"
 }
 
 variable "data_disk_storage" {
   description = "Storage pool for the Longhorn data disk."
   type        = string
-  default     = "flash"
+  default     = "tank"
 }
 
 variable "cpu_cores" {
@@ -144,7 +144,7 @@ variable "os_disk_size" {
 variable "data_disk_size" {
   description = "Longhorn data disk size."
   type        = string
-  default     = "150G"
+  default     = "200G"
 }
 
 variable "ip_base" {
