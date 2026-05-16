@@ -10,6 +10,7 @@
 #   ./scripts/restore-app.sh --stage --from prod --app bookstack
 #   ./scripts/restore-app.sh --prod --pvc factorio-data
 #   ./scripts/restore-app.sh --prod --app factorio --list
+#   ./scripts/restore-app.sh --prod --app gatus --backup-before 2026-05-11
 # =============================================================================
 
 set -euo pipefail
@@ -40,6 +41,8 @@ RESTORE_ACTION="restore"
 SKIP_CONFIRMATION=false
 SKIP_PVC_LIST=""
 DISCOVERY_MODE="longhorn-cr"
+RESTORE_BACKUP_BEFORE=""
+RESTORE_BACKUP_ID=""
 
 print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
@@ -66,6 +69,8 @@ Behavior:
   --from ENV              Source environment label for backup filtering (default: prod)
   --list                  List matching backups instead of restoring
   --discovery-mode MODE   Backup discovery mode: longhorn-cr or nfs-scan
+  --backup-before DATE    Only consider backups strictly older than this ISO date or timestamp
+  --backup-id BACKUP_ID   Restore an exact backup ID instead of the newest eligible one
   --skip-pvc PVC1,PVC2    Comma-separated PVC names to skip
   -y, --yes               Skip confirmation prompts
   -h, --help              Show this help
@@ -75,6 +80,7 @@ Examples:
   $(basename "$0") --stage --from prod --app bookstack
   $(basename "$0") --prod --pvc factorio-data
   $(basename "$0") --prod --app factorio --list
+  $(basename "$0") --prod --app gatus --backup-before 2026-05-11
 EOF
 }
 
@@ -113,6 +119,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --discovery-mode)
             DISCOVERY_MODE="$2"
+            shift 2
+            ;;
+        --backup-before)
+            RESTORE_BACKUP_BEFORE="$2"
+            shift 2
+            ;;
+        --backup-id)
+            RESTORE_BACKUP_ID="$2"
             shift 2
             ;;
         --skip-pvc)
@@ -180,6 +194,8 @@ echo "Action: $RESTORE_ACTION"
 echo "Target Environment: $TARGET_ENV"
 echo "Source Environment: $SOURCE_ENV"
 echo "Discovery Mode: $DISCOVERY_MODE"
+[[ -n "$RESTORE_BACKUP_BEFORE" ]] && echo "Backup Before: $RESTORE_BACKUP_BEFORE"
+[[ -n "$RESTORE_BACKUP_ID" ]] && echo "Backup ID: $RESTORE_BACKUP_ID"
 if [[ -n "$RESTORE_NAMESPACE" ]]; then
     echo "Namespace: $RESTORE_NAMESPACE"
 fi
@@ -200,15 +216,19 @@ fi
 extra_vars_file=$(mktemp -t restore-app-extra-vars-XXXXXX.json)
 trap 'rm -f "$extra_vars_file"' EXIT
 
-python3 - "$SKIP_PVC_LIST" "$SKIP_CONFIRMATION" "$extra_vars_file" "$DISCOVERY_MODE" <<'PY'
+python3 - "$SKIP_PVC_LIST" "$SKIP_CONFIRMATION" "$extra_vars_file" "$DISCOVERY_MODE" "$RESTORE_BACKUP_BEFORE" "$RESTORE_BACKUP_ID" <<'PY'
 import json, sys
 
-skip_csv, skip_confirm, out_path, discovery_mode = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+skip_csv, skip_confirm, out_path, discovery_mode, backup_before, backup_id = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6]
 data = {"discovery_mode": discovery_mode}
 if skip_csv:
     data["restore_pvc_skip"] = [x.strip() for x in skip_csv.split(",") if x.strip()]
 if skip_confirm == "true":
     data["skip_confirm"] = True
+if backup_before:
+    data["restore_backup_before"] = backup_before
+if backup_id:
+    data["restore_backup_id"] = backup_id
 with open(out_path, "w", encoding="utf-8") as fh:
     json.dump(data, fh)
 PY
