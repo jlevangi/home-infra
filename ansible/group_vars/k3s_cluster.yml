@@ -250,7 +250,7 @@ longhorn_backup_shared_across_clusters: true
 longhorn_backup_schedule_hourly: "0 * * * *"
 longhorn_backup_schedule_daily: "0 6 * * *"
 longhorn_backup_schedule_weekly: "0 7 * * 0"
-longhorn_backup_retain_hourly: 48
+longhorn_backup_retain_hourly: 24
 longhorn_backup_retain_daily: 7
 longhorn_backup_retain_weekly: 4
 
