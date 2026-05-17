@@ -29,4 +29,4 @@
       when: not bootstrap_kubeconfig.stat.exists
 
   roles:
-    - role: ../roles/k8s_platform
+    - role: ../roles/cluster_platform

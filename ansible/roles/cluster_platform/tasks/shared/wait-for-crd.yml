@@ -1,0 +1,10 @@
+---
+- name: Wait for CRD {{ crd_name }} to be established
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} get crd {{ crd_name }} >/dev/null 2>&1 && \
+    kubectl --kubeconfig={{ kubeconfig_path }} wait --for=condition=Established crd/{{ crd_name }} --timeout=30s
+  register: crd_info
+  changed_when: false
+  until: crd_info.rc == 0
+  retries: 24
+  delay: 5

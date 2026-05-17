@@ -1,0 +1,194 @@
+---
+- name: Check Longhorn storage class is available
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get storageclass longhorn
+  register: longhorn_sc_check
+  until: longhorn_sc_check.rc == 0
+  retries: 10
+  delay: 30
+
+- name: Wait for API server before settings update
+  pause:
+    seconds: 3
+
+- name: Update Longhorn default settings to match cluster configuration
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl patch setting default-replica-count -n longhorn-system \
+      --type='merge' -p='{"value":"{{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}"}'
+  register: setting_update_result
+  failed_when: false
+
+- name: Update Longhorn storage reservation setting to match cluster configuration
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl patch setting storage-reserved-percentage-for-default-disk -n longhorn-system \
+      --type='merge' -p='{"value":"{{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }}"}'
+  register: storage_reservation_setting_update_result
+  failed_when: false
+
+- name: Update Longhorn replica auto-balance setting
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl patch setting replica-auto-balance -n longhorn-system \
+      --type='merge' -p='{"value":"{{ longhorn_replica_auto_balance | default("best-effort") }}"}'
+  register: replica_auto_balance_setting_result
+  failed_when: false
+
+- name: Display Longhorn setting update result
+  debug:
+    msg: |
+      🔧 Longhorn Default Replica Count Setting Update:
+      {% if setting_update_result.rc == 0 %}
+      ✅ Successfully updated default-replica-count to {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}
+      {% else %}
+      ⚠️  Setting update failed (may not exist yet): {{ setting_update_result.stderr | default('Unknown error') }}
+      💡 This is normal for fresh installations - settings will be applied via existing volume updates below
+      {% endif %}
+      {% if storage_reservation_setting_update_result.rc == 0 %}
+      ✅ Successfully updated storage-reserved-percentage-for-default-disk to {{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }}%
+      {% else %}
+      ⚠️  Storage reservation setting update failed (may not exist yet): {{ storage_reservation_setting_update_result.stderr | default('Unknown error') }}
+      {% endif %}
+      {% if replica_auto_balance_setting_result.rc == 0 %}
+      ✅ Successfully updated replica-auto-balance to {{ longhorn_replica_auto_balance | default('best-effort') }}
+      {% else %}
+      ⚠️  Replica auto-balance setting update failed (may not exist yet): {{ replica_auto_balance_setting_result.stderr | default('Unknown error') }}
+      {% endif %}
+
+- name: Build Longhorn primary StorageClass manifest
+  set_fact:
+    longhorn_primary_storageclass_manifest: |
+      kind: StorageClass
+      apiVersion: storage.k8s.io/v1
+      metadata:
+        name: longhorn
+        annotations:
+          storageclass.kubernetes.io/is-default-class: "true"
+      provisioner: driver.longhorn.io
+      allowVolumeExpansion: true
+      reclaimPolicy: "Delete"
+      volumeBindingMode: Immediate
+      parameters:
+        numberOfReplicas: "{{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}"
+        replicaAutoBalance: "{{ longhorn_replica_auto_balance | default('best-effort') }}"
+        staleReplicaTimeout: "30"
+        fromBackup: ""
+        fsType: "ext4"
+        dataLocality: "best-effort"
+        unmapMarkSnapChainRemoved: "ignored"
+        disableRevisionCounter: "true"
+        dataEngine: "v1"
+        backupTargetName: "default"
+      {% if longhorn_default_node_selector | default('') | length > 0 %}
+        nodeSelector: "{{ longhorn_default_node_selector }}"
+      {% endif %}
+
+- name: Update Longhorn StorageClass ConfigMap to match replica count
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl patch configmap longhorn-storageclass -n longhorn-system \
+      --type='merge' -p='{{ {"data": {"storageclass.yaml": longhorn_primary_storageclass_manifest ~ "\n"}} | to_json }}'
+  register: storageclass_configmap_update_result
+  failed_when: false
+
+- name: Wait for API server before StorageClass recreation
+  pause:
+    seconds: 10
+
+- name: Delete and recreate Longhorn StorageClass with correct replica count
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl delete storageclass longhorn --ignore-not-found=true
+    sleep 5
+    KUBECONFIG={{ kubeconfig_path }} kubectl apply -f - <<'EOF'
+    {{ longhorn_primary_storageclass_manifest }}
+    EOF
+  register: storageclass_update_result
+  failed_when: false
+
+- name: Build Longhorn media StorageClass manifest
+  set_fact:
+    longhorn_media_storageclass_manifest: |
+      kind: StorageClass
+      apiVersion: storage.k8s.io/v1
+      metadata:
+        name: {{ longhorn_media_storage_class_name | default('longhorn-media') }}
+      provisioner: driver.longhorn.io
+      allowVolumeExpansion: true
+      reclaimPolicy: "Delete"
+      volumeBindingMode: Immediate
+      parameters:
+        numberOfReplicas: "{{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}"
+        replicaAutoBalance: "{{ longhorn_replica_auto_balance | default('best-effort') }}"
+        staleReplicaTimeout: "30"
+        fromBackup: ""
+        fsType: "ext4"
+        dataLocality: "best-effort"
+        unmapMarkSnapChainRemoved: "ignored"
+        disableRevisionCounter: "true"
+        dataEngine: "v1"
+        backupTargetName: "default"
+        nodeSelector: "{{ longhorn_media_node_selector }}"
+  when: longhorn_media_node_selector | default('') | length > 0
+
+- name: Create or update Longhorn media StorageClass
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl apply -f - <<'EOF'
+    {{ longhorn_media_storageclass_manifest }}
+    EOF
+  register: media_storageclass_update_result
+  failed_when: false
+  when: longhorn_media_node_selector | default('') | length > 0
+
+- name: Display StorageClass update result
+  debug:
+    msg: |
+      🔧 Longhorn StorageClass Update:
+      {% if storageclass_configmap_update_result.rc == 0 %}
+      ✅ Successfully updated StorageClass ConfigMap
+      {% else %}
+      ⚠️  ConfigMap update failed: {{ storageclass_configmap_update_result.stderr | default('Unknown error') }}
+      {% endif %}
+      {% if storageclass_update_result.rc == 0 %}
+      ✅ Successfully recreated StorageClass with {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} replicas
+      {% else %}
+      ⚠️  StorageClass recreation failed: {{ storageclass_update_result.stderr | default('Unknown error') }}
+      {% endif %}
+      {% if longhorn_media_node_selector | default('') | length > 0 %}
+      {% if media_storageclass_update_result.rc == 0 %}
+      ✅ Successfully applied {{ longhorn_media_storage_class_name | default('longhorn-media') }} for nodeSelector={{ longhorn_media_node_selector }}
+      {% else %}
+      ⚠️  Media StorageClass update failed: {{ media_storageclass_update_result.stderr | default('Unknown error') }}
+      {% endif %}
+      {% endif %}
+
+- name: Wait for API server before BackupTarget update
+  pause:
+    seconds: 10
+  when:
+    - enable_longhorn_backup | default(true)
+    - nfs_server_ip is defined
+    - nfs_share_backup is defined
+
+- name: Update Longhorn BackupTarget resource with correct NFS format
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl patch backuptarget.longhorn.io default -n longhorn-system \
+      --type='merge' -p='{"spec":{"backupTargetURL":"nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}"}}'
+  register: backup_target_update_result
+  failed_when: false
+  when:
+    - enable_longhorn_backup | default(true)
+    - nfs_server_ip is defined
+    - nfs_share_backup is defined
+
+- name: Display Longhorn backup target update result
+  debug:
+    msg: |
+      🔧 Longhorn BackupTarget Resource Update:
+      {% if backup_target_update_result.rc == 0 %}
+      ✅ Successfully updated BackupTarget resource to nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}
+      💡 Fixed NFS format with colon (:) after IP address for proper mounting
+      {% else %}
+      ⚠️  BackupTarget update failed: {{ backup_target_update_result.stderr | default('Unknown error') }}
+      💡 This is normal for fresh installations - backup target will be applied via helm values above
+      {% endif %}
+  when:
+    - enable_longhorn_backup | default(true)
+    - nfs_server_ip is defined
+    - nfs_share_backup is defined

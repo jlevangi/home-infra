@@ -28,9 +28,9 @@ Use the environment-specific Terraform stack that matches the cluster shape you 
 ### 2. Deploy K3s and core platform services
 
 ```bash
-./scripts/deploy-k3s-cluster.sh --prod
-./scripts/deploy-k3s-cluster.sh --stage
-./scripts/deploy-k3s-cluster.sh --test
+./scripts/k3s/deploy-cluster.sh --prod
+./scripts/k3s/deploy-cluster.sh --stage
+./scripts/k3s/deploy-cluster.sh --test
 ```
 
 What the script does:
@@ -47,15 +47,15 @@ component script handles only core platform pieces (longhorn, metallb, traefik,
 argocd, vault):
 
 ```bash
-./scripts/deploy-component.sh --test all-infra      # fresh cluster bootstrap
-./scripts/deploy-component.sh --prod traefik        # single component
-./scripts/deploy-component.sh --prod vault
+./scripts/k3s/deploy-component.sh --test all-infra      # fresh cluster bootstrap
+./scripts/k3s/deploy-component.sh --prod traefik        # single component
+./scripts/k3s/deploy-component.sh --prod vault
 ```
 
 ### 4. Verify the cluster
 
 ```bash
-./scripts/helpers/k3s-context-manager.sh switch prod
+./scripts/k3s/helpers/k3s-context-manager.sh switch prod
 kubectl get nodes
 kubectl get pods -A
 kubectl -n argocd get applications
@@ -73,19 +73,19 @@ kubectl -n argocd get applications
 ### Dry-run a component deployment
 
 ```bash
-./scripts/deploy-component.sh --prod traefik --dry-run
+./scripts/k3s/deploy-component.sh --prod traefik --dry-run
 ```
 
 ### Force a redeploy
 
 ```bash
-./scripts/deploy-component.sh --prod homepage --force
+./scripts/k3s/deploy-component.sh --prod homepage --force
 ```
 
 ### Restore a cluster instead of rebuilding manually
 
 ```bash
-./scripts/restore-cluster.sh --stage --from prod
+./scripts/maintenance/restore-cluster.sh --stage --from prod
 ```
 
 ## Related Docs

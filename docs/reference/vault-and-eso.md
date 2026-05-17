@@ -47,7 +47,7 @@ To upgrade prod after stage is healthy:
 Switch to the target cluster and let ArgoCD sync:
 
 ```bash
-./scripts/helpers/k3s-context-manager.sh switch test
+./scripts/k3s/helpers/k3s-context-manager.sh switch test
 ```
 
 Then sync the new ArgoCD apps via the ArgoCD UI or CLI.

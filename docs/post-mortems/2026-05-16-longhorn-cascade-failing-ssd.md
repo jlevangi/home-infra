@@ -292,7 +292,7 @@ status.replicaModeMap   # per-replica RW (read-write, healthy) / WO (write-only,
    `kubectl -n longhorn-system get replicas.longhorn.io -o json | jq '.items[] | select(.spec.volumeName=="X")'`
    Look for any with `spec.healthyAt != ""` and `spec.failedAt == ""`. If yes, auto-salvage works. If no, restore from backup.
 4. **Is the restore point actually non-empty?**
-   `./scripts/restore-app.sh --prod --pvc <pvc> --list` — eyeball sizes. Reject 0 MiB rows; reject suspiciously small ones (e.g. plex 1 GiB when normal is 28 GiB).
+   `./scripts/maintenance/restore-app.sh --prod --pvc <pvc> --list` — eyeball sizes. Reject 0 MiB rows; reject suspiciously small ones (e.g. plex 1 GiB when normal is 28 GiB).
 5. **Is the IM on the source node under memory pressure?**
    `kubectl top pod -n longhorn-system | grep instance-manager` — if any IM is >4 GB, restart it (clears tgtd state AND frees memory).
 6. **Are all volumes on the same engine image?**
@@ -306,7 +306,7 @@ status.replicaModeMap   # per-replica RW (read-write, healthy) / WO (write-only,
 4. If a restore returns `actualSize: 0`, do not proceed. Pick a different backup or treat it as invalid.
 5. Do not move on to the next app until the current one passes the attach gate.
 6. When you need an older point-in-time restore, use a cutoff rather than the newest backup:
-   `./scripts/restore-app.sh --prod --app <app> --backup-before YYYY-MM-DD`
+   `./scripts/maintenance/restore-app.sh --prod --app <app> --backup-before YYYY-MM-DD`
 
 ### Standard Mitigation Sequence (for cascading flaps)
 
@@ -326,7 +326,7 @@ status.replicaModeMap   # per-replica RW (read-write, healthy) / WO (write-only,
 
 ```bash
 # 1. Let restore script run (it creates Longhorn volume but fails on PVC step)
-./scripts/restore-app.sh --prod --pvc <pvc-name> -y
+./scripts/maintenance/restore-app.sh --prod --pvc <pvc-name> -y
 
 # 2. Resize the created Longhorn volume to >= namespace minimum
 kubectl -n longhorn-system patch volume.longhorn.io <volume-name> \
@@ -428,7 +428,7 @@ The bandwidth and rebuild concurrency were dropped to avoid pushing through the 
 10. 🔲 Rebuild worker-1 + worker-2 VMs from clean templates (FS corruption from hard-stop still possible)
 11. 🔲 After mirror is up: migrate VMs back from tank → new flash mirror, gradually un-throttle Longhorn
 12. 🔲 Restore plex-config-pvc deferred volumes if any new issues; retry jellyfin-config restore if needed (already up via existing volume)
-13. 🔲 Code fixes for `scripts/restore-app.sh` + `ansible/roles/k3s/files/discover-backups.py` + playbook (Issues 7, 8, 9, 14)
+13. 🔲 Code fixes for `scripts/maintenance/restore-app.sh` + `ansible/roles/k3s/files/discover-backups.py` + playbook (Issues 7, 8, 9, 14)
 14. 🔲 Long-term:
    - Longhorn version upgrade (v1.12.x for V2 SPDK / tgtd improvements)
    - Root-disk usage alerting (prevent recurrence of original 100% fill)

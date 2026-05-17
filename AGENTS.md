@@ -38,13 +38,13 @@ This is a **home infrastructure automation repository** that provides infrastruc
 ### Cluster Deployment
 ```bash
 # Deploy production cluster
-./scripts/deploy-k3s-cluster.sh --prod
+./scripts/k3s/deploy-cluster.sh --prod
 
 # Deploy test cluster  
-./scripts/deploy-k3s-cluster.sh --test
+./scripts/k3s/deploy-cluster.sh --test
 
 # Deploy staging cluster
-./scripts/deploy-k3s-cluster.sh --stage
+./scripts/k3s/deploy-cluster.sh --stage
 ```
 
 ### Application Deployment
@@ -56,21 +56,21 @@ applications, edit the relevant manifests under `argocd/apps/<env>/` and
 ### Component Deployment
 ```bash
 # Deploy individual infrastructure components (longhorn, metallb, traefik, argocd, vault)
-./scripts/deploy-component.sh --prod traefik
-./scripts/deploy-component.sh --prod metallb
-./scripts/deploy-component.sh --prod longhorn
+./scripts/k3s/deploy-component.sh --prod traefik
+./scripts/k3s/deploy-component.sh --prod metallb
+./scripts/k3s/deploy-component.sh --prod longhorn
 
 # Deploy all infra components in order (fresh cluster bootstrap)
-./scripts/deploy-component.sh --prod all-infra
+./scripts/k3s/deploy-component.sh --prod all-infra
 
 # Force redeploy (cleanup and reinstall)
-./scripts/deploy-component.sh --prod traefik --force
+./scripts/k3s/deploy-component.sh --prod traefik --force
 
 # Dry run (show commands without executing)
-./scripts/deploy-component.sh --prod traefik --dry-run
+./scripts/k3s/deploy-component.sh --prod traefik --dry-run
 
 # List available components
-./scripts/deploy-component.sh --list
+./scripts/k3s/deploy-component.sh --list
 ```
 
 For detailed troubleshooting and manual operations, see [docs/operations/cluster-operations.md](docs/operations/cluster-operations.md) and [docs/recovery/backup-and-restore.md](docs/recovery/backup-and-restore.md).
@@ -78,14 +78,14 @@ For detailed troubleshooting and manual operations, see [docs/operations/cluster
 ### Context Management
 ```bash
 # Setup all cluster contexts
-./scripts/helpers/k3s-context-manager.sh setup
+./scripts/k3s/helpers/k3s-context-manager.sh setup
 
 # Switch between clusters
-./scripts/helpers/k3s-context-manager.sh switch prod
-./scripts/helpers/k3s-context-manager.sh switch test
+./scripts/k3s/helpers/k3s-context-manager.sh switch prod
+./scripts/k3s/helpers/k3s-context-manager.sh switch test
 
 # List available contexts
-./scripts/helpers/k3s-context-manager.sh list
+./scripts/k3s/helpers/k3s-context-manager.sh list
 ```
 
 ### LXC Container Deployment
@@ -130,22 +130,22 @@ ansible-playbook -i ansible/inventories/production/hosts.yml ansible/playbooks/k
 ### Backup and Restore
 ```bash
 # List available backups
-./scripts/helpers/list-backups.sh
-./scripts/helpers/list-backups.sh --detailed
-./scripts/helpers/list-backups.sh --all
+./scripts/maintenance/list-backups.sh
+./scripts/maintenance/list-backups.sh --detailed
+./scripts/maintenance/list-backups.sh --all
 
 # Full disaster recovery for production
-./scripts/restore-cluster.sh --prod
+./scripts/maintenance/restore-cluster.sh --prod
 
 # Clone production data to staging
-./scripts/restore-cluster.sh --stage --from prod
+./scripts/maintenance/restore-cluster.sh --stage --from prod
 
 # Restore data only (no VM rebuild)
-./scripts/restore-cluster.sh --prod --restore-only
+./scripts/maintenance/restore-cluster.sh --prod --restore-only
 
 # Restore specific app only
-./scripts/restore-app.sh --stage --from prod --app bookstack
-./scripts/restore-app.sh --prod --pvc factorio-data
+./scripts/maintenance/restore-app.sh --stage --from prod --app bookstack
+./scripts/maintenance/restore-app.sh --prod --pvc factorio-data
 ```
 
 ### Vault Management
@@ -195,20 +195,37 @@ ansible-vault view ansible/group_vars/lxc_vault.yml
 │       ├── k3s/
 │       └── talos/
 ├── scripts/                     # Management scripts
-│   ├── deploy-k3s-cluster.sh    # K3s cluster deployment
-│   ├── deploy-component.sh      # Single infra component deployment
 │   ├── deploy-lxc.sh            # LXC container deployment
-│   ├── reset-k3s-cluster.sh     # Reset/destroy cluster
-│   ├── rebuild-k3s-cluster.sh   # Terraform rebuild cluster
-│   ├── restore-cluster.sh       # Disaster recovery script
+│   ├── helpers/                 # Shared helper utilities
+│   │   ├── cluster-context-manager.sh
+│   │   ├── generate-vaultwarden-token.sh
+│   │   ├── manage-ssh-hosts.sh
+│   │   ├── pod-describe.sh
+│   │   └── pod-logs.sh
+│   ├── k3s/                     # K3s deployment and helper scripts
+│   │   ├── deploy-cluster.sh
+│   │   ├── deploy-component.sh
+│   │   ├── rebuild-cluster.sh
+│   │   ├── reset-cluster.sh
+│   │   └── helpers/
+│   │       ├── create-k3s-monitoring-token.sh
+│   │       ├── k3s-context-manager.sh
+│   │       └── k3s-shell-functions.sh
+│   ├── talos/                   # Talos deployment and helper scripts
+│   │   ├── deploy-cluster.sh
+│   │   └── helpers/
+│   │       ├── import-talos-template.sh
+│   │       ├── talos-context-manager.sh
+│   │       └── talos-shell-functions.sh
+│   ├── maintenance/             # Recovery and maintenance scripts
+│   │   ├── list-backups.sh
+│   │   ├── recover-vault.sh
+│   │   ├── restore-app.sh
+│   │   ├── restore-cluster.sh
+│   │   └── update-k3s-nodes.sh
 │   ├── lib/                     # Shared libraries
 │   │   ├── environment-functions.sh
-│   │   └── environments.conf
-│   ├── helpers/                 # Helper utilities
-│   │   ├── k3s-context-manager.sh
-│   │   └── list-backups.sh
-│   └── maintenance/             # Maintenance scripts
-│       └── update-k3s-nodes.sh
+│   │   └── talos-environments.conf
 └── docs/                        # Additional documentation
     └── CLUSTER_MANAGEMENT.md    # Operational runbook
 ```
@@ -237,10 +254,10 @@ The repository supports three environments:
 ### Talos Test (experimental)
 - Cluster nodes: 172.20.20.131-133
 - Distribution: **Talos Linux** + upstream Kubernetes (not K3s, not Debian)
-- Managed via `terraform/stacks/talos/test/` (uses the `siderolabs/talos` provider for bootstrap) and `scripts/helpers/import-talos-template.sh` for the Atlas Proxmox template
+- Managed via `terraform/stacks/talos/test/` (uses the `siderolabs/talos` provider for bootstrap) and `scripts/talos/helpers/import-talos-template.sh` for the Atlas Proxmox template
 - VMs have `start_at_node_boot = false` and do not start on Proxmox host boot
 - No Ansible: Talos has no SSH/package manager; the existing `k3s` role does not apply here
-- App deployment (kubectl/helm, ArgoCD) still works against the cluster API if/when wired up; not yet integrated with `scripts/helpers/k3s-context-manager.sh`
+- App deployment (kubectl/helm, ArgoCD) still works against the cluster API if/when wired up; not yet integrated with `scripts/k3s/helpers/k3s-context-manager.sh`
 
 ## Application Configuration
 
@@ -303,22 +320,22 @@ The restore process uses Longhorn's native backup restoration. Key technical not
 
 ```bash
 # List available backups
-./scripts/helpers/list-backups.sh
-./scripts/helpers/list-backups.sh --detailed   # Show individual backup timestamps
-./scripts/helpers/list-backups.sh --all        # Show all volume instances
+./scripts/maintenance/list-backups.sh
+./scripts/maintenance/list-backups.sh --detailed   # Show individual backup timestamps
+./scripts/maintenance/list-backups.sh --all        # Show all volume instances
 
 # Full disaster recovery (rebuild VMs + restore data)
-./scripts/restore-cluster.sh --prod
+./scripts/maintenance/restore-cluster.sh --prod
 
 # Clone production data to staging
-./scripts/restore-cluster.sh --stage --from prod
+./scripts/maintenance/restore-cluster.sh --stage --from prod
 
 # Restore data only to existing cluster
-./scripts/restore-cluster.sh --prod --restore-only
+./scripts/maintenance/restore-cluster.sh --prod --restore-only
 
 # Restore specific application
-./scripts/restore-app.sh --stage --from prod --app bookstack
-./scripts/restore-app.sh --prod --pvc factorio-data
+./scripts/maintenance/restore-app.sh --stage --from prod --app bookstack
+./scripts/maintenance/restore-app.sh --prod --pvc factorio-data
 
 # Using Ansible playbook directly
 ansible-playbook -i ansible/inventories/staging/hosts.yml \
@@ -414,7 +431,7 @@ The `ansible/group_vars/lxc_vault.yml` contains:
 ## Troubleshooting
 
 ### General Issues
-- **Context issues**: Run `./scripts/helpers/k3s-context-manager.sh setup` to refresh contexts
+- **Context issues**: Run `./scripts/k3s/helpers/k3s-context-manager.sh setup` to refresh contexts
 - **Vault errors**: Ensure `~/.ansible_vault_pass` contains the correct password
 - **Deployment failures**: Check cluster connectivity and vault credentials
 - **Storage issues**: Verify NFS server accessibility and Longhorn status
@@ -424,7 +441,7 @@ The `ansible/group_vars/lxc_vault.yml` contains:
 - **LXC container unreachable**: Check Proxmox console for container IP (DHCP assigned)
 
 ### Backup/Restore Issues
-- **Script won't execute**: Run `dos2unix scripts/helpers/list-backups.sh scripts/restore-cluster.sh` (Windows CRLF issue)
+- **Script won't execute**: Run `dos2unix scripts/maintenance/list-backups.sh scripts/maintenance/restore-cluster.sh` (Windows CRLF issue)
 - **Backups not appearing in the fast list view**: Check `kubectl -n longhorn-system get backupvolumes,backups` on the target cluster; `list-backups.sh` now reads Longhorn CR metadata instead of parsing `volume.cfg` over NFS
 - **Restore fails with "volume not found"**: Ensure the backup URL uses `nfs://` format, not `s3://`
 - **PVC stuck in Pending after restore**: Check that PV was created with correct `volumeHandle` matching the Longhorn volume name

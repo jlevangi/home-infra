@@ -53,7 +53,7 @@ kubectl --context k3s-prod exec -n vault-raft vault-raft-0 -- \
 4. If Vault restarted sealed, recover it with:
 
 ```bash
-./scripts/recover-vault.sh --prod
+./scripts/maintenance/recover-vault.sh --prod
 ```
 
 Or run the playbook directly:

@@ -1,0 +1,139 @@
+---
+# Install Longhorn distributed storage system
+- name: Add Longhorn Helm repo
+  ansible.builtin.shell: helm repo add longhorn https://charts.longhorn.io
+  args:
+    creates: /tmp/longhorn-repo-added
+
+- name: Mark Longhorn repo as added
+  ansible.builtin.file:
+    path: /tmp/longhorn-repo-added
+    state: touch
+  when: not ansible_check_mode
+
+- name: Update Helm repos
+  ansible.builtin.shell: helm repo update
+
+- name: Wait for K3s API server to be fully ready
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get nodes --no-headers
+  register: api_server_check
+  until: api_server_check.rc == 0
+  retries: 60
+  delay: 10
+
+- name: Wait for core system pods to be ready
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get pods -n kube-system --no-headers | grep -v Running | grep -v Completed | wc -l
+  register: pending_pods_check
+  until: pending_pods_check.stdout | int == 0
+  retries: 30
+  delay: 10
+
+- name: Test API server health endpoint
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get --raw /healthz
+  register: api_health_check
+  until: api_health_check.rc == 0 and api_health_check.stdout == "ok"
+  retries: 20
+  delay: 5
+  ignore_errors: yes
+
+- name: Fallback API functionality test
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get namespaces default -o name
+  register: api_fallback_check
+  until: api_fallback_check.rc == 0
+  retries: 10
+  delay: 5
+  when: api_health_check.rc != 0 or api_health_check.stdout != "ok"
+
+- name: Verify CRD API is ready
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl api-resources --api-group=apiextensions.k8s.io 2>/dev/null | grep -q customresourcedefinitions
+  register: crd_api_check
+  until: crd_api_check.rc == 0
+  retries: 30
+  delay: 10
+
+- name: Test CRD creation capability
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get crd --no-headers 2>/dev/null | head -1
+  register: crd_list_check
+  until: crd_list_check.rc == 0
+  retries: 20
+  delay: 5
+  failed_when: false
+
+- name: Display comprehensive API server status
+  debug:
+    msg: |
+      🔍 Kubernetes API Server Readiness Status:
+      ✅ Nodes accessible: {{ 'Yes' if api_server_check.rc == 0 else 'No' }}
+      ✅ System pods ready: {{ 'Yes' if pending_pods_check.stdout | int == 0 else 'No (' + pending_pods_check.stdout + ' pending)' }}
+      ✅ Health endpoint: {{ 'Healthy' if api_health_check.rc == 0 and api_health_check.stdout == 'ok' else ('Fallback OK' if api_fallback_check is defined and api_fallback_check.rc == 0 else 'Not responding') }}
+      ✅ CRD API ready: {{ 'Yes' if crd_api_check.rc == 0 else 'No - Helm install may fail' }}
+
+      🚀 Ready for Longhorn installation: {{ api_server_check.rc == 0 and pending_pods_check.stdout | int == 0 and crd_api_check.rc == 0 }}
+
+- name: Additional stability wait before Longhorn installation
+  pause:
+    seconds: 60
+    prompt: "Waiting 60 seconds for API server and CRD subsystem to fully stabilize before Longhorn installation..."
+  when: platform_fresh_install | default(false)
+
+- name: Ensure Longhorn namespace exists with required pod-security labels
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} apply -f - <<'EOF'
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+        name: longhorn-system
+        labels:
+          pod-security.kubernetes.io/enforce: "{{ longhorn_namespace_pod_security_enforce }}"
+          pod-security.kubernetes.io/audit: "{{ longhorn_namespace_pod_security_audit | default(longhorn_namespace_pod_security_enforce, true) }}"
+          pod-security.kubernetes.io/warn: "{{ longhorn_namespace_pod_security_warn | default(longhorn_namespace_pod_security_enforce, true) }}"
+    EOF
+  register: longhorn_namespace_apply
+  changed_when: >-
+    'created' in longhorn_namespace_apply.stdout or
+    'configured' in longhorn_namespace_apply.stdout
+  when:
+    - longhorn_namespace_pod_security_enforce is defined
+    - longhorn_namespace_pod_security_enforce | length > 0
+
+- name: Check if Longhorn namespace exists
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get namespace longhorn-system
+  register: longhorn_namespace_check
+  failed_when: false
+
+- name: Check if Longhorn pods are running
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get pods -n longhorn-system --no-headers 2>/dev/null | grep -v "0/" | wc -l
+  register: longhorn_pods_check
+  failed_when: false
+  when: longhorn_namespace_check.rc == 0
+
+- name: Check if Longhorn Helm release exists
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} helm status longhorn -n longhorn-system >/dev/null 2>&1
+  register: longhorn_helm_check
+  failed_when: false
+
+- name: Check for any pending Helm operations
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} helm list --pending -A
+  register: helm_pending_check
+  failed_when: false
+
+- name: Display Longhorn installation status
+  debug:
+    msg: |
+      🔍 Current Longhorn Status:
+      Namespace exists: {{ 'Yes' if longhorn_namespace_check.rc == 0 else 'No' }}
+      Running pods: {{ longhorn_pods_check.stdout | default('0') if longhorn_namespace_check.rc == 0 else '0' }}
+      Helm release: {{ 'Yes' if longhorn_helm_check.rc == 0 else 'No' }}
+      Pending operations: {{ 'Yes' if helm_pending_check.stdout_lines | length > 1 else 'No' }}
+
+      Action needed: {{ 'Fresh install' if longhorn_namespace_check.rc != 0 else ('Update config' if longhorn_helm_check.rc == 0 else 'Repair installation') }}

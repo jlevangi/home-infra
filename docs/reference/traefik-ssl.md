@@ -188,7 +188,7 @@ vault_cloudflare_dns_api_key: "your-cloudflare-api-token"
 
 ```bash
 # Deploy the cluster with updated configuration
-./scripts/deploy-k3s-cluster.sh --test
+./scripts/k3s/deploy-cluster.sh --test
 
 # Applications (with SSL-enabled ingress) are reconciled by ArgoCD from
 # argocd/apps/test on `main`.
