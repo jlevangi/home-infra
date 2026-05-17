@@ -6,6 +6,7 @@ metadata:
   labels:
     app: immich-power-tools
     volume-type: data
+    recurringjob.group.longhorn.io/hourly: "enabled"
 spec:
   accessModes:
     - ReadWriteOnce

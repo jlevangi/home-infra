@@ -60,6 +60,8 @@ spec:
             enabled: true
             size: 5Gi
             storageClass: longhorn-vault-raft
+            labels:
+              recurringjob.group.longhorn.io/hourly: "enabled"
           affinity: |
             podAntiAffinity:
               requiredDuringSchedulingIgnoredDuringExecution:

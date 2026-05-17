@@ -5,6 +5,7 @@ metadata:
   namespace: snippetbox
   labels:
     app: snippetbox
+    recurringjob.group.longhorn.io/hourly: "enabled"
 spec:
   accessModes:
     - ReadWriteOnce
