@@ -240,7 +240,7 @@
       name: backup-daily
       namespace: longhorn-system
     spec:
-      cron: "{{ longhorn_backup_schedule_daily | default('0 2 * * *') }}"
+      cron: "{{ longhorn_backup_schedule_daily | default('0 6 * * *') }}"
       task: "backup"
       groups:
         - default
@@ -256,7 +256,7 @@
       name: backup-weekly
       namespace: longhorn-system
     spec:
-      cron: "{{ longhorn_backup_schedule_weekly | default('0 3 * * 0') }}"
+      cron: "{{ longhorn_backup_schedule_weekly | default('0 7 * * 0') }}"
       task: "backup"
       groups:
         - default
@@ -283,8 +283,8 @@
 
       {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}🔄 Backup Configuration:
          📂 NFS Target: nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}
-         📅 Daily: {{ longhorn_backup_schedule_daily | default('0 2 * * *') }} (retain {{ longhorn_backup_retain_daily | default(7) }})
-         📅 Weekly: {{ longhorn_backup_schedule_weekly | default('0 3 * * 0') }} (retain {{ longhorn_backup_retain_weekly | default(4) }})
+         📅 Daily: {{ longhorn_backup_schedule_daily | default('0 6 * * *') }} (retain {{ longhorn_backup_retain_daily | default(7) }})
+         📅 Weekly: {{ longhorn_backup_schedule_weekly | default('0 7 * * 0') }} (retain {{ longhorn_backup_retain_weekly | default(4) }})
          ✅ Automatic recurring jobs created
       {% else %}⏸️  Backups: DISABLED (this environment restores from prod backups)
       {% endif %}
