@@ -1,0 +1,69 @@
+---
+- name: Wait for API server before PVC operations
+  pause:
+    seconds: 3
+
+- name: Check for any existing validation PVC
+  shell: KUBECONFIG={{ kubeconfig_path }} kubectl get pvc longhorn-validation-pvc --ignore-not-found=true
+  register: existing_pvc
+  retries: 3
+  delay: 10
+  until: existing_pvc.rc == 0
+  failed_when: false
+
+- name: Clean up any existing validation PVC
+  shell: KUBECONFIG={{ kubeconfig_path }} kubectl delete pvc longhorn-validation-pvc --ignore-not-found=true
+  when: existing_pvc.stdout != ""
+
+- name: Validate Longhorn storage with test PVC
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl apply -f - <<EOF
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: longhorn-validation-pvc
+      namespace: default
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 100Mi
+      storageClassName: longhorn
+    EOF
+  retries: 3
+  delay: 15
+  register: longhorn_validation_result
+
+- name: Wait for Longhorn to be fully ready before PVC test
+  shell: |
+    echo "Waiting for Longhorn manager pods..."
+    KUBECONFIG={{ kubeconfig_path }} kubectl wait --for=condition=Ready pod -l app=longhorn-manager -n longhorn-system --timeout=120s
+    echo "Waiting for CSI driver pods..."
+    KUBECONFIG={{ kubeconfig_path }} kubectl wait --for=condition=Ready pod -l app=csi-attacher -n longhorn-system --timeout=60s
+    KUBECONFIG={{ kubeconfig_path }} kubectl wait --for=condition=Ready pod -l app=csi-provisioner -n longhorn-system --timeout=60s
+    echo "Allowing additional time for API server and CSI driver to stabilize..."
+    sleep 60
+  ignore_errors: yes
+
+- name: Wait for test PVC to be bound
+  shell: |
+    echo "Waiting for PVC to be bound (may take several minutes for first PVC)..."
+    KUBECONFIG={{ kubeconfig_path }} kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc/longhorn-validation-pvc --timeout=600s
+  register: pvc_wait_result
+  ignore_errors: yes
+  retries: 3
+  delay: 45
+
+- name: Show PVC status if binding failed
+  shell: |
+    echo "=== PVC Status ==="
+    KUBECONFIG={{ kubeconfig_path }} kubectl get pvc longhorn-validation-pvc -o yaml
+    echo "=== Events ==="
+    KUBECONFIG={{ kubeconfig_path }} kubectl get events --sort-by='.lastTimestamp' | grep longhorn-validation-pvc || echo "No PVC events found"
+    echo "=== Longhorn Manager Logs ==="
+    KUBECONFIG={{ kubeconfig_path }} kubectl logs -n longhorn-system -l app=longhorn-manager --tail=20 || echo "No manager logs"
+  when: pvc_wait_result.rc != 0
+
+- name: Clean up test PVC
+  shell: KUBECONFIG={{ kubeconfig_path }} kubectl delete pvc longhorn-validation-pvc --ignore-not-found=true

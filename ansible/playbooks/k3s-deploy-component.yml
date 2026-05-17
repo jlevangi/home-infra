@@ -27,6 +27,35 @@
   vars:
     master_group: "{{ target_cluster }}_master"
     worker_group: "{{ target_cluster }}_workers"
+    cluster_group: "{{ target_cluster }}"
+    platform_role_vars: &platform_role_vars
+      platform_primary_node_ip: >-
+        {{
+          hostvars[groups[master_group][0]].ansible_host
+          | default(hostvars[groups[master_group][0]].ansible_default_ipv4.address)
+          | default(groups[master_group][0])
+        }}
+      platform_master_nodes: "{{ groups[master_group] | default([]) }}"
+      platform_worker_nodes: "{{ groups[worker_group] | default([]) }}"
+      platform_cluster_nodes: "{{ groups[cluster_group] | default([]) }}"
+      platform_cluster_node_count: "{{ groups[cluster_group] | default([]) | length }}"
+      platform_node_tags: >-
+        {{
+          dict(
+            (groups[worker_group] | default([]))
+            | zip(
+              (
+                groups[worker_group] | default([])
+              ) | map('extract', hostvars, 'longhorn_node_tags')
+                | map('default', [])
+            )
+          )
+        }}
+      platform_install_longhorn: "{{ k3s_install_longhorn | default(true) }}"
+      platform_install_metallb: "{{ k3s_install_metallb | default(true) }}"
+      platform_install_traefik: "{{ k3s_install_traefik | default(true) }}"
+      platform_install_argocd: "{{ k3s_install_argocd | default(true) }}"
+      platform_configure_vault: "{{ k3s_configure_vault | default(true) }}"
 
   pre_tasks:
     - name: Display deployment target information
@@ -42,49 +71,105 @@
           ═══════════════════════════════════════════════════════════════
       run_once: true
       delegate_to: localhost
+      become: false
 
     - name: Validate deployment target
       ansible.builtin.fail:
         msg: "You must specify -e deploy_component=<component>"
       when: deploy_component is not defined
 
+    - name: Read reachable kubeconfig from first master
+      ansible.builtin.slurp:
+        src: "/home/{{ k3s_user | default(ansible_user) }}/.kube/config"
+      register: platform_kubeconfig_raw
+      when: inventory_hostname == groups[master_group][0]
+
+    - name: Create temporary kubeconfig file on controller
+      ansible.builtin.tempfile:
+        state: file
+        prefix: "{{ target_cluster | default('k3s_cluster') }}-platform-"
+        suffix: .kubeconfig
+      register: platform_kubeconfig_tempfile
+      delegate_to: localhost
+      become: false
+      when: inventory_hostname == groups[master_group][0]
+
+    - name: Write fetched kubeconfig to controller temp file
+      ansible.builtin.copy:
+        content: "{{ platform_kubeconfig_raw.content | b64decode }}"
+        dest: "{{ platform_kubeconfig_tempfile.path }}"
+        mode: "0600"
+      delegate_to: localhost
+      become: false
+      when: inventory_hostname == groups[master_group][0]
+
   tasks:
     - name: Deploy Longhorn storage
       ansible.builtin.include_role:
-        name: ../roles/k3s
+        name: ../roles/cluster_platform
         tasks_from: longhorn.yml
+        apply:
+          delegate_to: localhost
+          become: false
+      vars:
+        <<: *platform_role_vars
+        kubeconfig_path: "{{ platform_kubeconfig_tempfile.path }}"
       when:
         - deploy_component == 'longhorn'
         - inventory_hostname == groups[master_group][0]
 
     - name: Deploy MetalLB load balancer
       ansible.builtin.include_role:
-        name: ../roles/k3s
+        name: ../roles/cluster_platform
         tasks_from: metallb.yml
+        apply:
+          delegate_to: localhost
+          become: false
+      vars:
+        <<: *platform_role_vars
+        kubeconfig_path: "{{ platform_kubeconfig_tempfile.path }}"
       when:
         - deploy_component == 'metallb'
         - inventory_hostname == groups[master_group][0]
 
     - name: Deploy Traefik ingress controller
       ansible.builtin.include_role:
-        name: ../roles/k3s
+        name: ../roles/cluster_platform
         tasks_from: traefik.yml
+        apply:
+          delegate_to: localhost
+          become: false
+      vars:
+        <<: *platform_role_vars
+        kubeconfig_path: "{{ platform_kubeconfig_tempfile.path }}"
       when:
         - deploy_component == 'traefik'
         - inventory_hostname == groups[master_group][0]
 
     - name: Deploy ArgoCD GitOps controller
       ansible.builtin.include_role:
-        name: ../roles/k3s
+        name: ../roles/cluster_platform
         tasks_from: argocd.yml
+        apply:
+          delegate_to: localhost
+          become: false
+      vars:
+        <<: *platform_role_vars
+        kubeconfig_path: "{{ platform_kubeconfig_tempfile.path }}"
       when:
         - deploy_component == 'argocd'
         - inventory_hostname == groups[master_group][0]
 
     - name: Bootstrap Vault (init, unseal, configure, seed secrets)
       ansible.builtin.include_role:
-        name: ../roles/k3s
+        name: ../roles/cluster_platform
         tasks_from: vault.yml
+        apply:
+          delegate_to: localhost
+          become: false
+      vars:
+        <<: *platform_role_vars
+        kubeconfig_path: "{{ platform_kubeconfig_tempfile.path }}"
       when:
         - deploy_component in ['argocd', 'vault']
         - inventory_hostname == groups[master_group][0]
@@ -92,13 +177,28 @@
 
     - name: Deploy root ArgoCD application after Vault bootstrap
       ansible.builtin.include_role:
-        name: ../roles/k3s
+        name: ../roles/cluster_platform
         tasks_from: argocd-root-app.yml
+        apply:
+          delegate_to: localhost
+          become: false
+      vars:
+        <<: *platform_role_vars
+        kubeconfig_path: "{{ platform_kubeconfig_tempfile.path }}"
       when:
         - deploy_component == 'argocd'
         - inventory_hostname == groups[master_group][0]
 
   post_tasks:
+    - name: Remove temporary controller kubeconfig
+      ansible.builtin.file:
+        path: "{{ platform_kubeconfig_tempfile.path }}"
+        state: absent
+      delegate_to: localhost
+      become: false
+      when:
+        - inventory_hostname == groups[master_group][0]
+        - platform_kubeconfig_tempfile is defined
     - name: Display completion summary
       ansible.builtin.debug:
         msg: |
@@ -113,3 +213,4 @@
           ═══════════════════════════════════════════════════════════════
       run_once: true
       delegate_to: localhost
+      become: false

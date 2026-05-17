@@ -1,16 +1,25 @@
 ---
 # K3s worker installation tasks
 
-- name: Check if K3s agent is already installed and running
-  shell: |
-    systemctl is-active k3s-agent && k3s --version | head -1
-  register: k3s_agent_status_check
+- name: Check if K3s agent service is active
+  command: systemctl is-active k3s-agent
+  register: k3s_agent_service_status
+  failed_when: false
+  changed_when: false
+
+- name: Check if K3s binary is installed on worker
+  command: k3s --version
+  register: k3s_agent_version_check
   failed_when: false
   changed_when: false
 
 - name: Determine if reinstall is needed
   set_fact:
-    k3s_needs_install: "{{ k3s_agent_status_check.rc != 0 }}"
+    k3s_agent_healthy: "{{ k3s_agent_service_status.rc == 0 and k3s_agent_version_check.rc == 0 }}"
+
+- name: Decide whether K3s worker installation is needed
+  set_fact:
+    k3s_needs_install: "{{ not k3s_agent_healthy }}"
 
 - name: Determine worker registration endpoint
   set_fact:
@@ -42,9 +51,9 @@
 - name: Display current K3s agent status
   debug:
     msg: |
-      K3s Agent Status: {{ 'Running' if k3s_agent_status_check.rc == 0 else 'Not running or not installed' }}
+      K3s Agent Status: {{ 'Running' if k3s_agent_healthy else 'Not running or not installed' }}
       Will reinstall: {{ k3s_needs_install }}
-      {{ k3s_agent_status_check.stdout if k3s_agent_status_check.rc == 0 else 'Will proceed with installation' }}
+      {{ k3s_agent_version_check.stdout if k3s_agent_version_check.rc == 0 else 'Will proceed with installation' }}
 
 - name: Fetch K3s node token from registration master when not already available
   ansible.builtin.slurp:

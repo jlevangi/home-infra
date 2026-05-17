@@ -1,0 +1,144 @@
+---
+- name: Display Longhorn operation result
+  debug:
+    msg: |
+      🔧 Longhorn Operation Result:
+      {% if longhorn_install_result is defined and longhorn_install_result.changed %}
+      ✅ Fresh installation completed successfully
+      {% elif longhorn_update_result is defined and longhorn_update_result.changed %}
+      ✅ Configuration updated successfully
+      {% elif longhorn_repair_result is defined and longhorn_repair_result.changed %}
+      ✅ Installation repaired (Helm release created for existing deployment)
+      {% elif longhorn_namespace_check.rc == 0 and longhorn_helm_check.rc == 0 %}
+      ℹ️  Longhorn already properly installed - no changes needed
+      {% else %}
+      ⚠️  Longhorn operation skipped or failed
+      {% endif %}
+
+- name: Calculate dynamic replica count for Longhorn
+  set_fact:
+    calculated_replica_count: "{{ [platform_cluster_node_count | default(0) | int, 3] | min }}"
+  when: longhorn_replica_count is not defined
+
+- name: Build Longhorn scheduling values
+  set_fact:
+    longhorn_global_tolerations_json: >-
+      {{
+        [
+          {
+            'key': 'CriticalAddonsOnly',
+            'operator': 'Equal',
+            'value': 'true',
+            'effect': 'NoExecute'
+          },
+          {
+            'key': 'accelerator',
+            'operator': 'Equal',
+            'value': 'nvidia',
+            'effect': 'NoSchedule'
+          }
+        ] | to_json
+      }}
+    longhorn_taint_toleration_value: 'CriticalAddonsOnly=true:NoExecute'
+
+- name: Display Longhorn replica count calculation
+  debug:
+    msg: |
+      🔧 Longhorn Replica Count Calculation:
+      Cluster nodes: {{ platform_cluster_nodes | default([]) }}
+      Cluster node count: {{ platform_cluster_node_count | default(0) | int }}
+      Configured replica count: {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}
+      Final replica count: {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}
+
+- name: Clean up any stuck Helm operations for Longhorn
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl delete secret -n longhorn-system -l name=longhorn,owner=helm --ignore-not-found=true
+  when:
+    - helm_pending_check.stdout_lines | length > 1
+  ignore_errors: yes
+
+- name: Clean up failed Longhorn Helm release if exists
+  ansible.builtin.shell: |
+    if KUBECONFIG={{ kubeconfig_path }} helm status longhorn -n longhorn-system 2>/dev/null | grep -q "STATUS: failed"; then
+      echo "Found failed Longhorn release, uninstalling..."
+      KUBECONFIG={{ kubeconfig_path }} helm uninstall longhorn -n longhorn-system --wait
+      KUBECONFIG={{ kubeconfig_path }} kubectl delete crd -l app.kubernetes.io/name=longhorn --ignore-not-found=true
+      sleep 30
+    fi
+  when:
+    - longhorn_namespace_check.rc != 0 or (longhorn_pods_check.stdout | default('0') | int) == 0
+    - longhorn_helm_check.rc != 0
+  ignore_errors: yes
+
+- name: Final CRD API readiness check before Helm install
+  shell: |
+    for i in $(seq 1 10); do
+      if KUBECONFIG={{ kubeconfig_path }} kubectl get crd --request-timeout=10s >/dev/null 2>&1; then
+        echo "CRD API ready"
+        exit 0
+      fi
+      echo "Waiting for CRD API... attempt $i"
+      sleep 10
+    done
+    echo "CRD API check failed after 10 attempts"
+    exit 1
+  args:
+    executable: /bin/bash
+  when:
+    - longhorn_namespace_check.rc != 0 or (longhorn_pods_check.stdout | default('0') | int) == 0
+    - longhorn_helm_check.rc != 0
+
+- name: Install Longhorn (fresh installation only)
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} helm upgrade --install longhorn longhorn/longhorn \
+      --namespace longhorn-system \
+      --create-namespace \
+      --set-json='global.tolerations={{ longhorn_global_tolerations_json }}' \
+      --set-string defaultSettings.taintToleration='{{ longhorn_taint_toleration_value }}' \
+      --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
+      --set defaultSettings.storageReservedPercentageForDefaultDisk={{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }} \
+      --set defaultSettings.defaultDataPath="{{ longhorn_default_data_path | regex_replace('/$','') }}/" \
+      {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}" \
+      {% endif %}--wait --timeout=1200s
+  when:
+    - longhorn_namespace_check.rc != 0 or (longhorn_pods_check.stdout | default('0') | int) == 0
+    - longhorn_helm_check.rc != 0
+  register: longhorn_install_result
+  retries: 3
+  delay: 60
+  until: longhorn_install_result.rc == 0
+
+- name: Update Longhorn configuration (existing installation)
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} helm upgrade longhorn longhorn/longhorn \
+      --namespace longhorn-system \
+      --set-json='global.tolerations={{ longhorn_global_tolerations_json }}' \
+      --set-string defaultSettings.taintToleration='{{ longhorn_taint_toleration_value }}' \
+      --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
+      --set defaultSettings.storageReservedPercentageForDefaultDisk={{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }} \
+      --set defaultSettings.defaultDataPath="{{ longhorn_default_data_path | regex_replace('/$','') }}/" \
+      {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}" \
+      {% endif %}--wait --timeout=600s
+  when:
+    - longhorn_namespace_check.rc == 0
+    - longhorn_helm_check.rc == 0
+    - (longhorn_pods_check.stdout | default('0') | int) >= 10
+  register: longhorn_update_result
+  ignore_errors: yes
+
+- name: Repair broken Longhorn installation (missing Helm release or incomplete)
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} helm upgrade --install longhorn longhorn/longhorn \
+      --namespace longhorn-system \
+      --set-json='global.tolerations={{ longhorn_global_tolerations_json }}' \
+      --set-string defaultSettings.taintToleration='{{ longhorn_taint_toleration_value }}' \
+      --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
+      --set defaultSettings.storageReservedPercentageForDefaultDisk={{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }} \
+      --set defaultSettings.defaultDataPath="{{ longhorn_default_data_path | regex_replace('/$','') }}/" \
+      {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}" \
+      {% endif %}--wait --timeout=1200s
+  when:
+    - longhorn_namespace_check.rc == 0
+    - longhorn_helm_check.rc != 0
+    - longhorn_install_result is not defined
+  register: longhorn_repair_result

@@ -19,6 +19,12 @@ The repo currently operates three Kubernetes environments:
 
 ## Quick Start
 
+### Install Ansible collections
+
+```bash
+ansible-galaxy collection install -r ansible/requirements.yml
+```
+
 ### Deploy a cluster
 
 ```bash
@@ -30,17 +36,17 @@ terraform apply
 
 # Configure the cluster
 cd ../../
-./scripts/deploy-k3s-cluster.sh --prod
+./scripts/k3s/deploy-cluster.sh --prod
 ```
 
 ### Deploy infrastructure components
 
 ```bash
 # Deploy a single infra component (longhorn, metallb, traefik, argocd, vault)
-./scripts/deploy-component.sh --prod traefik
+./scripts/k3s/deploy-component.sh --prod traefik
 
 # Deploy all core infra in order (fresh cluster bootstrap)
-./scripts/deploy-component.sh --prod all-infra
+./scripts/k3s/deploy-component.sh --prod all-infra
 ```
 
 Applications are deployed by ArgoCD from `argocd/apps/<env>/` on `main`.
@@ -64,7 +70,7 @@ Use the docs index as the entry point for everything beyond basic commands:
 - [Backup And Restore](docs/recovery/backup-and-restore.md)
 - [Production Cutover Checklist](docs/recovery/production-cutover-checklist.md)
 
-`docs/SECRETS_RETRIEVAL.md` is intentionally left as a separate personal-only document.
+`docs/operations/SECRETS_RETRIEVAL.md` is intentionally left as a separate personal-only document.
 
 ## Repository Layout
 

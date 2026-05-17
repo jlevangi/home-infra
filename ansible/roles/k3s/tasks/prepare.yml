@@ -64,10 +64,16 @@
   loop: "{{ k3s_sysctl_settings }}"
   become: yes
 
-- name: Disable swap
-  shell: |
-    swapoff -a
-    sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+- name: Disable active swap
+  command: swapoff -a
+  become: yes
+  when: ansible_swaptotal_mb | default(0) | int > 0
+
+- name: Comment swap entries in fstab
+  replace:
+    path: /etc/fstab
+    regexp: '^(?!#)(.+\s+swap\s+.+)$'
+    replace: '# \1'
   become: yes
 
 - name: Create directories for K3s and local storage
@@ -91,25 +97,38 @@
   become: yes
   when: k3s_install_kubectl
 
+- name: Check whether Helm is already installed
+  command: helm version --short
+  register: helm_version_check
+  failed_when: false
+  changed_when: false
+  when: k3s_install_helm
+
 - name: Download Helm install script
   get_url:
     url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
     dest: /tmp/get_helm.sh
     mode: '0755'
   become: yes
-  when: k3s_install_helm
+  when:
+    - k3s_install_helm
+    - helm_version_check.rc != 0
 
 - name: Install Helm
   shell: /tmp/get_helm.sh
   become: yes
-  when: k3s_install_helm
+  when:
+    - k3s_install_helm
+    - helm_version_check.rc != 0
 
 - name: Remove Helm install script
   file:
     path: /tmp/get_helm.sh
     state: absent
   become: yes
-  when: k3s_install_helm
+  when:
+    - k3s_install_helm
+    - helm_version_check.rc != 0
 
 - name: Create bash completion directory
   file:

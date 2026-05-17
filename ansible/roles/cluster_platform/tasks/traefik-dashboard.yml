@@ -1,0 +1,35 @@
+---
+- name: Apply Traefik dashboard resources
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} apply -f - <<'EOF'
+    {{ lookup('template', 'traefik-dashboard.yaml.j2') }}
+    EOF
+  register: traefik_dashboard_apply
+  changed_when: >-
+    'created' in traefik_dashboard_apply.stdout or
+    'configured' in traefik_dashboard_apply.stdout
+  when:
+    - traefik_dashboard_enabled | default(true)
+
+- name: Create DNS CNAME record for Traefik dashboard
+  include_tasks: shared/dns_management.yml
+  vars:
+    dns_record_name: "{{ ('traefik.' + environment_domain) | regex_replace('\\.' + cluster_tld + '$', '') }}"
+    dns_record_type: "CNAME"
+    dns_record_target: "{{ cluster_dns_name }}"
+    dns_record_action: "create"
+  when:
+    - traefik_dashboard_enabled | default(true)
+    - manage_dns_records | default(false)
+
+- name: Apply TLSStore for wildcard certificate
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} apply -f - <<'EOF'
+    {{ lookup('template', 'traefik-tlsstore.yaml.j2') }}
+    EOF
+  register: traefik_tlsstore_apply
+  changed_when: >-
+    'created' in traefik_tlsstore_apply.stdout or
+    'configured' in traefik_tlsstore_apply.stdout
+  when:
+    - traefik_wildcard_cert_enabled | default(false)

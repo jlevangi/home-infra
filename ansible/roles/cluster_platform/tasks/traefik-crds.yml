@@ -1,0 +1,8 @@
+---
+- name: Wait for required Traefik CRDs
+  include_tasks: shared/wait-for-crd.yml
+  loop: "{{ traefik_required_crds }}"
+  loop_control:
+    loop_var: crd_name
+  when:
+    - traefik_dashboard_enabled | default(true) or traefik_wildcard_cert_enabled | default(false)

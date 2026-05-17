@@ -1,0 +1,290 @@
+---
+- name: Check if master nodes are registered with Longhorn
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get nodes.longhorn.io {{ item }} -n longhorn-system >/dev/null 2>&1
+  loop: "{{ platform_master_nodes | default([]) }}"
+  register: master_longhorn_check
+  failed_when: false
+
+- name: Reconcile storage scheduling on masters that are in Longhorn
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl patch nodes.longhorn.io {{ item.item }} -n longhorn-system \
+      --type='merge' -p='{"spec":{"allowScheduling":{{ longhorn_exclude_master_from_storage | default(false) | ternary("false", "true") }}}}'
+  loop: "{{ master_longhorn_check.results | default([]) }}"
+  when:
+    - item.rc == 0
+
+- name: Display master node storage scheduling status
+  debug:
+    msg: |
+      📊 Master Node Storage Scheduling Status:
+      Desired policy: {% if longhorn_exclude_master_from_storage | default(false) %}exclude master nodes from Longhorn storage{% else %}allow Longhorn storage on master nodes{% endif %}
+      {% for result in master_longhorn_check.results | default([]) %}
+      {% if result.rc == 0 %}
+      {% if longhorn_exclude_master_from_storage | default(false) %}
+      ⚠️  {{ result.item }}: Found in Longhorn - storage scheduling disabled
+      {% else %}
+      ✅ {{ result.item }}: Found in Longhorn - storage scheduling enabled
+      {% endif %}
+      {% else %}
+      ℹ️  {{ result.item }}: Not registered with Longhorn yet
+      {% endif %}
+      {% endfor %}
+  when:
+    - master_longhorn_check is defined
+
+- name: Check if worker nodes with Longhorn tags are registered
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get nodes.longhorn.io {{ item }} -n longhorn-system >/dev/null 2>&1
+  loop: "{{ platform_worker_nodes | default([]) }}"
+  register: tagged_worker_longhorn_check
+  failed_when: false
+  when: (platform_node_tags[item] | default([])) | length > 0
+
+- name: Reconcile Longhorn node tags on worker storage nodes
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl patch nodes.longhorn.io {{ item.item }} -n longhorn-system \
+      --type='merge' -p='{"spec":{"tags":{{ platform_node_tags[item.item] | default([]) | to_json }}}}'
+  loop: "{{ tagged_worker_longhorn_check.results | default([]) }}"
+  when:
+    - item.rc is defined
+    - item.rc == 0
+
+- name: Display Longhorn worker tag status
+  debug:
+    msg: |
+      📊 Longhorn Worker Tag Status:
+      {% for result in tagged_worker_longhorn_check.results | default([]) %}
+      {% if result.skipped | default(false) %}
+      ℹ️  {{ result.item }}: No Longhorn tags configured
+      {% elif result.rc | default(1) == 0 %}
+      ✅ {{ result.item }}: tags={{ platform_node_tags[result.item] | default([]) | join(',') }}
+      {% else %}
+      ℹ️  {{ result.item }}: Not registered with Longhorn yet
+      {% endif %}
+      {% endfor %}
+  when:
+    - tagged_worker_longhorn_check is defined
+
+- name: Check if any Longhorn volumes exist
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get volumes -n longhorn-system --no-headers 2>/dev/null | wc -l
+  register: volume_count
+  changed_when: false
+  failed_when: false
+
+- name: Check existing volumes with incorrect replica count
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get volumes -n longhorn-system -o jsonpath='{range .items[*]}{.metadata.name}:{.spec.numberOfReplicas}{"\n"}{end}' 2>/dev/null | \
+    awk -F: -v target={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} '$2 != target && NF > 0 {print $1}' || echo ""
+  register: incorrect_replica_volumes
+  changed_when: false
+  failed_when: false
+  when: volume_count.stdout | int > 0
+
+- name: Update existing volumes to correct replica count
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl patch volume {{ item }} -n longhorn-system \
+      --type='merge' -p='{"spec":{"numberOfReplicas":{{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}}}'
+  loop: "{{ incorrect_replica_volumes.stdout_lines }}"
+  when:
+    - volume_count.stdout | int > 0
+    - incorrect_replica_volumes is defined
+    - incorrect_replica_volumes.stdout_lines | length > 0
+
+- name: Check existing volumes with incorrect replica auto-balance setting
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get volumes -n longhorn-system -o jsonpath='{range .items[*]}{.metadata.name}:{.spec.replicaAutoBalance}{"\n"}{end}' 2>/dev/null | \
+    awk -F: -v target="{{ longhorn_replica_auto_balance | default('best-effort') }}" '$2 != target && NF > 0 {print $1}' || echo ""
+  register: incorrect_replica_auto_balance_volumes
+  changed_when: false
+  failed_when: false
+  when: volume_count.stdout | int > 0
+
+- name: Update existing volumes to correct replica auto-balance setting
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl patch volume {{ item }} -n longhorn-system \
+      --type='merge' -p='{"spec":{"replicaAutoBalance":"{{ longhorn_replica_auto_balance | default('best-effort') }}"}}'
+  loop: "{{ incorrect_replica_auto_balance_volumes.stdout_lines }}"
+  when:
+    - volume_count.stdout | int > 0
+    - incorrect_replica_auto_balance_volumes is defined
+    - incorrect_replica_auto_balance_volumes.stdout_lines | length > 0
+
+- name: Display replica count adjustment status
+  debug:
+    msg: |
+      📊 Longhorn Replica Count Adjustment:
+      Target replica count: {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}
+      Based on: min({{ platform_cluster_node_count | default(0) | int }} cluster nodes, 3)
+      Replica auto-balance target: {{ longhorn_replica_auto_balance | default('best-effort') }}
+
+      {% if volume_count.stdout | int == 0 %}
+      ℹ️  No existing volumes found - new volumes will use correct replica count
+      {% elif incorrect_replica_volumes is defined and incorrect_replica_volumes.stdout_lines | length > 0 %}
+      ✅ Updated {{ incorrect_replica_volumes.stdout_lines | length }} volume(s) to correct replica count:
+      {% for volume in incorrect_replica_volumes.stdout_lines %}
+      - {{ volume }}
+      {% endfor %}
+      {% else %}
+      ✅ All volumes already have correct replica count ({{ longhorn_replica_count | default(calculated_replica_count | default(3)) }})
+      {% endif %}
+      {% if volume_count.stdout | int == 0 %}
+      ℹ️  No existing volumes found - new volumes will inherit replica auto-balance from the StorageClass
+      {% elif incorrect_replica_auto_balance_volumes is defined and incorrect_replica_auto_balance_volumes.stdout_lines | length > 0 %}
+      ✅ Updated {{ incorrect_replica_auto_balance_volumes.stdout_lines | length }} volume(s) to replica auto-balance={{ longhorn_replica_auto_balance | default('best-effort') }}:
+      {% for volume in incorrect_replica_auto_balance_volumes.stdout_lines %}
+      - {{ volume }}
+      {% endfor %}
+      {% else %}
+      ✅ All volumes already have replica auto-balance={{ longhorn_replica_auto_balance | default('best-effort') }}
+      {% endif %}
+
+- name: Wait for updated volumes to become healthy
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get volume {{ item }} -n longhorn-system -o jsonpath='{.status.robustness}' | grep -q 'healthy\|unknown'
+  loop: "{{ ((incorrect_replica_volumes.stdout_lines | default([])) + (incorrect_replica_auto_balance_volumes.stdout_lines | default([]))) | unique }}"
+  register: volume_health_check
+  until: volume_health_check.rc == 0
+  retries: 12
+  delay: 10
+  when:
+    - volume_count.stdout | int > 0
+    - ((incorrect_replica_volumes.stdout_lines | default([])) + (incorrect_replica_auto_balance_volumes.stdout_lines | default([]))) | length > 0
+  ignore_errors: yes
+
+- name: Patch Longhorn frontend service to NodePort
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl patch svc longhorn-frontend -n longhorn-system \
+      -p '{"spec":{"type":"NodePort","ports":[{"port":80,"nodePort":30080,"targetPort":8000}]}}'
+
+- name: Debug DNS management conditions
+  debug:
+    msg: |
+      🔍 DNS Management Debug Info:
+      - Primary node IP: {{ platform_primary_node_ip | default('UNDEFINED') }}
+      - Master nodes: {{ platform_master_nodes | default([]) }}
+      - Longhorn UI enabled: {{ longhorn_ui_ingress_enabled | default(false) }}
+      - DNS management enabled: {{ manage_dns_records | default(false) }}
+      - Environment prefix: "{{ environment_prefix | default('UNDEFINED') }}"
+      - Traefik IP: {{ traefik_loadbalancer_ip | default('UNDEFINED') }}
+
+- name: Create DNS CNAME record for Longhorn UI
+  include_tasks: shared/dns_management.yml
+  vars:
+    dns_record_name: "{{ ('longhorn.' + environment_domain) | regex_replace('\\.' + cluster_tld + '$', '') }}"
+    dns_record_type: "CNAME"
+    dns_record_target: "{{ cluster_dns_name }}"
+    dns_record_action: "create"
+  when:
+    - longhorn_ui_ingress_enabled | default(false)
+    - manage_dns_records | default(false)
+
+- name: Deploy Longhorn UI Ingress
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl apply -f - <<EOF
+    ---
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: longhorn-frontend-ingress
+      namespace: longhorn-system
+      annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    {% if traefik_acme_enabled | default(false) %}
+        traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+    {% endif %}
+    spec:
+      ingressClassName: traefik
+    {% if traefik_acme_enabled | default(false) %}
+      tls:
+      - hosts:
+        - {{ longhorn_ui_app_url | regex_replace('https?://','') }}
+        secretName: longhorn-ui-tls
+    {% endif %}
+      rules:
+      - host: {{ longhorn_ui_app_url | regex_replace('https?://','') }}
+        http:
+          paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: longhorn-frontend
+                port:
+                  number: 80
+    EOF
+  when:
+    - longhorn_ui_ingress_enabled | default(false)
+
+- name: Delete backup recurring jobs when backups are disabled
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl delete recurringjob -n longhorn-system --all --ignore-not-found=true
+  when:
+    - not (enable_longhorn_backup | default(true))
+  register: backup_jobs_deleted
+
+- name: Display backup jobs deletion status
+  debug:
+    msg: "🗑️  Longhorn backup recurring jobs deleted (backups disabled for this environment)"
+  when:
+    - backup_jobs_deleted is defined
+    - backup_jobs_deleted.changed
+
+- name: Create backup schedule for all volumes
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl apply -f - <<EOF
+    apiVersion: longhorn.io/v1beta2
+    kind: RecurringJob
+    metadata:
+      name: backup-daily
+      namespace: longhorn-system
+    spec:
+      cron: "{{ longhorn_backup_schedule_daily | default('0 2 * * *') }}"
+      task: "backup"
+      groups:
+        - default
+      retain: {{ longhorn_backup_retain_daily | default(7) }}
+      concurrency: 2
+      labels:
+        backup-type: daily
+        cluster: {{ cluster_environment | default('production') }}
+    ---
+    apiVersion: longhorn.io/v1beta2
+    kind: RecurringJob
+    metadata:
+      name: backup-weekly
+      namespace: longhorn-system
+    spec:
+      cron: "{{ longhorn_backup_schedule_weekly | default('0 3 * * 0') }}"
+      task: "backup"
+      groups:
+        - default
+      retain: {{ longhorn_backup_retain_weekly | default(4) }}
+      concurrency: 1
+      labels:
+        backup-type: weekly
+        cluster: {{ cluster_environment | default('production') }}
+    EOF
+  when:
+    - enable_longhorn_backup | default(true)
+    - nfs_server_ip is defined
+
+- name: Display Longhorn installation info
+  debug:
+    msg: |
+      ✅ Longhorn distributed storage is ready!
+      💾 Storage Architecture: Longhorn distributed block storage
+      📊 Access Longhorn UI:
+         🌐 NodePort: http://{{ platform_primary_node_ip }}:30080
+      {% if longhorn_ui_ingress_enabled | default(false) %}   🔗 Ingress: {{ longhorn_ui_app_url }}{% endif %}
+      🔧 Default storage class: longhorn
+      ⚡ Using local node storage with {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} replicas
+
+      {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}🔄 Backup Configuration:
+         📂 NFS Target: nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}
+         📅 Daily: {{ longhorn_backup_schedule_daily | default('0 2 * * *') }} (retain {{ longhorn_backup_retain_daily | default(7) }})
+         📅 Weekly: {{ longhorn_backup_schedule_weekly | default('0 3 * * 0') }} (retain {{ longhorn_backup_retain_weekly | default(4) }})
+         ✅ Automatic recurring jobs created
+      {% else %}⏸️  Backups: DISABLED (this environment restores from prod backups)
+      {% endif %}

@@ -1,0 +1,100 @@
+---
+- name: Validate Traefik deployment
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    EXTERNAL_IP=$(kubectl get svc traefik -n traefik-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+    if [ "$EXTERNAL_IP" = "" ] || [ "$EXTERNAL_IP" = "<none>" ]; then
+      echo "ERROR: Traefik LoadBalancer has no external IP assigned"
+      exit 1
+    fi
+
+    POD_STATUS=$(kubectl get pods -n traefik-system -l app.kubernetes.io/name=traefik -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "")
+    if [ "$POD_STATUS" != "Running" ]; then
+      echo "ERROR: Traefik pod is not running (status: $POD_STATUS)"
+      exit 1
+    fi
+
+    echo "SUCCESS: Traefik is properly deployed with external IP: $EXTERNAL_IP"
+  register: traefik_validation
+  when:
+    - traefik_needs_deployment | default(true)
+  failed_when: traefik_validation.rc != 0
+
+- name: Discover Traefik pod for ACME probes
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    kubectl get pods -n traefik-system -l app.kubernetes.io/name=traefik -o jsonpath='{.items[0].metadata.name}'
+  register: traefik_probe_pod
+  when:
+    - traefik_acme_enabled | default(false)
+    - traefik_needs_deployment | default(true)
+  failed_when: traefik_probe_pod.stdout | trim == ''
+  changed_when: false
+
+- name: Probe ACME storage file status
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    if kubectl exec -n traefik-system {{ traefik_probe_pod.stdout | trim }} -- test -f /data/acme.json 2>/dev/null; then
+      kubectl exec -n traefik-system {{ traefik_probe_pod.stdout | trim }} -- stat -c%s /data/acme.json 2>/dev/null || echo "0"
+      exit 0
+    fi
+    echo "missing"
+    exit 1
+  register: acme_storage_probe
+  when:
+    - traefik_acme_enabled | default(false)
+    - traefik_needs_deployment | default(true)
+  failed_when: false
+  changed_when: false
+
+- name: Probe ACME endpoint reachability from Traefik pod
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    kubectl exec -n traefik-system {{ traefik_probe_pod.stdout | trim }} -- wget -q -O /dev/null --timeout=5 https://acme-v02.api.letsencrypt.org/directory
+  register: acme_endpoint_probe
+  when:
+    - traefik_acme_enabled | default(false)
+    - traefik_needs_deployment | default(true)
+  failed_when: false
+  changed_when: false
+
+- name: Display Traefik installation results
+  debug:
+    msg: |
+      🎉 Traefik 2 Installation Complete!
+
+      📊 Installation Status:
+      {{ traefik_install_result.stdout if traefik_install_result.stdout is defined else 'Already installed' }}
+
+      🌐 LoadBalancer IP: {{ traefik_lb_ip.stdout }}
+      🎛️  Dashboard: {{ 'Enabled at http://' + traefik_lb_ip.stdout + '/dashboard/' if traefik_dashboard_enabled | default(true) and traefik_lb_ip.stdout != 'Pending' else 'Disabled or IP pending' }}
+
+      ✅ Traefik is now ready to handle ingress traffic
+      {% if traefik_acme_enabled | default(false) %}
+      🔒 SSL Configuration:
+      - ACME Provider: {{ traefik_acme_dns_provider | default('cloudflare') }}
+      - DNS Policy: {{ traefik_dns_policy | default('None') }} (External DNS for ACME validation)
+      - ACME Storage: {{
+          'Initialized (' ~ (acme_storage_probe.stdout | trim) ~ ' bytes)'
+          if acme_storage_probe.rc is defined and acme_storage_probe.rc == 0 and (acme_storage_probe.stdout | trim | int) > 100
+          else 'Present but still small (' ~ (acme_storage_probe.stdout | trim) ~ ' bytes)'
+          if acme_storage_probe.rc is defined and acme_storage_probe.rc == 0
+          else 'Not yet created'
+        }}
+      - ACME Reachability Probe: {{ 'Verified from Traefik pod' if acme_endpoint_probe.rc is defined and acme_endpoint_probe.rc == 0 else 'Not verified from Traefik pod' }}
+      - Let's Encrypt certificates will be generated automatically for ingresses with: tls.certresolver: letsencrypt
+      {% endif %}
+
+      📝 Verification Commands:
+      kubectl get pods -n traefik-system
+      kubectl get svc -n traefik-system
+      kubectl get ingressroute -n traefik-system
+      {% if traefik_acme_enabled | default(false) %}
+      kubectl get pods -n traefik-system -l app.kubernetes.io/name=traefik
+      kubectl exec -n traefik-system <traefik-pod-name> -- ls -la /data/acme.json
+      {% endif %}
+
+      💡 To create SSL-enabled ingresses, use:
+      annotations:
+        kubernetes.io/ingress.class: traefik
+        traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt

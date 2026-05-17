@@ -115,6 +115,6 @@ if [ $RESULT -eq 0 ]; then
 else
     echo "❌ Vault unseal/auth refresh failed (exit code: $RESULT)"
     echo "ℹ️  You can rerun it manually:"
-    echo "   ./scripts/recover-vault.sh --env $TARGET_ENV"
+    echo "   ./scripts/maintenance/recover-vault.sh --env $TARGET_ENV"
     exit $RESULT
 fi
