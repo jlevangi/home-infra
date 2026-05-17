@@ -51,7 +51,8 @@ This is a **home infrastructure automation repository** that provides infrastruc
 
 Applications are deployed by ArgoCD, not Ansible. To enable, disable, or modify
 applications, edit the relevant manifests under `argocd/apps/<env>/` and
-`argocd/manifests/**` and let ArgoCD reconcile from `main`.
+`argocd/manifests/**` and let ArgoCD reconcile from the environment's tracked
+branch.
 
 ### Component Deployment
 ```bash
@@ -274,14 +275,14 @@ All clusters reconcile from the `main` branch. Environment separation is path-ba
 | Environment | Root App | Git Path | Git Branch |
 |-------------|----------|----------|------------|
 | **Prod** | `root-prod` | `argocd/apps/prod` | `main` |
-| **Stage** | `root-stage` | `argocd/apps/stage` | `main` |
+| **Stage** | `root-stage` | `argocd/apps/stage` | `stage` |
 | **Test** | `root-test` | `argocd/apps/test` | `main` |
 
 Operational guidance:
 - Make environment-specific app enablement changes under `argocd/apps/<env>`
 - Make shared manifest changes under `argocd/manifests/**`
-- Do not use `stage` or `test` as promotion branches
-- If `stage` and `test` branches are retained, keep them fast-forwarded to `main`
+- Use `stage` as the stage cluster's GitOps testing branch
+- Promote validated stage changes into `main` for prod and test
 
 ## Backup and Restore Strategy
 

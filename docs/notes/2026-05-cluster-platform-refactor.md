@@ -12,6 +12,15 @@ both K3s and Talos-backed clusters.
 
 ## Decisions And Reasons
 
+### Move stage GitOps to a dedicated `stage` branch
+
+- Stage was previously reconciling from `main`, which made it a poor proving
+  ground for GitOps changes that had not been promoted yet.
+- The stage cluster now tracks the `stage` branch for its root app and its
+  Git-sourced child apps, while prod and test continue to track `main`.
+- This keeps stage useful as an isolated validation target without changing the
+  production branch model.
+
 ### Rename `k8s_platform` to `cluster_platform`
 
 - `k8s_platform` was ambiguous and sounded like a full replacement for the K3s
@@ -70,6 +79,39 @@ both K3s and Talos-backed clusters.
   dashboard, TLSStore, and ArgoCD IngressRoute resources.
 - This removed the recurring `IngressRoute` / `Middleware` “no matches for
   kind” failure on stage.
+
+### Bootstrap Vault and External Secrets in the right order
+
+- Fresh stage deploys were leaving Vault deployed but not initialized or seeded
+  because the Vault bootstrap logic ran before the `vault` ArgoCD application
+  existed.
+- The shared role now ensures the Vault application exists before Vault
+  bootstrap runs, so the init, unseal, auth configuration, and secret seeding
+  steps execute against a real workload.
+- The source of truth for seeded secrets remains the encrypted
+  `ansible/group_vars/k3s_cluster_vault.yml` file.
+
+### Pre-seed External Secrets CRDs for fresh stage rebuilds
+
+- Stage deploys the External Secrets chart with `installCRDs: false`, which is
+  desirable for ArgoCD ownership, but it meant a fresh cluster could reach
+  `ClusterSecretStore` resources before the CRDs existed.
+- The shared role now pre-seeds the External Secrets CRDs before the root app
+  sync when `external_secrets_bootstrap_crds` is enabled.
+- The bootstrap flow strips CRD fields that are not accepted by the current
+  K3s `1.28` API server so stage rebuilds can complete without a manual CRD
+  recovery step.
+
+### Disable PushSecret features on K3s 1.28
+
+- External Secrets `2.3.0` includes PushSecret and ClusterPushSecret CRDs that
+  the current stage K3s API server rejects because of CEL validation cost
+  limits.
+- The stage, prod, and test app manifests now disable PushSecret CRD creation
+  and controller processing so the rest of ESO can run correctly on the current
+  cluster version.
+- This keeps the repo on the newer ESO chart without carrying a partially
+  broken feature set.
 
 ### Keep Helm shell-driven for now, but improve correctness around it
 

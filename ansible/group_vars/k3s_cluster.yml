@@ -134,10 +134,11 @@ argocd_notifications_enabled: false  # Notification controller
 argocd_grpc_ingress_enabled: false  # gRPC ingress for external CLI
 
 # ArgoCD GitOps source configuration
-# All environments track the same Git revision and select their manifests by path:
-#   test:  argocd/apps/test
-#   stage: argocd/apps/stage
-#   prod:  argocd/apps/prod
+# Clusters select their manifests by path, and can override the tracked Git
+# revision per environment:
+#   test:  main  -> argocd/apps/test
+#   stage: stage -> argocd/apps/stage
+#   prod:  main  -> argocd/apps/prod
 argocd_target_revision: "main"
 argocd_deploy_root_app: true         # Deploy root app-of-apps Application
 

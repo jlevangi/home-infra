@@ -160,6 +160,36 @@
         - deploy_component == 'argocd'
         - inventory_hostname == groups[master_group][0]
 
+    - name: Bootstrap External Secrets CRDs before root app sync
+      ansible.builtin.include_role:
+        name: ../roles/cluster_platform
+        tasks_from: external-secrets-crds.yml
+        apply:
+          delegate_to: localhost
+          become: false
+      vars:
+        <<: *platform_role_vars
+        kubeconfig_path: "{{ platform_kubeconfig_tempfile.path }}"
+      when:
+        - deploy_component == 'argocd'
+        - inventory_hostname == groups[master_group][0]
+        - external_secrets_bootstrap_crds | default(false)
+
+    - name: Ensure Vault ArgoCD application exists before Vault bootstrap
+      ansible.builtin.include_role:
+        name: ../roles/cluster_platform
+        tasks_from: vault-app.yml
+        apply:
+          delegate_to: localhost
+          become: false
+      vars:
+        <<: *platform_role_vars
+        kubeconfig_path: "{{ platform_kubeconfig_tempfile.path }}"
+      when:
+        - deploy_component in ['argocd', 'vault']
+        - inventory_hostname == groups[master_group][0]
+        - k3s_configure_vault | default(true)
+
     - name: Bootstrap Vault (init, unseal, configure, seed secrets)
       ansible.builtin.include_role:
         name: ../roles/cluster_platform

@@ -41,6 +41,25 @@
   when:
     - platform_install_argocd | default(true)
 
+- name: Bootstrap External Secrets CRDs before app-of-apps sync
+  include_tasks: external-secrets-crds.yml
+  tags:
+    - argocd
+    - external-secrets
+    - gitops
+  when:
+    - platform_install_argocd | default(true)
+    - external_secrets_bootstrap_crds | default(false)
+
+- name: Ensure Vault ArgoCD application exists before Vault bootstrap
+  include_tasks: vault-app.yml
+  tags:
+    - vault
+    - secrets
+    - gitops
+  when:
+    - platform_configure_vault | default(true)
+
 - name: Include Vault bootstrap
   include_tasks: vault.yml
   tags:
