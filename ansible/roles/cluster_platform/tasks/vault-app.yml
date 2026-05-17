@@ -1,0 +1,28 @@
+---
+- name: Check whether Vault ArgoCD application already exists
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} get application vault -n argocd >/dev/null 2>&1
+  register: vault_argocd_app_check
+  failed_when: false
+  changed_when: false
+
+- name: Apply Vault ArgoCD application manifest
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} apply -f - <<'EOF'
+    {{ lookup('file', role_path + '/../../../argocd/apps/' + cluster_environment + '/vault.yaml') }}
+    EOF
+  register: vault_argocd_app_apply
+  changed_when: >-
+    'created' in vault_argocd_app_apply.stdout or
+    'configured' in vault_argocd_app_apply.stdout
+  when:
+    - vault_argocd_app_check.rc != 0
+
+- name: Wait for Vault ArgoCD application to exist
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} get application vault -n argocd >/dev/null 2>&1
+  register: vault_argocd_app_wait
+  retries: 12
+  delay: 5
+  until: vault_argocd_app_wait.rc == 0
+  changed_when: false

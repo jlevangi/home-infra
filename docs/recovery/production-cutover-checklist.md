@@ -1,11 +1,14 @@
 # Production Cutover Checklist
 
-Use this checklist for controlled stage-to-prod changes. It assumes the current GitOps model where all clusters reconcile from `main` and environment separation is path-based under `argocd/apps/<env>`.
+Use this checklist for controlled stage-to-prod changes. It assumes the current
+GitOps model where stage reconciles from the `stage` branch, while prod and
+test reconcile from `main`, with environment separation under
+`argocd/apps/<env>`.
 
 ### Goals
 - Promote stage-validated changes into the prod app set tracked by ArgoCD.
 - Protect existing application data (PVCs, DBs, files).
-- Keep Git source-of-truth on `main`.
+- Keep prod Git source-of-truth on `main`.
 
 ### Safety Notes
 - This cutover does not recreate namespaces unless explicitly planned.
@@ -14,13 +17,14 @@ Use this checklist for controlled stage-to-prod changes. It assumes the current 
 - For stateful restores, disable ArgoCD auto-sync before deleting or recreating PVCs.
 
 ### Current GitOps Model
-- All clusters track the `main` branch.
 - Environment separation is path-based:
   - `prod`: `argocd/apps/prod`
   - `stage`: `argocd/apps/stage`
   - `test`: `argocd/apps/test`
-- Do not use `stage` or `test` as promotion branches.
-- If those branches are retained, keep them fast-forwarded to `main`.
+- Branch tracking is:
+  - `prod`: `main`
+  - `stage`: `stage`
+  - `test`: `main`
 
 ### Pre-Cutover (Stage Validation)
 - Confirm all intended stage apps are `Healthy` in ArgoCD.
@@ -39,11 +43,12 @@ kubectl --context k3s-stage get application root-stage -n argocd \
 
 Expected output:
 - prod: `main argocd/apps/prod`
-- stage: `main argocd/apps/stage`
+- stage: `stage argocd/apps/stage`
 
 ### Prod Deploy
-1. Commit and push the prod-ready manifests to `main`.
-2. Sync only the intended prod apps:
+1. Validate stage-targeted GitOps changes on the `stage` branch.
+2. Promote the prod-ready manifests to `main`.
+3. Sync only the intended prod apps:
    - `root-prod`
    - the specific child apps involved in the cutover
 3. Avoid unrelated prod changes during the same sync window.

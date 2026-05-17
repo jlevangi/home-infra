@@ -1,34 +1,37 @@
 # GitOps And ArgoCD
 
-This repository uses a path-based GitOps model. All clusters reconcile from `main`, and environment separation comes from directory paths under `argocd/apps/`.
+This repository uses a path-based GitOps model. Environment separation comes
+from directory paths under `argocd/apps/`, and the tracked Git revision can
+vary by cluster.
 
 ## Current Model
 
 | Environment | Root App | Path | Branch |
 | --- | --- | --- | --- |
 | `prod` | `root-prod` | `argocd/apps/prod` | `main` |
-| `stage` | `root-stage` | `argocd/apps/stage` | `main` |
+| `stage` | `root-stage` | `argocd/apps/stage` | `stage` |
 | `test` | `root-test` | `argocd/apps/test` | `main` |
 
 ## Source-Of-Truth Rules
 
 - Put environment-specific app enablement in `argocd/apps/<env>`.
 - Put shared Kubernetes manifests in `argocd/manifests/**`.
-- Keep `main` as the authoritative branch for all clusters.
-- Do not use `stage` or `test` as promotion branches.
+- Keep `main` as the authoritative branch for prod and test.
+- Use the `stage` branch as the isolated GitOps branch for the stage cluster.
 
 ## Day-To-Day Changes
 
 ### Add or remove an app in one environment
 
 1. Update the corresponding file set under `argocd/apps/<env>`.
-2. Commit to `main`.
+2. Commit to `stage`.
 3. Sync only the affected environment root app or child apps.
 
 ### Change an app shared across environments
 
 1. Update `argocd/manifests/<app>/base` or its overlays.
-2. Commit to `main`.
+2. Commit to `stage` for stage-only validation, or `main` when promoting the
+   shared change to prod and test.
 3. Sync the specific environment applications that should receive the change.
 
 ## Current ArgoCD Guardrails
