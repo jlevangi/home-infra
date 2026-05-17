@@ -3,6 +3,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: factorio-data
   namespace: factorio
+  labels:
+    recurringjob.group.longhorn.io/hourly: "enabled"
 spec:
   accessModes:
     - ReadWriteOnce

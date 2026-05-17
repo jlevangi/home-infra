@@ -5,6 +5,7 @@ metadata:
   namespace: memos
   labels:
     app: memos
+    recurringjob.group.longhorn.io/hourly: "enabled"
 spec:
   accessModes:
     - ReadWriteOnce
