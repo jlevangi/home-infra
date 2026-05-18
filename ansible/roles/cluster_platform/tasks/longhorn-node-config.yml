@@ -81,6 +81,20 @@
   changed_when: false
   when: longhorn_exclude_master_from_storage | default(false) | bool
 
+- name: Wait for API server before patching Longhorn deployments
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get --raw=/readyz >/dev/null
+  args:
+    executable: /bin/bash
+  register: longhorn_api_ready_before_deployment_patch
+  changed_when: false
+  retries: 10
+  delay: 6
+  until: longhorn_api_ready_before_deployment_patch.rc == 0
+  when:
+    - longhorn_exclude_master_from_storage | default(false) | bool
+    - longhorn_deployments.stdout_lines | default([]) | length > 0
+
 - name: Patch Longhorn deployments to run only on worker nodes
   ansible.builtin.shell: |
     KUBECONFIG={{ kubeconfig_path }} kubectl patch {{ item }} -n longhorn-system --type='merge' -p='{
@@ -115,6 +129,24 @@
   args:
     executable: /bin/bash
   loop: "{{ longhorn_deployments.stdout_lines | default([]) }}"
+  register: longhorn_worker_only_patch
+  retries: 5
+  delay: 10
+  until: longhorn_worker_only_patch.rc == 0
+  when:
+    - longhorn_exclude_master_from_storage | default(false) | bool
+    - longhorn_deployments.stdout_lines | default([]) | length > 0
+
+- name: Wait for API server before Longhorn deployment rollouts
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get --raw=/readyz >/dev/null
+  args:
+    executable: /bin/bash
+  register: longhorn_api_ready_before_deployment_rollout
+  changed_when: false
+  retries: 10
+  delay: 6
+  until: longhorn_api_ready_before_deployment_rollout.rc == 0
   when:
     - longhorn_exclude_master_from_storage | default(false) | bool
     - longhorn_deployments.stdout_lines | default([]) | length > 0
@@ -125,6 +157,10 @@
   args:
     executable: /bin/bash
   loop: "{{ longhorn_deployments.stdout_lines | default([]) }}"
+  register: longhorn_worker_only_rollout
+  retries: 5
+  delay: 15
+  until: longhorn_worker_only_rollout.rc == 0
   when:
     - longhorn_exclude_master_from_storage | default(false) | bool
     - longhorn_deployments.stdout_lines | default([]) | length > 0
