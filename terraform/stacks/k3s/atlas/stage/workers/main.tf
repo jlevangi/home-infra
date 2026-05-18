@@ -132,13 +132,13 @@ variable "cpu_cores" {
 variable "memory" {
   description = "Memory in MB."
   type        = number
-  default     = 16384
+  default     = 32768
 }
 
 variable "balloon" {
   description = "Balloon memory in MB."
   type        = number
-  default     = 16384
+  default     = 32768
 }
 
 variable "os_disk_size" {
