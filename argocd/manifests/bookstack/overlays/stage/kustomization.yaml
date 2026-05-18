@@ -27,12 +27,5 @@ patches:
       - op: add
         path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
         value: "k3s-stage.levangie.dev"
-  - target:
-      kind: ExternalSecret
-      name: bookstack-secrets
-    patch: |
-      - op: replace
-        path: /spec/dataFrom/0/extract/key
-        value: "stage/bookstack"
 commonLabels:
   environment: stage

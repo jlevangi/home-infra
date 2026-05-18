@@ -23,12 +23,5 @@ patches:
       - op: add
         path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
         value: "k3s-stage.levangie.dev"
-  - target:
-      kind: ExternalSecret
-      name: pocketid-secret
-    patch: |
-      - op: replace
-        path: /spec/dataFrom/0/extract/key
-        value: "stage/pocketid"
 commonLabels:
   environment: stage

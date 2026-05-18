@@ -25,13 +25,5 @@ patches:
       - op: add
         path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
         value: "k3s-stage.levangie.dev"
-  # Patch ExternalSecret vault path for stage environment
-  - target:
-      kind: ExternalSecret
-      name: microbin-secrets
-    patch: |
-      - op: replace
-        path: /spec/dataFrom/0/extract/key
-        value: "stage/microbin"
 commonLabels:
   environment: stage
