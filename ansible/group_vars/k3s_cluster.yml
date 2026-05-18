@@ -104,9 +104,12 @@ coredns_upstream_nameservers:
   - "172.20.20.4"
 
 # -----------------------------------------------------------------------------
-# DNS MANAGEMENT
+# DNS INFRASTRUCTURE
 # -----------------------------------------------------------------------------
-manage_dns_records: true
+# Gates the anchor A record (k3s-<env>.levangie.dev) plus the Technitium
+# credential Secrets used by external-dns and the factorio DNS hook. Per-app
+# CNAMEs are owned by external-dns via ingress annotations, not the role.
+manage_dns_infrastructure: true
 technitium_dns_server: "{{ vault_technitium_dns_server }}"
 technitium_api_token: "{{ vault_technitium_api_token }}"
 dns_record_ttl: 3600

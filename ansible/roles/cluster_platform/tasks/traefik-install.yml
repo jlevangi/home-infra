@@ -165,7 +165,7 @@
   failed_when: false
   when:
     - traefik_lb_ip.stdout != 'Pending'
-    - manage_dns_records | default(false)
+    - manage_dns_infrastructure | default(false)
 
 - name: Create/Update anchor DNS A record
   uri:
@@ -187,7 +187,7 @@
     (anchor_dns_result.json.status | default('ok') != 'ok')
   when:
     - traefik_lb_ip.stdout != 'Pending'
-    - manage_dns_records | default(false)
+    - manage_dns_infrastructure | default(false)
   ignore_errors: yes
 
 - name: Display anchor DNS record result
@@ -201,4 +201,4 @@
       {% endif %}
   when:
     - traefik_lb_ip.stdout != 'Pending'
-    - manage_dns_records | default(false)
+    - manage_dns_infrastructure | default(false)

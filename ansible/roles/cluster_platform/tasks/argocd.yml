@@ -198,7 +198,7 @@
       --from-literal=TECHNITIUM_PASSWORD="{{ technitium_webhook_password }}" \
       --dry-run=client -o yaml | kubectl apply -f -
   when:
-    - manage_dns_records | default(false)
+    - manage_dns_infrastructure | default(false)
   no_log: true
 
 - name: Create Technitium DNS credentials for Factorio DNS hook
@@ -212,7 +212,7 @@
       --from-literal=tld="{{ cluster_tld }}" \
       --dry-run=client -o yaml | kubectl apply -f -
   when:
-    - manage_dns_records | default(false)
+    - manage_dns_infrastructure | default(false)
   no_log: true
 
 - name: Get ArgoCD initial admin password

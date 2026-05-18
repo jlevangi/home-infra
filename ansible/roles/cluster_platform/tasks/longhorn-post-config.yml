@@ -165,7 +165,7 @@
       - Primary node IP: {{ platform_primary_node_ip | default('UNDEFINED') }}
       - Master nodes: {{ platform_master_nodes | default([]) }}
       - Longhorn UI enabled: {{ longhorn_ui_ingress_enabled | default(false) }}
-      - DNS management enabled: {{ manage_dns_records | default(false) }}
+      - DNS infrastructure enabled: {{ manage_dns_infrastructure | default(false) }}
       - Environment prefix: "{{ environment_prefix | default('UNDEFINED') }}"
       - Traefik IP: {{ traefik_loadbalancer_ip | default('UNDEFINED') }}
 
