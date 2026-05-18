@@ -47,6 +47,18 @@
   register: longhorn_daemonsets
   changed_when: false
 
+- name: Wait for API server before patching Longhorn daemonsets
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get --raw=/readyz >/dev/null
+  args:
+    executable: /bin/bash
+  register: longhorn_api_ready_before_daemonset_patch
+  changed_when: false
+  retries: 10
+  delay: 6
+  until: longhorn_api_ready_before_daemonset_patch.rc == 0
+  when: longhorn_daemonsets.stdout_lines | default([]) | length > 0
+
 - name: Patch Longhorn daemonsets to tolerate accelerator=nvidia
   ansible.builtin.shell: |
     KUBECONFIG={{ kubeconfig_path }} kubectl patch {{ item }} -n longhorn-system --type='merge' -p='{
@@ -62,6 +74,21 @@
     executable: /bin/bash
   loop: "{{ longhorn_daemonsets.stdout_lines | default([]) }}"
   register: longhorn_gpu_toleration_patch
+  retries: 5
+  delay: 10
+  until: longhorn_gpu_toleration_patch.rc == 0
+  when: longhorn_daemonsets.stdout_lines | default([]) | length > 0
+
+- name: Wait for API server before Longhorn daemonset rollouts
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get --raw=/readyz >/dev/null
+  args:
+    executable: /bin/bash
+  register: longhorn_api_ready_before_daemonset_rollout
+  changed_when: false
+  retries: 10
+  delay: 6
+  until: longhorn_api_ready_before_daemonset_rollout.rc == 0
   when: longhorn_daemonsets.stdout_lines | default([]) | length > 0
 
 - name: Wait for patched Longhorn daemonsets to roll out
@@ -70,6 +97,10 @@
   args:
     executable: /bin/bash
   loop: "{{ longhorn_daemonsets.stdout_lines | default([]) }}"
+  register: longhorn_daemonset_rollout
+  retries: 5
+  delay: 15
+  until: longhorn_daemonset_rollout.rc == 0
   when: longhorn_daemonsets.stdout_lines | default([]) | length > 0
 
 - name: List Longhorn deployments that should stay off control-plane nodes
