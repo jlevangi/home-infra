@@ -122,7 +122,7 @@
   - name: Parse Vault init data
     set_fact:
       vault_root_token: "{{ (vault_init_result.stdout | from_json).root_token }}"
-      vault_unseal_keys: "{{ (vault_init_result.stdout | from_json).unseal_keys_b64 }}"
+      vault_unseal_keys: "{{ ((vault_init_result.stdout | from_json).unseal_keys_b64)[:3] }}"
     when:
       - vault_app_present | default(false)
       - vault_init_result is defined
