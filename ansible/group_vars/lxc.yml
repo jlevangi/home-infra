@@ -2,12 +2,6 @@
 # LXC Group Variables
 # Shared configuration for all LXC containers
 
-# Proxmox connection settings (from vault)
-proxmox_api_host: "{{ vault_proxmox_api_host }}"
-proxmox_api_user: "{{ vault_proxmox_api_user }}"
-proxmox_api_token_id: "{{ vault_proxmox_api_token_id }}"
-proxmox_api_token_secret: "{{ vault_proxmox_api_token_secret }}"
-
 # Default Proxmox node for LXC containers
 lxc_default_node: pve1
 

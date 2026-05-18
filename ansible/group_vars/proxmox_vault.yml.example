@@ -1,0 +1,8 @@
+# Encrypted vault file for shared Proxmox API credentials
+# To create: cp ansible/group_vars/proxmox_vault.yml.example ansible/group_vars/proxmox_vault.yml
+# To edit:   ansible-vault edit ansible/group_vars/proxmox_vault.yml
+
+vault_proxmox_api_host: "172.20.20.6"
+vault_proxmox_api_user: "terraform@pam"
+vault_proxmox_api_token_id: "terraform@pam!tf-token"
+vault_proxmox_api_token_secret: "YOUR_PROXMOX_API_TOKEN_SECRET"
