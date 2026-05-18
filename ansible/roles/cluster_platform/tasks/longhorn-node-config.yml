@@ -46,6 +46,9 @@
     executable: /bin/bash
   register: longhorn_daemonsets
   changed_when: false
+  retries: 5
+  delay: 10
+  until: longhorn_daemonsets.rc == 0
 
 - name: Wait for API server before patching Longhorn daemonsets
   ansible.builtin.shell: |
@@ -110,6 +113,9 @@
     executable: /bin/bash
   register: longhorn_deployments
   changed_when: false
+  retries: 5
+  delay: 10
+  until: longhorn_deployments.rc == 0
   when: longhorn_exclude_master_from_storage | default(false) | bool
 
 - name: Wait for API server before patching Longhorn deployments
