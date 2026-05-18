@@ -17,6 +17,7 @@ spec:
 
         sources:
           - ingress
+          - traefik-proxy
 
         policy: upsert-only
         registry: txt
