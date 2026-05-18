@@ -24,16 +24,17 @@
   gather_facts: false
 
   vars:
-    source_context: "{{ source_context | default('k3s-prod') }}"
-    source_namespace: "{{ source_namespace | default('vault-raft') }}"
-    source_pod: "{{ source_pod | default('vault-raft-0') }}"
-    source_init_secret: "{{ source_init_secret | default('vault-init') }}"
-    source_addr_internal: "{{ source_addr_internal | default('http://127.0.0.1:8200') }}"
+    # Override any of these with -e on the command line.
+    source_context: "k3s-prod"
+    source_namespace: "vault-raft"
+    source_pod: "vault-raft-0"
+    source_init_secret: "vault-init"
+    source_addr_internal: "http://127.0.0.1:8200"
 
-    dest_context: "{{ dest_context | default('k3s-stage') }}"
-    dest_namespace: "{{ dest_namespace | default('vault-raft') }}"
-    dest_secret_name: "{{ dest_secret_name | default('vault-prod-sync-approle') }}"
-    dest_addr: "{{ dest_addr | default('https://vault.levangie.dev') }}"
+    dest_context: "k3s-stage"
+    dest_namespace: "vault-raft"
+    dest_secret_name: "vault-prod-sync-approle"
+    dest_addr: "https://vault.levangie.dev"
 
     sync_policy_name: "kv-prod-reader"
     sync_role_name: "stage-kv-sync"
