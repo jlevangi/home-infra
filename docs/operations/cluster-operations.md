@@ -62,6 +62,23 @@ If you use the shell helpers, source `scripts/k3s/helpers/k3s-shell-functions.sh
 
 Use `all-infra` for a fresh cluster when you want to apply them in order.
 
+## Cluster Maintenance
+
+### Graceful shutdown and power-on
+
+```bash
+./scripts/maintenance/shutdown-k3s-cluster.sh --stage
+./scripts/maintenance/power-on-k3s-cluster.sh --stage
+```
+
+`power-on-k3s-cluster.sh` powers on the Proxmox VMs for the selected environment, waits for them to be running, and then invokes the normal restart flow.
+
+### Service restart when VMs are already up
+
+```bash
+./scripts/maintenance/restart-k3s-cluster.sh --stage
+```
+
 ## Direct Ansible Commands
 
 Use the wrapper scripts first. Drop to Ansible directly when you need tighter control.
