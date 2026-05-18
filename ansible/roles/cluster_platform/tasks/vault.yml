@@ -232,6 +232,52 @@
       - vault_unseal_keys is defined
       - vault_sealed | default(true)
 
+  # HA Raft followers also need to be unsealed; their retry_join from the
+  # chart config waits "for unseal keys to be supplied" before completing the
+  # cluster join. Without this, vault-raft-1/-2 stay sealed forever even
+  # though the primary is up.
+  - name: Discover sealed Vault follower pods (HA only)
+    shell: |
+      kubectl --kubeconfig={{ kubeconfig_path }} get pods -n {{ vault_namespace }} \
+        -l app.kubernetes.io/name=vault \
+        -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | sed '/^$/d' | grep -v '^{{ vault_pod_name }}$' || true
+    register: vault_follower_pod_list
+    changed_when: false
+    when:
+      - vault_app_present | default(false)
+      - vault_ha_enabled | default(false)
+      - not (vault_sealed | default(true))
+
+  - name: Unseal Vault follower pods
+    shell: |
+      kubectl --kubeconfig={{ kubeconfig_path }} exec -n {{ vault_namespace }} {{ item.0 }} -- sh -ec 'vault status -format=json | grep -q "\"sealed\": *true" && vault operator unseal "{{ item.1 }}" >/dev/null 2>&1 || true'
+    loop: "{{ (vault_follower_pod_list.stdout_lines | default([])) | product(vault_unseal_keys | default([])) | list }}"
+    loop_control:
+      label: "{{ item.0 }}"
+    when:
+      - vault_app_present | default(false)
+      - vault_ha_enabled | default(false)
+      - vault_unseal_keys is defined
+      - vault_follower_pod_list.stdout_lines | default([]) | length > 0
+    no_log: true
+
+  - name: Verify Vault follower pods are unsealed
+    shell: |
+      kubectl --kubeconfig={{ kubeconfig_path }} exec -n {{ vault_namespace }} {{ item }} -- vault status -format=json
+    register: vault_follower_status_check
+    retries: 12
+    delay: 5
+    until:
+      - vault_follower_status_check.rc == 0
+      - (vault_follower_status_check.stdout | from_json).initialized
+      - not (vault_follower_status_check.stdout | from_json).sealed
+    changed_when: false
+    loop: "{{ vault_follower_pod_list.stdout_lines | default([]) }}"
+    when:
+      - vault_app_present | default(false)
+      - vault_ha_enabled | default(false)
+      - vault_follower_pod_list.stdout_lines | default([]) | length > 0
+
   - name: Login to Vault
     shell: |
       kubectl --kubeconfig={{ kubeconfig_path }} exec -n {{ vault_namespace }} {{ vault_pod_name }} -- vault login '{{ vault_root_token }}'
