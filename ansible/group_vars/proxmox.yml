@@ -1,0 +1,9 @@
+---
+# Shared Proxmox connection settings used by VM and LXC automation.
+#
+# The secret values should live in ansible/group_vars/proxmox_vault.yml.
+
+proxmox_api_host: "{{ vault_proxmox_api_host }}"
+proxmox_api_user: "{{ vault_proxmox_api_user }}"
+proxmox_api_token_id: "{{ vault_proxmox_api_token_id }}"
+proxmox_api_token_secret: "{{ vault_proxmox_api_token_secret }}"
