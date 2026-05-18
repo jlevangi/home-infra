@@ -169,16 +169,8 @@
       - Environment prefix: "{{ environment_prefix | default('UNDEFINED') }}"
       - Traefik IP: {{ traefik_loadbalancer_ip | default('UNDEFINED') }}
 
-- name: Create DNS CNAME record for Longhorn UI
-  include_tasks: shared/dns_management.yml
-  vars:
-    dns_record_name: "{{ ('longhorn.' + environment_domain) | regex_replace('\\.' + cluster_tld + '$', '') }}"
-    dns_record_type: "CNAME"
-    dns_record_target: "{{ cluster_dns_name }}"
-    dns_record_action: "create"
-  when:
-    - longhorn_ui_ingress_enabled | default(false)
-    - manage_dns_records | default(false)
+# DNS CNAME for longhorn.<env>.levangie.dev is owned by external-dns now;
+# see external-dns.alpha.kubernetes.io/target annotation on the Ingress below.
 
 - name: Deploy Longhorn UI Ingress
   shell: |

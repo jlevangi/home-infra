@@ -11,16 +11,8 @@
   when:
     - traefik_dashboard_enabled | default(true)
 
-- name: Create DNS CNAME record for Traefik dashboard
-  include_tasks: shared/dns_management.yml
-  vars:
-    dns_record_name: "{{ ('traefik.' + environment_domain) | regex_replace('\\.' + cluster_tld + '$', '') }}"
-    dns_record_type: "CNAME"
-    dns_record_target: "{{ cluster_dns_name }}"
-    dns_record_action: "create"
-  when:
-    - traefik_dashboard_enabled | default(true)
-    - manage_dns_records | default(false)
+# DNS CNAME for traefik.<env>.levangie.dev is owned by external-dns now;
+# see external-dns.alpha.kubernetes.io/target annotation in traefik-dashboard.yaml.j2.
 
 - name: Apply TLSStore for wildcard certificate
   ansible.builtin.shell: |

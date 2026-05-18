@@ -144,16 +144,8 @@
   when:
     - argocd_ingress_enabled | default(true)
 
-- name: Create DNS CNAME record for ArgoCD
-  include_tasks: shared/dns_management.yml
-  vars:
-    dns_record_name: "{{ 'argocd.' + environment_prefix | regex_replace('\\.$', '') if environment_prefix else 'argocd' }}"
-    dns_record_type: "CNAME"
-    dns_record_target: "{{ cluster_dns_name }}"
-    dns_record_action: "create"
-  when:
-    - argocd_ingress_enabled | default(true)
-    - manage_dns_records | default(false)
+# DNS CNAME for argocd.<env>.levangie.dev is owned by external-dns now;
+# see external-dns.alpha.kubernetes.io/target annotation in argocd-ingress.yaml.j2.
 
 - name: Create temporary file for SSH key
   tempfile:
