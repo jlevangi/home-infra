@@ -45,6 +45,12 @@ longhorn_exclude_master_from_storage: true
 longhorn_guaranteed_instance_manager_cpu: 12
 
 # -----------------------------------------------------------------------------
+# VAULT TOPOLOGY (mirrors prod: HA Raft, 3 replicas)
+# -----------------------------------------------------------------------------
+vault_namespace: "vault-raft"
+vault_pod_name: "vault-raft-0"
+
+# -----------------------------------------------------------------------------
 # CONTROL-PLANE NODE TAINT
 # -----------------------------------------------------------------------------
 # Keep regular workloads off the master/CP nodes. Matches the Longhorn
