@@ -145,13 +145,60 @@
       -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo 'Pending'
   register: traefik_lb_ip
 
-- name: Create cluster DNS A record
-  include_tasks: shared/dns_management.yml
-  vars:
-    dns_record_name: "{{ cluster_dns_name | regex_replace('\\.' + cluster_tld + '$', '') }}"
-    dns_record_type: "A"
-    dns_record_ip: "{{ traefik_lb_ip.stdout }}"
-    dns_record_action: "create"
+# Anchor A record for the cluster (k3s-<env>.levangie.dev → traefik LB IP).
+# external-dns owns per-app CNAMEs that point at this name. external-dns can't
+# manage this record itself because there's no ingress to source it from, so
+# the role keeps it. RFC 1034 forbids CNAME from coexisting with other types
+# at the same name; pre-delete any CNAME at the anchor as defense-in-depth.
+- name: Pre-delete any conflicting CNAME at the anchor name
+  uri:
+    url: "http://{{ technitium_dns_server }}:5380/api/zones/records/delete"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      token: "{{ technitium_api_token }}"
+      domain: "{{ cluster_dns_name }}"
+      type: "CNAME"
+    status_code: [200, 201, 404]
+    timeout: 30
+  register: anchor_predelete_cname
+  failed_when: false
+  when:
+    - traefik_lb_ip.stdout != 'Pending'
+    - manage_dns_records | default(false)
+
+- name: Create/Update anchor DNS A record
+  uri:
+    url: "http://{{ technitium_dns_server }}:5380/api/zones/records/add"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      token: "{{ technitium_api_token }}"
+      domain: "{{ cluster_dns_name }}"
+      type: "A"
+      value: "{{ traefik_lb_ip.stdout }}"
+      ttl: "{{ anchor_dns_record_ttl | default(3600) }}"
+      overwrite: "true"
+    status_code: [200, 201]
+    timeout: 30
+  register: anchor_dns_result
+  failed_when: >-
+    (anchor_dns_result.json is defined) and
+    (anchor_dns_result.json.status | default('ok') != 'ok')
+  when:
+    - traefik_lb_ip.stdout != 'Pending'
+    - manage_dns_records | default(false)
+  ignore_errors: yes
+
+- name: Display anchor DNS record result
+  debug:
+    msg: |
+      Anchor DNS record: {{ cluster_dns_name }} A {{ traefik_lb_ip.stdout }}
+      {% if anchor_dns_result.failed | default(false) %}
+      Failed: {{ anchor_dns_result.json.errorMessage | default(anchor_dns_result.msg | default('Unknown error')) }}
+      {% else %}
+      OK
+      {% endif %}
   when:
     - traefik_lb_ip.stdout != 'Pending'
     - manage_dns_records | default(false)
