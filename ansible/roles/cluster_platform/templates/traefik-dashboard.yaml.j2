@@ -5,6 +5,8 @@ metadata:
   namespace: traefik-system
   labels:
     app.kubernetes.io/name: traefik-dashboard
+  annotations:
+    external-dns.alpha.kubernetes.io/target: "{{ cluster_dns_name }}"
 spec:
   entryPoints:
 {% if traefik_tls_enabled | default(false) %}

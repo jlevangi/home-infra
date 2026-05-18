@@ -8,6 +8,8 @@ metadata:
   labels:
     app.kubernetes.io/name: argocd-ingress
     app.kubernetes.io/part-of: argocd
+  annotations:
+    external-dns.alpha.kubernetes.io/target: "{{ cluster_dns_name }}"
 spec:
   entryPoints:
 {% if traefik_tls_enabled | default(false) %}

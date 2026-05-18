@@ -191,6 +191,7 @@
       namespace: longhorn-system
       annotations:
         traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+        external-dns.alpha.kubernetes.io/target: "{{ cluster_dns_name }}"
     {% if traefik_acme_enabled | default(false) %}
         traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
     {% endif %}
