@@ -50,6 +50,9 @@ longhorn_guaranteed_instance_manager_cpu: 12
 vault_namespace: "vault-raft"
 vault_statefulset_name: "vault-raft"
 vault_pod_name: "vault-raft-0"
+vault_ha_enabled: true
+vault_raft_enabled: true
+vault_replica_count: 3
 
 # -----------------------------------------------------------------------------
 # CONTROL-PLANE NODE TAINT
