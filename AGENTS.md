@@ -149,16 +149,32 @@ ansible-playbook -i ansible/inventories/production/hosts.yml ansible/playbooks/k
 ./scripts/maintenance/restore-app.sh --prod --pvc factorio-data
 ```
 
+### Maintenance Power Cycle
+```bash
+# Graceful shutdown
+./scripts/maintenance/shutdown-k3s-cluster.sh --stage
+
+# Power VMs back on and run the restart workflow
+./scripts/maintenance/power-on-k3s-cluster.sh --stage
+
+# Restart services only when VMs are already online
+./scripts/maintenance/restart-k3s-cluster.sh --stage
+```
+
 ### Vault Management
 ```bash
 # Edit K3s vault file
 ansible-vault edit ansible/group_vars/k3s_cluster_vault.yml
+
+# Edit shared Proxmox vault file
+ansible-vault edit ansible/group_vars/proxmox_vault.yml
 
 # Edit LXC vault file
 ansible-vault edit ansible/group_vars/lxc_vault.yml
 
 # View vault contents
 ansible-vault view ansible/group_vars/k3s_cluster_vault.yml
+ansible-vault view ansible/group_vars/proxmox_vault.yml
 ansible-vault view ansible/group_vars/lxc_vault.yml
 ```
 
@@ -172,7 +188,9 @@ ansible-vault view ansible/group_vars/lxc_vault.yml
 │   │   ├── k3s_cluster_stage.yml# K3s staging config
 │   │   ├── k3s_cluster_vault.yml# K3s encrypted secrets
 │   │   ├── lxc.yml              # LXC shared config
-│   │   └── lxc_vault.yml        # LXC encrypted secrets
+│   │   ├── lxc_vault.yml        # LXC encrypted secrets
+│   │   ├── proxmox.yml          # Shared Proxmox config
+│   │   └── proxmox_vault.yml    # Shared Proxmox encrypted secrets
 │   ├── inventories/             # Ansible inventories
 │   │   ├── production/
 │   │   ├── test/
@@ -220,7 +238,10 @@ ansible-vault view ansible/group_vars/lxc_vault.yml
 │   │       └── talos-shell-functions.sh
 │   ├── maintenance/             # Recovery and maintenance scripts
 │   │   ├── list-backups.sh
+│   │   ├── power-on-k3s-cluster.sh
 │   │   ├── recover-vault.sh
+│   │   ├── restart-k3s-cluster.sh
+│   │   ├── shutdown-k3s-cluster.sh
 │   │   ├── restore-app.sh
 │   │   ├── restore-cluster.sh
 │   │   └── update-k3s-nodes.sh
@@ -422,11 +443,13 @@ applications:
 3. Run `./scripts/deploy-lxc.sh <container-name>`
 
 ### LXC Vault Variables
-The `ansible/group_vars/lxc_vault.yml` contains:
+The preferred shared Proxmox secrets file is `ansible/group_vars/proxmox_vault.yml`:
 - `vault_proxmox_api_host`: Proxmox API endpoint
 - `vault_proxmox_api_user`: API user
 - `vault_proxmox_api_token_id`: API token ID
 - `vault_proxmox_api_token_secret`: API token secret
+
+`ansible/group_vars/lxc_vault.yml` contains:
 - `vault_ssh_public_key`: SSH key for container access
 
 ## Troubleshooting

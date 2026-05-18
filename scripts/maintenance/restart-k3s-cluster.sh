@@ -2,13 +2,13 @@
 # Restart a K3s cluster after maintenance shutdown
 #
 # Prerequisites:
-#   If VMs were powered off, start them from Proxmox first.
+#   If VMs were powered off, prefer ./scripts/maintenance/power-on-k3s-cluster.sh instead.
 #   The playbook will wait for SSH connectivity before proceeding.
 #
 # Usage:
-#   ./restart-k3s-cluster.sh --prod    # Restart production cluster
-#   ./restart-k3s-cluster.sh --test    # Restart test cluster
-#   ./restart-k3s-cluster.sh --stage   # Restart staging cluster
+#   ./scripts/maintenance/restart-k3s-cluster.sh --prod    # Restart production cluster
+#   ./scripts/maintenance/restart-k3s-cluster.sh --test    # Restart test cluster
+#   ./scripts/maintenance/restart-k3s-cluster.sh --stage   # Restart staging cluster
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
@@ -40,7 +40,7 @@ while [[ $# -gt 0 ]]; do
             echo "  -h, --help           Show this help message"
             echo ""
             echo "Prerequisites:"
-            echo "  If VMs were powered off, start them from Proxmox before running this script."
+            echo "  If VMs were powered off, use ./scripts/maintenance/power-on-k3s-cluster.sh first."
             echo "  The script will wait up to 5 minutes for SSH connectivity."
             echo "  By default, the script also runs the Vault unseal/auth refresh playbook."
             exit 0

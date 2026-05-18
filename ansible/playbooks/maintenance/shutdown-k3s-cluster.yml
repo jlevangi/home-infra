@@ -17,8 +17,7 @@
       assert:
         that:
           - target_cluster is defined
-          - kubectl_context is defined
-        fail_msg: "Required variables target_cluster and kubectl_context must be set"
+        fail_msg: "Required variable target_cluster must be set"
 
     - name: Assert target cluster group exists in inventory
       assert:
@@ -33,8 +32,33 @@
   vars:
     drain_timeout: "60s"
   tasks:
+    - name: Read reachable kubeconfig from first master
+      ansible.builtin.slurp:
+        src: "/home/{{ k3s_user | default(ansible_user) }}/.kube/config"
+      register: maintenance_kubeconfig_raw
+      run_once: true
+
+    - name: Create temporary kubeconfig file on controller
+      ansible.builtin.tempfile:
+        state: file
+        prefix: "{{ target_cluster }}-shutdown-"
+        suffix: .kubeconfig
+      register: maintenance_kubeconfig_tempfile
+      delegate_to: localhost
+      become: false
+      run_once: true
+
+    - name: Write fetched kubeconfig to controller temp file
+      ansible.builtin.copy:
+        content: "{{ maintenance_kubeconfig_raw.content | b64decode }}"
+        dest: "{{ maintenance_kubeconfig_tempfile.path }}"
+        mode: "0600"
+      delegate_to: localhost
+      become: false
+      run_once: true
+
     - name: Get list of all cluster nodes
-      command: kubectl --context {{ kubectl_context }} get nodes -o jsonpath='{.items[*].metadata.name}'
+      command: kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} get nodes -o jsonpath='{.items[*].metadata.name}'
       delegate_to: localhost
       become: no
       register: node_list
@@ -52,7 +76,7 @@
       run_once: true
 
     - name: Cordon all nodes
-      command: kubectl --context {{ kubectl_context }} cordon {{ item }}
+      command: kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} cordon {{ item }}
       delegate_to: localhost
       become: no
       loop: "{{ cluster_nodes }}"
@@ -66,7 +90,7 @@
       # die with the VM anyway, so PDB-protected availability isn't relevant
       # in a full-cluster shutdown.
       command: >
-        kubectl --context {{ kubectl_context }} drain {{ item }}
+        kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} drain {{ item }}
         --ignore-daemonsets
         --delete-emptydir-data
         --force
@@ -90,7 +114,7 @@
       run_once: true
 
     - name: Check if Longhorn volume CRD exists
-      command: kubectl --context {{ kubectl_context }} get crd volumes.longhorn.io
+      command: kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} get crd volumes.longhorn.io
       delegate_to: localhost
       become: no
       register: longhorn_volume_crd
@@ -100,7 +124,7 @@
 
     - name: Wait for Longhorn volumes to detach after drain
       shell: >
-        kubectl --context {{ kubectl_context }} get volumes.longhorn.io -n longhorn-system
+        kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} get volumes.longhorn.io -n longhorn-system
         -o jsonpath='{range .items[?(@.status.state!="detached")]}{.metadata.name}{" "}{end}'
       delegate_to: localhost
       become: no
@@ -122,6 +146,16 @@
       debug:
         msg: "All nodes cordoned and drained; shutdown can proceed"
       run_once: true
+
+  post_tasks:
+    - name: Remove temporary kubeconfig from controller
+      ansible.builtin.file:
+        path: "{{ maintenance_kubeconfig_tempfile.path }}"
+        state: absent
+      delegate_to: localhost
+      become: false
+      run_once: true
+      when: maintenance_kubeconfig_tempfile is defined
 
 - name: Stop K3s agent on worker nodes
   hosts: "{{ target_cluster }}_workers"

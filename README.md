@@ -51,6 +51,16 @@ cd ../../
 
 Applications are deployed by ArgoCD from `argocd/apps/<env>/` on `main`.
 
+### Maintenance power cycle
+
+```bash
+./scripts/maintenance/shutdown-k3s-cluster.sh --stage
+./scripts/maintenance/power-on-k3s-cluster.sh --stage
+./scripts/maintenance/restart-k3s-cluster.sh --stage
+```
+
+Use `power-on-k3s-cluster.sh` after a full VM shutdown. Use `restart-k3s-cluster.sh` only when the VMs are already online.
+
 ### Manage LXC containers
 
 ```bash
@@ -89,3 +99,4 @@ terraform/   Reusable modules plus root stacks for K3s and Talos VM provisioning
 - Shared manifests live under `argocd/manifests/**`.
 - Longhorn backups are shared through NFS so prod data can be restored into stage when needed.
 - Most operational workflows assume `~/.ansible_vault_pass` is present.
+- Shared Proxmox API credentials belong under `ansible/group_vars/proxmox_vault.yml`.

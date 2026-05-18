@@ -16,8 +16,7 @@
       assert:
         that:
           - target_cluster is defined
-          - kubectl_context is defined
-        fail_msg: "Required variables target_cluster and kubectl_context must be set"
+        fail_msg: "Required variable target_cluster must be set"
 
     - name: Assert target cluster group exists in inventory
       assert:
@@ -93,8 +92,33 @@
   vars:
     expected_node_count: "{{ groups[target_cluster] | length }}"
   tasks:
+    - name: Read reachable kubeconfig from first master
+      ansible.builtin.slurp:
+        src: "/home/{{ k3s_user | default(ansible_user) }}/.kube/config"
+      register: maintenance_kubeconfig_raw
+      run_once: true
+
+    - name: Create temporary kubeconfig file on controller
+      ansible.builtin.tempfile:
+        state: file
+        prefix: "{{ target_cluster }}-restart-"
+        suffix: .kubeconfig
+      register: maintenance_kubeconfig_tempfile
+      delegate_to: localhost
+      become: false
+      run_once: true
+
+    - name: Write fetched kubeconfig to controller temp file
+      ansible.builtin.copy:
+        content: "{{ maintenance_kubeconfig_raw.content | b64decode }}"
+        dest: "{{ maintenance_kubeconfig_tempfile.path }}"
+        mode: "0600"
+      delegate_to: localhost
+      become: false
+      run_once: true
+
     - name: Wait for all nodes to register with cluster
-      shell: kubectl --context {{ kubectl_context }} get nodes --no-headers | wc -l
+      shell: kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} get nodes --no-headers | wc -l
       delegate_to: localhost
       become: no
       register: node_count
@@ -105,7 +129,7 @@
       run_once: true
 
     - name: Get list of all cluster nodes
-      command: kubectl --context {{ kubectl_context }} get nodes -o jsonpath='{.items[*].metadata.name}'
+      command: kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} get nodes -o jsonpath='{.items[*].metadata.name}'
       delegate_to: localhost
       become: no
       register: node_list
@@ -118,7 +142,7 @@
       run_once: true
 
     - name: Uncordon all nodes
-      command: kubectl --context {{ kubectl_context }} uncordon {{ item }}
+      command: kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} uncordon {{ item }}
       delegate_to: localhost
       become: no
       loop: "{{ cluster_nodes }}"
@@ -127,7 +151,7 @@
 
     - name: Wait for all nodes to be Ready
       shell: >
-        kubectl --context {{ kubectl_context }} get nodes --no-headers |
+        kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} get nodes --no-headers |
         grep -c ' Ready ' || true
       delegate_to: localhost
       become: no
@@ -140,7 +164,7 @@
 
     - name: Wait for kube-system pods to be running
       shell: >
-        kubectl --context {{ kubectl_context }} get pods -n kube-system --no-headers |
+        kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} get pods -n kube-system --no-headers |
         grep -v -E 'Running|Completed|Terminating' | wc -l
       delegate_to: localhost
       become: no
@@ -153,7 +177,7 @@
 
     - name: Wait for Longhorn manager pods to be Ready
       command: >
-        kubectl --context {{ kubectl_context }} wait
+        kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} wait
         --for=condition=Ready pod -l app=longhorn-manager
         -n longhorn-system --timeout=600s
       delegate_to: localhost
@@ -163,7 +187,7 @@
 
     - name: Wait for Longhorn manager DaemonSet rollout to complete
       command: >
-        kubectl --context {{ kubectl_context }} rollout status
+        kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} rollout status
         daemonset/longhorn-manager -n longhorn-system --timeout=300s
       delegate_to: localhost
       become: no
@@ -172,7 +196,7 @@
 
     - name: Wait for Longhorn CSI plugin rollout to complete
       command: >
-        kubectl --context {{ kubectl_context }} rollout status
+        kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} rollout status
         daemonset/longhorn-csi-plugin -n longhorn-system --timeout=300s
       delegate_to: localhost
       become: no
@@ -181,10 +205,10 @@
 
     - name: Wait for Longhorn CSI sidecars to be healthy
       shell: |
-        kubectl --context {{ kubectl_context }} wait --for=condition=Ready pod -l app=csi-attacher -n longhorn-system --timeout=120s
-        kubectl --context {{ kubectl_context }} wait --for=condition=Ready pod -l app=csi-provisioner -n longhorn-system --timeout=120s
-        kubectl --context {{ kubectl_context }} wait --for=condition=Ready pod -l app=csi-resizer -n longhorn-system --timeout=120s
-        kubectl --context {{ kubectl_context }} wait --for=condition=Ready pod -l app=csi-snapshotter -n longhorn-system --timeout=120s
+        kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} wait --for=condition=Ready pod -l app=csi-attacher -n longhorn-system --timeout=120s
+        kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} wait --for=condition=Ready pod -l app=csi-provisioner -n longhorn-system --timeout=120s
+        kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} wait --for=condition=Ready pod -l app=csi-resizer -n longhorn-system --timeout=120s
+        kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} wait --for=condition=Ready pod -l app=csi-snapshotter -n longhorn-system --timeout=120s
       delegate_to: localhost
       become: no
       changed_when: false
@@ -196,7 +220,7 @@
       run_once: true
 
     - name: Get final cluster status
-      command: kubectl --context {{ kubectl_context }} get nodes -o wide
+      command: kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} get nodes -o wide
       delegate_to: localhost
       become: no
       register: final_nodes
@@ -209,7 +233,7 @@
       run_once: true
 
     - name: Get kube-system pod status
-      command: kubectl --context {{ kubectl_context }} get pods -n kube-system
+      command: kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} get pods -n kube-system
       delegate_to: localhost
       become: no
       register: system_pods
@@ -222,7 +246,7 @@
       run_once: true
 
     - name: Get Longhorn pod status
-      command: kubectl --context {{ kubectl_context }} get pods -n longhorn-system
+      command: kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} get pods -n longhorn-system
       delegate_to: localhost
       become: no
       register: longhorn_pods
@@ -238,3 +262,13 @@
       debug:
         msg: "All {{ expected_node_count }} nodes are Ready, kube-system pods are running, and Longhorn control-plane pods are Ready"
       run_once: true
+
+  post_tasks:
+    - name: Remove temporary kubeconfig from controller
+      ansible.builtin.file:
+        path: "{{ maintenance_kubeconfig_tempfile.path }}"
+        state: absent
+      delegate_to: localhost
+      become: false
+      run_once: true
+      when: maintenance_kubeconfig_tempfile is defined
