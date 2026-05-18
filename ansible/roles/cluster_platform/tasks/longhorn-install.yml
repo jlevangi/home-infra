@@ -4,13 +4,13 @@
     msg: |
       🔧 Longhorn Operation Result:
       {% if longhorn_install_result is defined and longhorn_install_result.changed %}
-      ✅ Fresh installation completed successfully
+      Fresh installation completed successfully
       {% elif longhorn_update_result is defined and longhorn_update_result.changed %}
-      ✅ Configuration updated successfully
+      Configuration updated successfully
       {% elif longhorn_repair_result is defined and longhorn_repair_result.changed %}
-      ✅ Installation repaired (Helm release created for existing deployment)
+      Installation repaired (Helm release created for existing deployment)
       {% elif longhorn_namespace_check.rc == 0 and longhorn_helm_check.rc == 0 %}
-      ℹ️  Longhorn already properly installed - no changes needed
+      Longhorn already properly installed - no changes needed
       {% else %}
       ⚠️  Longhorn operation skipped or failed
       {% endif %}
@@ -20,24 +20,39 @@
     calculated_replica_count: "{{ [platform_cluster_node_count | default(0) | int, 3] | min }}"
   when: longhorn_replica_count is not defined
 
+- name: Detect GPU workers in this cluster
+  set_fact:
+    longhorn_cluster_has_gpu_workers: >-
+      {{
+        (platform_worker_nodes | default([]))
+        | map('extract', hostvars, 'nvidia_gpu_worker')
+        | select('defined')
+        | map('bool')
+        | select
+        | list | length > 0
+      }}
+
 - name: Build Longhorn scheduling values
   set_fact:
     longhorn_global_tolerations_json: >-
       {{
-        [
+        ([
           {
             'key': 'CriticalAddonsOnly',
             'operator': 'Equal',
             'value': 'true',
             'effect': 'NoExecute'
-          },
-          {
-            'key': 'accelerator',
-            'operator': 'Equal',
-            'value': 'nvidia',
-            'effect': 'NoSchedule'
           }
-        ] | to_json
+        ] + (
+          (longhorn_cluster_has_gpu_workers | bool) | ternary([
+            {
+              'key': 'accelerator',
+              'operator': 'Equal',
+              'value': 'nvidia',
+              'effect': 'NoSchedule'
+            }
+          ], [])
+        )) | to_json
       }}
     longhorn_taint_toleration_value: 'CriticalAddonsOnly=true:NoExecute'
 
