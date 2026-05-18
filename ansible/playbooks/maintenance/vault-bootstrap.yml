@@ -16,7 +16,7 @@
 
   vars:
     vault_context_overrides:
-      k3s-prod:
+      k3s-prod: &vault_raft_overrides
         vault_namespace: "vault-raft"
         vault_statefulset_name: "vault-raft"
         vault_primary_pod_name: "vault-raft-0"
@@ -26,6 +26,7 @@
         vault_ha_enabled: true
         vault_raft_enabled: true
         vault_replica_count: 3
+      k3s-stage: *vault_raft_overrides
     vault_context_defaults: "{{ vault_context_overrides.get(kubectl_context | default(''), {}) }}"
     vault_namespace: "{{ vault_context_defaults.vault_namespace | default('vault') }}"
     vault_statefulset_name: "{{ vault_context_defaults.vault_statefulset_name | default('vault') }}"
