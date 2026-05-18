@@ -48,6 +48,7 @@ longhorn_guaranteed_instance_manager_cpu: 12
 # VAULT TOPOLOGY (mirrors prod: HA Raft, 3 replicas)
 # -----------------------------------------------------------------------------
 vault_namespace: "vault-raft"
+vault_statefulset_name: "vault-raft"
 vault_pod_name: "vault-raft-0"
 
 # -----------------------------------------------------------------------------
