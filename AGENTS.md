@@ -257,19 +257,19 @@ ansible-vault view ansible/group_vars/lxc_vault.yml
 The repository supports three environments:
 
 ### Production (`--prod`)
-- Cluster nodes: 172.20.20.101-103
+- Cluster nodes: 172.20.20.101-107
 - Domain: `levangie.dev` 
 - High availability with Longhorn storage
 - Production-grade applications
 
 ### Test (`--test`)  
-- Cluster nodes: 172.20.21.121-125
+- Cluster nodes: 172.20.21.121-124
 - Domain: `test.levangie.dev`
 - Simplified configuration for testing
 - Safe environment for experiments
 
 ### Staging (`--stage`)
-- Cluster nodes: 172.20.21.111-116  
+- Cluster nodes: 172.20.21.111-114  
 - Domain: `stage.levangie.dev`
 - Production-like testing environment
 

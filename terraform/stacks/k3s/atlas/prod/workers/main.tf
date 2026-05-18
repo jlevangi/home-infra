@@ -87,6 +87,12 @@ variable "vm_count" {
   default     = 3
 }
 
+variable "vm_ids" {
+  description = "Fixed Proxmox VMIDs for worker VMs."
+  type        = list(number)
+  default     = [104, 105, 106]
+}
+
 variable "template_name" {
   description = "Proxmox template name."
   type        = string
@@ -182,6 +188,7 @@ module "nodes" {
 
   vm_name_prefix    = var.vm_name_prefix
   vm_count          = var.vm_count
+  vm_ids            = var.vm_ids
   target_nodes      = var.proxmox_hosts
   template_name     = var.template_name
   proxmox_tags      = var.proxmox_tags

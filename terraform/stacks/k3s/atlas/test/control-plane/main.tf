@@ -84,7 +84,13 @@ variable "vm_name_prefix" {
 variable "vm_count" {
   description = "Number of control-plane VMs."
   type        = number
-  default     = 2
+  default     = 1
+}
+
+variable "vm_ids" {
+  description = "Fixed Proxmox VMIDs for control-plane VMs."
+  type        = list(number)
+  default     = [121]
 }
 
 variable "template_name" {
@@ -170,6 +176,7 @@ module "nodes" {
 
   vm_name_prefix = var.vm_name_prefix
   vm_count       = var.vm_count
+  vm_ids         = var.vm_ids
   target_nodes   = var.proxmox_hosts
   template_name  = var.template_name
   proxmox_tags   = var.proxmox_tags
