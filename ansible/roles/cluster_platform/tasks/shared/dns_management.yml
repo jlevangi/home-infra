@@ -17,6 +17,33 @@
     success_msg: "DNS management variables validated successfully"
   when: manage_dns_records | default(false)
 
+# Technitium's `overwrite: true` flag only updates records of the SAME type.
+# RFC 1034 forbids a CNAME co-existing with any other record type at a name,
+# so adding a CNAME where an A record exists (or vice versa) fails with
+# "a CNAME record cannot exists with other record types for the same name".
+# Pre-delete the conflicting type before each add so the role is idempotent
+# when an old A record (e.g. from a prior external-dns sync) is squatting
+# on a name we now want as a CNAME.
+
+- name: Pre-delete conflicting CNAME before creating A record
+  uri:
+    url: "http://{{ technitium_dns_server }}:5380/api/zones/records/delete"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      token: "{{ technitium_api_token }}"
+      domain: "{{ dns_record_name }}.{{ cluster_tld }}"
+      type: "CNAME"
+    status_code: [200, 201, 404]
+    timeout: 30
+  register: dns_predelete_cname
+  failed_when: false
+  when:
+    - manage_dns_records | default(false)
+    - dns_record_action | default('create') == 'create'
+    - dns_record_type | default('A') == 'A'
+    - dns_record_ip is defined
+
 - name: Create/Update DNS A record
   uri:
     url: "http://{{ technitium_dns_server }}:5380/api/zones/records/add"
@@ -35,12 +62,31 @@
   failed_when: >-
     (dns_create_a_result.json is defined) and
     (dns_create_a_result.json.status | default('ok') != 'ok')
-  when: 
+  when:
     - manage_dns_records | default(false)
     - dns_record_action | default('create') == 'create'
     - dns_record_type | default('A') == 'A'
     - dns_record_ip is defined
   ignore_errors: yes
+
+- name: Pre-delete conflicting A records before creating CNAME
+  uri:
+    url: "http://{{ technitium_dns_server }}:5380/api/zones/records/delete"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      token: "{{ technitium_api_token }}"
+      domain: "{{ dns_record_name }}.{{ cluster_tld }}"
+      type: "A"
+    status_code: [200, 201, 404]
+    timeout: 30
+  register: dns_predelete_a
+  failed_when: false
+  when:
+    - manage_dns_records | default(false)
+    - dns_record_action | default('create') == 'create'
+    - dns_record_type | default('A') == 'CNAME'
+    - dns_record_target is defined
 
 - name: Create/Update DNS CNAME record
   uri:
@@ -60,7 +106,7 @@
   failed_when: >-
     (dns_create_cname_result.json is defined) and
     (dns_create_cname_result.json.status | default('ok') != 'ok')
-  when: 
+  when:
     - manage_dns_records | default(false)
     - dns_record_action | default('create') == 'create'
     - dns_record_type | default('A') == 'CNAME'
