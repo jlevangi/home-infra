@@ -71,7 +71,10 @@ spec:
             httpGet:
               path: /health
               port: http
-            initialDelaySeconds: 600
+            # GLM-4.7-Flash-Q6_K (23 GiB) loads in ~45s on the Quadro P4000.
+            # Bump initialDelaySeconds if you switch to a much larger model
+            # (e.g. DeepSeek-R1 IQ2_XXS at 180 GiB would want ~600s).
+            initialDelaySeconds: 60
             periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 30
