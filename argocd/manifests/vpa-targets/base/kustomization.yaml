@@ -4,7 +4,6 @@ resources:
   - 3dprintcalc.yaml
   - firefox.yaml
   - ittools.yaml
-  - lazydj.yaml
   - linkding.yaml
   - memos.yaml
   - microbin.yaml
