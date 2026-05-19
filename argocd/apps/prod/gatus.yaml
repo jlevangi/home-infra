@@ -16,9 +16,6 @@ spec:
         image:
           tag: v5.35.0
 
-        deployment:
-          strategy: Recreate
-
         ingress:
           enabled: true
           ingressClassName: traefik
