@@ -8,10 +8,15 @@ data:
     version: v1
     flags:
       migStrategy: none
+    # 4 replicas = Plex + Jellyfin + llama-cpp + 1 slack slot to absorb
+    # transient overlap during deployment rollouts. Time-slicing is purely
+    # a scheduler-side accounting limit; the Quadro P4000 still serves one
+    # workload at a time at the silicon level, with concurrent claimants
+    # sharing VRAM and compute.
     sharing:
       timeSlicing:
         renameByDefault: false
         failRequestsGreaterThanOne: true
         resources:
           - name: nvidia.com/gpu
-            replicas: 2
+            replicas: 4
