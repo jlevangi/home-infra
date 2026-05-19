@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama-cpp
+  namespace: llama-cpp
+  labels:
+    app: llama-cpp
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: llama-cpp
+  template:
+    metadata:
+      labels:
+        app: llama-cpp
+    spec:
+      containers:
+        - name: llama-server
+          # TODO: pin to a digest (`@sha256:...`) before promoting widely.
+          image: ghcr.io/ggml-org/llama.cpp:server-cuda
+          imagePullPolicy: IfNotPresent
+          args:
+            - --model
+            - /models/GLM/GLM-4.7-Flash-Q6_K.gguf
+            - --alias
+            - GLM-4.7-Flash-Q6_K
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8080"
+            - --gpu-layers
+            - "3"
+            - --threads
+            - "20"
+            - --ctx-size
+            - "8192"
+            - --batch-size
+            - "256"
+            - --ubatch-size
+            - "128"
+            - --parallel
+            - "1"
+            - --flash-attn
+            - "on"
+            - --cache-type-k
+            - q4_0
+            - --cache-type-v
+            - q4_0
+            - --no-webui
+          env:
+            - name: CUDA_VISIBLE_DEVICES
+              value: "0"
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: all
+            - name: NVIDIA_DRIVER_CAPABILITIES
+              value: compute,utility
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: "4"
+              memory: 80Gi
+            limits:
+              cpu: "22"
+              memory: 130Gi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 600
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 30
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: llama-cpp-models-pvc
