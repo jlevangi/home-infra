@@ -1,0 +1,45 @@
+---
+# Format and mount a dedicated block device for LLM model files.
+# Activated by setting `llm_model_disk_device` (e.g. /dev/disk/by-id/...) and
+# `llm_model_mount_path` in host_vars. Used by the GPU worker to back the
+# llama-cpp static local PV (/mnt/llm-models on a dedicated scsi2 LVM disk).
+# Unset = no-op everywhere else.
+
+- name: Stat LLM model disk
+  ansible.builtin.stat:
+    path: "{{ llm_model_disk_device }}"
+  register: llm_model_disk
+  become: yes
+
+- name: Fail if LLM model disk is missing
+  ansible.builtin.fail:
+    msg: "llm_model_disk_device={{ llm_model_disk_device }} not found on {{ inventory_hostname }}"
+  when: not llm_model_disk.stat.exists
+
+- name: Format LLM model disk as ext4
+  community.general.filesystem:
+    fstype: ext4
+    dev: "{{ llm_model_disk_device }}"
+  become: yes
+
+- name: Resolve LLM model disk UUID
+  ansible.builtin.command: blkid -s UUID -o value {{ llm_model_disk_device }}
+  register: llm_model_disk_uuid
+  changed_when: false
+  become: yes
+
+- name: Ensure LLM model mount path exists
+  ansible.builtin.file:
+    path: "{{ llm_model_mount_path }}"
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Mount LLM model disk at {{ llm_model_mount_path }}
+  ansible.posix.mount:
+    src: "UUID={{ llm_model_disk_uuid.stdout }}"
+    path: "{{ llm_model_mount_path }}"
+    fstype: ext4
+    opts: defaults,noatime
+    state: mounted
+  become: yes

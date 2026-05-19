@@ -1,0 +1,14 @@
+---
+# One-off maintenance play: mount the dedicated LLM model disk on a GPU worker.
+# Idempotent — re-runnable. Activated only on hosts that set
+# `llm_model_disk_device` (see ansible/inventories/production/host_vars/
+# k3s-prod-worker-gpu-1.yml).
+- name: Mount LLM model disk on the GPU worker
+  hosts: k3s-prod-worker-gpu-1
+  gather_facts: false
+  tasks:
+    - name: Run the k3s role task that formats and mounts the LLM model disk
+      ansible.builtin.include_tasks: ../../roles/k3s/tasks/llm-model-disk.yml
+      when:
+        - llm_model_disk_device is defined
+        - llm_model_disk_device | length > 0

@@ -9,6 +9,13 @@ longhorn_node_tags:
 # because Longhorn CSI iSCSI volumes attached for Plex/Jellyfin grab earlier
 # sd letters before the local data disk would.
 longhorn_data_disk_device: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi1
+# Dedicated ssd3 (LVM) disk (scsi2) for LLM model files. Mounted at
+# /mnt/llm-models and surfaced into Kubernetes as a static local PV consumed
+# by the llama-cpp Argo app. By-id path for the same enumeration-stability
+# reason called out above. Backed by LVM rather than ZFS so heavy write
+# bursts during model staging don't pay compression/checksum/ARC overhead.
+llm_model_disk_device: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi2
+llm_model_mount_path: /mnt/llm-models
 k3s_agent_args:
   - "--node-label=accelerator=nvidia"
   - "--node-taint=accelerator=nvidia:NoSchedule"

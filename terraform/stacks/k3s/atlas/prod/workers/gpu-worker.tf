@@ -40,6 +40,42 @@ variable "gpu_worker_pci_address" {
   default     = "0000:03:00"
 }
 
+variable "gpu_worker_cpu_cores" {
+  description = "CPU cores per socket for the GPU worker."
+  type        = number
+  default     = 24
+}
+
+variable "gpu_worker_cpu_sockets" {
+  description = "CPU sockets for the GPU worker (NUMA-aware layout)."
+  type        = number
+  default     = 2
+}
+
+variable "gpu_worker_memory" {
+  description = "Memory (MiB) for the GPU worker. Capped at 176128 MiB (172 GiB) so the pinned passthrough allocation fits within the atlas host's free RAM headroom after the other prod VMs reserve theirs."
+  type        = number
+  default     = 176128
+}
+
+variable "gpu_worker_balloon" {
+  description = "Balloon target (MiB) for the GPU worker (matches memory; ballooning is effectively disabled because hostpci0 requires pinned memory)."
+  type        = number
+  default     = 176128
+}
+
+variable "gpu_worker_llm_disk_size" {
+  description = "Dedicated LLM model storage disk size on the GPU worker."
+  type        = string
+  default     = "500G"
+}
+
+variable "gpu_worker_llm_disk_storage" {
+  description = "Proxmox storage pool for the GPU worker LLM model disk. Uses an LVM-backed pool (ssd3) rather than ZFS so writes don't pay compression/checksum/ARC overhead — important because model staging pushes 100+ GB at line rate."
+  type        = string
+  default     = "ssd3"
+}
+
 resource "proxmox_vm_qemu" "gpu_worker" {
   name        = var.gpu_worker_name
   vmid        = var.gpu_worker_vmid
@@ -57,14 +93,14 @@ resource "proxmox_vm_qemu" "gpu_worker" {
   machine            = "q35"
 
   cpu {
-    cores   = var.cpu_cores
-    sockets = 1
+    cores   = var.gpu_worker_cpu_cores
+    sockets = var.gpu_worker_cpu_sockets
     type    = "host"
     numa    = true
   }
 
-  memory   = var.memory
-  balloon  = var.balloon
+  memory   = var.gpu_worker_memory
+  balloon  = var.gpu_worker_balloon
   scsihw   = "virtio-scsi-pci"
   bootdisk = "scsi0"
 
@@ -98,6 +134,15 @@ resource "proxmox_vm_qemu" "gpu_worker" {
     size    = var.gpu_worker_data_disk_size
     type    = "disk"
     storage = var.data_disk_storage
+  }
+
+  disk {
+    format    = "raw"
+    replicate = false
+    slot      = "scsi2"
+    size      = var.gpu_worker_llm_disk_size
+    type      = "disk"
+    storage   = var.gpu_worker_llm_disk_storage
   }
 
   pci {
