@@ -10,5 +10,19 @@ patches:
       - op: add
         path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
         value: "k3s-prod.levangie.dev"
+  - target:
+      kind: PersistentVolumeClaim
+      name: firefox-config-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: firefox-config-pv
+  - target:
+      kind: PersistentVolumeClaim
+      name: firefox-gluetun-config-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: firefox-gluetun-config-pv
 commonLabels:
   environment: prod

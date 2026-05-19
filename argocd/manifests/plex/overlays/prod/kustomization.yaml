@@ -38,6 +38,9 @@ patches:
       kind: PersistentVolumeClaim
       name: plex-config-pvc
     patch: |
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn
       - op: add
         path: /spec/volumeName
         value: plex-config-pv
