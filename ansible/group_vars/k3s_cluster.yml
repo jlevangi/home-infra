@@ -257,6 +257,22 @@ longhorn_backup_retain_hourly: 24
 longhorn_backup_retain_daily: 7
 longhorn_backup_retain_weekly: 4
 
+# Longhorn Engine/Rebuild Tuning
+# Tuned to be gentler than upstream defaults because our workers run on a
+# shared Proxmox host (atlas) whose ZFS-backed disks can spike I/O wait under
+# load. With upstream defaults (engineReplicaTimeout=8s, rebuild concurrency=5)
+# any sustained I/O pressure on the host caused replica heartbeats to slip
+# past timeout, triggered volume-faulted cascades, and snowballed via
+# auto-salvage. These values widen the engine's patience window and cap
+# rebuild parallelism so a single replica catch-up cannot saturate the host.
+# autoSalvage stays on (true) for normal operation; the May 2026 incident
+# required manually disabling it via `kubectl patch` to stop a cascade, but
+# we want it back to true after the helm chart re-applies these defaults.
+longhorn_auto_salvage: true
+longhorn_engine_replica_timeout: 30                  # seconds (Longhorn max)
+longhorn_replica_replenishment_wait_interval: 600    # seconds before new replica is created after one fails
+longhorn_concurrent_replica_rebuild_per_node_limit: 2
+
 # -----------------------------------------------------------------------------
 # NVIDIA GPU WORKER CONFIGURATION
 # -----------------------------------------------------------------------------

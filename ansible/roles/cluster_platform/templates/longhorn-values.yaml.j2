@@ -6,6 +6,11 @@ defaultSettings:
   defaultReplicaCount: {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}
   storageReservedPercentageForDefaultDisk: {{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }}
   defaultDataPath: "{{ longhorn_default_data_path | regex_replace('/$','') }}/"
+  # Engine/rebuild tuning — see k3s_cluster.yml for rationale.
+  autoSalvage: {{ longhorn_auto_salvage | default(true) | bool | string | lower }}
+  engineReplicaTimeout: {{ longhorn_engine_replica_timeout | default(30) }}
+  replicaReplenishmentWaitInterval: {{ longhorn_replica_replenishment_wait_interval | default(600) }}
+  concurrentReplicaRebuildPerNodeLimit: {{ longhorn_concurrent_replica_rebuild_per_node_limit | default(2) }}
 {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}
   backupTarget: "nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}"
 {% endif %}
