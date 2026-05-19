@@ -8,6 +8,17 @@ variable "vm_count" {
   type        = number
 }
 
+variable "vm_ids" {
+  description = "Optional fixed Proxmox VMIDs in creation order. Leave empty to let Proxmox assign IDs."
+  type        = list(number)
+  default     = []
+
+  validation {
+    condition     = length(var.vm_ids) == 0 || length(var.vm_ids) == var.vm_count
+    error_message = "vm_ids must be empty or contain exactly vm_count entries."
+  }
+}
+
 variable "target_nodes" {
   description = "Proxmox target nodes. If shorter than vm_count, Terraform cycles through the list."
   type        = list(string)

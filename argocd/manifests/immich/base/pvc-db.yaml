@@ -6,6 +6,7 @@ metadata:
   labels:
     app: immich-postgres
     volume-type: database
+    recurringjob.group.longhorn.io/hourly: "enabled"
 spec:
   accessModes:
     - ReadWriteOnce

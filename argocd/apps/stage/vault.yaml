@@ -14,6 +14,7 @@ spec:
     chart: vault
     targetRevision: 0.32.0
     helm:
+      releaseName: vault-raft
       values: |
         global:
           enabled: true
@@ -24,10 +25,59 @@ spec:
           enabled: false
         server:
           ha:
-            enabled: false
+            enabled: true
+            replicas: 3
+            raft:
+              enabled: true
+              setNodeId: true
+              config: |
+                ui = true
+
+                listener "tcp" {
+                  tls_disable = 1
+                  address = "[::]:8200"
+                  cluster_address = "[::]:8201"
+                }
+
+                storage "raft" {
+                  path = "/vault/data"
+
+                  retry_join {
+                    leader_api_addr = "http://vault-raft-0.vault-raft-internal:8200"
+                  }
+                  retry_join {
+                    leader_api_addr = "http://vault-raft-1.vault-raft-internal:8200"
+                  }
+                  retry_join {
+                    leader_api_addr = "http://vault-raft-2.vault-raft-internal:8200"
+                  }
+                }
+
+                service_registration "kubernetes" {}
+            disruptionBudget:
+              enabled: true
           dataStorage:
             enabled: true
             size: 5Gi
+            storageClass: longhorn-vault-raft
+          affinity: |
+            podAntiAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      app.kubernetes.io/instance: vault-raft
+                      app.kubernetes.io/name: vault
+                      component: server
+                  topologyKey: kubernetes.io/hostname
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: kubernetes.io/hostname
+              whenUnsatisfiable: DoNotSchedule
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/instance: vault-raft
+                  app.kubernetes.io/name: vault
+                  component: server
           livenessProbe:
             enabled: true
             execCommand:
@@ -52,7 +102,7 @@ spec:
                   - /
   destination:
     server: https://kubernetes.default.svc
-    namespace: vault
+    namespace: vault-raft
   syncPolicy:
     automated:
       prune: true

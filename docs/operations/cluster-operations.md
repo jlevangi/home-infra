@@ -15,39 +15,39 @@ Use this runbook for normal day-2 Kubernetes operations: switching context, depl
 ### Set up or refresh kubeconfig contexts
 
 ```bash
-./scripts/helpers/k3s-context-manager.sh setup
+./scripts/k3s/helpers/k3s-context-manager.sh setup
 ```
 
 ### Switch clusters
 
 ```bash
-./scripts/helpers/k3s-context-manager.sh switch prod
-./scripts/helpers/k3s-context-manager.sh switch stage
-./scripts/helpers/k3s-context-manager.sh switch test
+./scripts/k3s/helpers/k3s-context-manager.sh switch prod
+./scripts/k3s/helpers/k3s-context-manager.sh switch stage
+./scripts/k3s/helpers/k3s-context-manager.sh switch test
 ```
 
 ### Inspect available contexts
 
 ```bash
-./scripts/helpers/k3s-context-manager.sh list
-./scripts/helpers/k3s-context-manager.sh status
+./scripts/k3s/helpers/k3s-context-manager.sh list
+./scripts/k3s/helpers/k3s-context-manager.sh status
 ```
 
-If you use the shell helpers, source `scripts/helpers/k3s-shell-functions.sh` from your shell profile.
+If you use the shell helpers, source `scripts/k3s/helpers/k3s-shell-functions.sh` from your shell profile.
 
 ## Component Deployment
 
 ### Common commands
 
 ```bash
-./scripts/deploy-component.sh --list
-./scripts/deploy-component.sh --prod traefik
-./scripts/deploy-component.sh --prod metallb
-./scripts/deploy-component.sh --prod longhorn
-./scripts/deploy-component.sh --prod argocd
-./scripts/deploy-component.sh --prod vault
-./scripts/deploy-component.sh --prod bookstack
-./scripts/deploy-component.sh --prod homepage --force
+./scripts/k3s/deploy-component.sh --list
+./scripts/k3s/deploy-component.sh --prod traefik
+./scripts/k3s/deploy-component.sh --prod metallb
+./scripts/k3s/deploy-component.sh --prod longhorn
+./scripts/k3s/deploy-component.sh --prod argocd
+./scripts/k3s/deploy-component.sh --prod vault
+./scripts/k3s/deploy-component.sh --prod bookstack
+./scripts/k3s/deploy-component.sh --prod homepage --force
 ```
 
 ### Current infrastructure component order
@@ -61,6 +61,23 @@ If you use the shell helpers, source `scripts/helpers/k3s-shell-functions.sh` fr
 5. `vault`
 
 Use `all-infra` for a fresh cluster when you want to apply them in order.
+
+## Cluster Maintenance
+
+### Graceful shutdown and power-on
+
+```bash
+./scripts/maintenance/shutdown-k3s-cluster.sh --stage
+./scripts/maintenance/power-on-k3s-cluster.sh --stage
+```
+
+`power-on-k3s-cluster.sh` powers on the Proxmox VMs for the selected environment, waits for them to be running, and then invokes the normal restart flow.
+
+### Service restart when VMs are already up
+
+```bash
+./scripts/maintenance/restart-k3s-cluster.sh --stage
+```
 
 ## Direct Ansible Commands
 
@@ -135,7 +152,7 @@ kubectl get clustersecretstore
 
 ## Common Troubleshooting
 
-- If kubeconfig contexts look stale, rerun `./scripts/helpers/k3s-context-manager.sh setup`.
+- If kubeconfig contexts look stale, rerun `./scripts/k3s/helpers/k3s-context-manager.sh setup`.
 - If deployment wrappers fail early, verify `~/.ansible_vault_pass` and SSH connectivity first.
 - If PVC-related issues appear after a restore, use the recovery docs before letting ArgoCD self-heal over manual changes.
 

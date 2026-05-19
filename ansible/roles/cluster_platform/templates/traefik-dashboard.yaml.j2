@@ -1,0 +1,48 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: traefik-dashboard
+  namespace: traefik-system
+  labels:
+    app.kubernetes.io/name: traefik-dashboard
+  annotations:
+    external-dns.alpha.kubernetes.io/target: "{{ cluster_dns_name }}"
+spec:
+  entryPoints:
+{% if traefik_tls_enabled | default(false) %}
+    - websecure
+  tls:
+    certResolver: letsencrypt
+{% else %}
+    - web
+{% endif %}
+  routes:
+    - match: Host(`traefik.{{ environment_domain }}`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
+      kind: Rule
+{% if traefik_dashboard_htpasswd is defined and not traefik_dashboard_insecure | default(false) %}
+      middlewares:
+        - name: traefik-dashboard-auth
+{% endif %}
+      services:
+        - name: api@internal
+          kind: TraefikService
+{% if traefik_dashboard_htpasswd is defined %}
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: traefik-dashboard-auth
+  namespace: traefik-system
+spec:
+  basicAuth:
+    secret: traefik-dashboard-auth
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: traefik-dashboard-auth
+  namespace: traefik-system
+type: Opaque
+data:
+  users: {{ traefik_dashboard_htpasswd | b64encode }}
+{% endif %}

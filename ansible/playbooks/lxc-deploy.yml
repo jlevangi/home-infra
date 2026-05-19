@@ -10,10 +10,14 @@
   hosts: localhost
   gather_facts: false
   vars_files:
-    - ../group_vars/lxc_vault.yml
+    - ../group_vars/proxmox.yml
     - ../group_vars/lxc.yml
 
   tasks:
+    - name: Load shared Proxmox vault vars
+      ansible.builtin.include_vars:
+        file: ../group_vars/proxmox_vault.yml
+
     - name: Validate container_name is provided
       ansible.builtin.fail:
         msg: "container_name must be specified. Use -e container_name=<name>"
@@ -52,10 +56,14 @@
   hosts: localhost
   gather_facts: false
   vars_files:
-    - ../group_vars/lxc_vault.yml
+    - ../group_vars/proxmox.yml
     - ../group_vars/lxc.yml
 
   tasks:
+    - name: Load shared Proxmox vault vars
+      ansible.builtin.include_vars:
+        file: ../group_vars/proxmox_vault.yml
+
     - name: Load container definition
       ansible.builtin.include_vars:
         file: "{{ lxc_definitions_path }}/containers/{{ container_name }}.yml"
@@ -76,10 +84,14 @@
   hosts: localhost
   gather_facts: false
   vars_files:
-    - ../group_vars/lxc_vault.yml
+    - ../group_vars/proxmox.yml
     - ../group_vars/lxc.yml
 
   tasks:
+    - name: Load shared Proxmox vault vars
+      ansible.builtin.include_vars:
+        file: ../group_vars/proxmox_vault.yml
+
     - name: Load container definition
       ansible.builtin.include_vars:
         file: "{{ lxc_definitions_path }}/containers/{{ container_name }}.yml"
@@ -100,10 +112,15 @@
   gather_facts: true
   become: true
   vars_files:
-    - ../group_vars/lxc_vault.yml
+    - ../group_vars/proxmox.yml
     - ../group_vars/lxc.yml
 
   pre_tasks:
+    - name: Load shared Proxmox vault vars
+      ansible.builtin.include_vars:
+        file: ../group_vars/proxmox_vault.yml
+      delegate_to: localhost
+
     - name: Load container definition
       ansible.builtin.include_vars:
         file: "{{ lxc_definitions_path }}/containers/{{ container_name }}.yml"

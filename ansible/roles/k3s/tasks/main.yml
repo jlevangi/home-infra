@@ -43,32 +43,11 @@
   become: yes
   when: k3s_install_longhorn | default(true)
 
-- name: Tune iSCSI noop_out_interval for Longhorn
-  ansible.builtin.lineinfile:
+- name: Manage Longhorn iSCSI tuning block
+  ansible.builtin.blockinfile:
     path: /etc/iscsi/iscsid.conf
-    regexp: '^\s*node\.conn\[0\]\.timeo\.noop_out_interval\s*='
-    line: "node.conn[0].timeo.noop_out_interval = {{ k3s_iscsi_noop_out_interval }}"
-    state: present
-  become: yes
-  when: k3s_install_longhorn | default(true)
-  notify: restart iscsid
-
-- name: Tune iSCSI noop_out_timeout for Longhorn
-  ansible.builtin.lineinfile:
-    path: /etc/iscsi/iscsid.conf
-    regexp: '^\s*node\.conn\[0\]\.timeo\.noop_out_timeout\s*='
-    line: "node.conn[0].timeo.noop_out_timeout = {{ k3s_iscsi_noop_out_timeout }}"
-    state: present
-  become: yes
-  when: k3s_install_longhorn | default(true)
-  notify: restart iscsid
-
-- name: Tune iSCSI session replacement_timeout for Longhorn
-  ansible.builtin.lineinfile:
-    path: /etc/iscsi/iscsid.conf
-    regexp: '^\s*node\.session\.timeo\.replacement_timeout\s*='
-    line: "node.session.timeo.replacement_timeout = {{ k3s_iscsi_replacement_timeout }}"
-    state: present
+    marker: "# {mark} ANSIBLE MANAGED LONGHORN TUNING"
+    block: "{{ lookup('template', 'iscsid-longhorn.conf.j2') }}"
   become: yes
   when: k3s_install_longhorn | default(true)
   notify: restart iscsid
@@ -81,9 +60,8 @@
   become: yes
   when: k3s_install_longhorn | default(true)
 
-# Helm-driven infrastructure installs (Longhorn, MetalLB, Traefik, ArgoCD,
-# Vault) live in infra-install.yml and run from k3s-deploy-cluster.yml's
-# third play, AFTER all masters and workers have joined. They cannot run
-# during the masters play because a first master alone has no eligible
-# storage nodes when longhorn_exclude_master_from_storage is true, which
-# wedges any PVC-backed component on PVC binding.
+# Helm-driven infrastructure installs now live in roles/cluster_platform and
+# run from k3s-deploy-cluster.yml's third play, AFTER all masters and workers
+# have joined. They cannot run during the masters play because a first master
+# alone has no eligible storage nodes when longhorn_exclude_master_from_storage
+# is true, which wedges any PVC-backed component on PVC binding.

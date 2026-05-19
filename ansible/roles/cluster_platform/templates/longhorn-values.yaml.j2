@@ -1,0 +1,11 @@
+global:
+  tolerations: {{ longhorn_global_tolerations_json }}
+
+defaultSettings:
+  taintToleration: '{{ longhorn_taint_toleration_value }}'
+  defaultReplicaCount: {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}
+  storageReservedPercentageForDefaultDisk: {{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }}
+  defaultDataPath: "{{ longhorn_default_data_path | regex_replace('/$','') }}/"
+{% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}
+  backupTarget: "nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}"
+{% endif %}

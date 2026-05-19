@@ -1,0 +1,123 @@
+---
+# Power on a K3s cluster's Proxmox VMs prior to the normal restart flow.
+#
+# Required variables:
+#   target_cluster - Ansible group name (e.g., k3s_cluster_stage)
+#
+# Optional variables:
+#   proxmox_start_timeout - Seconds to wait for each VM to reach running (default: 300)
+#   proxmox_poll_delay    - Poll interval in seconds (default: 5)
+
+- name: Power on cluster VMs in Proxmox
+  hosts: localhost
+  gather_facts: no
+
+  vars_files:
+    - ../../group_vars/proxmox.yml
+
+  vars:
+    proxmox_start_timeout_seconds: "{{ proxmox_start_timeout | default(300) | int }}"
+    proxmox_poll_delay_seconds: "{{ proxmox_poll_delay | default(5) | int }}"
+
+  tasks:
+    - name: Load shared Proxmox vault vars
+      ansible.builtin.include_vars:
+        file: ../../group_vars/proxmox_vault.yml
+
+    - name: Assert target cluster and Proxmox credentials are defined
+      ansible.builtin.assert:
+        that:
+          - target_cluster is defined
+          - target_cluster in groups
+          - groups[target_cluster] | length > 0
+          - proxmox_api_host is defined
+          - proxmox_api_token_id is defined
+          - proxmox_api_token_secret is defined
+        fail_msg: "target_cluster, inventory membership, and Proxmox API credentials must be defined"
+
+    - name: Set expected VM names from inventory
+      ansible.builtin.set_fact:
+        expected_vm_names: "{{ groups[target_cluster] | list }}"
+
+    - name: Fetch Proxmox VM inventory
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/cluster/resources?type=vm"
+        method: GET
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
+        validate_certs: false
+      register: proxmox_cluster_resources
+      changed_when: false
+
+    - name: Assert each inventory host maps to exactly one Proxmox VM
+      ansible.builtin.assert:
+        that:
+          - matched_vm | length == 1
+        fail_msg: "Expected exactly one Proxmox qemu VM named '{{ item }}', found {{ matched_vm | length }}"
+      vars:
+        matched_vm: >-
+          {{
+            proxmox_cluster_resources.json.data
+            | default([])
+            | selectattr('type', 'equalto', 'qemu')
+            | selectattr('name', 'equalto', item)
+            | list
+          }}
+      loop: "{{ expected_vm_names }}"
+
+    - name: Build ordered Proxmox VM list
+      ansible.builtin.set_fact:
+        target_proxmox_vms: "{{ (target_proxmox_vms | default([])) + [matched_vm] }}"
+      vars:
+        matched_vm: >-
+          {{
+            proxmox_cluster_resources.json.data
+            | default([])
+            | selectattr('type', 'equalto', 'qemu')
+            | selectattr('name', 'equalto', item)
+            | list
+            | first
+          }}
+      loop: "{{ expected_vm_names }}"
+
+    - name: Summarize current VM status
+      ansible.builtin.set_fact:
+        already_running_vm_names: "{{ target_proxmox_vms | selectattr('status', 'equalto', 'running') | map(attribute='name') | list }}"
+        vm_names_to_start: "{{ target_proxmox_vms | rejectattr('status', 'equalto', 'running') | map(attribute='name') | list }}"
+
+    - name: Start powered-off VMs
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ item.node }}/qemu/{{ item.vmid }}/status/start"
+        method: POST
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
+        body_format: form-urlencoded
+        body: {}
+        validate_certs: false
+      loop: "{{ target_proxmox_vms | rejectattr('status', 'equalto', 'running') | list }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: (target_proxmox_vms | rejectattr('status', 'equalto', 'running') | list | length) > 0
+
+    - name: Wait for VMs to report running in Proxmox
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ item.node }}/qemu/{{ item.vmid }}/status/current"
+        method: GET
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
+        validate_certs: false
+      register: proxmox_vm_status
+      changed_when: false
+      retries: "{{ [1, (proxmox_start_timeout_seconds // proxmox_poll_delay_seconds)] | max }}"
+      delay: "{{ proxmox_poll_delay_seconds }}"
+      until: proxmox_vm_status.json.data.status == "running"
+      loop: "{{ target_proxmox_vms }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Display power-on summary
+      ansible.builtin.debug:
+        msg: |
+          Proxmox power-on complete for {{ target_cluster }}.
+          Already running: {{ already_running_vm_names | default([]) | join(', ') if (already_running_vm_names | default([]) | length > 0) else 'none' }}
+          Started now: {{ vm_names_to_start | default([]) | join(', ') if (vm_names_to_start | default([]) | length > 0) else 'none' }}

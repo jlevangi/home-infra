@@ -1,0 +1,181 @@
+---
+# MetalLB Installation
+# This provides LoadBalancer services for K3s
+
+- name: Check if MetalLB namespace exists
+  shell: kubectl --kubeconfig={{ kubeconfig_path }} get namespace metallb-system
+  register: metallb_namespace_check
+  ignore_errors: yes
+  failed_when: false
+
+- name: Check if MetalLB is running (any installation method)
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    kubectl get deployment controller -n metallb-system --ignore-not-found
+  register: metallb_running_check
+  ignore_errors: yes
+  failed_when: false
+
+- name: Check if MetalLB Helm release exists
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    helm list -n metallb-system -o json | jq -r '.[].name' | grep -q metallb
+  register: metallb_helm_check
+  ignore_errors: yes
+  failed_when: false
+
+- name: Get MetalLB release status if it exists
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    helm status metallb -n metallb-system -o json | jq -r '.info.status'
+  register: metallb_status_check
+  ignore_errors: yes
+  failed_when: false
+  when: 
+    - metallb_helm_check.rc == 0
+
+- name: Uninstall failed MetalLB release if needed
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    helm uninstall metallb -n metallb-system
+  when: 
+    - metallb_helm_check.rc == 0
+    - metallb_status_check.stdout == "failed"
+  ignore_errors: yes
+
+- name: Determine if MetalLB needs deployment
+  set_fact:
+    metallb_needs_deployment: "{{ force_metallb_redeploy | default(false) or metallb_running_check.stdout == '' }}"
+
+- name: Display MetalLB installation info
+  debug:
+    msg: |
+      🔧 {{ 'Installing/Updating' if metallb_needs_deployment else 'Already running' }} MetalLB LoadBalancer
+      MetalLB provides LoadBalancer services for bare-metal Kubernetes clusters
+      Configuration: Layer 2 mode with IP range {{ metallb_ip_range | default('172.20.20.200-172.20.20.210') }}
+      Status: {{ 'Already running (non-Helm)' if metallb_running_check.stdout != '' and metallb_helm_check.rc != 0 else 'New installation' if metallb_helm_check.rc != 0 else 'Existing Helm installation found' }}
+      Current Status: {{ metallb_status_check.stdout | default('Not managed by Helm' if metallb_running_check.stdout != '' else 'Not installed') }}
+
+- name: Add MetalLB Helm repository
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    helm repo add metallb https://metallb.github.io/metallb || true
+    helm repo update
+  when: 
+    - metallb_needs_deployment
+
+- name: Wait for K3s API server to be fully ready
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    kubectl get nodes --request-timeout=5s
+  retries: 12
+  delay: 10
+  register: k3s_api_ready
+  until: k3s_api_ready.rc == 0
+  when: 
+    - metallb_needs_deployment
+
+- name: Ensure MetalLB namespace exists with required pod-security labels
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl apply -f - <<'EOF'
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: metallb-system
+      labels:
+        pod-security.kubernetes.io/enforce: {{ metallb_namespace_pod_security_enforce }}
+        pod-security.kubernetes.io/audit: {{ metallb_namespace_pod_security_audit | default(metallb_namespace_pod_security_enforce) }}
+        pod-security.kubernetes.io/warn: {{ metallb_namespace_pod_security_warn | default(metallb_namespace_pod_security_enforce) }}
+    EOF
+  when:
+    - metallb_namespace_pod_security_enforce | length > 0
+    - metallb_needs_deployment
+
+- name: Check for any existing MetalLB releases across all namespaces
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    helm list --all-namespaces | grep metallb || echo "No MetalLB releases found"
+  register: metallb_all_releases_check
+  ignore_errors: yes
+  when: 
+    - metallb_needs_deployment
+
+- name: Force cleanup any existing MetalLB releases
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    # Check all namespaces for metallb releases and remove them
+    for ns in $(kubectl get namespaces -o name | cut -d/ -f2); do
+      if helm list -n "$ns" | grep -q metallb; then
+        echo "Found MetalLB release in namespace $ns, removing..."
+        helm uninstall metallb -n "$ns" || true
+      fi
+    done
+    # Also try common locations just in case
+    helm uninstall metallb -n metallb-system 2>/dev/null || true
+    helm uninstall metallb -n default 2>/dev/null || true
+    helm uninstall metallb -n kube-system 2>/dev/null || true
+  when: 
+    - metallb_needs_deployment
+    - force_metallb_redeploy | default(false)
+  ignore_errors: yes
+
+- name: Install MetalLB using Helm
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    helm upgrade --install metallb metallb/metallb \
+      --namespace metallb-system \
+      --create-namespace \
+      --wait \
+      --timeout=10m
+  register: metallb_install_result
+  retries: 2
+  delay: 30
+  when: 
+    - metallb_needs_deployment
+
+- name: Wait for MetalLB pods to be ready
+  shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} wait --for=condition=ready pod \
+      -l app.kubernetes.io/name=metallb \
+      -n metallb-system \
+      --timeout=120s
+  when: 
+    - metallb_needs_deployment
+
+- name: Check if MetalLB IP address pool exists
+  shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} get ipaddresspool default-pool -n metallb-system
+  register: metallb_pool_check
+  ignore_errors: yes
+  failed_when: false
+
+- name: Create MetalLB IP address pool configuration
+  template:
+    src: metallb-config.yaml.j2
+    dest: /tmp/metallb-config.yaml
+    mode: '0644'
+  register: metallb_config_template
+
+- name: Apply MetalLB configuration
+  shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} apply -f /tmp/metallb-config.yaml
+  register: metallb_config_result
+  when: 
+    - metallb_pool_check.rc != 0 or metallb_config_template.changed
+
+- name: Display MetalLB installation results
+  debug:
+    msg: |
+      🎉 MetalLB {{ 'Installation Complete!' if metallb_needs_deployment else 'Already Running!' }}
+      
+      📊 Installation Status:
+      {{ metallb_install_result.stdout if metallb_install_result.stdout is defined else 'Already installed' }}
+      
+      🌐 IP Address Pool: {{ metallb_ip_range | default('172.20.20.200-172.20.20.210') }}
+      
+      ✅ MetalLB will {{ 'now' if metallb_needs_deployment else 'continue to' }} provide external IPs for LoadBalancer services
+      
+      📝 Verification Commands:
+      kubectl get pods -n metallb-system
+      kubectl get ipaddresspool -n metallb-system
+      kubectl get l2advertisement -n metallb-system

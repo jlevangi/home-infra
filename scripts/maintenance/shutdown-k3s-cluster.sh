@@ -2,9 +2,9 @@
 # Safely shut down a K3s cluster for maintenance
 #
 # Usage:
-#   ./shutdown-k3s-cluster.sh --prod                        # Shut down production cluster
-#   ./shutdown-k3s-cluster.sh --test --force                 # Shut down test (no confirmation)
-#   ./shutdown-k3s-cluster.sh --prod --skip-vm-shutdown      # Stop K3s only, leave VMs running
+#   ./scripts/maintenance/shutdown-k3s-cluster.sh --prod                       # Shut down production cluster
+#   ./scripts/maintenance/shutdown-k3s-cluster.sh --test --force               # Shut down test (no confirmation)
+#   ./scripts/maintenance/shutdown-k3s-cluster.sh --prod --skip-vm-shutdown    # Stop K3s only, leave VMs running
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
@@ -98,9 +98,9 @@ echo ""
 if [ $RESULT -eq 0 ]; then
     echo "✅ $CLUSTER_NAME cluster shut down successfully!"
     if [[ "$SKIP_VM_SHUTDOWN" == "false" ]]; then
-        echo "ℹ️  To restart: start VMs from Proxmox, then run ./restart-k3s-cluster.sh --${TARGET_ENV}"
+        echo "ℹ️  To restart: run ./scripts/maintenance/power-on-k3s-cluster.sh --${TARGET_ENV}"
     else
-        echo "ℹ️  To restart: run ./restart-k3s-cluster.sh --${TARGET_ENV}"
+        echo "ℹ️  To restart: run ./scripts/maintenance/restart-k3s-cluster.sh --${TARGET_ENV}"
     fi
 else
     echo "❌ $CLUSTER_NAME cluster shutdown failed (exit code: $RESULT)"

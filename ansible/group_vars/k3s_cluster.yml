@@ -104,9 +104,12 @@ coredns_upstream_nameservers:
   - "172.20.20.4"
 
 # -----------------------------------------------------------------------------
-# DNS MANAGEMENT
+# DNS INFRASTRUCTURE
 # -----------------------------------------------------------------------------
-manage_dns_records: true
+# Gates the anchor A record (k3s-<env>.levangie.dev) plus the Technitium
+# credential Secrets used by external-dns and the factorio DNS hook. Per-app
+# CNAMEs are owned by external-dns via ingress annotations, not the role.
+manage_dns_infrastructure: true
 technitium_dns_server: "{{ vault_technitium_dns_server }}"
 technitium_api_token: "{{ vault_technitium_api_token }}"
 dns_record_ttl: 3600
@@ -134,10 +137,11 @@ argocd_notifications_enabled: false  # Notification controller
 argocd_grpc_ingress_enabled: false  # gRPC ingress for external CLI
 
 # ArgoCD GitOps source configuration
-# All environments track the same Git revision and select their manifests by path:
-#   test:  argocd/apps/test
-#   stage: argocd/apps/stage
-#   prod:  argocd/apps/prod
+# Clusters select their manifests by path, and can override the tracked Git
+# revision per environment:
+#   test:  main  -> argocd/apps/test
+#   stage: stage -> argocd/apps/stage
+#   prod:  main  -> argocd/apps/prod
 argocd_target_revision: "main"
 argocd_deploy_root_app: true         # Deploy root app-of-apps Application
 
@@ -246,8 +250,10 @@ longhorn_ui_app_url: "https://longhorn.{{ environment_domain }}"
 # Longhorn Backup Configuration
 enable_longhorn_backup: true
 longhorn_backup_shared_across_clusters: true
-longhorn_backup_schedule_daily: "0 2 * * *"
-longhorn_backup_schedule_weekly: "0 3 * * 0"
+longhorn_backup_schedule_hourly: "0 * * * *"
+longhorn_backup_schedule_daily: "0 6 * * *"
+longhorn_backup_schedule_weekly: "0 7 * * 0"
+longhorn_backup_retain_hourly: 24
 longhorn_backup_retain_daily: 7
 longhorn_backup_retain_weekly: 4
 

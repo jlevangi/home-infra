@@ -19,6 +19,12 @@ The repo currently operates three Kubernetes environments:
 
 ## Quick Start
 
+### Install Ansible collections
+
+```bash
+ansible-galaxy collection install -r ansible/requirements.yml
+```
+
 ### Deploy a cluster
 
 ```bash
@@ -30,20 +36,30 @@ terraform apply
 
 # Configure the cluster
 cd ../../
-./scripts/deploy-k3s-cluster.sh --prod
+./scripts/k3s/deploy-cluster.sh --prod
 ```
 
 ### Deploy infrastructure components
 
 ```bash
 # Deploy a single infra component (longhorn, metallb, traefik, argocd, vault)
-./scripts/deploy-component.sh --prod traefik
+./scripts/k3s/deploy-component.sh --prod traefik
 
 # Deploy all core infra in order (fresh cluster bootstrap)
-./scripts/deploy-component.sh --prod all-infra
+./scripts/k3s/deploy-component.sh --prod all-infra
 ```
 
 Applications are deployed by ArgoCD from `argocd/apps/<env>/` on `main`.
+
+### Maintenance power cycle
+
+```bash
+./scripts/maintenance/shutdown-k3s-cluster.sh --stage
+./scripts/maintenance/power-on-k3s-cluster.sh --stage
+./scripts/maintenance/restart-k3s-cluster.sh --stage
+```
+
+Use `power-on-k3s-cluster.sh` after a full VM shutdown. Use `restart-k3s-cluster.sh` only when the VMs are already online.
 
 ### Manage LXC containers
 
@@ -64,7 +80,7 @@ Use the docs index as the entry point for everything beyond basic commands:
 - [Backup And Restore](docs/recovery/backup-and-restore.md)
 - [Production Cutover Checklist](docs/recovery/production-cutover-checklist.md)
 
-`docs/SECRETS_RETRIEVAL.md` is intentionally left as a separate personal-only document.
+`docs/operations/SECRETS_RETRIEVAL.md` is intentionally left as a separate personal-only document.
 
 ## Repository Layout
 
@@ -83,3 +99,4 @@ terraform/   Reusable modules plus root stacks for K3s and Talos VM provisioning
 - Shared manifests live under `argocd/manifests/**`.
 - Longhorn backups are shared through NFS so prod data can be restored into stage when needed.
 - Most operational workflows assume `~/.ansible_vault_pass` is present.
+- Shared Proxmox API credentials belong under `ansible/group_vars/proxmox_vault.yml`.

@@ -245,14 +245,6 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
-            - name: LazyDJ
-              group: Applications
-              url: https://lazydj.levangie.dev
-              interval: 5m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
-
             - name: Note Mark
               group: Applications
               url: https://notemark.levangie.org
@@ -406,8 +398,5 @@ spec:
     server: https://kubernetes.default.svc
     namespace: gatus
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
       - CreateNamespace=true

@@ -1,0 +1,4 @@
+# Managed by Ansible for Longhorn stability tuning.
+node.conn[0].timeo.noop_out_interval = {{ k3s_iscsi_noop_out_interval }}
+node.conn[0].timeo.noop_out_timeout = {{ k3s_iscsi_noop_out_timeout }}
+node.session.timeo.replacement_timeout = {{ k3s_iscsi_replacement_timeout }}

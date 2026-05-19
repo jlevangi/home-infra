@@ -6,6 +6,7 @@
 # =============================================================================
 
 cluster_environment: "stage"
+argocd_target_revision: "stage"
 
 # -----------------------------------------------------------------------------
 # NETWORK CONFIGURATION
@@ -42,6 +43,16 @@ argocd_controller_memory_request: "1Gi"
 longhorn_replica_count: 2
 longhorn_exclude_master_from_storage: true
 longhorn_guaranteed_instance_manager_cpu: 12
+
+# -----------------------------------------------------------------------------
+# VAULT TOPOLOGY (mirrors prod: HA Raft, 3 replicas)
+# -----------------------------------------------------------------------------
+vault_namespace: "vault-raft"
+vault_statefulset_name: "vault-raft"
+vault_pod_name: "vault-raft-0"
+vault_ha_enabled: true
+vault_raft_enabled: true
+vault_replica_count: 3
 
 # -----------------------------------------------------------------------------
 # CONTROL-PLANE NODE TAINT

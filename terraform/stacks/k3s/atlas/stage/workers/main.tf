@@ -87,6 +87,12 @@ variable "vm_count" {
   default     = 3
 }
 
+variable "vm_ids" {
+  description = "Fixed Proxmox VMIDs for worker VMs."
+  type        = list(number)
+  default     = [112, 113, 114]
+}
+
 variable "template_name" {
   description = "Proxmox template name."
   type        = string
@@ -126,13 +132,13 @@ variable "cpu_cores" {
 variable "memory" {
   description = "Memory in MB."
   type        = number
-  default     = 16384
+  default     = 32768
 }
 
 variable "balloon" {
   description = "Balloon memory in MB."
   type        = number
-  default     = 16384
+  default     = 32768
 }
 
 variable "os_disk_size" {
@@ -182,6 +188,7 @@ module "nodes" {
 
   vm_name_prefix    = var.vm_name_prefix
   vm_count          = var.vm_count
+  vm_ids            = var.vm_ids
   target_nodes      = var.proxmox_hosts
   template_name     = var.template_name
   proxmox_tags      = var.proxmox_tags

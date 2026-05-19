@@ -1,0 +1,18 @@
+---
+- name: Run Longhorn readiness checks
+  include_tasks: longhorn-readiness.yml
+
+- name: Install or repair Longhorn
+  include_tasks: longhorn-install.yml
+
+- name: Reconcile Longhorn node runtime configuration
+  include_tasks: longhorn-node-config.yml
+
+- name: Reconcile Longhorn storage configuration
+  include_tasks: longhorn-storage-config.yml
+
+- name: Validate Longhorn PVC provisioning
+  include_tasks: longhorn-validation.yml
+
+- name: Reconcile Longhorn post-validation cluster settings
+  include_tasks: longhorn-post-config.yml

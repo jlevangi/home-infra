@@ -1,0 +1,59 @@
+# ArgoCD Traefik IngressRoute
+# Provides SSL termination via Traefik with Let's Encrypt certificates
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: argocd-server
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-ingress
+    app.kubernetes.io/part-of: argocd
+  annotations:
+    external-dns.alpha.kubernetes.io/target: "{{ cluster_dns_name }}"
+spec:
+  entryPoints:
+{% if traefik_tls_enabled | default(false) %}
+    - websecure
+  tls:
+    certResolver: letsencrypt
+{% else %}
+    - web
+{% endif %}
+  routes:
+    # Main ArgoCD UI route
+    - match: Host(`argocd.{{ environment_domain }}`)
+      kind: Rule
+      priority: 10
+      services:
+        - name: argocd-server
+          port: 80
+{% if argocd_grpc_ingress_enabled | default(false) %}
+---
+# ArgoCD gRPC IngressRoute (for CLI access)
+# Only needed if you want to use ArgoCD CLI from outside the cluster
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: argocd-server-grpc
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-ingress-grpc
+    app.kubernetes.io/part-of: argocd
+spec:
+  entryPoints:
+{% if traefik_tls_enabled | default(false) %}
+    - websecure
+  tls:
+    certResolver: letsencrypt
+{% else %}
+    - web
+{% endif %}
+  routes:
+    - match: Host(`argocd.{{ environment_domain }}`) && Headers(`Content-Type`, `application/grpc`)
+      kind: Rule
+      priority: 11
+      services:
+        - name: argocd-server
+          port: 80
+          scheme: h2c
+{% endif %}

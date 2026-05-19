@@ -9,6 +9,9 @@ cluster_dns_name: "talos-test.{{ cluster_tld }}"
 platform_primary_node_ip: "172.20.20.131"
 platform_master_nodes:
   - "talos-test-node-1"
+platform_worker_nodes:
+  - "talos-test-node-2"
+  - "talos-test-node-3"
 platform_cluster_nodes:
   - "talos-test-node-1"
   - "talos-test-node-2"

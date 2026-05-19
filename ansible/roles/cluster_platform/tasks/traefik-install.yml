@@ -1,0 +1,204 @@
+---
+# Traefik 2 Installation
+# This provides advanced ingress controller with SSL support
+
+- name: Check Traefik service health
+  shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} get svc traefik -n traefik-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null
+  register: traefik_service_check
+  failed_when: false
+  changed_when: false
+
+- name: Check if Traefik pods are running
+  shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} get pods -n traefik-system -l app.kubernetes.io/name=traefik -o jsonpath='{.items[0].status.phase}' 2>/dev/null
+  register: traefik_pod_check
+  failed_when: false
+  changed_when: false
+
+- name: Check if ACME is properly initialized
+  shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} exec -n traefik-system -l app.kubernetes.io/name=traefik -- ls -la /data/acme.json 2>/dev/null
+  register: acme_file_check
+  failed_when: false
+  changed_when: false
+
+- name: Create Traefik configuration
+  template:
+    src: traefik-values.yaml.j2
+    dest: /tmp/traefik-values.yaml
+    mode: '0644'
+  register: traefik_config_template
+
+- name: Determine if Traefik needs deployment
+  set_fact:
+    traefik_needs_deployment: "{{
+      force_traefik_redeploy | default(false) or
+      traefik_service_check.stdout == '' or
+      traefik_pod_check.stdout != 'Running' or
+      traefik_service_check.stdout == '<none>' or
+      (traefik_acme_enabled | default(false) and acme_file_check.rc != 0) or
+      traefik_config_template.changed
+    }}"
+
+- name: Display Traefik status
+  debug:
+    msg: |
+      🔍 Traefik Current Status:
+      Service LoadBalancer IP: {{ traefik_service_check.stdout | default('Not found') }}
+      Pod Status: {{ traefik_pod_check.stdout | default('Not found') }}
+      ACME File Exists: {{ 'Yes' if (acme_file_check.rc == 0) else 'No' if (traefik_acme_enabled | default(false)) else 'N/A (ACME disabled)' }}
+      SSL Certificates: {{ 'LetsEncrypt' if (acme_file_check.rc == 0) else 'Default/Self-signed' if (traefik_acme_enabled | default(false)) else 'Disabled' }}
+      Needs Deployment: {{ traefik_needs_deployment | default(false) }}
+      Force Redeploy: {{ force_traefik_redeploy | default(false) }}
+      Reason: {{ 'Force redeploy requested' if (force_traefik_redeploy | default(false)) else 'Configuration changed' if traefik_config_template.changed else 'ACME not initialized - will deploy with SSL support' if (traefik_acme_enabled | default(false) and acme_file_check.rc != 0) else 'Service healthy' }}
+
+- name: Add Traefik Helm repository
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    helm repo add traefik https://traefik.github.io/charts
+    helm repo update
+  when:
+    - traefik_needs_deployment | default(true)
+
+- name: Wait for MetalLB to be fully operational
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=metallb -n metallb-system --timeout=300s
+  when:
+    - traefik_needs_deployment | default(true)
+    - platform_install_metallb | default(true)
+
+- name: Ensure traefik-system namespace exists
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} create namespace traefik-system --dry-run=client -o yaml | \
+    kubectl --kubeconfig={{ kubeconfig_path }} apply -f -
+  register: traefik_namespace_apply
+  changed_when: >-
+    'created' in traefik_namespace_apply.stdout or
+    'configured' in traefik_namespace_apply.stdout
+  when:
+    - traefik_needs_deployment | default(true)
+
+- name: Clean up any stuck Helm operations for Traefik
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    echo "Performing complete Traefik cleanup..."
+
+    helm uninstall traefik -n traefik-system --ignore-not-found --wait=false || echo "No Helm release to uninstall"
+    kubectl delete deployment traefik -n traefik-system --ignore-not-found || true
+    kubectl delete replicaset -n traefik-system -l app.kubernetes.io/name=traefik --ignore-not-found || true
+    kubectl delete pods -n traefik-system -l app.kubernetes.io/name=traefik --force --grace-period=0 --ignore-not-found || true
+    kubectl delete svc traefik -n traefik-system --ignore-not-found || true
+    kubectl delete configmap -n traefik-system -l app.kubernetes.io/name=traefik --ignore-not-found || true
+
+    echo "Waiting for cleanup to complete..."
+    sleep 15
+
+    kubectl get pods -n traefik-system || echo "Traefik namespace clean"
+  when:
+    - traefik_needs_deployment | default(true)
+  ignore_errors: yes
+
+- name: Apply DNS secret for ACME before Helm install
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} apply -f - <<'EOF'
+    {{ lookup('template', 'traefik-dns-secret.yaml.j2') }}
+    EOF
+  register: traefik_dns_secret_apply
+  changed_when: >-
+    'created' in traefik_dns_secret_apply.stdout or
+    'configured' in traefik_dns_secret_apply.stdout
+  when:
+    - traefik_acme_enabled | default(false)
+    - traefik_acme_dns_provider == 'cloudflare'
+    - traefik_needs_deployment | default(true)
+
+- name: Install Traefik 2 using Helm
+  shell: |
+    export KUBECONFIG={{ kubeconfig_path }}
+    echo "Installing Traefik with SSL support..."
+    helm upgrade --install traefik traefik/traefik \
+      --namespace traefik-system \
+      --values /tmp/traefik-values.yaml \
+      --wait \
+      --timeout=15m
+  register: traefik_install_result
+  retries: 2
+  delay: 60
+  when:
+    - traefik_needs_deployment | default(true)
+
+- name: Wait for Traefik pods to be ready
+  shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} wait --for=condition=ready pod \
+      -l app.kubernetes.io/name=traefik \
+      -n traefik-system \
+      --timeout=180s
+  when:
+    - traefik_needs_deployment | default(true)
+
+- name: Get Traefik LoadBalancer IP
+  shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} get service traefik \
+      -n traefik-system \
+      -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo 'Pending'
+  register: traefik_lb_ip
+
+# Anchor A record for the cluster (k3s-<env>.levangie.dev → traefik LB IP).
+# external-dns owns per-app CNAMEs that point at this name. external-dns can't
+# manage this record itself because there's no ingress to source it from, so
+# the role keeps it. RFC 1034 forbids CNAME from coexisting with other types
+# at the same name; pre-delete any CNAME at the anchor as defense-in-depth.
+- name: Pre-delete any conflicting CNAME at the anchor name
+  uri:
+    url: "http://{{ technitium_dns_server }}:5380/api/zones/records/delete"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      token: "{{ technitium_api_token }}"
+      domain: "{{ cluster_dns_name }}"
+      type: "CNAME"
+    status_code: [200, 201, 404]
+    timeout: 30
+  register: anchor_predelete_cname
+  failed_when: false
+  when:
+    - traefik_lb_ip.stdout != 'Pending'
+    - manage_dns_infrastructure | default(false)
+
+- name: Create/Update anchor DNS A record
+  uri:
+    url: "http://{{ technitium_dns_server }}:5380/api/zones/records/add"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      token: "{{ technitium_api_token }}"
+      domain: "{{ cluster_dns_name }}"
+      type: "A"
+      value: "{{ traefik_lb_ip.stdout }}"
+      ttl: "{{ anchor_dns_record_ttl | default(3600) }}"
+      overwrite: "true"
+    status_code: [200, 201]
+    timeout: 30
+  register: anchor_dns_result
+  failed_when: >-
+    (anchor_dns_result.json is defined) and
+    (anchor_dns_result.json.status | default('ok') != 'ok')
+  when:
+    - traefik_lb_ip.stdout != 'Pending'
+    - manage_dns_infrastructure | default(false)
+  ignore_errors: yes
+
+- name: Display anchor DNS record result
+  debug:
+    msg: |
+      Anchor DNS record: {{ cluster_dns_name }} A {{ traefik_lb_ip.stdout }}
+      {% if anchor_dns_result.failed | default(false) %}
+      Failed: {{ anchor_dns_result.json.errorMessage | default(anchor_dns_result.msg | default('Unknown error')) }}
+      {% else %}
+      OK
+      {% endif %}
+  when:
+    - traefik_lb_ip.stdout != 'Pending'
+    - manage_dns_infrastructure | default(false)

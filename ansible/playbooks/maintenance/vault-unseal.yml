@@ -27,13 +27,14 @@
 
   vars:
     vault_context_overrides:
-      k3s-prod:
+      k3s-prod: &vault_raft_overrides
         vault_namespace: "vault-raft"
         vault_statefulset_name: "vault-raft"
         vault_primary_pod_name: "vault-raft-0"
         vault_service_name: "vault-raft"
         vault_active_service_name: "vault-raft-active"
         vault_internal_service_name: "vault-raft-internal"
+      k3s-stage: *vault_raft_overrides
     vault_context_defaults: "{{ vault_context_overrides.get(kubectl_context | default(''), {}) }}"
     vault_namespace: "{{ vault_context_defaults.vault_namespace | default('vault') }}"
     vault_statefulset_name: "{{ vault_context_defaults.vault_statefulset_name | default(vault_service_name) }}"

@@ -62,7 +62,7 @@ terraform apply
 2. Join it to the cluster with the existing deployment workflow:
 
 ```bash
-./scripts/deploy-k3s-cluster.sh --prod
+./scripts/k3s/deploy-cluster.sh --prod
 ```
 
 3. Let ArgoCD sync the `nvidia-device-plugin`, `plex`, and `jellyfin` apps.

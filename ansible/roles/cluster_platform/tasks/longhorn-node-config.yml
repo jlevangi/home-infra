@@ -1,0 +1,203 @@
+---
+- name: Verify kubeconfig exists and is readable
+  stat:
+    path: "{{ kubeconfig_path }}"
+  register: kubeconfig_check
+
+- name: Display kubeconfig status
+  debug:
+    msg: "Kubeconfig exists: {{ kubeconfig_check.stat.exists }}, readable: {{ kubeconfig_check.stat.readable | default('unknown') }}"
+
+- name: Wait for Longhorn manager pods to be created
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get pods -n longhorn-system -l app=longhorn-manager --no-headers 2>/dev/null | wc -l
+  register: longhorn_manager_pods_exist
+  changed_when: false
+  retries: 20
+  delay: 15
+  until: longhorn_manager_pods_exist.stdout | int > 0
+  when:
+    - kubeconfig_check.stat.exists
+    - longhorn_helm_check.rc == 0 or longhorn_install_result is defined or longhorn_repair_result is defined or longhorn_update_result is defined
+
+- name: Wait for Longhorn manager pods to be ready
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl -n longhorn-system wait --for=condition=Ready pod -l app=longhorn-manager --timeout=300s
+  register: longhorn_manager_wait
+  changed_when: false
+  retries: 5
+  delay: 30
+  until: longhorn_manager_wait.rc == 0
+  when:
+    - kubeconfig_check.stat.exists
+    - longhorn_manager_pods_exist.stdout | int > 0
+
+- name: Wait for Longhorn driver deployer to be ready
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl -n longhorn-system wait --for=condition=Ready pod -l app=longhorn-driver-deployer --timeout=300s
+  register: longhorn_driver_wait
+  changed_when: false
+  ignore_errors: yes
+
+- name: List Longhorn daemonsets that must tolerate GPU worker taints
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get daemonset -n longhorn-system -o name
+  args:
+    executable: /bin/bash
+  register: longhorn_daemonsets
+  changed_when: false
+  retries: 5
+  delay: 10
+  until: longhorn_daemonsets.rc == 0
+
+- name: Wait for API server before patching Longhorn daemonsets
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get --raw=/readyz >/dev/null
+  args:
+    executable: /bin/bash
+  register: longhorn_api_ready_before_daemonset_patch
+  changed_when: false
+  retries: 10
+  delay: 6
+  until: longhorn_api_ready_before_daemonset_patch.rc == 0
+  when: longhorn_daemonsets.stdout_lines | default([]) | length > 0
+
+- name: Patch Longhorn daemonsets to tolerate accelerator=nvidia
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl patch {{ item }} -n longhorn-system --type='merge' -p='{
+      "spec": {
+        "template": {
+          "spec": {
+            "tolerations": {{ longhorn_global_tolerations_json }}
+          }
+        }
+      }
+    }'
+  args:
+    executable: /bin/bash
+  loop: "{{ longhorn_daemonsets.stdout_lines | default([]) }}"
+  register: longhorn_gpu_toleration_patch
+  retries: 5
+  delay: 10
+  until: longhorn_gpu_toleration_patch.rc == 0
+  when: longhorn_daemonsets.stdout_lines | default([]) | length > 0
+
+- name: Wait for API server before Longhorn daemonset rollouts
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get --raw=/readyz >/dev/null
+  args:
+    executable: /bin/bash
+  register: longhorn_api_ready_before_daemonset_rollout
+  changed_when: false
+  retries: 10
+  delay: 6
+  until: longhorn_api_ready_before_daemonset_rollout.rc == 0
+  when: longhorn_daemonsets.stdout_lines | default([]) | length > 0
+
+- name: Wait for patched Longhorn daemonsets to roll out
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl rollout status {{ item }} -n longhorn-system --timeout=300s
+  args:
+    executable: /bin/bash
+  loop: "{{ longhorn_daemonsets.stdout_lines | default([]) }}"
+  register: longhorn_daemonset_rollout
+  retries: 5
+  delay: 15
+  until: longhorn_daemonset_rollout.rc == 0
+  when: longhorn_daemonsets.stdout_lines | default([]) | length > 0
+
+- name: List Longhorn deployments that should stay off control-plane nodes
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get deployment -n longhorn-system -o name
+  args:
+    executable: /bin/bash
+  register: longhorn_deployments
+  changed_when: false
+  retries: 5
+  delay: 10
+  until: longhorn_deployments.rc == 0
+  when: longhorn_exclude_master_from_storage | default(false) | bool
+
+- name: Wait for API server before patching Longhorn deployments
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get --raw=/readyz >/dev/null
+  args:
+    executable: /bin/bash
+  register: longhorn_api_ready_before_deployment_patch
+  changed_when: false
+  retries: 10
+  delay: 6
+  until: longhorn_api_ready_before_deployment_patch.rc == 0
+  when:
+    - longhorn_exclude_master_from_storage | default(false) | bool
+    - longhorn_deployments.stdout_lines | default([]) | length > 0
+
+- name: Patch Longhorn deployments to run only on worker nodes
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl patch {{ item }} -n longhorn-system --type='merge' -p='{
+      "spec": {
+        "template": {
+          "spec": {
+            "tolerations": [],
+            "affinity": {
+              "nodeAffinity": {
+                "requiredDuringSchedulingIgnoredDuringExecution": {
+                  "nodeSelectorTerms": [
+                    {
+                      "matchExpressions": [
+                        {
+                          "key": "node-role.kubernetes.io/control-plane",
+                          "operator": "DoesNotExist"
+                        },
+                        {
+                          "key": "node-role.kubernetes.io/master",
+                          "operator": "DoesNotExist"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }'
+  args:
+    executable: /bin/bash
+  loop: "{{ longhorn_deployments.stdout_lines | default([]) }}"
+  register: longhorn_worker_only_patch
+  retries: 5
+  delay: 10
+  until: longhorn_worker_only_patch.rc == 0
+  when:
+    - longhorn_exclude_master_from_storage | default(false) | bool
+    - longhorn_deployments.stdout_lines | default([]) | length > 0
+
+- name: Wait for API server before Longhorn deployment rollouts
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get --raw=/readyz >/dev/null
+  args:
+    executable: /bin/bash
+  register: longhorn_api_ready_before_deployment_rollout
+  changed_when: false
+  retries: 10
+  delay: 6
+  until: longhorn_api_ready_before_deployment_rollout.rc == 0
+  when:
+    - longhorn_exclude_master_from_storage | default(false) | bool
+    - longhorn_deployments.stdout_lines | default([]) | length > 0
+
+- name: Wait for patched Longhorn deployments to roll out
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl rollout status {{ item }} -n longhorn-system --timeout=300s
+  args:
+    executable: /bin/bash
+  loop: "{{ longhorn_deployments.stdout_lines | default([]) }}"
+  register: longhorn_worker_only_rollout
+  retries: 5
+  delay: 15
+  until: longhorn_worker_only_rollout.rc == 0
+  when:
+    - longhorn_exclude_master_from_storage | default(false) | bool
+    - longhorn_deployments.stdout_lines | default([]) | length > 0

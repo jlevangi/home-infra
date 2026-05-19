@@ -29,28 +29,28 @@ The intended configuration pattern is:
 ### List available backups
 
 ```bash
-./scripts/helpers/list-backups.sh
-./scripts/helpers/list-backups.sh --detailed
-./scripts/helpers/list-backups.sh --all
-./scripts/helpers/list-backups.sh --stage
+./scripts/maintenance/list-backups.sh
+./scripts/maintenance/list-backups.sh --detailed
+./scripts/maintenance/list-backups.sh --all
+./scripts/maintenance/list-backups.sh --stage
 ```
 
 ### Full disaster recovery
 
 ```bash
-./scripts/restore-cluster.sh --prod
+./scripts/maintenance/restore-cluster.sh --prod
 ```
 
 ### Clone prod data into stage
 
 ```bash
-./scripts/restore-cluster.sh --stage --from prod
+./scripts/maintenance/restore-cluster.sh --stage --from prod
 ```
 
 ### Restore data only
 
 ```bash
-./scripts/restore-cluster.sh --prod --restore-only
+./scripts/maintenance/restore-cluster.sh --prod --restore-only
 ```
 
 By default, restore discovery now uses Longhorn `BackupVolume` and `Backup`
@@ -58,17 +58,17 @@ CR metadata from the cluster API. Force the slower direct NFS backupstore scan
 only when that metadata is missing or stale:
 
 ```bash
-./scripts/restore-cluster.sh --prod --restore-only --discovery-mode nfs-scan
+./scripts/maintenance/restore-cluster.sh --prod --restore-only --discovery-mode nfs-scan
 ```
 
 ### Restore one app only
 
 ```bash
-./scripts/restore-app.sh --stage --from prod --app bookstack
-./scripts/restore-app.sh --prod --pvc factorio-data
-./scripts/restore-app.sh --prod --app factorio --list
-./scripts/restore-app.sh --prod --app gatus --backup-before 2026-05-11
-./scripts/restore-app.sh --prod --app gatus --backup-before 2026-05-11 --list
+./scripts/maintenance/restore-app.sh --stage --from prod --app bookstack
+./scripts/maintenance/restore-app.sh --prod --pvc factorio-data
+./scripts/maintenance/restore-app.sh --prod --app factorio --list
+./scripts/maintenance/restore-app.sh --prod --app gatus --backup-before 2026-05-11
+./scripts/maintenance/restore-app.sh --prod --app gatus --backup-before 2026-05-11 --list
 ```
 
 To target an older restore point, use `--backup-before` with an ISO date or
@@ -84,7 +84,7 @@ specific snapshot instead of selecting the newest eligible one.
 Depending on flags, the script can:
 
 - rebuild VMs through the environment-specific Terraform directory
-- deploy K3s with `./scripts/deploy-k3s-cluster.sh`
+- deploy K3s with `./scripts/k3s/deploy-cluster.sh`
 - switch cluster context
 - run `ansible/playbooks/k3s-restore-from-backup.yml`
 - redeploy apps after the restore phase
@@ -191,7 +191,7 @@ When selecting an older restore point, pass `restore_backup_before` through the
 wrapper script or the Ansible playbook. For example:
 
 ```bash
-./scripts/restore-app.sh --prod --app paperless --backup-before 2026-05-11
+./scripts/maintenance/restore-app.sh --prod --app paperless --backup-before 2026-05-11
 ```
 
 If a new app does not appear in restore discovery, check these first:

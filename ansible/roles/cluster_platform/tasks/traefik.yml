@@ -1,0 +1,12 @@
+---
+- name: Install and reconcile Traefik
+  include_tasks: traefik-install.yml
+
+- name: Wait for Traefik CRDs when custom resources are enabled
+  include_tasks: traefik-crds.yml
+
+- name: Reconcile Traefik dashboard and TLS custom resources
+  include_tasks: traefik-dashboard.yml
+
+- name: Validate Traefik deployment
+  include_tasks: traefik-validation.yml

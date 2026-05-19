@@ -1,0 +1,76 @@
+---
+# Bootstrap the prod -> non-prod Vault KV sync credentials.
+#
+# The cluster_platform role now runs this same logic inline during a
+# non-prod deploy (see ansible/roles/cluster_platform/tasks/vault-sync-bootstrap.yml).
+# Use this playbook for:
+#   * Manual rotation of the AppRole secret-id between deploys
+#     (pass -e vault_sync_force_rotate=true to force rotation when the
+#      destination Secret is already present)
+#   * Bootstrapping sync into a non-prod cluster without re-running the
+#     full deploy playbook
+#
+# Default source=k3s-prod, dest=k3s-stage. Override for other non-prod
+# clusters with e.g. -e dest_context=k3s-test dest_addr=https://vault.test.levangie.dev.
+#
+# Usage:
+#   ansible-playbook ansible/playbooks/maintenance/vault-sync-bootstrap.yml
+#   ansible-playbook ansible/playbooks/maintenance/vault-sync-bootstrap.yml \
+#     -e vault_sync_force_rotate=true
+#   ansible-playbook ansible/playbooks/maintenance/vault-sync-bootstrap.yml \
+#     -e dest_context=k3s-test -e dest_addr=https://vault.test.levangie.dev \
+#     -e cluster_environment=test
+
+- name: Bootstrap Vault prod->non-prod KV sync credentials
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    # Override any of these with -e on the command line.
+    dest_context: "k3s-stage"
+    dest_kubeconfig: "{{ '~/.kube/config' | expanduser }}"
+    cluster_environment: "stage"
+
+    # Source (prod) defaults — passed through to the role task file
+    vault_sync_source_context: "k3s-prod"
+    vault_sync_source_namespace: "vault-raft"
+    vault_sync_source_pod: "vault-raft-0"
+    vault_sync_source_init_secret: "vault-init"
+    vault_sync_source_addr_internal: "http://127.0.0.1:8200"
+
+    # Destination defaults
+    vault_namespace: "vault-raft"
+    vault_sync_dest_secret_name: "vault-prod-sync-approle"
+    vault_sync_dest_addr: "https://vault.levangie.dev"
+
+    # Policy + role naming (defaults derive from cluster_environment)
+    vault_sync_policy_name: "kv-prod-reader"
+    vault_sync_role_name: "{{ cluster_environment }}-kv-sync"
+
+    # Re-run with vault_sync_force_rotate=true to mint a fresh secret-id
+    # even when the destination Secret already exists.
+    vault_sync_force_rotate: false
+
+    # The role task file expects kubeconfig_path; mirror it from dest_kubeconfig
+    # and force the kubectl context via KUBECONFIG so --kubeconfig works against
+    # the right cluster.
+    kubeconfig_path: "{{ dest_kubeconfig }}"
+
+  pre_tasks:
+    - name: Verify dest kubeconfig is reachable via the chosen context
+      ansible.builtin.shell: |
+        kubectl --context {{ dest_context }} get ns >/dev/null
+      changed_when: false
+      register: dest_ctx_check
+      failed_when: dest_ctx_check.rc != 0
+
+  tasks:
+    - name: Run vault-sync bootstrap (shared task file)
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../roles/cluster_platform/tasks/vault-sync-bootstrap.yml"
+      vars:
+        # Override the default kubectl --kubeconfig invocation to also pin
+        # the context, since this playbook isn't running inside a deploy
+        # where kubeconfig_path is a temp single-cluster file.
+        kubeconfig_path: "{{ dest_kubeconfig }}"
+        kubectl_extra_args: "--context {{ dest_context }}"

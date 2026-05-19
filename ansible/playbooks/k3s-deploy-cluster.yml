@@ -78,13 +78,74 @@
       meta: end_play
       when: skip_infra_install | default(false) | bool
 
+    - name: Read reachable kubeconfig from first master
+      ansible.builtin.slurp:
+        src: "/home/{{ k3s_user | default(ansible_user) }}/.kube/config"
+      register: platform_kubeconfig_raw
+
+    - name: Create temporary kubeconfig file on controller
+      ansible.builtin.tempfile:
+        state: file
+        prefix: "{{ target_cluster | default('k3s_cluster') }}-platform-"
+        suffix: .kubeconfig
+      register: platform_kubeconfig_tempfile
+      delegate_to: localhost
+      become: false
+
+    - name: Write fetched kubeconfig to controller temp file
+      ansible.builtin.copy:
+        content: "{{ platform_kubeconfig_raw.content | b64decode }}"
+        dest: "{{ platform_kubeconfig_tempfile.path }}"
+        mode: "0600"
+      delegate_to: localhost
+      become: false
+
   tasks:
     - name: Run Helm-driven infra installs
       include_role:
-        name: ../roles/k3s
-        tasks_from: infra-install.yml
+        name: ../roles/cluster_platform
+        apply:
+          delegate_to: localhost
+          become: false
+      vars:
+        kubeconfig_path: "{{ platform_kubeconfig_tempfile.path }}"
+        platform_primary_node_ip: >-
+          {{
+            hostvars[groups[master_group][0]].ansible_host
+            | default(hostvars[groups[master_group][0]].ansible_default_ipv4.address)
+            | default(groups[master_group][0])
+          }}
+        platform_master_nodes: "{{ groups[master_group] | default([]) }}"
+        platform_worker_nodes: "{{ groups[worker_group] | default([]) }}"
+        platform_cluster_nodes: "{{ groups[cluster_group] | default([]) }}"
+        platform_cluster_node_count: "{{ groups[cluster_group] | default([]) | length }}"
+        platform_node_tags: >-
+          {{
+            dict(
+              (groups[worker_group] | default([]))
+              | zip(
+                (
+                  groups[worker_group] | default([])
+                ) | map('extract', hostvars, 'longhorn_node_tags')
+                  | map('default', [])
+              )
+            )
+          }}
+        platform_install_longhorn: "{{ k3s_install_longhorn | default(true) }}"
+        platform_install_metallb: "{{ k3s_install_metallb | default(true) }}"
+        platform_install_traefik: "{{ k3s_install_traefik | default(true) }}"
+        platform_install_argocd: "{{ k3s_install_argocd | default(true) }}"
+        platform_configure_vault: "{{ k3s_configure_vault | default(true) }}"
 
   post_tasks:
+    - name: Remove temporary controller kubeconfig
+      ansible.builtin.file:
+        path: "{{ platform_kubeconfig_tempfile.path }}"
+        state: absent
+      delegate_to: localhost
+      become: false
+      when: platform_kubeconfig_tempfile is defined
+
     # Fail loudly if any host dropped out of the play so the completion banner
     # below only ever runs on a real success.
     - name: Fail if any host failed during deployment
@@ -96,6 +157,7 @@
       when: ansible_play_hosts_all | difference(ansible_play_hosts) | length > 0
       run_once: true
       delegate_to: localhost
+      become: false
 
     - name: Display deployment completion message
       debug:
@@ -115,3 +177,4 @@
           - "Environment: {{ cluster_environment | default('production') }}"
       run_once: true
       delegate_to: localhost
+      become: false

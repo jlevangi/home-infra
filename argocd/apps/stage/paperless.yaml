@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: git@github.com:jlevangi/home-infra.git
-    targetRevision: main
+    targetRevision: stage
     path: argocd/manifests/paperless/overlays/stage
   destination:
     server: https://kubernetes.default.svc

@@ -1,0 +1,126 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: vault-raft-sync
+  namespace: vault-raft
+spec:
+  schedule: "0 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: sync
+              image: hashicorp/vault:1.21.2
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: PROD_VAULT_ADDR
+                  valueFrom:
+                    secretKeyRef:
+                      name: vault-prod-sync-approle
+                      key: vault-addr
+                - name: PROD_ROLE_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: vault-prod-sync-approle
+                      key: role-id
+                - name: PROD_SECRET_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: vault-prod-sync-approle
+                      key: secret-id
+                - name: STAGE_VAULT_ADDR
+                  value: "http://vault-raft.vault-raft.svc:8200"
+                - name: STAGE_VAULT_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: vault-init
+                      key: root-token
+                - name: KV_MOUNT
+                  value: "kv"
+                - name: SYNC_PREFIX
+                  value: "prod"
+              command:
+                - sh
+                - -ec
+                - |
+                  set -eu
+
+                  log() { printf '[%s] %s\n' "$(date -u +%FT%TZ)" "$*"; }
+
+                  apk add --no-cache jq >/dev/null
+
+                  log "Logging in to prod Vault at $PROD_VAULT_ADDR"
+                  PROD_VAULT_TOKEN="$(
+                    VAULT_ADDR="$PROD_VAULT_ADDR" \
+                      vault write -format=json auth/approle/login \
+                        role_id="$PROD_ROLE_ID" secret_id="$PROD_SECRET_ID" \
+                      | jq -r '.auth.client_token'
+                  )"
+                  if [ -z "$PROD_VAULT_TOKEN" ] || [ "$PROD_VAULT_TOKEN" = "null" ]; then
+                    log "ERROR: AppRole login returned no token"
+                    exit 1
+                  fi
+
+                  cleanup() {
+                    VAULT_ADDR="$PROD_VAULT_ADDR" VAULT_TOKEN="$PROD_VAULT_TOKEN" \
+                      vault token revoke -self >/dev/null 2>&1 || true
+                  }
+                  trap cleanup EXIT
+
+                  read_secret() {
+                    VAULT_ADDR="$PROD_VAULT_ADDR" VAULT_TOKEN="$PROD_VAULT_TOKEN" \
+                      vault kv get -format=json -mount="$KV_MOUNT" "$1" | jq -c '.data.data'
+                  }
+
+                  list_prefix() {
+                    VAULT_ADDR="$PROD_VAULT_ADDR" VAULT_TOKEN="$PROD_VAULT_TOKEN" \
+                      vault kv list -format=json -mount="$KV_MOUNT" "$1" 2>/dev/null || echo '[]'
+                  }
+
+                  write_secret() {
+                    local path="$1" payload="$2"
+                    printf '%s' "$payload" | VAULT_ADDR="$STAGE_VAULT_ADDR" VAULT_TOKEN="$STAGE_VAULT_TOKEN" \
+                      vault kv put -mount="$KV_MOUNT" "$path" - >/dev/null
+                  }
+
+                  walk() {
+                    local prefix="$1" children child
+                    children="$(list_prefix "$prefix")"
+                    [ "$children" = "[]" ] && { log "Skipping empty prefix $prefix"; return 0; }
+                    echo "$children" | jq -r '.[]' | while IFS= read -r child; do
+                      [ -z "$child" ] && continue
+                      case "$child" in
+                        */)
+                          walk "${prefix%/}/${child%/}"
+                          ;;
+                        *)
+                          local path="${prefix%/}/${child}"
+                          log "Copying $KV_MOUNT/$path"
+                          payload="$(read_secret "$path")"
+                          write_secret "$path" "$payload"
+                          ;;
+                      esac
+                    done
+                  }
+
+                  log "Syncing $KV_MOUNT/$SYNC_PREFIX/* from prod -> stage"
+                  walk "$SYNC_PREFIX"
+                  log "Sync complete"
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: false
+                runAsNonRoot: false

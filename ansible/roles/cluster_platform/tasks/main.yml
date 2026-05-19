@@ -1,0 +1,78 @@
+---
+- name: Validate cluster_platform role inputs
+  ansible.builtin.assert:
+    that:
+      - kubeconfig_path | length > 0
+    fail_msg: "kubeconfig_path must be provided to roles/cluster_platform"
+
+- name: Include Longhorn storage installation
+  include_tasks: longhorn.yml
+  tags:
+    - longhorn
+    - storage
+    - infrastructure
+  when:
+    - platform_install_longhorn | default(true)
+
+- name: Include MetalLB installation
+  include_tasks: metallb.yml
+  tags:
+    - metallb
+    - loadbalancer
+    - infrastructure
+  when:
+    - platform_install_metallb | default(true)
+
+- name: Include Traefik installation
+  include_tasks: traefik.yml
+  tags:
+    - traefik
+    - ingress
+    - infrastructure
+  when:
+    - platform_install_traefik | default(true)
+
+- name: Include ArgoCD installation
+  include_tasks: argocd.yml
+  tags:
+    - argocd
+    - gitops
+    - infrastructure
+  when:
+    - platform_install_argocd | default(true)
+
+- name: Bootstrap External Secrets CRDs before app-of-apps sync
+  include_tasks: external-secrets-crds.yml
+  tags:
+    - argocd
+    - external-secrets
+    - gitops
+  when:
+    - platform_install_argocd | default(true)
+    - external_secrets_bootstrap_crds | default(false)
+
+- name: Ensure Vault ArgoCD application exists before Vault bootstrap
+  include_tasks: vault-app.yml
+  tags:
+    - vault
+    - secrets
+    - gitops
+  when:
+    - platform_configure_vault | default(true)
+
+- name: Include Vault bootstrap
+  include_tasks: vault.yml
+  tags:
+    - vault
+    - secrets
+    - gitops
+  when:
+    - platform_configure_vault | default(true)
+
+- name: Deploy root ArgoCD application after Vault bootstrap
+  include_tasks: argocd-root-app.yml
+  tags:
+    - argocd
+    - gitops
+  when:
+    - platform_install_argocd | default(true)

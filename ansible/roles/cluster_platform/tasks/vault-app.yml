@@ -1,0 +1,69 @@
+---
+# Pre-Vault: deploy the StorageClass Application first if the env defines one.
+# Vault's StatefulSet PVCs reference longhorn-vault-raft; without the SC the
+# PVCs stay Pending forever and the Vault bootstrap can't proceed.
+
+- name: Check whether Vault StorageClass manifest is defined for this env
+  ansible.builtin.stat:
+    path: "{{ role_path }}/../../../argocd/apps/{{ cluster_environment }}/vault-storageclass.yaml"
+  register: vault_sc_manifest_check
+  delegate_to: localhost
+
+- name: Check whether Vault StorageClass ArgoCD application already exists
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} get application vault-storageclass -n argocd >/dev/null 2>&1
+  register: vault_sc_argocd_app_check
+  failed_when: false
+  changed_when: false
+  when: vault_sc_manifest_check.stat.exists
+
+- name: Apply Vault StorageClass ArgoCD application manifest
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} apply -f - <<'EOF'
+    {{ lookup('file', role_path + '/../../../argocd/apps/' + cluster_environment + '/vault-storageclass.yaml') }}
+    EOF
+  register: vault_sc_argocd_app_apply
+  changed_when: >-
+    'created' in vault_sc_argocd_app_apply.stdout or
+    'configured' in vault_sc_argocd_app_apply.stdout
+  when:
+    - vault_sc_manifest_check.stat.exists
+    - vault_sc_argocd_app_check.rc != 0
+
+- name: Wait for Vault StorageClass to be available
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} get storageclass longhorn-vault-raft >/dev/null 2>&1
+  register: vault_sc_wait
+  retries: 24
+  delay: 5
+  until: vault_sc_wait.rc == 0
+  changed_when: false
+  when: vault_sc_manifest_check.stat.exists
+
+- name: Check whether Vault ArgoCD application already exists
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} get application vault -n argocd >/dev/null 2>&1
+  register: vault_argocd_app_check
+  failed_when: false
+  changed_when: false
+
+- name: Apply Vault ArgoCD application manifest
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} apply -f - <<'EOF'
+    {{ lookup('file', role_path + '/../../../argocd/apps/' + cluster_environment + '/vault.yaml') }}
+    EOF
+  register: vault_argocd_app_apply
+  changed_when: >-
+    'created' in vault_argocd_app_apply.stdout or
+    'configured' in vault_argocd_app_apply.stdout
+  when:
+    - vault_argocd_app_check.rc != 0
+
+- name: Wait for Vault ArgoCD application to exist
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} get application vault -n argocd >/dev/null 2>&1
+  register: vault_argocd_app_wait
+  retries: 12
+  delay: 5
+  until: vault_argocd_app_wait.rc == 0
+  changed_when: false
