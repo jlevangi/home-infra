@@ -49,7 +49,6 @@ spec:
             - q4_0
             - --cache-type-v
             - q4_0
-            - --no-webui
           env:
             - name: CUDA_VISIBLE_DEVICES
               value: "0"
