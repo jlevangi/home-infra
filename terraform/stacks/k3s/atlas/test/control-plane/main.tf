@@ -114,7 +114,7 @@ variable "nic_name" {
 variable "vm_storage" {
   description = "Storage pool for control-plane disks."
   type        = string
-  default     = "flash"
+  default     = "ssd3"
 }
 
 variable "cpu_cores" {
