@@ -17,6 +17,7 @@
       - dos2unix      # Converts line endings from Windows-style to Unix format
       - curl          # Required for Superfile installation
       - wget          # Command-line utility for downloading files
+      - rsync          # Utility for efficiently transferring and synchronizing files
     state: present
 
 - name: Enable and start qemu-guest-agent
