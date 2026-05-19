@@ -40,5 +40,24 @@ patches:
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 90
+  # Stage has no access to the prod NFS export at 172.20.20.5:/volume1/fileserver/PaperlessImport
+  # (NAS ACL is scoped to the prod subnet) and shouldn't race prod over the
+  # same consume folder anyway. Replace with an emptyDir; kubectl cp a test
+  # PDF into /usr/src/paperless/consume on the pod when verifying ingestion.
+  - target:
+      kind: Deployment
+      name: paperless
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: paperless
+      spec:
+        template:
+          spec:
+            volumes:
+              - name: consume
+                nfs: null
+                emptyDir: {}
 commonLabels:
   environment: stage
