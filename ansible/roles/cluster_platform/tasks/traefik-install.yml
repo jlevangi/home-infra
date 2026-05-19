@@ -23,6 +23,13 @@
   failed_when: false
   changed_when: false
 
+- name: Create Traefik configuration
+  template:
+    src: traefik-values.yaml.j2
+    dest: /tmp/traefik-values.yaml
+    mode: '0644'
+  register: traefik_config_template
+
 - name: Determine if Traefik needs deployment
   set_fact:
     traefik_needs_deployment: "{{
@@ -30,7 +37,8 @@
       traefik_service_check.stdout == '' or
       traefik_pod_check.stdout != 'Running' or
       traefik_service_check.stdout == '<none>' or
-      (traefik_acme_enabled | default(false) and acme_file_check.rc != 0)
+      (traefik_acme_enabled | default(false) and acme_file_check.rc != 0) or
+      traefik_config_template.changed
     }}"
 
 - name: Display Traefik status
@@ -43,21 +51,13 @@
       SSL Certificates: {{ 'LetsEncrypt' if (acme_file_check.rc == 0) else 'Default/Self-signed' if (traefik_acme_enabled | default(false)) else 'Disabled' }}
       Needs Deployment: {{ traefik_needs_deployment | default(false) }}
       Force Redeploy: {{ force_traefik_redeploy | default(false) }}
-      Reason: {{ 'Force redeploy requested' if (force_traefik_redeploy | default(false)) else 'ACME not initialized - will deploy with SSL support' if (traefik_acme_enabled | default(false) and acme_file_check.rc != 0) else 'Service healthy' }}
+      Reason: {{ 'Force redeploy requested' if (force_traefik_redeploy | default(false)) else 'Configuration changed' if traefik_config_template.changed else 'ACME not initialized - will deploy with SSL support' if (traefik_acme_enabled | default(false) and acme_file_check.rc != 0) else 'Service healthy' }}
 
 - name: Add Traefik Helm repository
   shell: |
     export KUBECONFIG={{ kubeconfig_path }}
     helm repo add traefik https://traefik.github.io/charts
     helm repo update
-  when:
-    - traefik_needs_deployment | default(true)
-
-- name: Create Traefik configuration
-  template:
-    src: traefik-values.yaml.j2
-    dest: /tmp/traefik-values.yaml
-    mode: '0644'
   when:
     - traefik_needs_deployment | default(true)
 

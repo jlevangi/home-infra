@@ -56,6 +56,13 @@
       }}
     longhorn_taint_toleration_value: 'CriticalAddonsOnly=true:NoExecute'
 
+- name: Create Longhorn Helm values configuration
+  template:
+    src: longhorn-values.yaml.j2
+    dest: /tmp/longhorn-values.yaml
+    mode: '0644'
+  register: longhorn_config_template
+
 - name: Display Longhorn replica count calculation
   debug:
     msg: |
@@ -108,13 +115,8 @@
     KUBECONFIG={{ kubeconfig_path }} helm upgrade --install longhorn longhorn/longhorn \
       --namespace longhorn-system \
       --create-namespace \
-      --set-json='global.tolerations={{ longhorn_global_tolerations_json }}' \
-      --set-string defaultSettings.taintToleration='{{ longhorn_taint_toleration_value }}' \
-      --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
-      --set defaultSettings.storageReservedPercentageForDefaultDisk={{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }} \
-      --set defaultSettings.defaultDataPath="{{ longhorn_default_data_path | regex_replace('/$','') }}/" \
-      {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}" \
-      {% endif %}--wait --timeout=1200s
+      --values /tmp/longhorn-values.yaml \
+      --wait --timeout=1200s
   when:
     - longhorn_namespace_check.rc != 0 or (longhorn_pods_check.stdout | default('0') | int) == 0
     - longhorn_helm_check.rc != 0
@@ -127,17 +129,13 @@
   ansible.builtin.shell: |
     KUBECONFIG={{ kubeconfig_path }} helm upgrade longhorn longhorn/longhorn \
       --namespace longhorn-system \
-      --set-json='global.tolerations={{ longhorn_global_tolerations_json }}' \
-      --set-string defaultSettings.taintToleration='{{ longhorn_taint_toleration_value }}' \
-      --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
-      --set defaultSettings.storageReservedPercentageForDefaultDisk={{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }} \
-      --set defaultSettings.defaultDataPath="{{ longhorn_default_data_path | regex_replace('/$','') }}/" \
-      {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}" \
-      {% endif %}--wait --timeout=600s
+      --values /tmp/longhorn-values.yaml \
+      --wait --timeout=600s
   when:
     - longhorn_namespace_check.rc == 0
     - longhorn_helm_check.rc == 0
     - (longhorn_pods_check.stdout | default('0') | int) >= 10
+    - force_longhorn_redeploy | default(false) or longhorn_config_template.changed
   register: longhorn_update_result
   ignore_errors: yes
 
@@ -145,13 +143,8 @@
   ansible.builtin.shell: |
     KUBECONFIG={{ kubeconfig_path }} helm upgrade --install longhorn longhorn/longhorn \
       --namespace longhorn-system \
-      --set-json='global.tolerations={{ longhorn_global_tolerations_json }}' \
-      --set-string defaultSettings.taintToleration='{{ longhorn_taint_toleration_value }}' \
-      --set defaultSettings.defaultReplicaCount={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} \
-      --set defaultSettings.storageReservedPercentageForDefaultDisk={{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }} \
-      --set defaultSettings.defaultDataPath="{{ longhorn_default_data_path | regex_replace('/$','') }}/" \
-      {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}--set-string defaultSettings.backupTarget="nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}" \
-      {% endif %}--wait --timeout=1200s
+      --values /tmp/longhorn-values.yaml \
+      --wait --timeout=1200s
   when:
     - longhorn_namespace_check.rc == 0
     - longhorn_helm_check.rc != 0

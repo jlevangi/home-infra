@@ -24,9 +24,16 @@
   failed_when: false
   changed_when: false
 
+- name: Create ArgoCD Helm values configuration
+  template:
+    src: argocd-values.yaml.j2
+    dest: /tmp/argocd-values.yaml
+    mode: '0644'
+  register: argocd_config_template
+
 - name: Determine if ArgoCD needs deployment
   set_fact:
-    argocd_needs_deployment: "{{ force_argocd_redeploy | default(false) or argocd_service_check.stdout == '' or argocd_pod_check.stdout != 'Running' or argocd_helm_check.rc != 0 }}"
+    argocd_needs_deployment: "{{ force_argocd_redeploy | default(false) or argocd_service_check.stdout == '' or argocd_pod_check.stdout != 'Running' or argocd_helm_check.rc != 0 or argocd_config_template.changed }}"
 
 - name: Display ArgoCD status
   debug:
@@ -37,20 +44,13 @@
       Helm Release: {{ 'Found' if argocd_helm_check.rc == 0 else 'Not found' }}
       Needs Deployment: {{ argocd_needs_deployment | default(false) }}
       Force Redeploy: {{ force_argocd_redeploy | default(false) }}
+      Config Changed: {{ argocd_config_template.changed }}
 
 - name: Add ArgoCD Helm repository
   shell: |
     export KUBECONFIG={{ kubeconfig_path }}
     helm repo add argo https://argoproj.github.io/argo-helm
     helm repo update
-  when:
-    - argocd_needs_deployment | default(true)
-
-- name: Create ArgoCD Helm values configuration
-  template:
-    src: argocd-values.yaml.j2
-    dest: /tmp/argocd-values.yaml
-    mode: '0644'
   when:
     - argocd_needs_deployment | default(true)
 
