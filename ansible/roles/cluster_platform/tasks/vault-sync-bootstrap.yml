@@ -1,0 +1,187 @@
+---
+# Bootstrap the prod -> non-prod Vault KV sync credentials in-place.
+#
+# Idempotent: runs only when the destination Secret is missing, so it's a
+# no-op on every deploy after the first per cluster rebuild. Re-running
+# rotates the AppRole secret-id; the previous secret-id is invalidated the
+# next time the CronJob logs in and mints a new token.
+#
+# Canonical implementation lives here in the role; the standalone
+# ansible/playbooks/maintenance/vault-sync-bootstrap.yml delegates to this
+# file via include_role so manual rotation uses the same logic.
+#
+# Inputs (with sensible defaults; override per env if your topology differs):
+#   - kubeconfig_path: local (non-prod) kubeconfig path
+#   - vault_namespace: local Vault namespace (vault-raft for HA clusters)
+#   - cluster_environment: used to name the AppRole (<env>-kv-sync)
+#   - vault_sync_source_context: kubectl context for prod cluster (default k3s-prod)
+#   - vault_sync_source_namespace: vault namespace on prod (default vault-raft)
+#   - vault_sync_source_pod: primary Vault pod on prod (default vault-raft-0)
+#   - vault_sync_source_init_secret: init Secret name on prod (default vault-init)
+#   - vault_sync_source_addr_internal: in-cluster Vault addr on prod (default http://127.0.0.1:8200)
+#   - vault_sync_dest_secret_name: Secret name in local cluster (default vault-prod-sync-approle)
+#   - vault_sync_dest_addr: Vault addr the CronJob will use (default https://vault.levangie.dev)
+#   - vault_sync_policy_name: prod Vault policy name (default kv-prod-reader)
+#   - vault_sync_role_name: prod AppRole name (default <cluster_environment>-kv-sync)
+#   - vault_sync_force_rotate: set true to force secret-id rotation even when the Secret exists
+
+- name: Check whether vault-prod-sync-approle Secret already exists on this cluster
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} {{ kubectl_extra_args | default('') }} -n {{ vault_namespace }} \
+      get secret {{ vault_sync_dest_secret_name | default('vault-prod-sync-approle') }} >/dev/null 2>&1
+  register: vault_sync_dest_secret_check
+  failed_when: false
+  changed_when: false
+
+- name: Bootstrap prod -> {{ cluster_environment | default('non-prod') }} Vault KV sync credentials
+  when:
+    - (vault_sync_dest_secret_check.rc != 0) or (vault_sync_force_rotate | default(false) | bool)
+  block:
+    - name: Fetch prod Vault root token
+      ansible.builtin.shell: |
+        kubectl --context {{ vault_sync_source_context | default('k3s-prod') }} \
+          -n {{ vault_sync_source_namespace | default('vault-raft') }} \
+          get secret {{ vault_sync_source_init_secret | default('vault-init') }} \
+          -o jsonpath='{.data.root-token}' | base64 -d
+      register: vault_sync_source_token_raw
+      changed_when: false
+      no_log: true
+
+    - name: Assert prod root token present
+      ansible.builtin.assert:
+        that:
+          - vault_sync_source_token_raw.stdout | length > 0
+        fail_msg: >-
+          Source root token not found on context
+          {{ vault_sync_source_context | default('k3s-prod') }};
+          cannot bootstrap sync credentials. Ensure prod is reachable and the
+          {{ vault_sync_source_init_secret | default('vault-init') }} Secret
+          exists in {{ vault_sync_source_namespace | default('vault-raft') }}.
+
+    - name: Write {{ vault_sync_policy_name | default('kv-prod-reader') }} policy on prod Vault
+      ansible.builtin.shell: |
+        kubectl --context {{ vault_sync_source_context | default('k3s-prod') }} \
+          exec -n {{ vault_sync_source_namespace | default('vault-raft') }} \
+          {{ vault_sync_source_pod | default('vault-raft-0') }} -- \
+          sh -ec 'export VAULT_ADDR={{ vault_sync_source_addr_internal | default('http://127.0.0.1:8200') }} VAULT_TOKEN="$1"; cat <<EOF | vault policy write {{ vault_sync_policy_name | default('kv-prod-reader') }} -
+        path "kv/data/prod/*" {
+          capabilities = ["read"]
+        }
+        path "kv/metadata/prod/*" {
+          capabilities = ["list","read"]
+        }
+        EOF
+        ' _ '{{ vault_sync_source_token_raw.stdout }}'
+      register: vault_sync_policy_write
+      changed_when: "'Success' in vault_sync_policy_write.stdout or 'created' in vault_sync_policy_write.stdout"
+      no_log: true
+
+    - name: List prod Vault auth methods
+      ansible.builtin.shell: |
+        kubectl --context {{ vault_sync_source_context | default('k3s-prod') }} \
+          exec -n {{ vault_sync_source_namespace | default('vault-raft') }} \
+          {{ vault_sync_source_pod | default('vault-raft-0') }} -- \
+          sh -ec 'export VAULT_ADDR={{ vault_sync_source_addr_internal | default('http://127.0.0.1:8200') }} VAULT_TOKEN="$1"; vault auth list -format=json' \
+          _ '{{ vault_sync_source_token_raw.stdout }}'
+      register: vault_sync_auth_list_raw
+      changed_when: false
+      no_log: true
+
+    - name: Enable AppRole auth on prod if missing
+      ansible.builtin.shell: |
+        kubectl --context {{ vault_sync_source_context | default('k3s-prod') }} \
+          exec -n {{ vault_sync_source_namespace | default('vault-raft') }} \
+          {{ vault_sync_source_pod | default('vault-raft-0') }} -- \
+          sh -ec 'export VAULT_ADDR={{ vault_sync_source_addr_internal | default('http://127.0.0.1:8200') }} VAULT_TOKEN="$1"; vault auth enable approle' \
+          _ '{{ vault_sync_source_token_raw.stdout }}'
+      when: "'approle/' not in (vault_sync_auth_list_raw.stdout | from_json | dict2items | map(attribute='key') | list)"
+      no_log: true
+
+    - name: Create/update AppRole role on prod Vault
+      ansible.builtin.shell: |
+        kubectl --context {{ vault_sync_source_context | default('k3s-prod') }} \
+          exec -n {{ vault_sync_source_namespace | default('vault-raft') }} \
+          {{ vault_sync_source_pod | default('vault-raft-0') }} -- \
+          sh -ec 'export VAULT_ADDR={{ vault_sync_source_addr_internal | default('http://127.0.0.1:8200') }} VAULT_TOKEN="$1"; vault write auth/approle/role/{{ vault_sync_role_name | default(cluster_environment + "-kv-sync") }} \
+            token_policies="{{ vault_sync_policy_name | default('kv-prod-reader') }}" \
+            token_ttl=10m \
+            token_max_ttl=30m \
+            secret_id_ttl=0' \
+          _ '{{ vault_sync_source_token_raw.stdout }}'
+      register: vault_sync_role_write
+      changed_when: "'Success' in vault_sync_role_write.stdout"
+      no_log: true
+
+    - name: Read AppRole role-id
+      ansible.builtin.shell: |
+        kubectl --context {{ vault_sync_source_context | default('k3s-prod') }} \
+          exec -n {{ vault_sync_source_namespace | default('vault-raft') }} \
+          {{ vault_sync_source_pod | default('vault-raft-0') }} -- \
+          sh -ec 'export VAULT_ADDR={{ vault_sync_source_addr_internal | default('http://127.0.0.1:8200') }} VAULT_TOKEN="$1"; vault read -format=json auth/approle/role/{{ vault_sync_role_name | default(cluster_environment + "-kv-sync") }}/role-id' \
+          _ '{{ vault_sync_source_token_raw.stdout }}'
+      register: vault_sync_role_id_raw
+      changed_when: false
+      no_log: true
+
+    - name: Generate fresh AppRole secret-id
+      ansible.builtin.shell: |
+        kubectl --context {{ vault_sync_source_context | default('k3s-prod') }} \
+          exec -n {{ vault_sync_source_namespace | default('vault-raft') }} \
+          {{ vault_sync_source_pod | default('vault-raft-0') }} -- \
+          sh -ec 'export VAULT_ADDR={{ vault_sync_source_addr_internal | default('http://127.0.0.1:8200') }} VAULT_TOKEN="$1"; vault write -format=json -f auth/approle/role/{{ vault_sync_role_name | default(cluster_environment + "-kv-sync") }}/secret-id' \
+          _ '{{ vault_sync_source_token_raw.stdout }}'
+      register: vault_sync_secret_id_raw
+      changed_when: true
+      no_log: true
+
+    - name: Parse role-id and secret-id
+      ansible.builtin.set_fact:
+        vault_sync_role_id: "{{ (vault_sync_role_id_raw.stdout | from_json).data.role_id }}"
+        vault_sync_secret_id: "{{ (vault_sync_secret_id_raw.stdout | from_json).data.secret_id }}"
+      no_log: true
+
+    - name: Ensure local vault namespace exists
+      ansible.builtin.shell: |
+        kubectl --kubeconfig={{ kubeconfig_path }} {{ kubectl_extra_args | default('') }} create namespace {{ vault_namespace }} \
+          --dry-run=client -o yaml | kubectl --kubeconfig={{ kubeconfig_path }} {{ kubectl_extra_args | default('') }} apply -f -
+      changed_when: false
+
+    - name: Apply vault-prod-sync-approle Secret on local cluster
+      ansible.builtin.shell: |
+        kubectl --kubeconfig={{ kubeconfig_path }} {{ kubectl_extra_args | default('') }} -n {{ vault_namespace }} apply -f - <<EOF
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: {{ vault_sync_dest_secret_name | default('vault-prod-sync-approle') }}
+          labels:
+            app.kubernetes.io/name: vault-raft-sync
+            app.kubernetes.io/managed-by: ansible
+        type: Opaque
+        stringData:
+          role-id: "{{ vault_sync_role_id }}"
+          secret-id: "{{ vault_sync_secret_id }}"
+          vault-addr: "{{ vault_sync_dest_addr | default('https://vault.levangie.dev') }}"
+        EOF
+      register: vault_sync_dest_secret_apply
+      changed_when: "'created' in vault_sync_dest_secret_apply.stdout or 'configured' in vault_sync_dest_secret_apply.stdout"
+      no_log: true
+
+    - name: Report bootstrap outcome
+      ansible.builtin.debug:
+        msg: >-
+          Vault KV sync credentials bootstrapped on
+          {{ cluster_environment | default('non-prod') }}.
+          AppRole auth/approle/role/{{ vault_sync_role_name | default(cluster_environment + "-kv-sync") }}
+          on {{ vault_sync_source_context | default('k3s-prod') }} now has a fresh secret-id;
+          Secret {{ vault_sync_dest_secret_name | default('vault-prod-sync-approle') }} in
+          {{ vault_namespace }} is consumed by the vault-raft-sync CronJob.
+
+- name: Skip bootstrap (Secret already present)
+  ansible.builtin.debug:
+    msg: >-
+      Vault KV sync credentials Secret already present on this cluster
+      ({{ vault_namespace }}/{{ vault_sync_dest_secret_name | default('vault-prod-sync-approle') }}).
+      Re-run with -e vault_sync_force_rotate=true to mint a fresh secret-id.
+  when:
+    - vault_sync_dest_secret_check.rc == 0
+    - not (vault_sync_force_rotate | default(false) | bool)

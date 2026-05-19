@@ -442,18 +442,14 @@
       - cluster_environment == 'prod'
     no_log: true
 
-  # Non-prod clusters depend on the vault-sync CronJob for KV data. The CronJob
-  # is created by ArgoCD's root app, which only runs at the end of the play, so
-  # this kick is best-effort — failure is fine on the very first deploy where
-  # the CronJob hasn't been synced yet. Subsequent runs trigger an immediate
-  # sync so apps don't have to wait up to an hour for the next scheduled tick.
-  - name: Trigger initial vault-sync on non-prod clusters
-    shell: |
-      kubectl --kubeconfig={{ kubeconfig_path }} -n {{ vault_namespace }} create job \
-        --from=cronjob/vault-raft-sync vault-raft-sync-bootstrap-$(date +%s)
-    register: vault_sync_kick
-    changed_when: vault_sync_kick.rc == 0
-    failed_when: false
+  # Non-prod clusters get their kv/data/prod/* data from the vault-raft-sync
+  # CronJob, which authenticates to prod Vault via the vault-prod-sync-approle
+  # Secret. Mint that Secret in place (idempotent: no-op if it already exists)
+  # so a fresh stage rebuild doesn't require a separate maintenance playbook
+  # run. The actual one-off Job that triggers the first sync runs from
+  # argocd-root-app.yml once root-<env> has deployed the CronJob.
+  - name: Bootstrap Vault KV sync credentials (non-prod only)
+    include_tasks: vault-sync-bootstrap.yml
     when:
       - vault_app_present | default(false)
       - not (vault_sealed | default(true))

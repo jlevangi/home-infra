@@ -53,3 +53,33 @@
   when:
     - argocd_deploy_root_app | default(true)
   ignore_errors: yes
+
+# After root-<env> has fanned out its child Applications, the vault-raft-sync
+# CronJob exists in the vault namespace. Kick a one-off Job from it so the
+# first KV sync from prod happens promptly instead of waiting up to an hour
+# for the next scheduled tick. Best-effort: if root-stage takes longer than
+# the wait window, the hourly schedule still picks up later.
+- name: Wait for vault-raft-sync CronJob to be created by ArgoCD
+  shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} -n {{ vault_namespace }} get cronjob vault-raft-sync >/dev/null 2>&1
+  register: vault_sync_cronjob_check
+  retries: 30
+  delay: 10
+  until: vault_sync_cronjob_check.rc == 0
+  failed_when: false
+  changed_when: false
+  when:
+    - argocd_deploy_root_app | default(true)
+    - cluster_environment != 'prod'
+
+- name: Trigger initial vault-sync on non-prod clusters
+  shell: |
+    kubectl --kubeconfig={{ kubeconfig_path }} -n {{ vault_namespace }} create job \
+      --from=cronjob/vault-raft-sync vault-raft-sync-bootstrap-$(date +%s)
+  register: vault_sync_kick
+  changed_when: vault_sync_kick.rc == 0
+  failed_when: false
+  when:
+    - argocd_deploy_root_app | default(true)
+    - cluster_environment != 'prod'
+    - vault_sync_cronjob_check.rc == 0
