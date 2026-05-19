@@ -1,0 +1,26 @@
+# Internal-only Ingress for the llama-cpp web UI. Deliberately omits the
+# external-dns target annotation that Plex/Jellyfin use — llama.cpp's UI
+# has no built-in auth, so we don't want external-dns auto-managing a
+# CNAME. Add an A/CNAME record manually in Technitium pointing
+# `llm.levangie.dev` at the cluster's Traefik LB IP if you want a name,
+# otherwise hit Traefik directly with `Host: llm.levangie.dev` header.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: llama-cpp-ingress
+  namespace: llama-cpp
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: llm.levangie.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: llama-cpp
+                port:
+                  number: 8080
