@@ -82,7 +82,7 @@
       ansible.builtin.slurp:
         src: "/home/{{ k3s_user | default(ansible_user) }}/.kube/config"
       register: platform_kubeconfig_raw
-      when: inventory_hostname == groups[master_group][0]
+      when: inventory_hostname == (k3s_primary_master | default('') | trim if (k3s_primary_master | default('') | trim | length > 0) else groups[master_group][0])
 
     - name: Create temporary kubeconfig file on controller
       ansible.builtin.tempfile:
@@ -92,7 +92,7 @@
       register: platform_kubeconfig_tempfile
       delegate_to: localhost
       become: false
-      when: inventory_hostname == groups[master_group][0]
+      when: inventory_hostname == (k3s_primary_master | default('') | trim if (k3s_primary_master | default('') | trim | length > 0) else groups[master_group][0])
 
     - name: Write fetched kubeconfig to controller temp file
       ansible.builtin.copy:
@@ -101,7 +101,7 @@
         mode: "0600"
       delegate_to: localhost
       become: false
-      when: inventory_hostname == groups[master_group][0]
+      when: inventory_hostname == (k3s_primary_master | default('') | trim if (k3s_primary_master | default('') | trim | length > 0) else groups[master_group][0])
 
   tasks:
     - name: Deploy Longhorn storage
@@ -116,7 +116,106 @@
         kubeconfig_path: "{{ platform_kubeconfig_tempfile.path }}"
       when:
         - deploy_component == 'longhorn'
-        - inventory_hostname == groups[master_group][0]
+        - inventory_hostname == (k3s_primary_master | default('') | trim if (k3s_primary_master | default('') | trim | length > 0) else groups[master_group][0])
+
+    - name: Deploy MetalLB load balancer
+      ansible.builtin.include_role:
+        name: ../roles/cluster_platform
+        tasks_from: metallb.yml
+        apply:
+          delegate_to: localhost
+          become: false
+      vars:
+        <<: *platform_role_vars
+        kubeconfig_path: "{{ platform_kubeconfig_tempfile.path }}"
+      when:
+        - deploy_component == 'metallb'
+        - inventory_hostname == (k3s_primary_master | default('') | trim if (k3s_primary_master | default('') | trim | length > 0) else groups[master_group][0])
+
+    - name: Deploy Traefik ingress controller
+      ansible.builtin.include_role:
+        name: ../roles/cluster_platform
+        tasks_from: traefik.yml
+        apply:
+          delegate_to: localhost
+          become: false
+      vars:
+        <<: *platform_role_vars
+        kubeconfig_path: "{{ platform_kubeconfig_tempfile.path }}"
+      when:
+        - deploy_component == 'traefik'
+        - inventory_hostname == (k3s_primary_master | default('') | trim if (k3s_primary_master | default('') | trim | length > 0) else groups[master_group][0])
+
+    - name: Deploy ArgoCD GitOps controller
+      ansible.builtin.include_role:
+        name: ../roles/cluster_platform
+        tasks_from: argocd.yml
+        apply:
+          delegate_to: localhost
+          become: false
+      vars:
+        <<: *platform_role_vars
+        kubeconfig_path: "{{ platform_kubeconfig_tempfile.path }}"
+      when:
+        - deploy_component == 'argocd'
+        - inventory_hostname == (k3s_primary_master | default('') | trim if (k3s_primary_master | default('') | trim | length > 0) else groups[master_group][0])
+
+    - name: Bootstrap External Secrets CRDs
+      ansible.builtin.include_role:
+        name: ../roles/cluster_platform
+        tasks_from: external-secrets-crds.yml
+        apply:
+          delegate_to: localhost
+          become: false
+      vars:
+        <<: *platform_role_vars
+        kubeconfig_path: "{{ platform_kubeconfig_tempfile.path }}"
+      when:
+        - deploy_component == 'argocd'
+        - external_secrets_bootstrap_crds | default(false)
+        - inventory_hostname == (k3s_primary_master | default('') | trim if (k3s_primary_master | default('') | trim | length > 0) else groups[master_group][0])
+
+    - name: Ensure Vault ArgoCD application exists before Vault bootstrap
+      ansible.builtin.include_role:
+        name: ../roles/cluster_platform
+        tasks_from: vault-app.yml
+        apply:
+          delegate_to: localhost
+          become: false
+      vars:
+        <<: *platform_role_vars
+        kubeconfig_path: "{{ platform_kubeconfig_tempfile.path }}"
+      when:
+        - deploy_component == 'vault' or deploy_component == 'argocd'
+        - inventory_hostname == (k3s_primary_master | default('') | trim if (k3s_primary_master | default('') | trim | length > 0) else groups[master_group][0])
+
+    - name: Deploy HashiCorp Vault
+      ansible.builtin.include_role:
+        name: ../roles/cluster_platform
+        tasks_from: vault.yml
+        apply:
+          delegate_to: localhost
+          become: false
+      vars:
+        <<: *platform_role_vars
+        kubeconfig_path: "{{ platform_kubeconfig_tempfile.path }}"
+      when:
+        - deploy_component == 'vault' or deploy_component == 'argocd'
+        - inventory_hostname == (k3s_primary_master | default('') | trim if (k3s_primary_master | default('') | trim | length > 0) else groups[master_group][0])
+
+    - name: Deploy ArgoCD Root Application
+      ansible.builtin.include_role:
+        name: ../roles/cluster_platform
+        tasks_from: argocd-root-app.yml
+        apply:
+          delegate_to: localhost
+          become: false
+      vars:
+        <<: *platform_role_vars
+        kubeconfig_path: "{{ platform_kubeconfig_tempfile.path }}"
+      when:
+        - deploy_component == 'argocd'
+        - inventory_hostname == (k3s_primary_master | default('') | trim if (k3s_primary_master | default('') | trim | length > 0) else groups[master_group][0])
 
     - name: Deploy MetalLB load balancer
       ansible.builtin.include_role:
