@@ -129,10 +129,26 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: librechat
+  ignoreDifferences:
+    - group: ""
+      kind: PersistentVolumeClaim
+      name: librechat-librechat-images
+      jsonPointers:
+        - /spec/volumeName
+    - group: ""
+      kind: PersistentVolumeClaim
+      name: librechat-meilisearch
+      jsonPointers:
+        - /spec/volumeName
+    - group: ""
+      kind: PersistentVolumeClaim
+      name: librechat-mongodb
+      jsonPointers:
+        - /spec/volumeName
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
