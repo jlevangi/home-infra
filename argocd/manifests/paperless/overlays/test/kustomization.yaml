@@ -40,5 +40,24 @@ patches:
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 90
+  # Test workers (172.20.21.0/22) are outside the prod NFS export ACL and
+  # would race prod over the same consume folder anyway. Swap the nfs
+  # volume for an emptyDir so the pod can start if paperless is ever
+  # enabled in test. Mirrors the stage overlay.
+  - target:
+      kind: Deployment
+      name: paperless
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: paperless
+      spec:
+        template:
+          spec:
+            volumes:
+              - name: consume
+                nfs: null
+                emptyDir: {}
 commonLabels:
   environment: test
