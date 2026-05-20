@@ -30,14 +30,21 @@ data:
       # =================================================================
 
       GLM-4.7-Flash-Q6_K:
+        # Benchmarked on Quadro P4000 (sm_61, 8 GiB) + 20 vCPU pod:
+        #   ngl=3:  1540 MiB VRAM, 9.0 tok/s gen
+        #   ngl=10: 5034 MiB VRAM, 9.9 tok/s gen  <-- chosen
+        #   ngl=14: 7042 MiB VRAM, 10.3 tok/s gen (no Plex headroom)
+        #   ngl>=24: OOM
+        # ngl=10 leaves ~3 GiB VRAM for Plex/Jellyfin transcoder.
+        # gen tok/s is bottlenecked by Pascal FP16 throughput, not CPU.
         cmd: |
           /usr/local/bin/llama-server
           --model /models/GLM/GLM-4.7-Flash-Q6_K.gguf
           --alias GLM-4.7-Flash-Q6_K
           --host 0.0.0.0
           --port ${PORT}
-          --gpu-layers 3
-          --threads 20
+          --gpu-layers 10
+          --threads 22
           --ctx-size 8192
           --batch-size 256
           --ubatch-size 128
@@ -225,17 +232,21 @@ data:
         ttl: 300
 
       Qwen3.6-35B-A3B-UD-Q8_K_XL:
-        # Bartowski UD Q8_K_XL (~40 GiB on disk). Q8 is ~2x bigger than
-        # Q4 per layer, so gpu-layers drops to 3 (vs 6 for Q4 variants)
-        # to fit the same ~5 GiB usable VRAM budget. Other params match
-        # the Q4 variants pending benchmarking.
+        # Benchmarked on Quadro P4000 (sm_61, 8 GiB) + 20 vCPU pod:
+        #   ngl=3: 3646 MiB VRAM, 8.5 tok/s gen
+        #   ngl=4: 4746 MiB VRAM, 8.8 tok/s gen
+        #   ngl=5: 5604 MiB VRAM, 9.1 tok/s gen  <-- chosen
+        #   ngl=6: 6462 MiB VRAM, 8.7 tok/s gen (regression — GPU sat)
+        # ngl=5 maxes generation throughput and leaves ~2.5 GiB VRAM
+        # for Plex/Jellyfin transcoder. Adding more layers actually
+        # slowed inference — likely PCIe/L2 contention at saturation.
         cmd: |
           /usr/local/bin/llama-server
           --model /models/qwen3.6/35b/Qwen3.6-35B-A3B-UD-Q8_K_XL.gguf
           --alias Qwen3.6-35B-A3B-UD-Q8_K_XL
           --host 0.0.0.0
           --port ${PORT}
-          --gpu-layers 3
+          --gpu-layers 5
           --threads 20
           --ctx-size 8192
           --batch-size 1024
