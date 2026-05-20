@@ -5,7 +5,8 @@ metadata:
   namespace: vaultwarden
   labels:
     app: vaultwarden
-    recurringjob.group.longhorn.io/hourly: "enabled"
+    recurring-job.longhorn.io/source: "enabled"
+    recurring-job-group.longhorn.io/hourly: "enabled"
 spec:
   accessModes:
     - ReadWriteOnce

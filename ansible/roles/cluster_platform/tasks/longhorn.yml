@@ -11,8 +11,27 @@
 - name: Reconcile Longhorn storage configuration
   include_tasks: longhorn-storage-config.yml
 
+- name: Detect existing healthy Longhorn volumes before PVC validation
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get volumes.longhorn.io -n longhorn-system \
+      -o jsonpath='{range .items[?(@.status.robustness=="healthy")]}{.metadata.name}{"\n"}{end}' | grep -q .
+  register: existing_healthy_longhorn_volumes
+  changed_when: false
+  failed_when: false
+  when: longhorn_validation_mode | default('auto') == 'auto'
+
+- name: Display Longhorn validation skip reason
+  debug:
+    msg: "Skipping Longhorn validation PVC because healthy Longhorn volumes already exist. Set longhorn_validation_mode=always to force validation."
+  when:
+    - longhorn_validation_mode | default('auto') == 'auto'
+    - existing_healthy_longhorn_volumes.rc | default(1) == 0
+
 - name: Validate Longhorn PVC provisioning
   include_tasks: longhorn-validation.yml
+  when:
+    - longhorn_validation_mode | default('auto') != 'never'
+    - longhorn_validation_mode | default('auto') == 'always' or existing_healthy_longhorn_volumes.rc | default(1) != 0
 
 - name: Reconcile Longhorn post-validation cluster settings
   include_tasks: longhorn-post-config.yml

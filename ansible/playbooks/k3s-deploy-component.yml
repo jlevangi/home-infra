@@ -326,8 +326,7 @@
       delegate_to: localhost
       become: false
       when:
-        - inventory_hostname == groups[master_group][0]
-        - platform_kubeconfig_tempfile is defined
+        - platform_kubeconfig_tempfile.path is defined
     - name: Display completion summary
       ansible.builtin.debug:
         msg: |
