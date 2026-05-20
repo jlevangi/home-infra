@@ -31,7 +31,7 @@ data:
 
       GLM-4.7-Flash-Q6_K:
         cmd: |
-          /app/llama-server
+          /usr/local/bin/llama-server
           --model /models/GLM/GLM-4.7-Flash-Q6_K.gguf
           --alias GLM-4.7-Flash-Q6_K
           --host 0.0.0.0
@@ -55,7 +55,7 @@ data:
         # 00001-of-00002.gguf and auto-loads the rest from the same
         # directory. First load is slow (~3-5 min for mmap warmup).
         cmd: |
-          /app/llama-server
+          /usr/local/bin/llama-server
           --model /models/GLM/GLM-4.7-Flash-BF16-00001-of-00002.gguf
           --alias GLM-4.7-Flash-BF16
           --host 0.0.0.0
@@ -80,7 +80,7 @@ data:
 
       Qwopus3.5-9B-coder:
         cmd: |
-          /app/llama-server
+          /usr/local/bin/llama-server
           --model /models/Qwopus3.5-9B-coder/Qwopus3.5-9B-coder-Exp-BF16.gguf
           --alias Qwopus3.5-9B-coder
           --host 0.0.0.0
@@ -107,7 +107,7 @@ data:
         # MoE; local benchmark prefers 2048/512 batches and 131k ctx —
         # cut ctx to 16k for the tighter VRAM budget.
         cmd: |
-          /app/llama-server
+          /usr/local/bin/llama-server
           --model /models/gemma4/26B-A4B/gemma-4-26B-A4B-it-UD-Q4_K_M.gguf
           --alias Gemma4-26B-A4B
           --host 0.0.0.0
@@ -129,7 +129,7 @@ data:
 
       Gemma4-31B:
         cmd: |
-          /app/llama-server
+          /usr/local/bin/llama-server
           --model /models/gemma4/31b/gemma-4-31B-it-Q4_K_M.gguf
           --alias Gemma4-31B
           --host 0.0.0.0
@@ -155,7 +155,7 @@ data:
 
       Qwen3.6-27B-Q4_K_S:
         cmd: |
-          /app/llama-server
+          /usr/local/bin/llama-server
           --model /models/qwen3.6/27b/Qwen_Qwen3.6-27B-Q4_K_S.gguf
           --alias Qwen3.6-27B-Q4_K_S
           --host 0.0.0.0
@@ -177,7 +177,7 @@ data:
       Qwen3.6-35B-A3B-UD-Q4_K_S:
         # User's local-benchmark champion of the three 35B quants.
         cmd: |
-          /app/llama-server
+          /usr/local/bin/llama-server
           --model /models/qwen3.6/35b/Qwen3.6-35B-A3B-UD-Q4_K_S.gguf
           --alias Qwen3.6-35B-A3B-UD-Q4_K_S
           --host 0.0.0.0
@@ -198,7 +198,7 @@ data:
 
       Qwen3.6-35B-A3B-UD-Q4_K_M:
         cmd: |
-          /app/llama-server
+          /usr/local/bin/llama-server
           --model /models/qwen3.6/35b/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf
           --alias Qwen3.6-35B-A3B-UD-Q4_K_M
           --host 0.0.0.0
@@ -219,7 +219,7 @@ data:
 
       Qwen3.6-35B-A3B-MXFP4-MOE:
         cmd: |
-          /app/llama-server
+          /usr/local/bin/llama-server
           --model /models/qwen3.6/35b/Qwen3.6-35B-A3B-MXFP4_MOE.gguf
           --alias Qwen3.6-35B-A3B-MXFP4-MOE
           --host 0.0.0.0
