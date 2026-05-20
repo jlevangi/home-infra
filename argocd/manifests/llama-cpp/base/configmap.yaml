@@ -45,6 +45,7 @@ data:
           --flash-attn on
           --cache-type-k q4_0
           --cache-type-v q4_0
+          --reasoning auto
           --no-webui
         env:
           - "CUDA_VISIBLE_DEVICES=0"
@@ -69,6 +70,7 @@ data:
           --flash-attn on
           --cache-type-k q4_0
           --cache-type-v q4_0
+          --reasoning auto
           --no-webui
         env:
           - "CUDA_VISIBLE_DEVICES=0"
@@ -94,6 +96,7 @@ data:
           --flash-attn on
           --cache-type-k q4_0
           --cache-type-v q4_0
+          --reasoning auto
           --no-webui
         env:
           - "CUDA_VISIBLE_DEVICES=0"
@@ -225,6 +228,31 @@ data:
           --host 0.0.0.0
           --port ${PORT}
           --gpu-layers 6
+          --threads 20
+          --ctx-size 8192
+          --batch-size 1024
+          --ubatch-size 256
+          --flash-attn on
+          --cache-type-k q4_0
+          --cache-type-v q4_0
+          --reasoning auto
+          --no-webui
+        env:
+          - "CUDA_VISIBLE_DEVICES=0"
+        ttl: 300
+
+      Qwen3.6-35B-A3B-UD-Q8_K_XL:
+        # Bartowski UD Q8_K_XL (~40 GiB on disk). Q8 is ~2x bigger than
+        # Q4 per layer, so gpu-layers drops to 3 (vs 6 for Q4 variants)
+        # to fit the same ~5 GiB usable VRAM budget. Other params match
+        # the Q4 variants pending benchmarking.
+        cmd: |
+          /usr/local/bin/llama-server
+          --model /models/qwen3.6/35b/Qwen3.6-35B-A3B-UD-Q8_K_XL.gguf
+          --alias Qwen3.6-35B-A3B-UD-Q8_K_XL
+          --host 0.0.0.0
+          --port ${PORT}
+          --gpu-layers 3
           --threads 20
           --ctx-size 8192
           --batch-size 1024
