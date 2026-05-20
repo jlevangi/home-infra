@@ -118,3 +118,42 @@ data:
         env:
           - "CUDA_VISIBLE_DEVICES=0"
         ttl: 300
+
+      # =================================================================
+      # MiniMax-M2.7-MXFP4_MOE — XL AGENTIC MODEL (experimental)
+      # =================================================================
+      # Sparse MoE: 230B total / 10B active params, 256 experts (8 active
+      # per token), 62 layers. Designed by MiniMax AI for agentic coding
+      # workflows; ELO 1495 on GDPval-AA (highest open-weight), 46.3% on
+      # Toolathon, 62.7% on MM Claw e2e.
+      #
+      # MXFP4_MOE is the OCP Microscaling FP4 standard. On Pascal sm_61
+      # we get the memory savings but no FP4 tensor-core acceleration
+      # (that lands on Blackwell sm_100+). With 10B active params per
+      # token vs ~3B for our other MoEs, expect ~4-6 tok/s gen.
+      #
+      # Multi-shard: llama-server reads shard 1 (header) and auto-loads
+      # the other 3 (~135 GB total on disk). Cold load will be slow on
+      # first request; mmap minimizes resident pages thereafter.
+      # Conservative ctx-size and ngl to start; tune after first benchmark.
+      MiniMax-M2.7-MXFP4_MOE:
+        cmd: |
+          /usr/local/bin/llama-server
+          --model /models/MiniMax/MXFP4_MOE/MiniMax-M2.7-MXFP4_MOE-00001-of-00004.gguf
+          --alias MiniMax-M2.7-MXFP4_MOE
+          --host 0.0.0.0
+          --port ${PORT}
+          --gpu-layers 3
+          --threads 22
+          --ctx-size 4096
+          --batch-size 512
+          --ubatch-size 128
+          --parallel 1
+          --flash-attn on
+          --cache-type-k q4_0
+          --cache-type-v q4_0
+          --reasoning auto
+          --no-webui
+        env:
+          - "CUDA_VISIBLE_DEVICES=0"
+        ttl: 300
