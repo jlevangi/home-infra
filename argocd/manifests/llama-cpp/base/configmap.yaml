@@ -51,30 +51,13 @@ data:
           - "CUDA_VISIBLE_DEVICES=0"
         ttl: 300
 
-      GLM-4.7-Flash-BF16:
-        # 55.8 GiB multi-shard. llama-server reads shard
-        # 00001-of-00002.gguf and auto-loads the rest from the same
-        # directory. First load is slow (~3-5 min for mmap warmup).
-        cmd: |
-          /usr/local/bin/llama-server
-          --model /models/GLM/GLM-4.7-Flash-BF16-00001-of-00002.gguf
-          --alias GLM-4.7-Flash-BF16
-          --host 0.0.0.0
-          --port ${PORT}
-          --gpu-layers 2
-          --threads 20
-          --ctx-size 4096
-          --batch-size 128
-          --ubatch-size 64
-          --parallel 1
-          --flash-attn on
-          --cache-type-k q4_0
-          --cache-type-v q4_0
-          --reasoning auto
-          --no-webui
-        env:
-          - "CUDA_VISIBLE_DEVICES=0"
-        ttl: 300
+      # NOTE: GLM-4.7-Flash-BF16 was tried here but removed. The Quadro
+      # P4000 is Pascal (sm_61) with no native BF16 support; llama.cpp
+      # must convert every BF16 tensor to FP16/FP32 at load time, forcing
+      # a full sequential read+repack of all 56 GB. Measured load rate
+      # through llama.cpp was ~4 MB/s -> ~4 hours cold start. Q6_K is
+      # the practical "big GLM" target on this hardware. Re-introduce
+      # BF16 only if the GPU is upgraded to Ampere/Hopper (sm_80+).
 
       # =================================================================
       # Qwopus
