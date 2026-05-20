@@ -35,10 +35,14 @@
   become: yes
 
 - name: Mount Longhorn data disk at /var/lib/longhorn
+  # nofail so a missing/failed disk leaves the node reachable for
+  # remote repair instead of hanging boot in systemd emergency mode.
+  # Longhorn will start without its data dir and report storage
+  # absent; that's fixable. A boot hang is not.
   ansible.posix.mount:
     src: "UUID={{ longhorn_disk_uuid.stdout }}"
     path: /var/lib/longhorn
     fstype: ext4
-    opts: defaults,noatime
+    opts: defaults,noatime,nofail
     state: mounted
   become: yes

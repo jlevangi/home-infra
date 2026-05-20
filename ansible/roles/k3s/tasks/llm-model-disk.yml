@@ -36,10 +36,17 @@
   become: yes
 
 - name: Mount LLM model disk at {{ llm_model_mount_path }}
+  # nofail is critical: if the disk fails, is detached, or has its
+  # filesystem corrupted, the VM must still boot. Without nofail, a
+  # missing UUID drops systemd to emergency.target — no SSH, no
+  # kubelet, no way to recover without an out-of-band fix. (Burned
+  # by this on 2026-05-20 when the M.2-to-SATA bridge for sdh
+  # failed and VM 107 hung on fstab; had to mount the OS disk on
+  # the Proxmox host to comment out the entry.)
   ansible.posix.mount:
     src: "UUID={{ llm_model_disk_uuid.stdout }}"
     path: "{{ llm_model_mount_path }}"
     fstype: ext4
-    opts: defaults,noatime
+    opts: defaults,noatime,nofail
     state: mounted
   become: yes
