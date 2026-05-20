@@ -1,0 +1,239 @@
+# llama-swap config — defines every model alias exposed by the proxy.
+# Each model spawns an /app/llama-server child on first request and is
+# evicted after `ttl` seconds of idle. Only one model is loaded at a time
+# (single GPU); `ttl: 300` matches the user's local setup.
+#
+# Args were translated from /mnt/c/Users/pierc/llama-cpp/config.yaml:
+#   - Dropped `--device ROCm0` (llama-server auto-detects CUDA)
+#   - Dropped `--gpu-layers all` -> per-model integer that fits ~5 GiB
+#     of usable VRAM on the Quadro P4000 (8 GiB total minus Plex/Jellyfin)
+#   - HIP_VISIBLE_DEVICES -> CUDA_VISIBLE_DEVICES
+#   - --ctx-size lowered substantially from local 131k-262k because the
+#     KV cache would dwarf the available VRAM; tune up per model after
+#     observing actual usage with nvidia-smi.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: llama-swap-config
+  namespace: llama-cpp
+  labels:
+    app: llama-cpp
+data:
+  config.yaml: |
+    startPort: 5800
+    healthCheckTimeout: 600
+    logLevel: info
+
+    models:
+      # =================================================================
+      # GLM family
+      # =================================================================
+
+      GLM-4.7-Flash-Q6_K:
+        cmd: |
+          /app/llama-server
+          --model /models/GLM/GLM-4.7-Flash-Q6_K.gguf
+          --alias GLM-4.7-Flash-Q6_K
+          --host 0.0.0.0
+          --port ${PORT}
+          --gpu-layers 3
+          --threads 20
+          --ctx-size 8192
+          --batch-size 256
+          --ubatch-size 128
+          --parallel 1
+          --flash-attn on
+          --cache-type-k q4_0
+          --cache-type-v q4_0
+          --no-webui
+        env:
+          - "CUDA_VISIBLE_DEVICES=0"
+        ttl: 300
+
+      GLM-4.7-Flash-BF16:
+        # 55.8 GiB multi-shard. llama-server reads shard
+        # 00001-of-00002.gguf and auto-loads the rest from the same
+        # directory. First load is slow (~3-5 min for mmap warmup).
+        cmd: |
+          /app/llama-server
+          --model /models/GLM/GLM-4.7-Flash-BF16-00001-of-00002.gguf
+          --alias GLM-4.7-Flash-BF16
+          --host 0.0.0.0
+          --port ${PORT}
+          --gpu-layers 2
+          --threads 20
+          --ctx-size 4096
+          --batch-size 128
+          --ubatch-size 64
+          --parallel 1
+          --flash-attn on
+          --cache-type-k q4_0
+          --cache-type-v q4_0
+          --no-webui
+        env:
+          - "CUDA_VISIBLE_DEVICES=0"
+        ttl: 300
+
+      # =================================================================
+      # Qwopus
+      # =================================================================
+
+      Qwopus3.5-9B-coder:
+        cmd: |
+          /app/llama-server
+          --model /models/Qwopus3.5-9B-coder/Qwopus3.5-9B-coder-Exp-BF16.gguf
+          --alias Qwopus3.5-9B-coder
+          --host 0.0.0.0
+          --port ${PORT}
+          --gpu-layers 8
+          --threads 20
+          --ctx-size 16384
+          --batch-size 512
+          --ubatch-size 128
+          --parallel 1
+          --flash-attn on
+          --cache-type-k q4_0
+          --cache-type-v q4_0
+          --no-webui
+        env:
+          - "CUDA_VISIBLE_DEVICES=0"
+        ttl: 300
+
+      # =================================================================
+      # Gemma 4 family
+      # =================================================================
+
+      Gemma4-26B-A4B:
+        # MoE; local benchmark prefers 2048/512 batches and 131k ctx —
+        # cut ctx to 16k for the tighter VRAM budget.
+        cmd: |
+          /app/llama-server
+          --model /models/gemma4/26B-A4B/gemma-4-26B-A4B-it-UD-Q4_K_M.gguf
+          --alias Gemma4-26B-A4B
+          --host 0.0.0.0
+          --port ${PORT}
+          --gpu-layers 10
+          --threads 20
+          --ctx-size 16384
+          --batch-size 2048
+          --ubatch-size 512
+          --flash-attn on
+          --cache-type-k q4_0
+          --cache-type-v q4_0
+          --reasoning off
+          --reasoning-budget 0
+          --no-webui
+        env:
+          - "CUDA_VISIBLE_DEVICES=0"
+        ttl: 300
+
+      Gemma4-31B:
+        cmd: |
+          /app/llama-server
+          --model /models/gemma4/31b/gemma-4-31B-it-Q4_K_M.gguf
+          --alias Gemma4-31B
+          --host 0.0.0.0
+          --port ${PORT}
+          --gpu-layers 6
+          --threads 20
+          --ctx-size 8192
+          --batch-size 1024
+          --ubatch-size 256
+          --flash-attn on
+          --cache-type-k q4_0
+          --cache-type-v q4_0
+          --reasoning off
+          --reasoning-budget 0
+          --no-webui
+        env:
+          - "CUDA_VISIBLE_DEVICES=0"
+        ttl: 300
+
+      # =================================================================
+      # Qwen 3.6 family
+      # =================================================================
+
+      Qwen3.6-27B-Q4_K_S:
+        cmd: |
+          /app/llama-server
+          --model /models/qwen3.6/27b/Qwen_Qwen3.6-27B-Q4_K_S.gguf
+          --alias Qwen3.6-27B-Q4_K_S
+          --host 0.0.0.0
+          --port ${PORT}
+          --gpu-layers 8
+          --threads 20
+          --ctx-size 16384
+          --batch-size 2048
+          --ubatch-size 512
+          --flash-attn on
+          --cache-type-k q4_0
+          --cache-type-v q4_0
+          --reasoning auto
+          --no-webui
+        env:
+          - "CUDA_VISIBLE_DEVICES=0"
+        ttl: 300
+
+      Qwen3.6-35B-A3B-UD-Q4_K_S:
+        # User's local-benchmark champion of the three 35B quants.
+        cmd: |
+          /app/llama-server
+          --model /models/qwen3.6/35b/Qwen3.6-35B-A3B-UD-Q4_K_S.gguf
+          --alias Qwen3.6-35B-A3B-UD-Q4_K_S
+          --host 0.0.0.0
+          --port ${PORT}
+          --gpu-layers 6
+          --threads 20
+          --ctx-size 8192
+          --batch-size 1024
+          --ubatch-size 256
+          --flash-attn on
+          --cache-type-k q4_0
+          --cache-type-v q4_0
+          --reasoning auto
+          --no-webui
+        env:
+          - "CUDA_VISIBLE_DEVICES=0"
+        ttl: 300
+
+      Qwen3.6-35B-A3B-UD-Q4_K_M:
+        cmd: |
+          /app/llama-server
+          --model /models/qwen3.6/35b/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf
+          --alias Qwen3.6-35B-A3B-UD-Q4_K_M
+          --host 0.0.0.0
+          --port ${PORT}
+          --gpu-layers 6
+          --threads 20
+          --ctx-size 8192
+          --batch-size 1024
+          --ubatch-size 256
+          --flash-attn on
+          --cache-type-k q4_0
+          --cache-type-v q4_0
+          --reasoning auto
+          --no-webui
+        env:
+          - "CUDA_VISIBLE_DEVICES=0"
+        ttl: 300
+
+      Qwen3.6-35B-A3B-MXFP4-MOE:
+        cmd: |
+          /app/llama-server
+          --model /models/qwen3.6/35b/Qwen3.6-35B-A3B-MXFP4_MOE.gguf
+          --alias Qwen3.6-35B-A3B-MXFP4-MOE
+          --host 0.0.0.0
+          --port ${PORT}
+          --gpu-layers 6
+          --threads 20
+          --ctx-size 8192
+          --batch-size 1024
+          --ubatch-size 256
+          --flash-attn on
+          --cache-type-k q4_0
+          --cache-type-v q4_0
+          --reasoning auto
+          --no-webui
+        env:
+          - "CUDA_VISIBLE_DEVICES=0"
+        ttl: 300

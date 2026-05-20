@@ -18,37 +18,18 @@ spec:
         app: llama-cpp
     spec:
       containers:
-        - name: llama-server
-          # TODO: pin to a digest (`@sha256:...`) before promoting widely.
-          image: ghcr.io/ggml-org/llama.cpp:server-cuda
+        - name: llama-swap
+          # llama-swap unified image — bundles both the llama-swap proxy
+          # (entrypoint) and the /app/llama-server binary it spawns per
+          # model. TODO: pin to a digest (`@sha256:...`) before this
+          # becomes load-bearing.
+          image: ghcr.io/mostlygeek/llama-swap:unified-cuda
           imagePullPolicy: IfNotPresent
           args:
-            - --model
-            - /models/GLM/GLM-4.7-Flash-Q6_K.gguf
-            - --alias
-            - GLM-4.7-Flash-Q6_K
-            - --host
-            - 0.0.0.0
-            - --port
-            - "8080"
-            - --gpu-layers
-            - "3"
-            - --threads
-            - "20"
-            - --ctx-size
-            - "8192"
-            - --batch-size
-            - "256"
-            - --ubatch-size
-            - "128"
-            - --parallel
-            - "1"
-            - --flash-attn
-            - "on"
-            - --cache-type-k
-            - q4_0
-            - --cache-type-v
-            - q4_0
+            - --config
+            - /etc/llama-swap/config/config.yaml
+            - --listen
+            - ":8080"
           env:
             - name: CUDA_VISIBLE_DEVICES
               value: "0"
@@ -70,18 +51,24 @@ spec:
             httpGet:
               path: /health
               port: http
-            # GLM-4.7-Flash-Q6_K (23 GiB) loads in ~45s on the Quadro P4000.
-            # Bump initialDelaySeconds if you switch to a much larger model
-            # (e.g. DeepSeek-R1 IQ2_XXS at 180 GiB would want ~600s).
-            initialDelaySeconds: 60
-            periodSeconds: 15
+            # llama-swap proxy answers /health immediately. Child model
+            # loads happen on first request (not at pod startup), so we
+            # don't need a long warmup grace period here.
+            initialDelaySeconds: 5
+            periodSeconds: 10
             timeoutSeconds: 5
-            failureThreshold: 30
+            failureThreshold: 3
           volumeMounts:
             - name: models
               mountPath: /models
+              readOnly: true
+            - name: config
+              mountPath: /etc/llama-swap/config
               readOnly: true
       volumes:
         - name: models
           persistentVolumeClaim:
             claimName: llama-cpp-models-pvc
+        - name: config
+          configMap:
+            name: llama-swap-config
