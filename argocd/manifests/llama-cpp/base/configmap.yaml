@@ -1,16 +1,20 @@
 # llama-swap config — defines every model alias exposed by the proxy.
-# Each model spawns an /app/llama-server child on first request and is
-# evicted after `ttl` seconds of idle. Only one model is loaded at a time
-# (single GPU); `ttl: 300` matches the user's local setup.
+# Each model spawns a /usr/local/bin/llama-server child on first request and
+# is evicted after `ttl` seconds of idle. Only one model is loaded at a time
+# (single GPU); --parallel allows multiple concurrent sessions on the active
+# model.
 #
-# Args were translated from /mnt/c/Users/pierc/llama-cpp/config.yaml:
-#   - Dropped `--device ROCm0` (llama-server auto-detects CUDA)
-#   - Dropped `--gpu-layers all` -> per-model integer that fits ~5 GiB
-#     of usable VRAM on the Quadro P4000 (8 GiB total minus Plex/Jellyfin)
-#   - HIP_VISIBLE_DEVICES -> CUDA_VISIBLE_DEVICES
-#   - --ctx-size lowered substantially from local 131k-262k because the
-#     KV cache would dwarf the available VRAM; tune up per model after
-#     observing actual usage with nvidia-smi.
+# Trimmed to 3 production aliases on 2026-05-20 based on a benchmark sweep
+# against the Quadro P4000 (Pascal sm_61, 8 GiB VRAM). See sibling
+# BENCHMARKING.md for the data and rationale.
+#
+# Hardware ceiling: ~12 tok/s per slot on Pascal. Dense models > 12B
+# parameters drop to 2-3 tok/s and are not viable for parallel agents.
+# All three kept models are MoE with 3-4B active params, which keeps
+# generation throughput high while only a fraction of layers fit on GPU.
+#
+# Per-request thinking toggle (--reasoning auto): frontends like opencode
+# can set chat_template_kwargs.enable_thinking={true|false} per call.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -26,17 +30,44 @@ data:
 
     models:
       # =================================================================
-      # GLM family
+      # Qwen3.6-35B-A3B-UD-Q4_K_M — PRIMARY CODING AGENT
       # =================================================================
+      # MoE 35B/3B-active. Highest HumanEval+ (93.3%) and SWE-Bench (73.4%)
+      # among models we can run. Measured 12.1 tok/s per slot (parallel=1),
+      # 5394 MiB VRAM at ngl=10, ~45s cold load on defragmented disk.
+      # Released by Alibaba April 2026, native 262k context (capped to 8k
+      # here; bump to 32k for parallel=4 agentic use).
+      Qwen3.6-35B-A3B-UD-Q4_K_M:
+        cmd: |
+          /usr/local/bin/llama-server
+          --model /models/qwen3.6/35b/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf
+          --alias Qwen3.6-35B-A3B-UD-Q4_K_M
+          --host 0.0.0.0
+          --port ${PORT}
+          --gpu-layers 10
+          --threads 22
+          --ctx-size 8192
+          --batch-size 1024
+          --ubatch-size 256
+          --parallel 1
+          --flash-attn on
+          --cache-type-k q4_0
+          --cache-type-v q4_0
+          --reasoning auto
+          --no-webui
+        env:
+          - "CUDA_VISIBLE_DEVICES=0"
+        ttl: 300
 
+      # =================================================================
+      # GLM-4.7-Flash-Q6_K — ALTERNATIVE CODER, FASTEST COLD LOAD
+      # =================================================================
+      # MoE 30B/3B-active. HumanEval ~92%, SWE-Bench 73.8% (highest SWE
+      # score on this machine). Measured 11.3 tok/s per slot, 5034 MiB
+      # VRAM at ngl=10, ~20s cold load (less fragmented than the Qwen
+      # files). Use this when you want the snappiest first response after
+      # a model swap.
       GLM-4.7-Flash-Q6_K:
-        # Benchmarked on Quadro P4000 (sm_61, 8 GiB) + 20 vCPU pod:
-        #   ngl=3:  1540 MiB VRAM, 9.0 tok/s gen
-        #   ngl=10: 5034 MiB VRAM, 9.9 tok/s gen  <-- chosen
-        #   ngl=14: 7042 MiB VRAM, 10.3 tok/s gen (no Plex headroom)
-        #   ngl>=24: OOM
-        # ngl=10 leaves ~3 GiB VRAM for Plex/Jellyfin transcoder.
-        # gen tok/s is bottlenecked by Pascal FP16 throughput, not CPU.
         cmd: |
           /usr/local/bin/llama-server
           --model /models/GLM/GLM-4.7-Flash-Q6_K.gguf
@@ -58,47 +89,15 @@ data:
           - "CUDA_VISIBLE_DEVICES=0"
         ttl: 300
 
-      # NOTE: GLM-4.7-Flash-BF16 was tried here but removed. The Quadro
-      # P4000 is Pascal (sm_61) with no native BF16 support; llama.cpp
-      # must convert every BF16 tensor to FP16/FP32 at load time, forcing
-      # a full sequential read+repack of all 56 GB. Measured load rate
-      # through llama.cpp was ~4 MB/s -> ~4 hours cold start. Q6_K is
-      # the practical "big GLM" target on this hardware. Re-introduce
-      # BF16 only if the GPU is upgraded to Ampere/Hopper (sm_80+).
-
       # =================================================================
-      # Qwopus
+      # Gemma4-26B-A4B — FAST GENERAL-PURPOSE / NON-CODING
       # =================================================================
-
-      Qwopus3.5-9B-coder:
-        cmd: |
-          /usr/local/bin/llama-server
-          --model /models/Qwopus3.5-9B-coder/Qwopus3.5-9B-coder-Exp-BF16.gguf
-          --alias Qwopus3.5-9B-coder
-          --host 0.0.0.0
-          --port ${PORT}
-          --gpu-layers 8
-          --threads 20
-          --ctx-size 16384
-          --batch-size 512
-          --ubatch-size 128
-          --parallel 1
-          --flash-attn on
-          --cache-type-k q4_0
-          --cache-type-v q4_0
-          --reasoning auto
-          --no-webui
-        env:
-          - "CUDA_VISIBLE_DEVICES=0"
-        ttl: 300
-
-      # =================================================================
-      # Gemma 4 family
-      # =================================================================
-
+      # MoE 26B/4B-active. HumanEval ~78.5% (weakest coder of the three)
+      # but the FASTEST model on this hardware at 14.1 tok/s per slot.
+      # Use for chat, summarization, anything not strictly code.
+      # 6108 MiB VRAM at ngl=10. --reasoning off because Gemma's
+      # template doesn't model thinking the same way as Qwen/GLM.
       Gemma4-26B-A4B:
-        # MoE; local benchmark prefers 2048/512 batches and 131k ctx —
-        # cut ctx to 16k for the tighter VRAM budget.
         cmd: |
           /usr/local/bin/llama-server
           --model /models/gemma4/26B-A4B/gemma-4-26B-A4B-it-UD-Q4_K_M.gguf
@@ -106,8 +105,8 @@ data:
           --host 0.0.0.0
           --port ${PORT}
           --gpu-layers 10
-          --threads 20
-          --ctx-size 16384
+          --threads 22
+          --ctx-size 8192
           --batch-size 2048
           --ubatch-size 512
           --flash-attn on
@@ -115,146 +114,6 @@ data:
           --cache-type-v q4_0
           --reasoning off
           --reasoning-budget 0
-          --no-webui
-        env:
-          - "CUDA_VISIBLE_DEVICES=0"
-        ttl: 300
-
-      Gemma4-31B:
-        cmd: |
-          /usr/local/bin/llama-server
-          --model /models/gemma4/31b/gemma-4-31B-it-Q4_K_M.gguf
-          --alias Gemma4-31B
-          --host 0.0.0.0
-          --port ${PORT}
-          --gpu-layers 6
-          --threads 20
-          --ctx-size 8192
-          --batch-size 1024
-          --ubatch-size 256
-          --flash-attn on
-          --cache-type-k q4_0
-          --cache-type-v q4_0
-          --reasoning off
-          --reasoning-budget 0
-          --no-webui
-        env:
-          - "CUDA_VISIBLE_DEVICES=0"
-        ttl: 300
-
-      # =================================================================
-      # Qwen 3.6 family
-      # =================================================================
-
-      Qwen3.6-27B-Q4_K_S:
-        cmd: |
-          /usr/local/bin/llama-server
-          --model /models/qwen3.6/27b/Qwen_Qwen3.6-27B-Q4_K_S.gguf
-          --alias Qwen3.6-27B-Q4_K_S
-          --host 0.0.0.0
-          --port ${PORT}
-          --gpu-layers 8
-          --threads 20
-          --ctx-size 16384
-          --batch-size 2048
-          --ubatch-size 512
-          --flash-attn on
-          --cache-type-k q4_0
-          --cache-type-v q4_0
-          --reasoning auto
-          --no-webui
-        env:
-          - "CUDA_VISIBLE_DEVICES=0"
-        ttl: 300
-
-      Qwen3.6-35B-A3B-UD-Q4_K_S:
-        # User's local-benchmark champion of the three 35B quants.
-        cmd: |
-          /usr/local/bin/llama-server
-          --model /models/qwen3.6/35b/Qwen3.6-35B-A3B-UD-Q4_K_S.gguf
-          --alias Qwen3.6-35B-A3B-UD-Q4_K_S
-          --host 0.0.0.0
-          --port ${PORT}
-          --gpu-layers 6
-          --threads 20
-          --ctx-size 8192
-          --batch-size 1024
-          --ubatch-size 256
-          --flash-attn on
-          --cache-type-k q4_0
-          --cache-type-v q4_0
-          --reasoning auto
-          --no-webui
-        env:
-          - "CUDA_VISIBLE_DEVICES=0"
-        ttl: 300
-
-      Qwen3.6-35B-A3B-UD-Q4_K_M:
-        cmd: |
-          /usr/local/bin/llama-server
-          --model /models/qwen3.6/35b/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf
-          --alias Qwen3.6-35B-A3B-UD-Q4_K_M
-          --host 0.0.0.0
-          --port ${PORT}
-          --gpu-layers 6
-          --threads 20
-          --ctx-size 8192
-          --batch-size 1024
-          --ubatch-size 256
-          --flash-attn on
-          --cache-type-k q4_0
-          --cache-type-v q4_0
-          --reasoning auto
-          --no-webui
-        env:
-          - "CUDA_VISIBLE_DEVICES=0"
-        ttl: 300
-
-      Qwen3.6-35B-A3B-MXFP4-MOE:
-        cmd: |
-          /usr/local/bin/llama-server
-          --model /models/qwen3.6/35b/Qwen3.6-35B-A3B-MXFP4_MOE.gguf
-          --alias Qwen3.6-35B-A3B-MXFP4-MOE
-          --host 0.0.0.0
-          --port ${PORT}
-          --gpu-layers 6
-          --threads 20
-          --ctx-size 8192
-          --batch-size 1024
-          --ubatch-size 256
-          --flash-attn on
-          --cache-type-k q4_0
-          --cache-type-v q4_0
-          --reasoning auto
-          --no-webui
-        env:
-          - "CUDA_VISIBLE_DEVICES=0"
-        ttl: 300
-
-      Qwen3.6-35B-A3B-UD-Q8_K_XL:
-        # Benchmarked on Quadro P4000 (sm_61, 8 GiB) + 20 vCPU pod:
-        #   ngl=3: 3646 MiB VRAM, 8.5 tok/s gen
-        #   ngl=4: 4746 MiB VRAM, 8.8 tok/s gen
-        #   ngl=5: 5604 MiB VRAM, 9.1 tok/s gen  <-- chosen
-        #   ngl=6: 6462 MiB VRAM, 8.7 tok/s gen (regression — GPU sat)
-        # ngl=5 maxes generation throughput and leaves ~2.5 GiB VRAM
-        # for Plex/Jellyfin transcoder. Adding more layers actually
-        # slowed inference — likely PCIe/L2 contention at saturation.
-        cmd: |
-          /usr/local/bin/llama-server
-          --model /models/qwen3.6/35b/Qwen3.6-35B-A3B-UD-Q8_K_XL.gguf
-          --alias Qwen3.6-35B-A3B-UD-Q8_K_XL
-          --host 0.0.0.0
-          --port ${PORT}
-          --gpu-layers 5
-          --threads 20
-          --ctx-size 8192
-          --batch-size 1024
-          --ubatch-size 256
-          --flash-attn on
-          --cache-type-k q4_0
-          --cache-type-v q4_0
-          --reasoning auto
           --no-webui
         env:
           - "CUDA_VISIBLE_DEVICES=0"

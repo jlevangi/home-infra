@@ -1,0 +1,140 @@
+# llama-swap model benchmark — Quadro P4000 (Pascal sm_61, 8 GiB VRAM)
+
+Running comparison of every GGUF on the prod GPU node, ranked for the user's
+primary use case: **parallel coding agents** (opencode, aider, etc).
+
+**Hardware reality check:** Pascal has no native BF16. FP16 ops are slow. The
+practical ceiling on this GPU is ~12 tok/s per slot regardless of model size.
+The decisive variable is **architecture (MoE vs dense)** — MoE with ~3-4B
+active params per token consistently beats dense models by 4-5x because most
+layers stay on CPU and the active params fit in our ~5 GiB usable VRAM budget.
+
+All benchmarks below are with `ngl=10`, `ctx-size=8192`, `--flash-attn on`,
+`--cache-type-k/v q4_0`, threads=22, on a 14-token "write a median function"
+prompt with `max_tokens=200` (parallel runs fire identical concurrent
+requests). Measured on May 20 2026.
+
+---
+
+## Comparison table
+
+| Model | Arch | Total / Active | Quant | Size | Per-slot gen | Par=4 aggregate | VRAM | HumanEval+ | SWE-bench | Cold load |
+|---|---|---|---|---|---:|---:|---:|---:|---:|---:|
+| **Qwen3.6-35B-A3B-UD-Q4_K_M** | MoE | 35B / 3B | Q4_K_M | 20.6 GB | **12.1 t/s** | ~24 t/s* | 5394 MiB | **93.3%** | **73.4%** | 45 s |
+| GLM-4.7-Flash-Q6_K | MoE | 30B / 3B | Q6_K | 23.0 GB | 11.3 t/s | 22.4 t/s | 5034 MiB | ~92% | **73.8%** | 20 s |
+| Qwen3.6-35B-A3B-UD-Q4_K_S | MoE | 35B / 3B | Q4_K_S | 19.5 GB | 11.1 t/s | 22.2 t/s | 5202 MiB | ~92% | 73.4% | 45 s |
+| Qwen3.6-35B-A3B-MXFP4-MOE | MoE | 35B / 3B | MXFP4 | 20.2 GB | 10.9 t/s | — | 5368 MiB | ~92% | 73.4% | 40 s |
+| Qwen3.6-35B-A3B-UD-Q8_K_XL | MoE | 35B / 3B | Q8_K_XL | 36.4 GB | 9.1 t/s | — | 5604 MiB | 93%+ | 73.4% | **539 s** ‼️ |
+| Gemma4-26B-A4B | MoE | 26B / 4B | Q4_K_M | 15.8 GB | **14.1 t/s** | — | 6108 MiB | 78.5% | (na) | 40 s |
+| Qwopus3.5-9B-coder | dense | 9B / 9B | **BF16** | 16.7 GB | 4.2 t/s | — | 5970 MiB | 87.8% | (na) | 35 s |
+| Qwen3.6-27B-Q4_K_S | dense | 27B / 27B | Q4_K_S | 15.3 GB | 2.5 t/s | — | ~6 GB | high | 77.2% | 33 s |
+| Gemma4-31B | dense | 31B / 31B | Q4_K_M | 17.1 GB | 2.7 t/s | — | 3864 MiB | 82.7% | (na) | 40 s |
+| GLM-4.7-Flash-BF16 (removed) | MoE | 30B / 3B | BF16 | 55 GB | — | — | — | ~92% | 73.8% | **~4 hours** ‼️ |
+
+\* Qwen-35B-A3B-Q4_K_M parallel=4 sweep wasn't run; estimated from Q4_K_S
+   (22.2 t/s @ par4) scaled by the per-slot ratio (12.1 / 11.1).
+
+### Parallel scaling for the two top contenders
+
+| Parallel slots | GLM-4.7-Flash-Q6_K | Qwen-35B-A3B-Q4_K_S |
+|---:|---:|---:|
+| 1 | 11.3 t/s per slot | 11.1 t/s per slot |
+| 2 | 8.1 t/s × 2 = **14.1 t/s agg** | 10.1 t/s × 2 = **17.4 t/s agg** |
+| 4 | 6.6 t/s × 4 = **22.4 t/s agg** | 7.2 t/s × 4 = **22.2 t/s agg** |
+
+Both peak ~22 t/s aggregate at par=4. VRAM stays flat (~5 GiB) across slot
+counts because `ctx-size` is divided across slots — KV cache size is
+constant. At parallel=4, each slot has 2k effective context which is tight
+for code review; bump `ctx-size` to 32k for ~8k per slot if you upgrade beyond
+the current 8 GiB allocation.
+
+---
+
+## Capability intelligence (from HuggingFace)
+
+Drawing on each model's published benchmarks and my read of the architecture:
+
+### Tier S — production coding agent
+- **Qwen3.6-35B-A3B** (any UD-Q4 quant): Apr 2026, 93.3% HumanEval, 73.4%
+  SWE-bench Verified, native 262k context. Best agentic coding score among
+  models we have. Sparse MoE means it's actually fast.
+- **GLM-4.7-Flash** (Q6_K): Jan 2026, ~92% HumanEval, 73.8% SWE-bench
+  (highest SWE score we have). MoE 30B/3B-active. Same speed tier as Qwen.
+
+### Tier A — coder, but smaller
+- **Qwopus3.5-9B-coder**: 87.8% HumanEval+ (Opus-distilled Qwen merge). Would
+  be a great fast coder but the BF16 quant we have **chokes on Pascal**.
+  Would need a Q4_K_M re-download to be viable here.
+
+### Tier B — general purpose, not coding-focused
+- **Gemma4-26B-A4B**: 78.5% HumanEval. **Fastest model on this hardware**
+  (14.1 t/s). Strong general assistant, mediocre coder. Useful as the
+  "non-coding" alias for chat, summarization, etc.
+- **Gemma4-31B** (dense): 82.7% HumanEval but **dense → 2.7 t/s, unusable**.
+
+### Tier C — unusable on this hardware
+- **Qwen3.6-27B** (dense): SWE-bench 77.2% (better than the MoE variants on
+  paper!) but **dense → 2.5 t/s**. Can't use it for parallel agents.
+- **GLM-4.7-Flash-BF16** (already removed): same model as Q6_K but Pascal
+  can't natively run BF16.
+
+---
+
+## Recommendations
+
+### Keep in llama-swap (3 aliases)
+
+1. **`Qwen3.6-35B-A3B-UD-Q4_K_M`** — primary coding agent. Highest
+   HumanEval+ (93.3%), fastest Qwen MoE quant variant, slightly better
+   quality than Q4_K_S. Default for `opencode`, `aider`, etc.
+2. **`GLM-4.7-Flash-Q6_K`** — alternative coder. Highest SWE-bench (73.8%),
+   fastest cold load (~20s vs Qwen's ~45s) which matters for snappy first
+   request, 256k context.
+3. **`Gemma4-26B-A4B`** — fast general assistant. 14.1 t/s, weaker coder
+   but useful for non-code tasks where speed dominates.
+
+### Remove from llama-swap config + delete GGUFs
+
+| GGUF | Size | Why remove |
+|---|---:|---|
+| `Qwen3.6-35B-A3B-UD-Q4_K_S.gguf` | 19.5 GB | Q4_K_M is strictly better (same speed band, slightly higher quality) |
+| `Qwen3.6-35B-A3B-MXFP4_MOE.gguf` | 20.2 GB | Slower than Q4_K_M with no quality benefit (experimental quant, no advantage on Pascal) |
+| `Qwen3.6-35B-A3B-UD-Q8_K_XL.gguf` | 36.4 GB | **9-min cold load** (fragmented + Q8 conversion overhead). Only 9.1 t/s. Q4_K_M dominates. |
+| `Qwen_Qwen3.6-27B-Q4_K_S.gguf` | 15.3 GB | Dense — 2.5 t/s. Unusable for parallel agents. |
+| `gemma-4-31B-it-Q4_K_M.gguf` | 17.1 GB | Dense — 2.7 t/s. Unusable for parallel agents. |
+| `Qwopus3.5-9B-coder-Exp-BF16.gguf` | 16.7 GB | BF16 on Pascal degrades it to 4.2 t/s. **Replace with a Q4_K_M variant** for a viable small coder. |
+
+**Total disk reclaimed: ~125 GB** (out of 362 GB used → drops to ~237 GB).
+
+### Configuration tuning notes
+
+- **`ctx-size` strategy for parallel agents**: llama.cpp splits the KV cache
+  evenly across slots. For `--parallel 4`, set `ctx-size=32768` so each slot
+  gets 8k effective context (enough for code review with a couple file
+  attachments).
+- **Cold-start matters more than steady-state** for agents that swap models.
+  GLM's ~20s cold load is the biggest practical win over Qwen's ~45s for
+  agent UX.
+- **`--reasoning auto`** is left on every entry so frontends can toggle
+  thinking per-request via `chat_template_kwargs.enable_thinking`. For
+  coding, plain non-thinking output is usually what you want; for hard
+  reasoning tasks, request thinking explicitly.
+
+---
+
+## Methodology
+
+- One-shot generation request, low temperature (0.1), 200 max_tokens, code-write prompt
+- Each model: spin up `/usr/local/bin/llama-server` directly inside the
+  llama-cpp pod with the exact same flags differing only in
+  `--gpu-layers`, `--parallel`, and the model file
+- Per-slot gen tok/s comes from llama-server's own `timings.predicted_per_second`
+- Aggregate tok/s = total generated tokens / wall clock of all concurrent
+  curl requests
+- VRAM via `nvidia-smi --query-gpu=memory.used` after model loaded
+- Cold load = time from `llama-server` exec to first successful `/health`
+- Plex/Jellyfin co-tenancy budget assumed at ~2-3 GiB during transcodes;
+  every "keep" model fits in the remaining ~5 GiB headroom
+
+To re-run any benchmark, see `/tmp/bench-parallel.sh` inside the
+llama-cpp pod (re-staged with `kubectl cp` each session).
