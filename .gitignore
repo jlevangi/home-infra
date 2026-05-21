@@ -146,3 +146,8 @@ coverage/
 
 # Local-only private app bundle
 .private-apps/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
