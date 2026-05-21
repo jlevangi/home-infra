@@ -33,7 +33,7 @@ realistic per-slot budget for parallel agent use.
 | Qwen3.6-27B-UD-Q8_K_XL | dense | 27B / 27B | Q8_K_XL | 34 GB | **0.93 t/s** ⚠️ | — | 4236 MiB | high | 77.2% | ~12 s page-cached ‡ |
 | **Gemma4-26B-A4B** | MoE | 26B / 4B | Q4_K_M | 15.8 GB | **14.1 t/s** | — | 6108 MiB | 78.5% | (na) | 40 s |
 | Gemma4-31B | dense | 31B / 31B | Q4_K_M | 17.1 GB | 2.7 t/s | — | 3864 MiB | 82.7% | (na) | 40 s |
-| **MiniMax-M2.7-MXFP4_MOE** | MoE | 230B / 10B | MXFP4 | 130 GB (split) | **PENDING** | — | **PENDING** | (na) | (na) | **PENDING** (~15-25 min from tank ‼️) |
+| MiniMax-M2.7-MXFP4_MOE | MoE | 230B / 10B | MXFP4 | 130 GB (split) | **UNBENCHABLE** ‼️ | — | n/a | (na) | (na) | **>30 min from tank** † |
 
 ### Removed / no longer downloaded (historical baseline)
 
@@ -54,6 +54,39 @@ realistic per-slot budget for parallel agent use.
    page cache. A truly cold uncached read of 34 GiB from spinning tank
    would be ~4 min at ~150 MB/s; re-run after `echo 3 > /proc/sys/vm/drop_caches`
    for a clean number.
+
+† MiniMax-M2.7-MXFP4_MOE cannot reach `/health=200` within llama-swap's
+   maximum `healthCheckTimeout` window when loading from the spinning
+   tank pool. Verified 2026-05-21 at 600 s (default), 1800 s (raised),
+   and via direct invocation past 30 min — the load IS progressing
+   (~9 GiB pulled from disk in the first 30 s with a partly-warm page
+   cache, confirmed via `/proc/$PID/io read_bytes`), but the
+   initialization touches many random regions of the 130 GiB split
+   GGUF (MoE expert metadata, MXFP4 unpacking), and spinning-disk
+   seek latency dominates. The Pascal GPU portion of the load (ngl=3
+   layer transfer) is not the bottleneck.
+
+   **Recommended action**: revisit after the flash Longhorn pool (see
+   beads home-infra-sbd) lands and we have NVMe-class read latency on
+   the model storage, OR move just this one model onto a flash zvol
+   for selective fast loading.
+
+### Verification of new ctx + parallel defaults (2026-05-21)
+
+Spot-checked Qwen3.6-35B-A3B-UD-Q4_K_S under the new `parallel=4 +
+ctx-size=262144` configuration with a single request:
+- Cold load: 50 s (consistent with the prior `45 s` baseline)
+- VRAM: 5546 MiB (vs 5202 MiB at par=1 + ctx=8192 — modest bump from
+  the larger KV cache allocation)
+- Warm wall for 200 tokens: 19.7 s → ~10 t/s per slot, in line with the
+  11.1 t/s previously measured
+
+Per-slot generation speed is essentially unchanged by the parallel
+config (single-request workload); the parallel slots come into play
+when concurrent agents fire requests, where prior data showed
+aggregate scaling to ~22 t/s at par=4. Re-running the par=4
+concurrent burst to confirm scaling under the new ctx-size is left
+as a follow-up.
 
 ⚠️ Qwen3.6-27B-UD-Q8_K_XL is the slowest model measured to date: 0.93 t/s.
    Per-token GPU work is small but the 34 GiB Q8 weights live mostly in
