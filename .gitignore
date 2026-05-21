@@ -151,3 +151,5 @@ coverage/
 .dolt/
 *.db
 .beads-credential-key
+# Exclude the entire .beads/ directory
+.beads/
