@@ -30,7 +30,7 @@ realistic per-slot budget for parallel agent use.
 |---|---|---|---|---|---:|---:|---:|---:|---:|---:|
 | Qwen3.6-35B-A3B-UD-Q4_K_S | MoE | 35B / 3B | Q4_K_S | 19.5 GB | 11.1 t/s | 22.2 t/s | 5202 MiB | ~92% | 73.4% | 45 s |
 | Qwen3.6-35B-A3B-MXFP4_MOE | MoE | 35B / 3B | MXFP4 | 20.2 GB | 10.9 t/s | — | 5368 MiB | ~92% | 73.4% | 40 s |
-| **Qwen3.6-27B-UD-Q8_K_XL** | **dense** | 27B / 27B | Q8_K_XL | 34 GB | **PENDING** | — | **PENDING** | high | 77.2% | **PENDING** (~5-8 min from tank) |
+| Qwen3.6-27B-UD-Q8_K_XL | dense | 27B / 27B | Q8_K_XL | 34 GB | **0.93 t/s** ⚠️ | — | 4236 MiB | high | 77.2% | ~12 s page-cached ‡ |
 | **Gemma4-26B-A4B** | MoE | 26B / 4B | Q4_K_M | 15.8 GB | **14.1 t/s** | — | 6108 MiB | 78.5% | (na) | 40 s |
 | Gemma4-31B | dense | 31B / 31B | Q4_K_M | 17.1 GB | 2.7 t/s | — | 3864 MiB | 82.7% | (na) | 40 s |
 | **MiniMax-M2.7-MXFP4_MOE** | MoE | 230B / 10B | MXFP4 | 130 GB (split) | **PENDING** | — | **PENDING** | (na) | (na) | **PENDING** (~15-25 min from tank ‼️) |
@@ -48,6 +48,22 @@ realistic per-slot budget for parallel agent use.
 
 \* Qwen-35B-A3B-Q4_K_M parallel=4 sweep wasn't run; estimated from Q4_K_S
    (22.2 t/s @ par4) scaled by the per-slot ratio (12.1 / 11.1).
+
+‡ Qwen3.6-27B-UD-Q8_K_XL cold-load entry is page-cache-warm: file had been
+   recently touched on the host, so the on-disk read was already in Linux
+   page cache. A truly cold uncached read of 34 GiB from spinning tank
+   would be ~4 min at ~150 MB/s; re-run after `echo 3 > /proc/sys/vm/drop_caches`
+   for a clean number.
+
+⚠️ Qwen3.6-27B-UD-Q8_K_XL is the slowest model measured to date: 0.93 t/s.
+   Per-token GPU work is small but the 34 GiB Q8 weights live mostly in
+   CPU RAM (ngl=3 of ~64 layers); the CPU memory-bandwidth ceiling
+   dominates. Useful as a high-quality reference for quality comparisons
+   against the MoE quants, not for any interactive workflow.
+
+   Measured 2026-05-21 with `--ctx-size 65536`, `--gpu-layers 3`,
+   `--parallel 1`, `--threads 22`, `--cache-type-k/v q4_0`. Prompt
+   processing 6.4 t/s, generation 0.93 t/s, finish_reason=stop.
 
 ### Parallel scaling for the two top contenders
 
