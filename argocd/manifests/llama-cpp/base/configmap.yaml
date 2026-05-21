@@ -37,7 +37,12 @@ metadata:
 data:
   config.yaml: |
     startPort: 5800
-    healthCheckTimeout: 600
+    # MiniMax-M2.7-MXFP4_MOE (130 GiB split across 4 shards) needs ~12-15 min
+    # to cold-load from tank, longer than the upstream default 600 s. The
+    # ~3-25 GiB MoE quants finish well inside this window, so the bump is
+    # safe across the board — only affects how long llama-swap waits for a
+    # newly-spawned child to become healthy, not steady-state behavior.
+    healthCheckTimeout: 1800
     logLevel: info
 
     models:
