@@ -106,9 +106,17 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: vault-raft
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      name: vault-raft
+      namespace: vault-raft
+      jsonPointers:
+        - /spec/volumeClaimTemplates/0/metadata/labels
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - RespectIgnoreDifferences=true
