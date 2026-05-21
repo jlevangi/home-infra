@@ -17,6 +17,16 @@
 # (vs the upstream default 300s) — cold loads run 30 s for Q4 MoEs to
 # minutes for MiniMax's 130 GiB split, so we tolerate a longer idle window
 # to avoid swap thrash during agent sessions.
+#
+# ctx-size + --parallel strategy: the pod has 80–130 GiB RAM headroom and
+# Q4-quantized KV keeps the per-token cost ~64 KB for the 35B Qwen MoEs.
+# Each model targets ~64 k per-slot effective context (ctx-size /
+# --parallel), with the Qwen 35B coders configured at parallel=4 to chase
+# the empirically observed ~22 t/s aggregate ceiling on Pascal P4000.
+# Dense models stay at parallel=1 — they're already CPU-bound; parallel
+# slots wouldn't beat the GPU ceiling and would just split the floor.
+# MiniMax is single-slot until we have a feel for its 10B-active behavior
+# under load.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -46,10 +56,10 @@ data:
           --port ${PORT}
           --gpu-layers 10
           --threads 22
-          --ctx-size 8192
+          --ctx-size 262144
           --batch-size 1024
           --ubatch-size 256
-          --parallel 1
+          --parallel 4
           --flash-attn on
           --cache-type-k q4_0
           --cache-type-v q4_0
@@ -75,10 +85,10 @@ data:
           --port ${PORT}
           --gpu-layers 10
           --threads 22
-          --ctx-size 8192
+          --ctx-size 262144
           --batch-size 512
           --ubatch-size 128
-          --parallel 1
+          --parallel 4
           --flash-attn on
           --cache-type-k q4_0
           --cache-type-v q4_0
@@ -104,7 +114,7 @@ data:
           --port ${PORT}
           --gpu-layers 3
           --threads 22
-          --ctx-size 4096
+          --ctx-size 65536
           --batch-size 512
           --ubatch-size 128
           --parallel 1
@@ -133,9 +143,10 @@ data:
           --port ${PORT}
           --gpu-layers 10
           --threads 22
-          --ctx-size 8192
+          --ctx-size 131072
           --batch-size 2048
           --ubatch-size 512
+          --parallel 2
           --flash-attn on
           --cache-type-k q4_0
           --cache-type-v q4_0
@@ -161,7 +172,7 @@ data:
           --port ${PORT}
           --gpu-layers 6
           --threads 22
-          --ctx-size 8192
+          --ctx-size 65536
           --batch-size 1024
           --ubatch-size 256
           --flash-attn on
@@ -198,7 +209,7 @@ data:
           --port ${PORT}
           --gpu-layers 3
           --threads 22
-          --ctx-size 4096
+          --ctx-size 131072
           --batch-size 512
           --ubatch-size 128
           --parallel 1

@@ -9,27 +9,42 @@ The decisive variable is **architecture (MoE vs dense)** — MoE with ~3-4B
 active params per token consistently beats dense models by 4-5x because most
 layers stay on CPU and the active params fit in our ~5 GiB usable VRAM budget.
 
-All benchmarks below are with `ngl=10`, `ctx-size=8192`, `--flash-attn on`,
-`--cache-type-k/v q4_0`, threads=22, on a 14-token "write a median function"
-prompt with `max_tokens=200` (parallel runs fire identical concurrent
-requests). Measured on May 20 2026.
+Benchmarks marked **(May 20 2026)** were run with `ngl=10`, `ctx-size=8192`,
+`--flash-attn on`, `--cache-type-k/v q4_0`, threads=22, on a 14-token
+"write a median function" prompt with `max_tokens=200` (parallel runs fire
+identical concurrent requests).
+
+Benchmarks marked **PENDING** are post-2026-05-21 additions that have not
+yet been measured on this hardware; ctx-size for fresh runs should be
+left at the production ConfigMap value (131072/65536/32768 depending on
+the model) since KV cost is trivial with Q4 KV cache and gives a more
+realistic per-slot budget for parallel agent use.
 
 ---
 
 ## Comparison table
 
+### Currently deployed (`/mnt/llm-tank` on prod GPU node)
+
 | Model | Arch | Total / Active | Quant | Size | Per-slot gen | Par=4 aggregate | VRAM | HumanEval+ | SWE-bench | Cold load |
 |---|---|---|---|---|---:|---:|---:|---:|---:|---:|
-| **Qwen3.6-35B-A3B-UD-Q4_K_M** | MoE | 35B / 3B | Q4_K_M | 20.6 GB | **12.1 t/s** | ~24 t/s* | 5394 MiB | **93.3%** | **73.4%** | 45 s |
-| GLM-4.7-Flash-Q6_K | MoE | 30B / 3B | Q6_K | 23.0 GB | 11.3 t/s | 22.4 t/s | 5034 MiB | ~92% | **73.8%** | 20 s |
 | Qwen3.6-35B-A3B-UD-Q4_K_S | MoE | 35B / 3B | Q4_K_S | 19.5 GB | 11.1 t/s | 22.2 t/s | 5202 MiB | ~92% | 73.4% | 45 s |
-| Qwen3.6-35B-A3B-MXFP4-MOE | MoE | 35B / 3B | MXFP4 | 20.2 GB | 10.9 t/s | — | 5368 MiB | ~92% | 73.4% | 40 s |
-| Qwen3.6-35B-A3B-UD-Q8_K_XL | MoE | 35B / 3B | Q8_K_XL | 36.4 GB | 9.1 t/s | — | 5604 MiB | 93%+ | 73.4% | **539 s** ‼️ |
-| Gemma4-26B-A4B | MoE | 26B / 4B | Q4_K_M | 15.8 GB | **14.1 t/s** | — | 6108 MiB | 78.5% | (na) | 40 s |
-| Qwopus3.5-9B-coder | dense | 9B / 9B | **BF16** | 16.7 GB | 4.2 t/s | — | 5970 MiB | 87.8% | (na) | 35 s |
-| Qwen3.6-27B-Q4_K_S | dense | 27B / 27B | Q4_K_S | 15.3 GB | 2.5 t/s | — | ~6 GB | high | 77.2% | 33 s |
+| Qwen3.6-35B-A3B-MXFP4_MOE | MoE | 35B / 3B | MXFP4 | 20.2 GB | 10.9 t/s | — | 5368 MiB | ~92% | 73.4% | 40 s |
+| **Qwen3.6-27B-UD-Q8_K_XL** | **dense** | 27B / 27B | Q8_K_XL | 34 GB | **PENDING** | — | **PENDING** | high | 77.2% | **PENDING** (~5-8 min from tank) |
+| **Gemma4-26B-A4B** | MoE | 26B / 4B | Q4_K_M | 15.8 GB | **14.1 t/s** | — | 6108 MiB | 78.5% | (na) | 40 s |
 | Gemma4-31B | dense | 31B / 31B | Q4_K_M | 17.1 GB | 2.7 t/s | — | 3864 MiB | 82.7% | (na) | 40 s |
-| GLM-4.7-Flash-BF16 (removed) | MoE | 30B / 3B | BF16 | 55 GB | — | — | — | ~92% | 73.8% | **~4 hours** ‼️ |
+| **MiniMax-M2.7-MXFP4_MOE** | MoE | 230B / 10B | MXFP4 | 130 GB (split) | **PENDING** | — | **PENDING** | (na) | (na) | **PENDING** (~15-25 min from tank ‼️) |
+
+### Removed / no longer downloaded (historical baseline)
+
+| Model | Arch | Total / Active | Quant | Size | Per-slot gen | VRAM | HumanEval+ | SWE-bench | Cold load |
+|---|---|---|---|---|---:|---:|---:|---:|---:|
+| Qwen3.6-35B-A3B-UD-Q4_K_M | MoE | 35B / 3B | Q4_K_M | 20.6 GB | **12.1 t/s** | 5394 MiB | **93.3%** | **73.4%** | 45 s |
+| GLM-4.7-Flash-Q6_K | MoE | 30B / 3B | Q6_K | 23.0 GB | 11.3 t/s | 5034 MiB | ~92% | **73.8%** | 20 s |
+| Qwen3.6-35B-A3B-UD-Q8_K_XL | MoE | 35B / 3B | Q8_K_XL | 36.4 GB | 9.1 t/s | 5604 MiB | 93%+ | 73.4% | **539 s** ‼️ |
+| Qwopus3.5-9B-coder | dense | 9B / 9B | **BF16** | 16.7 GB | 4.2 t/s | 5970 MiB | 87.8% | (na) | 35 s |
+| Qwen3.6-27B-Q4_K_S | dense | 27B / 27B | Q4_K_S | 15.3 GB | 2.5 t/s | ~6 GB | high | 77.2% | 33 s |
+| GLM-4.7-Flash-BF16 | MoE | 30B / 3B | BF16 | 55 GB | — | — | ~92% | 73.8% | **~4 hours** ‼️ |
 
 \* Qwen-35B-A3B-Q4_K_M parallel=4 sweep wasn't run; estimated from Q4_K_S
    (22.2 t/s @ par4) scaled by the per-slot ratio (12.1 / 11.1).
@@ -108,10 +123,25 @@ Drawing on each model's published benchmarks and my read of the architecture:
 
 ### Configuration tuning notes
 
-- **`ctx-size` strategy for parallel agents**: llama.cpp splits the KV cache
-  evenly across slots. For `--parallel 4`, set `ctx-size=32768` so each slot
-  gets 8k effective context (enough for code review with a couple file
-  attachments).
+- **`ctx-size` + `--parallel` strategy**: llama.cpp splits the KV cache
+  evenly across slots, so per-slot effective context = `ctx-size / parallel`.
+  The May 2026 production defaults target **~64 k per-slot context** across
+  the board, with parallel slot counts chosen by architecture:
+  - **Qwen3.6-35B (both quants)** → `parallel=4`, `ctx-size=262144` →
+    4 × 64 k slots. Chases the Pascal ~22 t/s aggregate ceiling for
+    concurrent agent sessions.
+  - **Gemma4-26B-A4B** → `parallel=2`, `ctx-size=131072` → 2 × 64 k slots.
+    14 t/s per slot baseline; par=2 keeps each slot snappy while doubling
+    aggregate throughput for chat/summarization workloads.
+  - **Dense models (Qwen 27B Q8_K_XL, Gemma4-31B)** → `parallel=1`,
+    `ctx-size=65536`. Dense is GPU-ceiling-bound at 2-3 t/s; parallel
+    slots just split that floor.
+  - **MiniMax-M2.7-MXFP4_MOE** → `parallel=1`, `ctx-size=131072`. 10B
+    active params is heavier per token than the 3B-active Qwen MoEs;
+    keep it single-slot until we benchmark concurrent behavior.
+
+  Total KV memory cost at these defaults is ~5-16 GiB CPU-side per model,
+  well within the 80-130 GiB pod budget.
 - **Cold-start matters more than steady-state** for agents that swap models.
   GLM's ~20s cold load is the biggest practical win over Qwen's ~45s for
   agent UX.
