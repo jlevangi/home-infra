@@ -34,15 +34,5 @@ patches:
       - op: add
         path: /spec/template/spec/containers/0/resources/limits/nvidia.com~1gpu
         value: 1
-  - target:
-      kind: PersistentVolumeClaim
-      name: plex-config-pvc
-    patch: |
-      - op: replace
-        path: /spec/storageClassName
-        value: longhorn
-      - op: add
-        path: /spec/volumeName
-        value: plex-config-pv
 commonLabels:
   environment: prod

@@ -1,13 +1,13 @@
-# See sibling jellyfin/base/pvc.yaml header for the full story.
-# Desired SC: longhorn-redundant. Currently: longhorn-media + live patch:
-#
-#   kubectl patch volume.longhorn.io plex-config -n longhorn-system \
-#     --type=merge \
-#     -p '{"spec":{"numberOfReplicas":3,"nodeSelector":["general-storage"]}}'
+---
+# Plex stores its library SQLite db on this PVC. Uses longhorn-redundant
+# (3 replicas, excludes GPU worker) because Plex is single-pod / single-db;
+# a volume going faulted (vs degraded) crashes the pod. Migrated from the
+# old longhorn-media SC on 2026-05-21 — see
+# argocd/manifests/longhorn-redundant-sc/README.md.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: plex-config-pvc
+  name: plex-config-pvc-rdn
   namespace: plex
   labels:
     app: plex
@@ -18,4 +18,4 @@ spec:
   resources:
     requests:
       storage: 50Gi
-  storageClassName: longhorn-media
+  storageClassName: longhorn-redundant

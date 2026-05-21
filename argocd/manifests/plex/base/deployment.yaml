@@ -88,7 +88,7 @@ spec:
       volumes:
         - name: config
           persistentVolumeClaim:
-            claimName: plex-config-pvc
+            claimName: plex-config-pvc-rdn
         # tmpfs for transcode segments — keeps short-lived streaming writes off Longhorn.
         # Set Settings → Transcoder → "Transcoder temporary directory" to /transcode after first deploy.
         - name: transcode
