@@ -87,6 +87,41 @@ spec:
           annotations:
             summary: Kubernetes node is not ready
             description: Node {{ $labels.node }} has not reported Ready for 10 minutes.
+        - alert: KubeMemoryOvercommitWithoutLlamaCpp
+          expr: |-
+            # Same intent as the upstream KubeMemoryOvercommit rule, but exclude
+            # llama-cpp because it is intentionally pinned to the only GPU node
+            # and cannot be made HA in this cluster.
+            # Non-HA clusters.
+            (
+              (
+                sum by (cluster) (namespace_memory:kube_pod_container_resource_requests:sum{namespace!="llama-cpp"})
+                -
+                sum by (cluster) (kube_node_status_allocatable{job="kube-state-metrics",resource="memory"}) > 0
+              )
+              and
+              count by (cluster) (max by (cluster, node) (kube_node_role{job="kube-state-metrics", role="control-plane"})) < 3
+            )
+            or
+            # HA clusters.
+            (
+              sum by (cluster) (namespace_memory:kube_pod_container_resource_requests:sum{namespace!="llama-cpp"})
+              -
+              (
+                # Skip clusters with only one allocatable node.
+                (
+                  sum by (cluster) (kube_node_status_allocatable{job="kube-state-metrics",resource="memory"})
+                  -
+                  max by (cluster) (kube_node_status_allocatable{job="kube-state-metrics",resource="memory"})
+                ) > 0
+              ) > 0
+            )
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Cluster has overcommitted memory resource requests excluding llama-cpp.
+            description: Cluster {{ $labels.cluster }} has overcommitted non-llama-cpp memory requests by {{ $value | humanize }} bytes and cannot tolerate node failure.
         - alert: NodeDiskPressureDetected
           expr: kube_node_status_condition{condition="DiskPressure", status="true"} == 1
           for: 10m

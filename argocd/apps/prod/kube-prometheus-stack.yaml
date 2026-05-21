@@ -15,6 +15,13 @@ spec:
       values: |
         fullnameOverride: prometheus
 
+        defaultRules:
+          disabled:
+            # llama-cpp is intentionally non-HA: only the GPU worker can run it,
+            # and its large memory request would otherwise make the upstream
+            # cluster-wide HA overcommit alert permanently noisy.
+            KubeMemoryOvercommit: true
+
         grafana:
           enabled: true
           deploymentStrategy:

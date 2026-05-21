@@ -27,5 +27,52 @@ patches:
       - op: add
         path: /spec/template/spec/containers/0/resources/limits/nvidia.com~1gpu
         value: 1
+      - op: replace
+        path: /spec/template/spec/volumes/0
+        value:
+          name: models
+          hostPath:
+            path: /mnt/llm-tank
+            type: Directory
+  - target:
+      kind: ConfigMap
+      name: llama-swap-config
+    patch: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: llama-swap-config
+        namespace: llama-cpp
+      data:
+        config.yaml: |
+          startPort: 5800
+          healthCheckTimeout: 600
+          logLevel: info
+
+          models:
+            # Temporary tank-backed model while the normal LLM disk is offline.
+            # Base config remains unchanged and will take effect again when this
+            # prod overlay patch is removed.
+            Qwen3.6-27B-MTP:
+              cmd: |
+                /usr/local/bin/llama-server
+                --model /models/Qwen3.6-27B-UD-Q8_K_XL.gguf
+                --alias Qwen3.6-27B-MTP
+                --host 0.0.0.0
+                --port ${PORT}
+                --gpu-layers 10
+                --threads 38
+                --ctx-size 0
+                --batch-size 512
+                --ubatch-size 128
+                --parallel 1
+                --flash-attn on
+                --cache-type-k q4_0
+                --cache-type-v q4_0
+                --reasoning auto
+                --no-webui
+              env:
+                - "CUDA_VISIBLE_DEVICES=0"
+              ttl: 1200
 commonLabels:
   environment: prod

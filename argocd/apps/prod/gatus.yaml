@@ -16,6 +16,9 @@ spec:
         image:
           tag: v5.35.0
 
+        deployment:
+          strategy: Recreate
+
         ingress:
           enabled: true
           ingressClassName: traefik
@@ -118,6 +121,14 @@ spec:
             - name: Paperless
               group: Applications
               url: https://paperless.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: llama-cpp
+              group: Applications
+              url: http://llama-cpp.llama-cpp.svc.cluster.local:8080/health
               interval: 5m
               conditions:
                 - "[STATUS] == 200"
