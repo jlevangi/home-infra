@@ -1,0 +1,107 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-alert-maintenance
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  alert-maintenance.json: |
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": {
+              "type": "grafana",
+              "uid": "-- Grafana --"
+            },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "id": null,
+      "links": [
+        {
+          "asDropdown": false,
+          "icon": "external link",
+          "includeVars": false,
+          "keepTime": false,
+          "tags": [],
+          "targetBlank": false,
+          "title": "Create Silence",
+          "tooltip": "Open Grafana Alertmanager silence form",
+          "type": "link",
+          "url": "/alerting/silence/new"
+        },
+        {
+          "asDropdown": false,
+          "icon": "external link",
+          "includeVars": false,
+          "keepTime": false,
+          "tags": [],
+          "targetBlank": false,
+          "title": "Manage Silences",
+          "tooltip": "Open active Alertmanager silences",
+          "type": "link",
+          "url": "/alerting/silences"
+        }
+      ],
+      "panels": [
+        {
+          "datasource": {
+            "type": "datasource",
+            "uid": "-- Mixed --"
+          },
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "id": 1,
+          "options": {
+            "code": {
+              "language": "plaintext",
+              "showLineNumbers": false,
+              "showMiniMap": false
+            },
+            "content": "# Alert Maintenance\n\nUse this during planned cluster shutdowns, upgrades, or times when you do not want ntfy alert noise.\n\n[Create maintenance silence](/alerting/silence/new)\n\n[View or end active silences](/alerting/silences)\n\n## Recommended silence\n\n- Alertmanager: `Alertmanager`\n- Matcher: `alertname` regex `.+`\n- Duration: choose a bounded duration, for example `4h`, `8h`, or `1d`\n- Comment: describe the maintenance, for example `cluster shutdown`\n\nPrefer a bounded silence over disabling routes. If you forget about it, Alertmanager automatically resumes notifications when the silence expires.",
+            "mode": "markdown"
+          },
+          "pluginVersion": "12.4.3",
+          "title": "Maintenance Silence Controls",
+          "type": "text"
+        }
+      ],
+      "preload": false,
+      "schemaVersion": 42,
+      "tags": [
+        "Operations",
+        "Alertmanager"
+      ],
+      "templating": {
+        "list": []
+      },
+      "time": {
+        "from": "now-6h",
+        "to": "now"
+      },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Operations / Alert Maintenance",
+      "uid": "alert-maintenance",
+      "version": 1,
+      "weekStart": ""
+    }
