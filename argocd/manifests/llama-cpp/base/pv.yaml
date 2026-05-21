@@ -1,7 +1,6 @@
-# Static local PV backed by the dedicated scsi2 disk on the prod GPU worker.
-# Provisioned via Terraform on the ssd3 LVM pool (500G) and mounted by
-# Ansible at /mnt/llm-models. Read-only mount inside the pod; the user
-# pre-stages GGUF files onto the host disk via scp.
+# Static local PV backed by the 600 GiB tank zvol attached to the prod GPU
+# worker VM (scsi2, /dev/sdc1, ext4 mounted at /mnt/llm-tank). The user
+# downloads GGUF files into this path directly; the pod mounts it read-only.
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -17,7 +16,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: ""
   local:
-    path: /mnt/llm-models
+    path: /mnt/llm-tank
   nodeAffinity:
     required:
       nodeSelectorTerms:
