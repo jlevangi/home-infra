@@ -1,0 +1,33 @@
+# Higher-redundancy Longhorn storage class for apps that have no
+# application-layer HA (single-pod, SQLite-backed, etc).
+#
+# vs the default `longhorn` and `longhorn-media`:
+#   - numberOfReplicas: 3 (vs 2)           — survives 2 simultaneous replica failures
+#   - nodeSelector:     general-storage    — excludes the GPU worker (only has media-storage tag)
+#                                            so I/O-heavy llama-cpp / transcoding workloads
+#                                            can't co-stress these volumes' replicas.
+#
+# Used by: jellyfin-config, plex-config, kube-prometheus-stack-grafana
+# (currently those PVCs are still bound to other SCs and we live-patched
+# the Longhorn Volume CRDs to match — see migration runbook below.
+# This SC is the documented future state.)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn-redundant
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  backupTargetName: default
+  dataEngine: v1
+  dataLocality: disabled
+  disableRevisionCounter: "true"
+  fromBackup: ""
+  fsType: ext4
+  nodeSelector: general-storage
+  numberOfReplicas: "3"
+  replicaAutoBalance: best-effort
+  staleReplicaTimeout: "30"
+  unmapMarkSnapChainRemoved: ignored
