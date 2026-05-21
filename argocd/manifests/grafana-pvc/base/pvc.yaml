@@ -1,19 +1,18 @@
 ---
-# See sibling jellyfin/base/pvc.yaml header. Desired SC: longhorn-redundant.
-# Currently: longhorn + live patch:
-#
-#   kubectl patch volume.longhorn.io kube-prometheus-stack-grafana \
-#     -n longhorn-system --type=merge \
-#     -p '{"spec":{"numberOfReplicas":3,"nodeSelector":["general-storage"]}}'
+# Grafana stores its dashboards/users in a SQLite db on this PVC.
+# Uses longhorn-redundant (3 replicas, excludes GPU worker) because
+# Grafana is single-pod / single-db; a volume going faulted (vs
+# degraded) crashes the pod. Migrated from the old longhorn SC on
+# 2026-05-20 — see argocd/manifests/longhorn-redundant-sc/README.md.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: kube-prometheus-stack-grafana
+  name: kube-prometheus-stack-grafana-rdn
   namespace: monitoring
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: longhorn
+  storageClassName: longhorn-redundant
   resources:
     requests:
       storage: 2Gi

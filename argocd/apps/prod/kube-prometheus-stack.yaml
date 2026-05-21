@@ -42,7 +42,7 @@ spec:
               - grafana.levangie.dev
           persistence:
             enabled: true
-            existingClaim: kube-prometheus-stack-grafana
+            existingClaim: kube-prometheus-stack-grafana-rdn
           resources:
             requests:
               cpu: 100m
