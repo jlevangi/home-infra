@@ -1,3 +1,21 @@
+# IMPORTANT: this volume has manual Longhorn settings that are NOT
+# expressible in PVC spec. Set live on 2026-05-20 after the ssd3
+# adapter failure caused a cascade that briefly faulted this volume:
+#
+#   kubectl patch volume.longhorn.io jellyfin-config -n longhorn-system \
+#     --type=merge \
+#     -p '{"spec":{"numberOfReplicas":3,"nodeSelector":["general-storage"]}}'
+#
+# Rationale: Jellyfin is single-pod / SQLite — if the volume goes
+# faulted (vs degraded), the db gets locked and the pod crashes hard.
+# Bumping to 3 replicas + general-storage tag distributes the volume
+# across workers 1/2/3 (skipping the GPU worker which has only
+# media-storage tag and gets I/O-stressed by transcoding + llama-cpp).
+#
+# If the cluster is rebuilt from scratch, re-run the patch above OR
+# (better follow-up) create a `longhorn-redundant` storage class with
+# numberOfReplicas=3 + nodeSelector=general-storage and migrate this
+# PVC to it.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

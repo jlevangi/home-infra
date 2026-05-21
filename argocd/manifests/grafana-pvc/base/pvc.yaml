@@ -1,4 +1,11 @@
 ---
+# IMPORTANT: see comment in argocd/manifests/jellyfin/base/pvc.yaml.
+# Grafana is single-pod / SQLite under the hood — same vulnerability.
+# Patched live on 2026-05-20:
+#
+#   kubectl patch volume.longhorn.io kube-prometheus-stack-grafana \
+#     -n longhorn-system --type=merge \
+#     -p '{"spec":{"numberOfReplicas":3,"nodeSelector":["general-storage"]}}'
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

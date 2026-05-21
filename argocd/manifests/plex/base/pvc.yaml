@@ -1,3 +1,11 @@
+# IMPORTANT: see comment in argocd/manifests/jellyfin/base/pvc.yaml.
+# Same architecture (single-pod SQLite), same vulnerability, same fix:
+#
+#   kubectl patch volume.longhorn.io plex-config -n longhorn-system \
+#     --type=merge \
+#     -p '{"spec":{"numberOfReplicas":3,"nodeSelector":["general-storage"]}}'
+#
+# Applied live on 2026-05-20.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
