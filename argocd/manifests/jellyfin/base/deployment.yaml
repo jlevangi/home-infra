@@ -90,7 +90,7 @@ spec:
       volumes:
         - name: config
           persistentVolumeClaim:
-            claimName: jellyfin-config-pvc
+            claimName: jellyfin-config-pvc-rdn
         # tmpfs for HLS transcode segments — keeps short-lived streaming writes off Longhorn.
         # Set Dashboard → Playback → Transcoding → "Transcoding temporary path" to /transcode after first deploy.
         - name: transcode

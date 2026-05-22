@@ -43,16 +43,6 @@ patches:
         value: 1
   - target:
       kind: PersistentVolumeClaim
-      name: jellyfin-config-pvc
-    patch: |
-      - op: replace
-        path: /spec/storageClassName
-        value: longhorn
-      - op: add
-        path: /spec/volumeName
-        value: jellyfin-config-pv
-  - target:
-      kind: PersistentVolumeClaim
       name: tracearr-data-pvc
     patch: |
       - op: add

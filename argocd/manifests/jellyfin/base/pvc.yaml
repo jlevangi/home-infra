@@ -1,21 +1,13 @@
-# DESIRED FUTURE STATE: storageClassName should become `longhorn-redundant`
-# (numberOfReplicas: 3, nodeSelector: general-storage). The SC is defined
-# in argocd/manifests/longhorn-redundant-sc/; migration steps in that
-# folder's README.md.
-#
-# CURRENT STATE: still bound to `longhorn-media` (single-replica-style
-# placement). The Longhorn Volume CRD was live-patched on 2026-05-20 to
-# match the desired state (numberOfReplicas: 3, nodeSelector:
-# [general-storage]) — the patch holds across reboots, but IaC + runtime
-# state diverge until we migrate. Patch command:
-#
-#   kubectl patch volume.longhorn.io jellyfin-config -n longhorn-system \
-#     --type=merge \
-#     -p '{"spec":{"numberOfReplicas":3,"nodeSelector":["general-storage"]}}'
+---
+# Jellyfin stores its library SQLite db on this PVC. Uses longhorn-redundant
+# (3 replicas, excludes GPU worker) because Jellyfin is single-pod /
+# single-db; a volume going faulted (vs degraded) crashes the pod.
+# Migrated from the old longhorn-media SC on 2026-05-22 — see
+# argocd/manifests/longhorn-redundant-sc/README.md.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: jellyfin-config-pvc
+  name: jellyfin-config-pvc-rdn
   namespace: jellyfin
   labels:
     app: jellyfin
@@ -26,4 +18,4 @@ spec:
   resources:
     requests:
       storage: 80Gi
-  storageClassName: longhorn-media
+  storageClassName: longhorn-redundant
