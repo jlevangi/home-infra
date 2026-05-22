@@ -166,7 +166,10 @@
       when: vault_init_secret_raw.stdout | default('') | length > 0
       no_log: true
 
-    - name: Parse unseal keys when any pod is sealed
+    # Always load keys: the cluster-cert recovery branch below re-seals the
+    # pods even if they were unsealed when the playbook started, so we need
+    # the unseal keys available even when vault_any_pod_sealed is false.
+    - name: Parse unseal keys from init secret
       set_fact:
         vault_unseal_keys:
           - "{{ (vault_init_secret_raw.stdout | from_json).data['unseal-key-1'] | b64decode }}"
@@ -174,7 +177,6 @@
           - "{{ (vault_init_secret_raw.stdout | from_json).data['unseal-key-3'] | b64decode }}"
       no_log: true
       when:
-        - vault_any_pod_sealed | default(false)
         - vault_init_secret_raw.stdout | default('') | length > 0
 
     - name: Unseal primary Vault pod when needed
@@ -287,6 +289,315 @@
             | join(', ')
           }}
         success_msg: "All Vault pods are unsealed."
+
+    # ── Detect "no Raft leader" cluster-cert drift ───────────────────
+    # After a cluster restart Vault Raft normally elects a leader within
+    # 30-60 s of all pods being unsealed. If no leader appears, the
+    # symptom is often that the auto-generated cluster TLS cert was
+    # issued against a stale VAULT_CLUSTER_ADDR (e.g. an older chart
+    # template, or a pod-IP based addr from a prior incarnation).
+    # Without an active leader the cert can never be regenerated, so
+    # the cluster is permanently stuck. See:
+    #   docs/recovery/vault-cluster-cert-recovery.md (todo)
+    #   beads home-infra-at9
+    #
+    # By default this block detects the condition and FAILS with a clear
+    # diagnostic + the opt-in flag needed to auto-heal. The destructive
+    # recovery only runs when `-e vault_recover_cluster_cert=true`.
+    - name: Wait for an active Raft leader (any pod)
+      shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ vault_primary_pod }} -- vault status -format=json
+      register: vault_leader_check
+      retries: 18
+      delay: 5
+      until:
+        - vault_leader_check.rc == 0
+        - (vault_leader_check.stdout | from_json).ha_mode == 'active'
+      failed_when: false
+      changed_when: false
+
+    - name: Set leader-active fact
+      set_fact:
+        vault_leader_active: >-
+          {{
+            vault_leader_check is defined
+            and vault_leader_check.rc == 0
+            and (vault_leader_check.stdout | default('') | trim | length) > 0
+            and (vault_leader_check.stdout | from_json).ha_mode == 'active'
+          }}
+
+    - name: Search recent logs for cluster-cert-drift TLS signature
+      shell: >
+        kubectl --context {{ kubectl_context }} logs -n {{ vault_namespace }}
+        {{ vault_primary_pod }} --tail=200 | grep -c "tls: unrecognized name" || true
+      register: vault_cert_drift_grep
+      changed_when: false
+      when: not vault_leader_active
+
+    - name: Set cluster-cert-drift fact
+      set_fact:
+        vault_cluster_cert_drift: >-
+          {{
+            (not vault_leader_active)
+            and (vault_cert_drift_grep is defined)
+            and ((vault_cert_drift_grep.stdout | int) > 0)
+          }}
+      when: not vault_leader_active
+
+    - name: Diagnose no-leader without cert-drift signature
+      ansible.builtin.fail:
+        msg: |
+          Vault Raft has no active leader after the unseal phase, but the
+          cluster-cert-drift signature ("tls: unrecognized name" on port
+          8201) was not detected in recent logs. This is not the documented
+          recovery path. Inspect manually:
+            kubectl --context {{ kubectl_context }} logs -n {{ vault_namespace }} {{ vault_primary_pod }} --tail=200
+            kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }} {{ vault_primary_pod }} -- vault status
+      when:
+        - not vault_leader_active
+        - not (vault_cluster_cert_drift | default(false))
+
+    - name: Halt with cluster-cert-drift diagnostic [opt-in recovery required]
+      ansible.builtin.fail:
+        msg: |
+          Vault Raft is stuck in the cluster-cert-drift state:
+            - All pods are unsealed
+            - No pod has HA Mode=active
+            - Logs show repeated "tls: unrecognized name" on cluster RPC port 8201
+
+          Root cause: Vault's auto-generated cluster TLS cert in encrypted
+          storage was issued against a VAULT_CLUSTER_ADDR that no longer
+          matches the live pod addresses. Only an active leader can
+          regenerate that cert, but a leader can't be elected because the
+          cert is broken. Chicken-and-egg.
+
+          Recovery (DESTRUCTIVE to follower data dirs, no data loss because
+          Raft replicates everything to vault-raft-0):
+              ansible-playbook ansible/playbooks/maintenance/vault-unseal.yml \
+                -e kubectl_context={{ kubectl_context }} \
+                -e vault_recover_cluster_cert=true
+
+          The recovery procedure:
+            1. Scales the StatefulSet to 0
+            2. Wipes /vault/data on vault-raft-1 and vault-raft-2
+            3. Writes a single-node peers.json on vault-raft-0
+            4. Scales to 1; unseals vault-raft-0 → it bootstraps as a
+               single-node cluster and regenerates the cluster cert
+               against the current VAULT_CLUSTER_ADDR
+            5. Scales to 3; followers boot empty, retry_join finds the
+               leader, get a snapshot, unseal, rejoin the cluster
+      when:
+        - not vault_leader_active
+        - vault_cluster_cert_drift | default(false)
+        - not (vault_recover_cluster_cert | default(false))
+
+    # ── Cluster-cert-drift recovery (opt-in, destructive on followers) ─
+    - name: Cluster-cert-drift recovery
+      when:
+        - not vault_leader_active
+        - vault_cluster_cert_drift | default(false)
+        - vault_recover_cluster_cert | default(false)
+      block:
+        - name: Recovery starting
+          debug:
+            msg: |
+              Starting cluster-cert-drift recovery.
+              Bootstrap pod: {{ vault_primary_pod }} (data preserved)
+              Followers (data WIPED): {{ vault_follower_pods | join(', ') }}
+
+        - name: Scale Vault StatefulSet to 0
+          shell: >
+            kubectl --context {{ kubectl_context }} scale -n {{ vault_namespace }}
+            statefulset {{ vault_statefulset_name }} --replicas=0
+
+        - name: Wait for all Vault pods to terminate
+          shell: >
+            kubectl --context {{ kubectl_context }} get pods -n {{ vault_namespace }}
+            -l app.kubernetes.io/name=vault -o jsonpath='{.items[*].metadata.name}'
+          register: vault_terminate_check
+          retries: 24
+          delay: 5
+          until: (vault_terminate_check.stdout | default('') | trim | length) == 0
+          changed_when: false
+
+        - name: Apply recovery pod manifest (mounts all vault data PVCs)
+          shell: |
+            cat <<'EOF' | kubectl --context {{ kubectl_context }} apply -n {{ vault_namespace }} -f -
+            apiVersion: v1
+            kind: Pod
+            metadata:
+              name: vault-cluster-cert-recovery
+              labels:
+                app: vault-cluster-cert-recovery
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: recover
+                  image: alpine:3.19
+                  command: ["sh","-c","sleep 900"]
+                  volumeMounts:
+            {% for pod in vault_pods %}
+                    - name: data{{ loop.index0 }}
+                      mountPath: /data{{ loop.index0 }}
+            {% endfor %}
+              volumes:
+            {% for pod in vault_pods %}
+                - name: data{{ loop.index0 }}
+                  persistentVolumeClaim:
+                    claimName: data-{{ pod }}
+            {% endfor %}
+            EOF
+
+        - name: Wait for recovery pod Ready
+          shell: >
+            kubectl --context {{ kubectl_context }} get pod
+            vault-cluster-cert-recovery -n {{ vault_namespace }}
+            -o jsonpath='{.status.phase}'
+          register: recovery_pod_phase
+          retries: 30
+          delay: 5
+          until: recovery_pod_phase.stdout == "Running"
+          changed_when: false
+
+        - name: Wipe follower /vault/data dirs (preserve bootstrap pod's data)
+          shell: >
+            kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+            vault-cluster-cert-recovery -- sh -c
+            'rm -rf /data{{ idx }}/* && ls -A /data{{ idx }} | wc -l'
+          loop: "{{ range(0, vault_pods | length) | list }}"
+          loop_control:
+            loop_var: idx
+          when: vault_pods[idx] != vault_primary_pod
+          changed_when: true
+
+        - name: Write single-node peers.json on bootstrap pod's data dir
+          shell: |
+            BOOTSTRAP_IDX={{ vault_pods.index(vault_primary_pod) }}
+            cat <<'EOF' | kubectl --context {{ kubectl_context }} exec -i -n {{ vault_namespace }} vault-cluster-cert-recovery -- sh -c "cat > /data${BOOTSTRAP_IDX}/raft/peers.json"
+            [
+              {"id": "{{ vault_primary_pod }}", "address": "{{ vault_primary_pod }}.{{ vault_internal_service_name }}:8201", "non_voter": false}
+            ]
+            EOF
+          changed_when: true
+
+        - name: Verify peers.json written
+          shell: >
+            kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+            vault-cluster-cert-recovery --
+            cat /data{{ vault_pods.index(vault_primary_pod) }}/raft/peers.json
+          register: peers_json_check
+          changed_when: false
+
+        - name: Delete recovery pod
+          shell: >
+            kubectl --context {{ kubectl_context }} delete pod
+            vault-cluster-cert-recovery -n {{ vault_namespace }}
+            --grace-period=10 --wait=true
+
+        - name: Scale StatefulSet to 1 (bootstrap pod only)
+          shell: >
+            kubectl --context {{ kubectl_context }} scale -n {{ vault_namespace }}
+            statefulset {{ vault_statefulset_name }} --replicas=1
+
+        - name: Wait for bootstrap pod Running
+          shell: >
+            kubectl --context {{ kubectl_context }} get pod {{ vault_primary_pod }}
+            -n {{ vault_namespace }} -o jsonpath='{.status.phase}'
+          register: bootstrap_phase
+          retries: 30
+          delay: 5
+          until: bootstrap_phase.stdout == "Running"
+          changed_when: false
+
+        - name: Wait for bootstrap pod to start its API listener (sealed=true is fine)
+          shell: >
+            kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+            {{ vault_primary_pod }} -- vault status -format=json
+          register: bootstrap_status
+          retries: 24
+          delay: 5
+          until: (bootstrap_status.stdout | default('') | trim | length) > 0
+          failed_when: false
+          changed_when: false
+
+        - name: Unseal bootstrap pod
+          shell: >
+            kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+            {{ vault_primary_pod }} -- vault operator unseal '{{ item }}'
+          loop: "{{ vault_unseal_keys }}"
+          failed_when: false
+          no_log: true
+
+        - name: Wait for bootstrap pod to become HA Mode=active
+          shell: >
+            kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+            {{ vault_primary_pod }} -- vault status -format=json
+          register: bootstrap_leader
+          retries: 24
+          delay: 5
+          until:
+            - bootstrap_leader.rc == 0
+            - (bootstrap_leader.stdout | from_json).ha_mode == 'active'
+          changed_when: false
+
+        - name: Scale StatefulSet back to {{ vault_pods | length }}
+          shell: >
+            kubectl --context {{ kubectl_context }} scale -n {{ vault_namespace }}
+            statefulset {{ vault_statefulset_name }} --replicas={{ vault_pods | length }}
+
+        - name: Wait for follower pods Running
+          shell: >
+            kubectl --context {{ kubectl_context }} get pod {{ item }}
+            -n {{ vault_namespace }} -o jsonpath='{.status.phase}'
+          register: follower_phase
+          retries: 60
+          delay: 5
+          until: follower_phase.stdout == "Running"
+          changed_when: false
+          loop: "{{ vault_follower_pods }}"
+
+        - name: Wait for follower pods to start their API listeners (sealed)
+          shell: >
+            kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+            {{ item }} -- vault status -format=json
+          register: follower_status
+          retries: 24
+          delay: 5
+          until: (follower_status.stdout | default('') | trim | length) > 0
+          failed_when: false
+          changed_when: false
+          loop: "{{ vault_follower_pods }}"
+
+        - name: Unseal follower pods
+          shell: >
+            kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+            {{ item.0 }} -- vault operator unseal '{{ item.1 }}'
+          loop: "{{ vault_follower_pods | product(vault_unseal_keys) | list }}"
+          loop_control:
+            label: "{{ item.0 }}"
+          failed_when: false
+          no_log: true
+
+        - name: Verify all 3 voters in raft cluster
+          shell: >
+            kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+            {{ vault_primary_pod }} -- sh -ec
+            'VAULT_TOKEN="{{ vault_root_token }}" vault operator raft list-peers'
+          register: raft_peers
+          retries: 12
+          delay: 5
+          until:
+            - raft_peers.rc == 0
+            - (raft_peers.stdout_lines | select('search', 'follower') | list | length) == ((vault_pods | length) - 1)
+          changed_when: false
+          no_log: true
+
+        - name: Cluster-cert-drift recovery complete
+          debug:
+            msg: |
+              Recovery complete. Bootstrap pod {{ vault_primary_pod }} is leader,
+              followers rejoined and unsealed. Proceeding to login + auth refresh.
 
     # ── Reconfigure Kubernetes auth ───────────────────────────────────
     # After a pod restart, Vault's internal SA token for token review
