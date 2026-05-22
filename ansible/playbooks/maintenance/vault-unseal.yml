@@ -313,18 +313,22 @@
       delay: 5
       until:
         - vault_leader_check.rc == 0
-        - (vault_leader_check.stdout | from_json).ha_mode == 'active'
+        - (vault_leader_check.stdout | default('') | trim | length) > 0
+        - (vault_leader_check.stdout | from_json).leader_address | default('') | length > 0
       failed_when: false
       changed_when: false
 
     - name: Set leader-active fact
+      # `vault status -format=json` doesn't expose an `ha_mode` field; we detect
+      # an elected leader by checking `leader_address` (populated on every pod
+      # once the cluster has an active node) instead.
       set_fact:
         vault_leader_active: >-
           {{
             vault_leader_check is defined
             and vault_leader_check.rc == 0
             and (vault_leader_check.stdout | default('') | trim | length) > 0
-            and (vault_leader_check.stdout | from_json).ha_mode == 'active'
+            and (vault_leader_check.stdout | from_json).leader_address | default('') | length > 0
           }}
 
     - name: Search recent logs for cluster-cert-drift TLS signature
@@ -538,7 +542,8 @@
           delay: 5
           until:
             - bootstrap_leader.rc == 0
-            - (bootstrap_leader.stdout | from_json).ha_mode == 'active'
+            - (bootstrap_leader.stdout | default('') | trim | length) > 0
+            - (bootstrap_leader.stdout | from_json).is_self | default(false)
           changed_when: false
 
         - name: Scale StatefulSet back to {{ vault_pods | length }}
