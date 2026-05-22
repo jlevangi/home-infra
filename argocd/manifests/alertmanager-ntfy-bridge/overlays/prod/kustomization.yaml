@@ -22,3 +22,25 @@ patches:
         value:
           name: GATUS_CLICK_URL
           value: "https://status.levangie.dev"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: PUBLIC_ACTION_URL
+          value: "https://alerts.levangie.dev"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: ACTION_TOKEN
+          value: "c531ffc23a531f3e40f2e18adbc936879fe8138d8dc9e2c1"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: QUIET_PRIORITY
+          value: "1"
+  - target:
+      kind: Ingress
+      name: alertmanager-ntfy-bridge-actions
+    patch: |
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: "k3s-prod.levangie.dev"

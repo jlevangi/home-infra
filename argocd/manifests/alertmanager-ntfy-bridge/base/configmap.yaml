@@ -8,6 +8,9 @@ data:
     import ipaddress
     import json
     import os
+    import re
+    import threading
+    import time
     import urllib.error
     import urllib.parse
     import urllib.request
@@ -19,6 +22,101 @@ data:
     PUBLIC_CLICK_URL = os.environ.get("PUBLIC_CLICK_URL")
     PUBLIC_DOMAIN_SUFFIX = os.environ.get("PUBLIC_DOMAIN_SUFFIX", "levangie.dev")
     GATUS_CLICK_URL = os.environ.get("GATUS_CLICK_URL")
+    PUBLIC_ACTION_URL = os.environ.get("PUBLIC_ACTION_URL")
+    ACTION_TOKEN = os.environ.get("ACTION_TOKEN", "")
+    QUIET_PRIORITY = int(os.environ.get("QUIET_PRIORITY", "1"))
+
+    quiet_lock = threading.Lock()
+    quiet_until = 0
+
+
+    def parse_duration(value):
+        match = re.fullmatch(r"([0-9]+)([mhd])", value or "")
+        if not match:
+            return None
+        amount = int(match.group(1))
+        unit = match.group(2)
+        if unit == "m":
+            return amount * 60
+        if unit == "h":
+            return amount * 60 * 60
+        if unit == "d":
+            return amount * 24 * 60 * 60
+        return None
+
+
+    def quiet_remaining_seconds():
+        with quiet_lock:
+            return max(0, int(quiet_until - time.time()))
+
+
+    def quiet_remaining_text():
+        remaining = quiet_remaining_seconds()
+        if remaining <= 0:
+            return None
+        hours, remainder = divmod(remaining, 3600)
+        minutes = max(1, (remainder + 59) // 60)
+        if hours > 0:
+            return f"{hours}h {minutes}m"
+        return f"{minutes}m"
+
+
+    def set_quiet(duration):
+        global quiet_until
+        seconds = parse_duration(duration)
+        if seconds is None:
+            return False
+        with quiet_lock:
+            quiet_until = int(time.time()) + seconds
+        return True
+
+
+    def clear_quiet():
+        global quiet_until
+        with quiet_lock:
+            quiet_until = 0
+
+
+    def maintenance_actions():
+        if not PUBLIC_ACTION_URL or not ACTION_TOKEN:
+            return []
+
+        base_url = PUBLIC_ACTION_URL.rstrip("/")
+        token = urllib.parse.quote(ACTION_TOKEN)
+        if quiet_remaining_seconds() > 0:
+            return [
+                {
+                    "action": "http",
+                    "label": "End quiet mode",
+                    "url": f"{base_url}/actions/quiet/off?token={token}",
+                    "method": "POST",
+                    "clear": True,
+                }
+            ]
+
+        return [
+            {
+                "action": "http",
+                "label": "Quiet 1h",
+                "url": f"{base_url}/actions/quiet/1h?token={token}",
+                "method": "POST",
+                "clear": True,
+            },
+            {
+                "action": "http",
+                "label": "Quiet 4h",
+                "url": f"{base_url}/actions/quiet/4h?token={token}",
+                "method": "POST",
+                "clear": True,
+            },
+            {
+                "action": "http",
+                "label": "Quiet 8h",
+                "url": f"{base_url}/actions/quiet/8h?token={token}",
+                "method": "POST",
+                "clear": True,
+            },
+        ]
 
 
     def first_nonempty(*values):
@@ -154,9 +252,14 @@ data:
             message_lines.extend(["", f"[{link_label}]({click})"])
 
         is_critical = topic == "homelab-critical" or severity == "critical"
+        quiet_text = quiet_remaining_text()
         if status == "resolved":
             priority = 1
             tags = ["white_check_mark"]
+        elif quiet_text:
+            priority = QUIET_PRIORITY
+            tags = ["mute", "warning"]
+            message_lines.extend(["", f"**Quiet mode:** active for about {quiet_text}"])
         else:
             priority = 5 if is_critical else 4
             tags = (
@@ -168,8 +271,10 @@ data:
         title = f"Prod {status.upper()}: {alertname}"
         if len(alerts) > 1:
             title = f"{title} ({len(alerts)})"
+        if quiet_text and status != "resolved":
+            title = f"QUIET: {title}"
 
-        return {
+        notification = {
             "topic": topic,
             "title": title,
             "message": "\n".join(message_lines),
@@ -178,6 +283,10 @@ data:
             "markdown": True,
             "click": click,
         }
+        actions = maintenance_actions()
+        if actions and status != "resolved":
+            notification["actions"] = actions
+        return notification
 
 
     class Handler(BaseHTTPRequestHandler):
@@ -193,10 +302,38 @@ data:
             if self.path.startswith("/healthz"):
                 self._send(200, json.dumps({"status": "ok"}))
                 return
+            if self.path.startswith("/actions/status"):
+                self._send(200, json.dumps({"quiet_remaining_seconds": quiet_remaining_seconds()}))
+                return
             self._send(404, json.dumps({"error": "not found"}))
+
+        def handle_action(self):
+            parsed = urllib.parse.urlparse(self.path)
+            query = urllib.parse.parse_qs(parsed.query)
+            token = (query.get("token") or [""])[0]
+            if not ACTION_TOKEN or token != ACTION_TOKEN:
+                self._send(403, json.dumps({"error": "forbidden"}))
+                return
+
+            path_parts = [part for part in parsed.path.split("/") if part]
+            if len(path_parts) == 3 and path_parts[:2] == ["actions", "quiet"]:
+                duration = path_parts[2]
+                if duration == "off":
+                    clear_quiet()
+                    self._send(200, json.dumps({"status": "quiet-disabled"}))
+                    return
+                if set_quiet(duration):
+                    self._send(200, json.dumps({"status": "quiet-enabled", "duration": duration}))
+                    return
+
+            self._send(400, json.dumps({"error": "invalid action"}))
 
         def do_POST(self):
             parsed = urllib.parse.urlparse(self.path)
+            if parsed.path.startswith("/actions/"):
+                self.handle_action()
+                return
+
             path_parts = [part for part in parsed.path.split("/") if part]
             if len(path_parts) >= 2 and path_parts[0] == "alerts":
                 topic = path_parts[1]
