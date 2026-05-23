@@ -151,3 +151,6 @@ coverage/
 .dolt/
 *.db
 .beads-credential-key
+
+# Local-only cluster state snapshots (contain secrets)
+.snapshots/
