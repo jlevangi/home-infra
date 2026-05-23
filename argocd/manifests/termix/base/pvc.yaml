@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: termix-data-pvc
+  namespace: termix
+  labels:
+    app: termix
+  annotations:
+    recurring-job.longhorn.io/source: "enabled"
+    recurring-job-group.longhorn.io/hourly: "enabled"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: longhorn-redundant

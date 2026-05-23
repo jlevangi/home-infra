@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: termix
+  namespace: termix
+  labels:
+    app: termix
+    app.kubernetes.io/name: termix
+spec:
+  type: ClusterIP
+  selector:
+    app: termix
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: termix-guacd
+  namespace: termix
+  labels:
+    app: termix-guacd
+    app.kubernetes.io/name: guacd
+spec:
+  type: ClusterIP
+  selector:
+    app: termix-guacd
+  ports:
+    - name: guacd
+      port: 4822
+      targetPort: 4822
+      protocol: TCP

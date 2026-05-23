@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: termix
+  namespace: termix
+  labels:
+    app: termix
+    app.kubernetes.io/name: termix
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: termix
+  template:
+    metadata:
+      labels:
+        app: termix
+        app.kubernetes.io/name: termix
+    spec:
+      containers:
+        - name: termix
+          image: ghcr.io/lukegus/termix:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PORT
+              value: "8080"
+            - name: DATA_DIR
+              value: /app/data
+            - name: ENABLE_GUACAMOLE
+              value: "true"
+            - name: GUACD_HOST
+              value: termix-guacd
+            - name: GUACD_PORT
+              value: "4822"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: termix-data
+              mountPath: /app/data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 10
+      volumes:
+        - name: termix-data
+          persistentVolumeClaim:
+            claimName: termix-data-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: termix-guacd
+  namespace: termix
+  labels:
+    app: termix-guacd
+    app.kubernetes.io/name: guacd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: termix-guacd
+  template:
+    metadata:
+      labels:
+        app: termix-guacd
+        app.kubernetes.io/name: guacd
+    spec:
+      containers:
+        - name: guacd
+          image: guacamole/guacd:1.6.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: guacd
+              containerPort: 4822
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
