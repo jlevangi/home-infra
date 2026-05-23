@@ -84,7 +84,7 @@
 - name: Update Longhorn StorageClass ConfigMap to match replica count
   ansible.builtin.shell: |
     KUBECONFIG={{ kubeconfig_path }} kubectl patch configmap longhorn-storageclass -n longhorn-system \
-      --type='merge' -p='{{ {"data": {"storageclass.yaml": longhorn_primary_storageclass_manifest ~ "\n"}} | to_json }}'
+      --type='merge' -p='{{ {"data": {"storageclass.yaml": longhorn_primary_storageclass_manifest}} | to_json }}'
   register: storageclass_configmap_update_result
   failed_when: false
 
