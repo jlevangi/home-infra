@@ -20,9 +20,12 @@
 #
 # ctx-size + --parallel strategy: the pod has 80–130 GiB RAM headroom and
 # Q4-quantized KV keeps the per-token cost ~64 KB for the 35B Qwen MoEs.
-# Each model targets ~64 k per-slot effective context (ctx-size /
+# Most models target ~64 k per-slot effective context (ctx-size /
 # --parallel), with the Qwen 35B coders configured at parallel=4 to chase
 # the empirically observed ~22 t/s aggregate ceiling on Pascal P4000.
+# Gemma4-26B-A4B is the deliberate exception: it stays at 128 k total ctx
+# and runs parallel=4 because the 2026-05-24 sweep showed a clear aggregate
+# throughput win (~27 tok/s) for 4 concurrent agents even at 32 k/slot.
 # Dense models stay at parallel=1 — they're already CPU-bound; parallel
 # slots wouldn't beat the GPU ceiling and would just split the floor.
 # MiniMax is single-slot until we have a feel for its 10B-active behavior
@@ -51,7 +54,8 @@ data:
       # =================================================================
       # MoE 35B/3B-active, Unsloth Dynamic Q4_K_S (20 GiB). Drop-in for
       # the prior Q4_K_M slot — same architecture, slightly tighter quant.
-      # Native 262k ctx capped to 8k here; bump for long-context coding.
+      # Native 262k ctx is kept intact here so parallel=4 still gives each
+      # coding slot a full 64 k effective window.
       Qwen3.6-35B-A3B-UD-Q4_K_S:
         cmd: |
           /usr/local/bin/llama-server
@@ -107,9 +111,10 @@ data:
       # Qwen3.6-27B-UD-Q8_K_XL — HEAVY DENSE TEST BENCH
       # =================================================================
       # Dense 27B at Q8_K_XL (34 GiB). All params active per token, so
-      # CPU-bound on Pascal: expect 1-3 tok/s. ngl conservative — only a
-      # handful of layers fit alongside the KV cache in 5 GiB usable VRAM.
-      # Keep around for accuracy/quality comparison against the MoE quants.
+      # CPU-bound on Pascal: expect ~1 tok/s at a 128 k window. ngl stays
+      # conservative — only a handful of layers fit alongside the KV cache
+      # in 5 GiB usable VRAM. Keep around for accuracy comparison against
+      # the MoE quants, not for interactive use.
       Qwen3.6-27B-UD-Q8_K_XL:
         cmd: |
           /usr/local/bin/llama-server
@@ -119,7 +124,7 @@ data:
           --port ${PORT}
           --gpu-layers 3
           --threads 22
-          --ctx-size 65536
+          --ctx-size 131072
           --batch-size 512
           --ubatch-size 128
           --parallel 1
@@ -135,10 +140,13 @@ data:
       # =================================================================
       # Gemma4-26B-A4B — FAST GENERAL-PURPOSE / NON-CODING
       # =================================================================
-      # MoE 26B/4B-active (16 GiB). Fastest model on this hardware
-      # (~14 tok/s per slot at ngl=10). Use for chat, summarization,
-      # anything not strictly code. --reasoning off because Gemma's
-      # template doesn't model thinking like Qwen/GLM.
+      # MoE 26B/4B-active (16 GiB). Fastest model on this hardware.
+      # Tuned for raw concurrent throughput: ctx-size=131072 keeps a 128 k
+      # total window while parallel=4 delivered ~27 tok/s aggregate in the
+      # 2026-05-24 unload-between-model sweep. Use for chat, summarization,
+      # and other non-code workloads where speed beats coding accuracy.
+      # --reasoning off because Gemma's template doesn't model thinking like
+      # Qwen/GLM.
       Gemma4-26B-A4B:
         cmd: |
           /usr/local/bin/llama-server
@@ -149,9 +157,9 @@ data:
           --gpu-layers 10
           --threads 22
           --ctx-size 131072
-          --batch-size 2048
-          --ubatch-size 512
-          --parallel 2
+          --batch-size 1024
+          --ubatch-size 256
+          --parallel 4
           --flash-attn on
           --cache-type-k q4_0
           --cache-type-v q4_0
@@ -166,8 +174,8 @@ data:
       # Gemma4-31B — LARGER DENSE GEMMA
       # =================================================================
       # Dense 31B Q4_K_M (18 GiB). All params active, so CPU-bound at
-      # ngl=6. Expect 3-5 tok/s. Use for non-coding tasks where Gemma's
-      # style is preferred over Qwen's, when 26B-A4B feels too lossy.
+      # ngl=6. Expect ~2 tok/s at a 128 k window. Kept as a quality/style
+      # reference only when 26B-A4B feels too lossy.
       Gemma4-31B:
         cmd: |
           /usr/local/bin/llama-server
@@ -177,7 +185,7 @@ data:
           --port ${PORT}
           --gpu-layers 6
           --threads 22
-          --ctx-size 65536
+          --ctx-size 131072
           --batch-size 1024
           --ubatch-size 256
           --flash-attn on
