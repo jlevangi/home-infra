@@ -4,6 +4,8 @@ metadata:
   name: firefox-gluetun-config-pvc
   namespace: firefox
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: firefox
     component: gluetun
     volume-type: config
@@ -21,6 +23,8 @@ metadata:
   name: firefox-config-pvc
   namespace: firefox
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: firefox
     component: firefox
     volume-type: config

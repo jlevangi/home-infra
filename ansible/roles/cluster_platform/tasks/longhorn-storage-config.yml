@@ -77,6 +77,7 @@
         disableRevisionCounter: "true"
         dataEngine: "v1"
         backupTargetName: "default"
+        recurringJobSelector: '[{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'
       {% if longhorn_default_node_selector | default('') | length > 0 %}
         nodeSelector: "{{ longhorn_default_node_selector }}"
       {% endif %}
@@ -124,6 +125,7 @@
         disableRevisionCounter: "true"
         dataEngine: "v1"
         backupTargetName: "default"
+        recurringJobSelector: '[{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'
         nodeSelector: "{{ longhorn_media_node_selector }}"
   when: longhorn_media_node_selector | default('') | length > 0
 

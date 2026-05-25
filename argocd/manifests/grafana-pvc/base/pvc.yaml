@@ -9,6 +9,9 @@ kind: PersistentVolumeClaim
 metadata:
   name: kube-prometheus-stack-grafana-rdn
   namespace: monitoring
+  labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
 spec:
   accessModes:
     - ReadWriteOnce

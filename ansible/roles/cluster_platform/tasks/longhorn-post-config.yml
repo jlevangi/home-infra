@@ -252,7 +252,7 @@
       cron: "{{ longhorn_backup_schedule_daily | default('0 6 * * *') }}"
       task: "backup"
       groups:
-        - default
+        - daily
       retain: {{ longhorn_backup_retain_daily | default(7) }}
       concurrency: 2
       labels:
@@ -268,13 +268,41 @@
       cron: "{{ longhorn_backup_schedule_weekly | default('0 7 * * 0') }}"
       task: "backup"
       groups:
-        - default
+        - weekly
       retain: {{ longhorn_backup_retain_weekly | default(4) }}
       concurrency: 1
       labels:
         backup-type: weekly
         cluster: {{ cluster_environment | default('production') }}
     EOF
+  when:
+    - enable_longhorn_backup | default(true)
+    - nfs_server_ip is defined
+
+- name: Label existing Longhorn-backed PVCs for daily and weekly backups
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl get pvc --all-namespaces \
+      -o custom-columns='NAMESPACE:.metadata.namespace,NAME:.metadata.name,STORAGECLASS:.spec.storageClassName' \
+      --no-headers | while read -r pvc_namespace pvc_name storage_class; do
+        case "$storage_class" in
+          longhorn|longhorn-media|longhorn-redundant|longhorn-vault-raft)
+            KUBECONFIG={{ kubeconfig_path }} kubectl label pvc "$pvc_name" -n "$pvc_namespace" \
+              recurring-job-group.longhorn.io/daily=enabled \
+              recurring-job-group.longhorn.io/weekly=enabled \
+              --overwrite
+            ;;
+        esac
+      done
+  when:
+    - enable_longhorn_backup | default(true)
+    - nfs_server_ip is defined
+
+- name: Label existing Longhorn volumes for daily and weekly backups
+  shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl label volumes.longhorn.io -n longhorn-system --all \
+      recurring-job-group.longhorn.io/daily=enabled \
+      recurring-job-group.longhorn.io/weekly=enabled \
+      --overwrite
   when:
     - enable_longhorn_backup | default(true)
     - nfs_server_ip is defined

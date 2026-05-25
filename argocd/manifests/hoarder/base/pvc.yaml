@@ -4,6 +4,8 @@ metadata:
   name: hoarder-data-pvc
   namespace: hoarder
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: hoarder
 spec:
   accessModes:
@@ -19,6 +21,8 @@ metadata:
   name: hoarder-redis-pvc
   namespace: hoarder
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: hoarder-redis
 spec:
   accessModes:
@@ -34,6 +38,8 @@ metadata:
   name: hoarder-meilisearch-pvc
   namespace: hoarder
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: hoarder-meilisearch
 spec:
   accessModes:

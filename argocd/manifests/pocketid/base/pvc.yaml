@@ -4,6 +4,8 @@ metadata:
   name: pocketid-data-pvc
   namespace: pocketid
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: pocketid
     volume-type: data
 spec:

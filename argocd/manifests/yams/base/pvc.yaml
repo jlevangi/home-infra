@@ -4,6 +4,8 @@ metadata:
   name: tautulli-config-pvc
   namespace: yams
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: tautulli
     volume-type: config
 spec:
@@ -20,6 +22,8 @@ metadata:
   name: seerr-config-pvc
   namespace: yams
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: seerr
     volume-type: config
 spec:
@@ -37,6 +41,8 @@ metadata:
   name: jellyseerr-config-pvc
   namespace: yams
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: jellyseerr
     volume-type: config
 spec:
@@ -53,6 +59,8 @@ metadata:
   name: qbittorrent-gluetun-config-pvc
   namespace: yams
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: qbittorrent
     component: gluetun
     volume-type: config
@@ -70,6 +78,8 @@ metadata:
   name: nzbget-gluetun-config-pvc
   namespace: yams
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: nzbget
     component: gluetun
     volume-type: config
@@ -87,6 +97,8 @@ metadata:
   name: qbittorrent-config-pvc
   namespace: yams
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: qbittorrent
     component: qbittorrent
     volume-type: config
@@ -104,6 +116,8 @@ metadata:
   name: nzbget-config-pvc
   namespace: yams
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: nzbget
     component: nzbget
     volume-type: config
@@ -121,6 +135,8 @@ metadata:
   name: sonarr-config-pvc
   namespace: yams
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: sonarr
     volume-type: config
 spec:
@@ -137,6 +153,8 @@ metadata:
   name: radarr-config-pvc
   namespace: yams
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: radarr
     volume-type: config
 spec:
@@ -153,6 +171,8 @@ metadata:
   name: radarr4k-config-pvc
   namespace: yams
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: radarr4k
     volume-type: config
 spec:
@@ -169,6 +189,8 @@ metadata:
   name: bazarr-config-pvc
   namespace: yams
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: bazarr
     volume-type: config
 spec:
@@ -185,6 +207,8 @@ metadata:
   name: prowlarr-config-pvc
   namespace: yams
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: prowlarr
     volume-type: config
 spec:
@@ -201,6 +225,8 @@ metadata:
   name: wizarr-config-pvc
   namespace: yams
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: wizarr
     volume-type: config
 spec:

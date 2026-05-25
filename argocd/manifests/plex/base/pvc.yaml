@@ -10,6 +10,8 @@ metadata:
   name: plex-config-pvc-rdn
   namespace: plex
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: plex
     volume-type: config
 spec:

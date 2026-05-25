@@ -4,6 +4,8 @@ metadata:
   name: paperless-data-pvc
   namespace: paperless
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: paperless
     component: data
     recurring-job.longhorn.io/source: "enabled"

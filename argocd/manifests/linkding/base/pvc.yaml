@@ -4,6 +4,8 @@ metadata:
   name: linkding-data-pvc
   namespace: linkding
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: linkding
 spec:
   accessModes:

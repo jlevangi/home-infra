@@ -4,6 +4,8 @@ metadata:
   name: factorio-data
   namespace: factorio
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     recurring-job.longhorn.io/source: "enabled"
     recurring-job-group.longhorn.io/hourly: "enabled"
 spec:

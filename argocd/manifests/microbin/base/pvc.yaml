@@ -4,6 +4,8 @@ metadata:
   name: microbin-data-pvc
   namespace: microbin
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: microbin
 spec:
   accessModes:

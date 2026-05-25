@@ -10,6 +10,8 @@ metadata:
   name: jellyfin-config-pvc-rdn
   namespace: jellyfin
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: jellyfin
     volume-type: config
 spec:

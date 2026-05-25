@@ -4,6 +4,8 @@ metadata:
   name: tracearr-data-pvc
   namespace: jellyfin
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: tracearr
     volume-type: data
 spec:

@@ -4,6 +4,8 @@ metadata:
   name: vaultwarden-data-pvc
   namespace: vaultwarden
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: vaultwarden
     recurring-job.longhorn.io/source: "enabled"
     recurring-job-group.longhorn.io/hourly: "enabled"

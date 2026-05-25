@@ -4,6 +4,9 @@ kind: PersistentVolumeClaim
 metadata:
   name: gatus
   namespace: gatus
+  labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
 spec:
   accessModes:
     - ReadWriteOnce

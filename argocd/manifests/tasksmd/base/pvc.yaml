@@ -4,6 +4,8 @@ metadata:
   name: tasksmd-data-pvc
   namespace: tasksmd
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: tasksmd
 spec:
   accessModes:

@@ -4,6 +4,8 @@ metadata:
   name: notemark-data-pvc
   namespace: notemark
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: notemark
 spec:
   accessModes:

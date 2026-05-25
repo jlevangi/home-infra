@@ -4,6 +4,8 @@ metadata:
   name: immich-power-tools-data-pvc
   namespace: immich
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: immich-power-tools
     volume-type: data
     recurring-job.longhorn.io/source: "enabled"

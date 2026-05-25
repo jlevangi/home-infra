@@ -4,6 +4,8 @@ metadata:
   name: changedetection-data-pvc
   namespace: changedetection
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: changedetection
 spec:
   accessModes:

@@ -4,6 +4,8 @@ metadata:
   name: memos-data-pvc
   namespace: memos
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: memos
     recurring-job.longhorn.io/source: "enabled"
     recurring-job-group.longhorn.io/hourly: "enabled"

@@ -4,6 +4,8 @@ metadata:
   name: ntfy-data-pvc
   namespace: ntfy
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: ntfy
 spec:
   accessModes:

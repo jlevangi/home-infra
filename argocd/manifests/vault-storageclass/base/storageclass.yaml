@@ -15,5 +15,6 @@ parameters:
   fsType: ext4
   numberOfReplicas: "3"
   replicaAutoBalance: best-effort
+  recurringJobSelector: '[{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'
   staleReplicaTimeout: "30"
   unmapMarkSnapChainRemoved: ignored

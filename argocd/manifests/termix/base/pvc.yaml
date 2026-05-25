@@ -4,6 +4,8 @@ metadata:
   name: termix-data-pvc
   namespace: termix
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: termix
   annotations:
     recurring-job.longhorn.io/source: "enabled"

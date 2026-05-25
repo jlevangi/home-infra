@@ -64,6 +64,8 @@ spec:
             labels:
               recurring-job.longhorn.io/source: "enabled"
               recurring-job-group.longhorn.io/hourly: "enabled"
+              recurring-job-group.longhorn.io/daily: "enabled"
+              recurring-job-group.longhorn.io/weekly: "enabled"
           affinity: |
             podAntiAffinity:
               requiredDuringSchedulingIgnoredDuringExecution:

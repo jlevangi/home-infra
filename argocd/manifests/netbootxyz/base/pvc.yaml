@@ -4,6 +4,8 @@ metadata:
   name: netbootxyz-data-pvc
   namespace: netbootxyz
   labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
     app: netbootxyz
 spec:
   accessModes:
