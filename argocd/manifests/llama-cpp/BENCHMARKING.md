@@ -119,14 +119,60 @@ What this changes operationally:
   giving each agent a 64 k window.
 - **Fastest raw 4-agent throughput** is `Gemma4-26B-A4B` at `parallel=4`:
   ~27.1 t/s aggregate, but only **32 k per agent** at a 128 k total window.
-- **`parallel=2` Qwen is the 128 k-per-agent setting**, but oversubscribed
-  4-request throughput drops to ~15.9 t/s aggregate. If you truly need
-  128 k per agent, native-context limits mean the currently mounted Qwen /
-  Gemma models cannot also give you 4 full-size slots.
+- **Qwen can serve 4 x 128 k slots** by raising total `ctx-size` to `524288`.
+  The real problem is not fit, it is long-prompt concurrent decode speed.
 - **MXFP4 is not competitive on Pascal**: slower generation, higher VRAM,
   and much worse load time than Q4_K_S.
 - **Dense Qwen / Gemma remain unusable for interactive agent work** even at
   a 128 k total window.
+
+### Long-prompt follow-up: 4 x 128K vs 4 x 262K (2026-05-24)
+
+The short-prompt numbers above were optimistic for real agent workflows. A
+second pass used a synthetic repository-dump prompt of **36,458 prompt
+tokens** and measured 160-token completions under concurrent load.
+
+| Model / config | Effective slot ctx | Single prompt | Single gen | Parallel load | Aggregate completion | VRAM | Load from unloaded |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Qwen3.6-35B-A3B-UD-Q4_K_S, `parallel=4`, `ctx=524288` | 128 k | 93.4 t/s | 5.23 t/s | 4 requests | 0.50 t/s | 6072 MiB | 9.1 s |
+| Qwen3.6-35B-A3B-UD-Q4_K_S, `parallel=4`, `ctx=1048576` | 262 k | 90.76 t/s | 4.80 t/s | 4 requests | 0.49 t/s | 7128 MiB | 8.9 s |
+
+Operationally:
+
+- **4 x 262 k is technically valid** on this model: llama.cpp created four
+  `n_ctx = 262144` slots successfully.
+- **4 x 128 k is the saner live default** because it saves ~1 GiB VRAM versus
+  4 x 262 k with no meaningful loss of real long-prompt throughput.
+- **200 GiB system RAM does not rescue dense long-context parallel decode** on
+  this machine. The 8 GiB Pascal GPU remains the hard bottleneck.
+
+### Dense 27B Q5 long-context experiment (2026-05-24)
+
+`Qwen3.6-27B-Q5_K_M.gguf` was tested as a potential 3-agent / 128 k dense
+alternative. A `gpu-layers` sweep found `16` to be the best practical point:
+`18` was only marginally faster while pushing VRAM to ~8.1 GiB.
+
+| Model / config | Effective slot ctx | Single prompt | Single gen | Parallel load | Aggregate completion | VRAM | Load from unloaded |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Qwen3.6-27B-Q5_K_M, `gpu-layers=16`, `parallel=3`, `ctx=393216` | 128 k | 32.29 t/s | 1.25 t/s | 3 requests | 0.18 t/s | 7516 MiB | 15.2 s |
+
+Conclusion: this dense 27B Q5 is better than the old Q8 reference, but still
+too slow for real multi-agent long-context use on the Quadro P4000. Keep it as
+an experimental / quality-reference alias, not a default interactive model.
+
+### Role-specific live aliases (2026-05-24)
+
+The best practical adaptation for this hardware is **role separation**, not
+trying to make one giant-context dense model do everything. Two extra live
+aliases were added for the Qwen 35B A3B MoE model:
+
+| Alias | Purpose | Key flags | Quick check |
+|---|---|---|---:|
+| `Qwen3.6-35B-A3B-UD-Q4_K_S-worker` | fast worker / reviewer bursts | `parallel=4`, `ctx=131072`, `batch=2048`, `ubatch=512` | 4-way short burst: **22.84 t/s agg** |
+| `Qwen3.6-35B-A3B-UD-Q4_K_S-planner` | one deeper planning / review task | `parallel=1`, `ctx=262144`, `batch=1024`, `ubatch=256` | single short request: **9.87 t/s gen** |
+
+LibreChat was manually re-pointed to prefer the worker alias first, followed by
+planner, balanced Qwen, Gemma, then the dense 27B experiment.
 
 ⚠️ Qwen3.6-27B-UD-Q8_K_XL is the slowest model measured to date: 0.93 t/s.
    Per-token GPU work is small but the 34 GiB Q8 weights live mostly in
@@ -199,14 +245,15 @@ Drawing on each model's published benchmarks and my read of the architecture:
 
 ### With the currently mounted Qwen + Gemma set (2026-05-24)
 
-1. **`Qwen3.6-35B-A3B-UD-Q4_K_S`** — best current coding choice for 4
-   parallel agents. Keep `parallel=4`, `ctx-size=262144`.
-2. **`Gemma4-26B-A4B`** — best current raw-throughput choice for 4 agents.
-   Use `parallel=4`, `ctx-size=131072` if speed matters more than coding
-   quality.
-3. **Do not chase 4 x 128 k slots on these models**. Native context, not
-   RAM, is the constraint: Qwen 35B tops out at ~262 k total, so the real
-   choices are `2 x 128 k` or `4 x 64 k`.
+1. **`Qwen3.6-35B-A3B-UD-Q4_K_S-worker`** — best default for interactive
+   LibreChat coding and short worker-agent tasks.
+2. **`Qwen3.6-35B-A3B-UD-Q4_K_S-planner`** — best for one deeper planning /
+   review job with the full 262 k context on a single slot.
+3. **`Qwen3.6-35B-A3B-UD-Q4_K_S`** — balanced 4 x 128 k profile when you
+   genuinely need large context on every worker and can tolerate slower
+   long-prompt decode.
+4. **`Gemma4-26B-A4B`** — fastest raw non-coding / summarization option.
+5. **`Qwen3.6-27B-Q5_K_M`** — experiment only; do not use as the default.
 
 ### Remove from llama-swap config + delete GGUFs
 
@@ -227,18 +274,19 @@ Drawing on each model's published benchmarks and my read of the architecture:
   evenly across slots, so per-slot effective context = `ctx-size / parallel`.
   The May 2026 production defaults target **~64 k per-slot context** across
   the board, with parallel slot counts chosen by architecture:
-  - **Qwen3.6-35B (both quants)** → `parallel=4`, `ctx-size=262144` →
-    4 × 64 k slots. Chases the Pascal ~22 t/s aggregate ceiling for
-    concurrent agent sessions.
+  - **Qwen3.6-35B-A3B-UD-Q4_K_S-worker** → `parallel=4`, `ctx-size=131072`
+    → 4 × 32 k slots. Highest-confidence choice for short worker-agent bursts.
+  - **Qwen3.6-35B-A3B-UD-Q4_K_S-planner** → `parallel=1`, `ctx-size=262144`
+    → 1 × 262 k slot. Best for one deeper planning or review task.
+  - **Qwen3.6-35B-A3B-UD-Q4_K_S (balanced)** → `parallel=4`,
+    `ctx-size=524288` → 4 × 128 k slots. Technically valid, but long-prompt
+    concurrent generation still collapses on this GPU.
   - **Gemma4-26B-A4B** → `parallel=4`, `ctx-size=131072` → 4 × 32 k slots.
     The 2026-05-24 sweep showed a clear throughput win here (~27 t/s
     aggregate) with essentially unchanged single-request speed.
-  - **Dense models (Qwen 27B Q8_K_XL, Gemma4-31B)** → `parallel=1`,
-    `ctx-size=131072`. This satisfies the user's 128 k target, but dense
-    remains CPU-bandwidth-bound at ~1-2 t/s.
-  - **MiniMax-M2.7-MXFP4_MOE** → `parallel=1`, `ctx-size=131072`. 10B
-    active params is heavier per token than the 3B-active Qwen MoEs;
-    keep it single-slot until we benchmark concurrent behavior.
+  - **Dense models (Qwen 27B Q5_K_M / Q8_K_XL, Gemma4-31B)** → prefer
+    `parallel=1` unless you are running a targeted experiment. System RAM can
+    hold them, but decode remains CPU-bandwidth-bound at ~1-2 t/s.
 
   Total KV memory cost at these defaults is ~5-16 GiB CPU-side per model,
   well within the 80-130 GiB pod budget.
@@ -258,6 +306,9 @@ Drawing on each model's published benchmarks and my read of the architecture:
 - Each model: spin up `/usr/local/bin/llama-server` directly inside the
   llama-cpp pod with the exact same flags differing only in
   `--gpu-layers`, `--parallel`, and the model file
+- Long-prompt follow-ups use a synthetic repository-dump prompt of ~36.5k
+  prompt tokens with `max_tokens=160` to approximate real agentic code review
+  pressure instead of the tiny median-function prompt
 - Per-slot gen tok/s comes from llama-server's own `timings.predicted_per_second`
 - Aggregate tok/s = total generated tokens / wall clock of all concurrent
   curl requests

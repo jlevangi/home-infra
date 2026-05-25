@@ -14,9 +14,8 @@
 # can set chat_template_kwargs.enable_thinking={true|false} per call.
 #
 # Threads pinned to 22 to match the pod's cpu limit. ttl bumped to 1200s
-# (vs the upstream default 300s) — cold loads run 30 s for Q4 MoEs to
-# minutes for MiniMax's 130 GiB split, so we tolerate a longer idle window
-# to avoid swap thrash during agent sessions.
+# (vs the upstream default 300s) so the currently loaded model stays warm
+# across bursts of agent activity instead of being evicted between runs.
 #
 # ctx-size + --parallel strategy: the pod has 80–130 GiB RAM headroom and
 # Q4-quantized KV keeps the per-token cost ~64 KB for the 35B Qwen MoEs.
@@ -26,10 +25,9 @@
 # Gemma4-26B-A4B is the deliberate exception: it stays at 128 k total ctx
 # and runs parallel=4 because the 2026-05-24 sweep showed a clear aggregate
 # throughput win (~27 tok/s) for 4 concurrent agents even at 32 k/slot.
-# Dense models stay at parallel=1 — they're already CPU-bound; parallel
-# slots wouldn't beat the GPU ceiling and would just split the floor.
-# MiniMax is single-slot until we have a feel for its 10B-active behavior
-# under load.
+# Dense models stay at parallel=1 unless a specific experiment justifies
+# more slots — they're CPU-bound enough that extra concurrency usually just
+# splits the floor.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -40,32 +38,27 @@ metadata:
 data:
   config.yaml: |
     startPort: 5800
-    # MiniMax-M2.7-MXFP4_MOE (130 GiB split across 4 shards) needs ~12-15 min
-    # to cold-load from tank, longer than the upstream default 600 s. The
-    # ~3-25 GiB MoE quants finish well inside this window, so the bump is
-    # safe across the board — only affects how long llama-swap waits for a
-    # newly-spawned child to become healthy, not steady-state behavior.
-    healthCheckTimeout: 1800
+    # Remaining models load in seconds to a couple of minutes, so the
+    # upstream 600 s timeout is ample again after removing MiniMax.
+    healthCheckTimeout: 600
     logLevel: info
 
     models:
       # =================================================================
-      # Qwen3.6-35B-A3B-UD-Q4_K_S — PRIMARY CODING AGENT
+      # Qwen3.6-35B-A3B-UD-Q4_K_M — Q4_K_M BALANCED (128K PER SLOT)
       # =================================================================
-      # MoE 35B/3B-active, Unsloth Dynamic Q4_K_S (20 GiB). Drop-in for
-      # the prior Q4_K_M slot — same architecture, slightly tighter quant.
-      # Native 262k ctx is kept intact here so parallel=4 still gives each
-      # coding slot a full 64 k effective window.
-      Qwen3.6-35B-A3B-UD-Q4_K_S:
+      # Same as Q4_K_S but the slightly larger Q4_K_M quant. With
+      # no-kv-offload the VRAM delta is negligible.
+      Qwen3.6-35B-A3B-UD-Q4_K_M:
         cmd: |
           /usr/local/bin/llama-server
-          --model /models/qwen3.6/35b/Qwen3.6-35B-A3B-UD-Q4_K_S.gguf
-          --alias Qwen3.6-35B-A3B-UD-Q4_K_S
+          --model /models/qwen3.6/35b/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf
+          --alias Qwen3.6-35B-A3B-UD-Q4_K_M
           --host 0.0.0.0
           --port ${PORT}
           --gpu-layers 10
           --threads 22
-          --ctx-size 262144
+          --ctx-size 524288
           --batch-size 1024
           --ubatch-size 256
           --parallel 4
@@ -74,39 +67,72 @@ data:
           --cache-type-v q4_0
           --reasoning auto
           --no-webui
+          --no-kv-offload
+          --mlock
         env:
           - "CUDA_VISIBLE_DEVICES=0"
         ttl: 1200
 
       # =================================================================
-      # Qwen3.6-35B-A3B-MXFP4_MOE — ALTERNATIVE QUANT
+      # Qwen3.6-35B-A3B-UD-Q4_K_M-worker — OPTIMIZED MULTI-AGENT
       # =================================================================
-      # Same architecture as Q4_K_S, 21 GiB at MXFP4 (OCP Microscaling FP4).
-      # Pascal sm_61 gets the memory savings but no FP4 tensor-core
-      # acceleration (FP4 lands on Blackwell sm_100+), so expect similar
-      # throughput to Q4_K_S with marginally different accuracy.
-      Qwen3.6-35B-A3B-MXFP4_MOE:
+      # Same MoE architecture as Q4_K_S, but the slightly larger Q4_K_M
+      # quant + --no-kv-offload and --mlock from the 2026-05-24 optimization
+      # sweep. The VRAM saving from no-kv-offload offsets the slightly larger
+      # model file, and mlock prevents any swap under memory pressure.
+      Qwen3.6-35B-A3B-UD-Q4_K_M-worker:
         cmd: |
           /usr/local/bin/llama-server
-          --model /models/qwen3.6/35b/Qwen3.6-35B-A3B-MXFP4_MOE.gguf
-          --alias Qwen3.6-35B-A3B-MXFP4_MOE
+          --model /models/qwen3.6/35b/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf
+          --alias Qwen3.6-35B-A3B-UD-Q4_K_M-worker
           --host 0.0.0.0
           --port ${PORT}
           --gpu-layers 10
           --threads 22
-          --ctx-size 262144
-          --batch-size 512
-          --ubatch-size 128
+          --ctx-size 131072
+          --batch-size 2048
+          --ubatch-size 512
           --parallel 4
           --flash-attn on
           --cache-type-k q4_0
           --cache-type-v q4_0
           --reasoning auto
           --no-webui
+          --no-kv-offload
+          --mlock
         env:
           - "CUDA_VISIBLE_DEVICES=0"
         ttl: 1200
 
+      # =================================================================
+      # Qwen3.6-35B-A3B-UD-Q4_K_M-planner — OPTIMIZED PLANNER
+      # =================================================================
+      # Larger Q4_K_M quant + no-kv-offload for single-slot deep context.
+      Qwen3.6-35B-A3B-UD-Q4_K_M-planner:
+        cmd: |
+          /usr/local/bin/llama-server
+          --model /models/qwen3.6/35b/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf
+          --alias Qwen3.6-35B-A3B-UD-Q4_K_M-planner
+          --host 0.0.0.0
+          --port ${PORT}
+          --gpu-layers 10
+          --threads 22
+          --ctx-size 262144
+          --batch-size 1024
+          --ubatch-size 256
+          --parallel 1
+          --flash-attn on
+          --cache-type-k q4_0
+          --cache-type-v q4_0
+          --reasoning auto
+          --no-webui
+          --no-kv-offload
+          --mlock
+        env:
+          - "CUDA_VISIBLE_DEVICES=0"
+        ttl: 1200
+
+      # =================================================================
       # =================================================================
       # Qwen3.6-27B-UD-Q8_K_XL — HEAVY DENSE TEST BENCH
       # =================================================================
@@ -199,36 +225,31 @@ data:
         ttl: 1200
 
       # =================================================================
-      # MiniMax-M2.7-MXFP4_MOE — XL AGENTIC MODEL (experimental)
+      # Qwen3.6-27B-Q5_K_S-MTP — DENSE MTP SINGLE-USER
       # =================================================================
-      # Sparse MoE: 230B total / 10B active params, 256 experts (8 active
-      # per token), 62 layers. Designed by MiniMax AI for agentic coding;
-      # ELO 1495 on GDPval-AA (highest open-weight at time of download).
-      #
-      # MXFP4_MOE on Pascal sm_61: memory savings yes, FP4 tensor-core
-      # acceleration no. With 10B active params (vs ~3B for our other
-      # MoEs), expect 4-6 tok/s gen.
-      #
-      # Multi-shard (~130 GiB on disk: 7.9M header + 47G + 47G + 35G).
-      # llama-server reads shard 1 and auto-loads the rest. Cold load is
-      # slow on first request from spinning tank; mmap minimizes resident
-      # pages after that. Conservative ctx-size and ngl until we benchmark.
-      MiniMax-M2.7-MXFP4_MOE:
+      # Dense 27B Q5_K_S with MTP speculative decoding + no-kv-offload.
+      # +42% single-request gen vs non-MTP (2.03 -> 2.89 t/s). VRAM ~6160 MiB.
+      # Thinking MUST be disabled per-request for MTP to work.
+      Qwen3.6-27B-Q5_K_S-MTP:
         cmd: |
           /usr/local/bin/llama-server
-          --model /models/MiniMax/MXFP4_MOE/MiniMax-M2.7-MXFP4_MOE-00001-of-00004.gguf
-          --alias MiniMax-M2.7-MXFP4_MOE
+          --model /models/qwen3.6/27b/Qwen3.6-27B-Q5_K_S.gguf
+          --alias Qwen3.6-27B-Q5_K_S-MTP
           --host 0.0.0.0
           --port ${PORT}
-          --gpu-layers 3
+          --gpu-layers 16
           --threads 22
-          --ctx-size 131072
-          --batch-size 512
-          --ubatch-size 128
+          --ctx-size 262144
+          --batch-size 2048
+          --ubatch-size 512
           --parallel 1
           --flash-attn on
-          --cache-type-k q4_0
-          --cache-type-v q4_0
+          --cache-type-k q5_1
+          --cache-type-v q5_1
+          --spec-type draft-mtp
+          --spec-draft-n-max 3
+          --no-kv-offload
+          --mlock
           --reasoning auto
           --no-webui
         env:

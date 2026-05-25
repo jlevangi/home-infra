@@ -53,8 +53,14 @@ spec:
                   apiKey: "not-needed"
                   baseURL: "http://llama-cpp.llama-cpp.svc.cluster.local:8080/v1"
                   models:
-                    default: ["default"]
-                    fetch: true
+                    default:
+                      - "Qwen3.6-35B-A3B-UD-Q4_K_M-worker"
+                      - "Qwen3.6-35B-A3B-UD-Q4_K_M-planner"
+                      - "Qwen3.6-35B-A3B-UD-Q4_K_M"
+                      - "Qwen3.6-35B-A3B-UD-Q4_K_S-worker"
+                      - "Gemma4-26B-A4B"
+                      - "Qwen3.6-27B-Q5_K_S-MTP"
+                    fetch: false
                   titleConvo: true
                   titleModel: "current_model"
                   modelDisplayLabel: "llama.cpp"
