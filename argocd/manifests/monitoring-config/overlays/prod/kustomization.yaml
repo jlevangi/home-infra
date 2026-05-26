@@ -6,7 +6,16 @@ resources:
   - service-home-assistant.yaml
   - endpoints-home-assistant.yaml
   - servicemonitor-home-assistant.yaml
-  - grafana-dashboard-home-assistant.yaml
+configMapGenerator:
+  - name: grafana-dashboard-home-assistant
+    namespace: monitoring
+    files:
+      - home-assistant.json=home-assistant-dashboard.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+generatorOptions:
+  disableNameSuffixHash: true
 labels:
   - pairs:
       environment: prod
