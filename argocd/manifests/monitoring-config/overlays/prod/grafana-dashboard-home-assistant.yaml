@@ -129,15 +129,15 @@ data:
                   },
                   {
                     "color": "green",
-                    "value": 20
+                    "value": 68
                   },
                   {
                     "color": "orange",
-                    "value": 26
+                    "value": 79
                   }
                 ]
               },
-              "unit": "celsius"
+              "unit": "fahrenheit"
             },
             "overrides": []
           },
@@ -171,7 +171,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "homeassistant_sensor_temperature_celsius{job=\"home-assistant\",entity=\"sensor.average_house_temp\"}",
+              "expr": "homeassistant_sensor_temperature_celsius{job=\"home-assistant\",entity=\"sensor.average_house_temp\"} * 9 / 5 + 32",
               "legendFormat": "Average house",
               "refId": "A"
             }
@@ -190,6 +190,21 @@ data:
                 "mode": "thresholds"
               },
               "decimals": 0,
+              "mappings": [
+                {
+                  "options": {
+                    "0": {
+                      "color": "red",
+                      "text": "Unavailable"
+                    },
+                    "1": {
+                      "color": "green",
+                      "text": "Available"
+                    }
+                  },
+                  "type": "value"
+                }
+              ],
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
@@ -386,12 +401,12 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "count(homeassistant_entity_info{job=\"home-assistant\",entity=~\"weather[.].*\"}) or vector(0)",
-              "legendFormat": "Weather series",
+              "expr": "homeassistant_entity_available{job=\"home-assistant\",entity=\"sensor.mariah_status\"}",
+              "legendFormat": "Mariah status",
               "refId": "A"
             }
           ],
-          "title": "Weather Exported Series",
+          "title": "Mariah Status Sensor",
           "type": "stat"
         },
         {
@@ -516,7 +531,7 @@ data:
                   }
                 ]
               },
-              "unit": "celsius"
+              "unit": "fahrenheit"
             },
             "overrides": []
           },
@@ -549,7 +564,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "homeassistant_sensor_temperature_celsius{job=\"home-assistant\",entity=~\"sensor[.](average_house_temp|office_temperature_sensor_temperature|bedroom_temperature_sensor_temperature|living_room_temp_sensor_temperature|kitchen_temperature_sensor_temperature)\"}",
+              "expr": "homeassistant_sensor_temperature_celsius{job=\"home-assistant\",entity=~\"sensor[.](average_house_temp|office_temperature_sensor_temperature|bedroom_temperature_sensor_temperature|living_room_temp_sensor_temperature|kitchen_temperature_sensor_temperature)\"} * 9 / 5 + 32",
               "legendFormat": "{{friendly_name}}",
               "refId": "A"
             },
@@ -558,7 +573,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "homeassistant_climate_current_temperature_celsius{job=\"home-assistant\"}",
+              "expr": "homeassistant_climate_current_temperature_celsius{job=\"home-assistant\"} * 9 / 5 + 32",
               "legendFormat": "Thermostat current",
               "refId": "B"
             },
@@ -567,7 +582,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "homeassistant_climate_target_temperature_celsius{job=\"home-assistant\"}",
+              "expr": "homeassistant_climate_target_temperature_celsius{job=\"home-assistant\"} * 9 / 5 + 32",
               "legendFormat": "Thermostat target",
               "refId": "C"
             }
@@ -759,12 +774,12 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "homeassistant_binary_sensor_state{job=\"home-assistant\",friendly_name=~\".*Occupancy.*|.*Motion.*|Home is Occupied\"}",
+              "expr": "homeassistant_binary_sensor_state{job=\"home-assistant\",friendly_name=~\".*Occupancy.*|Home is Occupied\",friendly_name!~\".*Motion.*|.*Zone.*\"}",
               "legendFormat": "{{friendly_name}}",
               "refId": "A"
             }
           ],
-          "title": "Occupancy And Motion",
+          "title": "Occupancy",
           "type": "barchart"
         },
         {
@@ -1059,5 +1074,5 @@ data:
       "timezone": "browser",
       "title": "Home Assistant",
       "uid": "home-assistant",
-      "version": 1
+      "version": 2
     }
