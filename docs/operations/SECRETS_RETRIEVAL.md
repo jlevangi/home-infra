@@ -122,6 +122,12 @@ kubectl get secret web-poker-secrets -n web-poker -o json | jq -r '.data | to_en
 - **Internal URL:** `http://prometheus-prometheus.monitoring.svc.cluster.local:9090`
 - **Auth:** No authentication (not exposed externally)
 
+### Home Assistant Metrics
+
+- **Scrape target:** `http://172.20.20.21:8123/api/prometheus`
+- **Vault path:** `kv/prod/home-assistant`
+- **Vault keys:** `prometheus-token`
+
 ## Environment Domains
 
 | Environment | Domain | Example |
