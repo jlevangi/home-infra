@@ -71,7 +71,7 @@ data:
           --mlock
         env:
           - "CUDA_VISIBLE_DEVICES=0"
-        ttl: 1200
+        ttl: 3600
 
       # =================================================================
       # Qwen3.6-35B-A3B-UD-Q4_K_M-worker — OPTIMIZED MULTI-AGENT
@@ -102,7 +102,7 @@ data:
           --mlock
         env:
           - "CUDA_VISIBLE_DEVICES=0"
-        ttl: 1200
+        ttl: 1800
 
       # =================================================================
       # Qwen3.6-35B-A3B-UD-Q4_K_M-planner — OPTIMIZED PLANNER
@@ -130,7 +130,7 @@ data:
           --mlock
         env:
           - "CUDA_VISIBLE_DEVICES=0"
-        ttl: 1200
+        ttl: 3600
 
       # =================================================================
       # =================================================================
@@ -161,7 +161,7 @@ data:
           --no-webui
         env:
           - "CUDA_VISIBLE_DEVICES=0"
-        ttl: 1200
+        ttl: 3600
 
       # =================================================================
       # Gemma4-26B-A4B — FAST GENERAL-PURPOSE / NON-CODING
@@ -194,7 +194,7 @@ data:
           --no-webui
         env:
           - "CUDA_VISIBLE_DEVICES=0"
-        ttl: 1200
+        ttl: 1800
 
       # =================================================================
       # Gemma4-31B — LARGER DENSE GEMMA
@@ -222,10 +222,40 @@ data:
           --no-webui
         env:
           - "CUDA_VISIBLE_DEVICES=0"
-        ttl: 1200
+        ttl: 3600
 
       # =================================================================
-      # Qwen3.6-27B-Q5_K_S-MTP — DENSE MTP SINGLE-USER
+      # Qwopus3.5-9B-Coder-MTP — FAST DENSE CODING AGENT
+      # =================================================================
+      # Dense 9B Q8_0 with MTP. 34+ t/s on comparable hardware, ~50+ t/s
+      # effective with MTP drafts. 9B is small enough that most layers
+      # fit on 8GB VRAM. Best for fast interactive coding and tool use.
+      # Uses the fixed Qwen chat template to avoid looping.
+      Qwopus3.5-9B-Coder-MTP:
+        cmd: |
+          /usr/local/bin/llama-server
+          --model /models/qwopus/Qwopus3.5-9B-Coder-MTP-Q8_0.gguf
+          --alias Qwopus3.5-9B-Coder-MTP
+          --host 0.0.0.0
+          --port ${PORT}
+          --gpu-layers 24
+          --threads 22
+          --ctx-size 131072
+          --batch-size 2048
+          --ubatch-size 512
+          --parallel 1
+          --flash-attn on
+          --cache-type-k q4_0
+          --cache-type-v q4_0
+          --spec-type draft-mtp
+          --spec-draft-n-max 3
+          --no-kv-offload
+          --mlock
+          --reasoning auto
+          --no-webui
+        env:
+          - "CUDA_VISIBLE_DEVICES=0"
+        ttl: 1800
       # =================================================================
       # Dense 27B Q5_K_S with MTP speculative decoding + no-kv-offload.
       # +42% single-request gen vs non-MTP (2.03 -> 2.89 t/s). VRAM ~6160 MiB.
@@ -254,4 +284,4 @@ data:
           --no-webui
         env:
           - "CUDA_VISIBLE_DEVICES=0"
-        ttl: 1200
+        ttl: 3600
