@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rustdesk
+  namespace: rustdesk
+  labels:
+    app: rustdesk
+    app.kubernetes.io/name: rustdesk
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: rustdesk
+  template:
+    metadata:
+      labels:
+        app: rustdesk
+        app.kubernetes.io/name: rustdesk
+    spec:
+      containers:
+        - name: hbbs
+          image: rustdesk/rustdesk-server:1.1.15
+          imagePullPolicy: IfNotPresent
+          command:
+            - hbbs
+            - -r
+            - rustdesk.levangie.dev:21117
+          ports:
+            - name: nat-test
+              containerPort: 21115
+              protocol: TCP
+            - name: rendezvous-tcp
+              containerPort: 21116
+              protocol: TCP
+            - name: rendezvous-udp
+              containerPort: 21116
+              protocol: UDP
+            - name: hbbs-web
+              containerPort: 21118
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /root
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          readinessProbe:
+            tcpSocket:
+              port: 21116
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: 21116
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
+        - name: hbbr
+          image: rustdesk/rustdesk-server:1.1.15
+          imagePullPolicy: IfNotPresent
+          command:
+            - hbbr
+          ports:
+            - name: relay
+              containerPort: 21117
+              protocol: TCP
+            - name: hbbr-web
+              containerPort: 21119
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /root
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          readinessProbe:
+            tcpSocket:
+              port: 21117
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: 21117
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: rustdesk-data

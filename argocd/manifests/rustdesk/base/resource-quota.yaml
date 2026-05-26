@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: rustdesk-storage-quota
+  namespace: rustdesk
+spec:
+  hard:
+    requests.storage: 5Gi
+    longhorn.io/requests.storage: 5Gi
+    persistentvolumeclaims: "2"

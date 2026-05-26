@@ -17,6 +17,7 @@ spec:
 
         sources:
           - ingress
+          - service
           - traefik-proxy
 
         policy: upsert-only
