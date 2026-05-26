@@ -4,7 +4,7 @@ metadata:
   name: rustdesk
   namespace: rustdesk
   annotations:
-    metallb.universe.tf/loadBalancerIPs: 172.20.20.199
+    metallb.universe.tf/loadBalancerIPs: 172.20.20.205
     external-dns.alpha.kubernetes.io/hostname: rustdesk.levangie.dev
 spec:
   type: LoadBalancer
@@ -16,23 +16,29 @@ spec:
       port: 21115
       targetPort: 21115
       protocol: TCP
+      nodePort: 32115
     - name: hbbs-rendezvous-tcp
       port: 21116
       targetPort: 21116
       protocol: TCP
+      nodePort: 32116
     - name: hbbs-rendezvous-udp
       port: 21116
       targetPort: 21116
       protocol: UDP
+      nodePort: 32116
     - name: hbbr-relay
       port: 21117
       targetPort: 21117
       protocol: TCP
+      nodePort: 32117
     - name: hbbs-web-client
       port: 21118
       targetPort: 21118
       protocol: TCP
+      nodePort: 32118
     - name: hbbr-web-client
       port: 21119
       targetPort: 21119
       protocol: TCP
+      nodePort: 32119
