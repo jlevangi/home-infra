@@ -4,7 +4,7 @@ metadata:
   name: rustdesk
   namespace: rustdesk
   annotations:
-    metallb.universe.tf/loadBalancerIPs: 172.20.20.205
+    metallb.universe.tf/loadBalancerIPs: 172.20.20.199
     external-dns.alpha.kubernetes.io/hostname: rustdesk.levangie.dev
 spec:
   type: LoadBalancer
