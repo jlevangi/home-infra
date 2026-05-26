@@ -26,7 +26,7 @@ spec:
       port: 21116
       targetPort: 21116
       protocol: UDP
-      nodePort: 32116
+      nodePort: 32120
     - name: hbbr-relay
       port: 21117
       targetPort: 21117
