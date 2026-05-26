@@ -1,0 +1,132 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sparkyfitness
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/CodeWithCJ/SparkyFitness.git
+    targetRevision: v0.16.6.3
+    path: helm/chart
+    helm:
+      values: |
+        fullnameOverride: sparkyfitness
+
+        global:
+          storageClass: longhorn
+
+        config:
+          logLevel: info
+          timezone: Australia/Melbourne
+          frontendUrl: https://fitness.levangie.dev
+          disableSignup: false
+          forceEmailLogin: true
+          disableEmailLogin: false
+          allowPrivateNetworkCors: false
+          oidc:
+            enabled: false
+          garmin:
+            enabled: false
+          email:
+            enabled: false
+
+        ingress:
+          enabled: true
+          className: traefik
+          annotations:
+            traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+            external-dns.alpha.kubernetes.io/target: k3s-prod.levangie.dev
+          hosts:
+            - host: fitness.levangie.dev
+              paths:
+                - path: /
+                  pathType: Prefix
+          tls:
+            - hosts:
+                - fitness.levangie.dev
+
+        networkPolicy:
+          enabled: false
+
+        server:
+          image:
+            tag: v0.16.6.3
+          secrets:
+            generate: false
+            existingSecret: sparkyfitness-app
+          appDatabase:
+            existingSecret: sparkyfitness-appdb
+          persistence:
+            backup:
+              size: 5Gi
+              storageClass: longhorn
+            uploads:
+              size: 10Gi
+              storageClass: longhorn
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+
+        frontend:
+          image:
+            tag: v0.16.6.3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+
+        postgresql:
+          enabled: true
+          image:
+            tag: 18.3-trixie
+          auth:
+            database: sparkyfitness
+            username: sparky_admin
+            existingSecret: sparkyfitness-postgresql-auth
+          persistence:
+          standalone:
+            persistence:
+              enabled: true
+              size: 10Gi
+              storageClass: longhorn
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi
+          backup:
+            enabled: false
+
+        databaseBackup:
+          enabled: true
+          schedule: "0 4 * * *"
+          persistence:
+            size: 10Gi
+            storageClass: longhorn
+          retention:
+            days: 7
+            weeks: 5
+            months: 3
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: sparkyfitness
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
