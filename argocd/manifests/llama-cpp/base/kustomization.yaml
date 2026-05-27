@@ -15,5 +15,3 @@ configMapGenerator:
     options:
       labels:
         app: llama-cpp
-generatorOptions:
-  disableNameSuffixHash: true

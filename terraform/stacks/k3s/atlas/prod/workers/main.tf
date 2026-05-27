@@ -132,13 +132,13 @@ variable "cpu_cores" {
 variable "memory" {
   description = "Memory in MB."
   type        = number
-  default     = 32768
+  default     = 24576
 }
 
 variable "balloon" {
   description = "Balloon memory in MB."
   type        = number
-  default     = 32768
+  default     = 0
 }
 
 variable "os_disk_size" {
@@ -151,6 +151,18 @@ variable "data_disk_size" {
   description = "Longhorn data disk size."
   type        = string
   default     = "300G"
+}
+
+variable "flash_disk_storage" {
+  description = "Storage pool for the current flash-backed Longhorn disk."
+  type        = string
+  default     = "flash"
+}
+
+variable "flash_disk_size" {
+  description = "Current flash-backed Longhorn disk size."
+  type        = string
+  default     = "250G"
 }
 
 variable "ip_base" {
@@ -186,29 +198,33 @@ variable "search_domain" {
 module "nodes" {
   source = "../../../../../modules/proxmox-cloudinit-nodes"
 
-  vm_name_prefix    = var.vm_name_prefix
-  vm_count          = var.vm_count
-  vm_ids            = var.vm_ids
-  target_nodes      = var.proxmox_hosts
-  template_name     = var.template_name
-  proxmox_tags      = var.proxmox_tags
-  cpu_cores         = var.cpu_cores
-  memory            = var.memory
-  balloon           = var.balloon
-  vm_storage        = var.vm_storage
-  os_disk_size      = var.os_disk_size
-  data_disk_enabled = false
-  data_disk_size    = var.data_disk_size
-  data_disk_storage = var.data_disk_storage
-  nic_name          = var.nic_name
-  macaddr_prefix    = "76:5A:F1:57:5A:0"
-  ip_base           = var.ip_base
-  ip_offset         = 1
-  subnet_mask       = var.subnet_mask
-  gateway           = var.gateway
-  nameserver        = var.nameserver
-  search_domain     = var.search_domain
-  ssh_key           = var.ssh_key
-  ci_user           = var.ci_user
-  ci_password       = var.ci_password
+  vm_name_prefix     = var.vm_name_prefix
+  vm_count           = var.vm_count
+  vm_ids             = var.vm_ids
+  target_nodes       = var.proxmox_hosts
+  template_name      = var.template_name
+  proxmox_tags       = var.proxmox_tags
+  cpu_cores          = var.cpu_cores
+  memory             = var.memory
+  balloon            = var.balloon
+  vm_storage         = var.vm_storage
+  os_disk_size       = var.os_disk_size
+  data_disk_enabled  = false
+  data_disk_size     = var.data_disk_size
+  data_disk_storage  = var.data_disk_storage
+  flash_disk_enabled = true
+  flash_disk_size    = var.flash_disk_size
+  flash_disk_storage = var.flash_disk_storage
+  nic_name           = var.nic_name
+  macaddr_prefix     = "76:5A:F1:57:5A:0"
+  ip_base            = var.ip_base
+  ip_offset          = 1
+  subnet_mask        = var.subnet_mask
+  gateway            = var.gateway
+  nameserver         = var.nameserver
+  search_domain      = var.search_domain
+  ssh_key            = var.ssh_key
+  ci_user            = var.ci_user
+  ci_password        = var.ci_password
+  startup_order      = 4
 }

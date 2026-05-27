@@ -41,23 +41,38 @@ resource "proxmox_vm_qemu" "this" {
   }
 
   disk {
-    format  = "raw"
+    format    = "raw"
     replicate = false
-    slot    = "scsi0"
-    size    = var.os_disk_size
-    type    = "disk"
-    storage = var.vm_storage
+    slot      = "scsi0"
+    size      = var.os_disk_size
+    type      = "disk"
+    storage   = var.vm_storage
   }
 
   dynamic "disk" {
     for_each = var.data_disk_enabled ? [1] : []
     content {
-      format  = "raw"
+      format    = "raw"
       replicate = false
-      slot    = "scsi1"
-      size    = var.data_disk_size
-      type    = "disk"
-      storage = var.data_disk_storage
+      slot      = "scsi1"
+      size      = var.data_disk_size
+      type      = "disk"
+      storage   = var.data_disk_storage
+    }
+  }
+
+  dynamic "disk" {
+    for_each = var.flash_disk_enabled ? [1] : []
+    content {
+      discard    = true
+      emulatessd = true
+      format     = "raw"
+      iothread   = true
+      replicate  = true
+      slot       = var.flash_disk_slot
+      size       = var.flash_disk_size
+      type       = "disk"
+      storage    = var.flash_disk_storage
     }
   }
 
@@ -84,13 +99,15 @@ resource "proxmox_vm_qemu" "this" {
   }
 
   startup_shutdown {
-    order            = -1
+    order            = var.startup_order
     shutdown_timeout = -1
     startup_delay    = -1
   }
 
   lifecycle {
     ignore_changes = [
+      bootdisk,
+      disk,
       network,
     ]
     replace_triggered_by = []

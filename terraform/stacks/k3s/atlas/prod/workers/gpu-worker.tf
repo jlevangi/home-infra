@@ -67,13 +67,13 @@ variable "gpu_worker_balloon" {
 variable "gpu_worker_llm_disk_size" {
   description = "Dedicated LLM model storage disk size on the GPU worker."
   type        = string
-  default     = "500G"
+  default     = "600G"
 }
 
 variable "gpu_worker_llm_disk_storage" {
-  description = "Proxmox storage pool for the GPU worker LLM model disk. Uses an LVM-backed pool (ssd3) rather than ZFS so writes don't pay compression/checksum/ARC overhead — important because model staging pushes 100+ GB at line rate."
+  description = "Proxmox storage pool for the GPU worker LLM model disk. Uses the tank-backed VM disk mounted at /mnt/llm-tank."
   type        = string
-  default     = "ssd3"
+  default     = "tank"
 }
 
 resource "proxmox_vm_qemu" "gpu_worker" {
@@ -117,28 +117,28 @@ resource "proxmox_vm_qemu" "gpu_worker" {
   }
 
   disk {
-    discard     = true
-    emulatessd  = true
-    format      = "raw"
-    replicate   = true
-    slot    = "scsi0"
-    size    = var.os_disk_size
-    type    = "disk"
-    storage = var.vm_storage
-  }
-
-  disk {
-    format  = "raw"
-    replicate = false
-    slot    = "scsi1"
-    size    = var.gpu_worker_data_disk_size
-    type    = "disk"
-    storage = var.data_disk_storage
+    discard    = true
+    emulatessd = true
+    format     = "raw"
+    replicate  = true
+    slot       = "scsi0"
+    size       = var.os_disk_size
+    type       = "disk"
+    storage    = var.vm_storage
   }
 
   disk {
     format    = "raw"
     replicate = false
+    slot      = "scsi1"
+    size      = var.gpu_worker_data_disk_size
+    type      = "disk"
+    storage   = var.data_disk_storage
+  }
+
+  disk {
+    format    = "raw"
+    replicate = true
     slot      = "scsi2"
     size      = var.gpu_worker_llm_disk_size
     type      = "disk"
@@ -175,13 +175,15 @@ resource "proxmox_vm_qemu" "gpu_worker" {
   }
 
   startup_shutdown {
-    order            = -1
+    order            = 4
     shutdown_timeout = -1
     startup_delay    = -1
   }
 
   lifecycle {
     ignore_changes = [
+      bootdisk,
+      disk,
       network,
     ]
     replace_triggered_by = []

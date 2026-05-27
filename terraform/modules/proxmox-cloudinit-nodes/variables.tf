@@ -114,6 +114,30 @@ variable "data_disk_storage" {
   default     = null
 }
 
+variable "flash_disk_enabled" {
+  description = "Whether to attach the flash-backed Longhorn disk."
+  type        = bool
+  default     = false
+}
+
+variable "flash_disk_size" {
+  description = "Flash-backed Longhorn disk size when flash_disk_enabled is true."
+  type        = string
+  default     = null
+}
+
+variable "flash_disk_storage" {
+  description = "Proxmox storage pool for the flash-backed Longhorn disk."
+  type        = string
+  default     = null
+}
+
+variable "flash_disk_slot" {
+  description = "Proxmox SCSI slot for the flash-backed Longhorn disk."
+  type        = string
+  default     = "scsi3"
+}
+
 variable "nic_name" {
   description = "Proxmox bridge interface."
   type        = string
@@ -169,6 +193,12 @@ variable "ci_password" {
   description = "Cloud-init user password."
   type        = string
   sensitive   = true
+}
+
+variable "startup_order" {
+  description = "Proxmox VM startup order."
+  type        = number
+  default     = -1
 }
 
 variable "create_timeout" {
