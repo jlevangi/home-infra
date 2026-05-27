@@ -17,6 +17,7 @@ TARGET_ENV=""
 FORCE="false"
 VERBOSITY=""
 SKIP_VAULT_UNSEAL="false"
+VAULT_CLUSTER_CERT_RECOVERY="true"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -28,6 +29,7 @@ while [[ $# -gt 0 ]]; do
         --force|-f)          FORCE="true"; shift ;;
         -v|--verbose)        VERBOSITY="-v"; shift ;;
         --skip-vault-unseal) SKIP_VAULT_UNSEAL="true"; shift ;;
+        --no-cluster-cert-recovery) VAULT_CLUSTER_CERT_RECOVERY="false"; shift ;;
         --help|-h)
             echo "Usage: $0 [ENVIRONMENT] [OPTIONS]"
             echo ""
@@ -35,6 +37,8 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --force, -f          Skip confirmation prompt"
             echo "  --skip-vault-unseal  Skip Vault unseal/auth refresh after restart"
+            echo "  --no-cluster-cert-recovery"
+            echo "                       Detect Vault Raft cluster-cert drift but do not auto-heal it"
             echo "  -v, --verbose        Enable verbose output"
             echo "  -h, --help           Show this help message"
             exit 0
@@ -103,5 +107,6 @@ RESTART_CMD=("$PROJECT_ROOT/scripts/maintenance/restart-k3s-cluster.sh" "--$TARG
 
 [[ -n "$VERBOSITY" ]] && RESTART_CMD+=("$VERBOSITY")
 [[ "$SKIP_VAULT_UNSEAL" == "true" ]] && RESTART_CMD+=("--skip-vault-unseal")
+[[ "$VAULT_CLUSTER_CERT_RECOVERY" == "false" ]] && RESTART_CMD+=("--no-cluster-cert-recovery")
 
 "${RESTART_CMD[@]}"

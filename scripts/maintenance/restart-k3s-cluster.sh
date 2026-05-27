@@ -20,6 +20,7 @@ VAULT_PASSWORD_FILE="$(get_ansible_vault_password_file)"
 TARGET_ENV=""
 VERBOSITY=""
 SKIP_VAULT_UNSEAL=false
+VAULT_CLUSTER_CERT_RECOVERY=true
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -30,12 +31,15 @@ while [[ $# -gt 0 ]]; do
         --env=*)             TARGET_ENV="${1#*=}"; shift ;;
         -v|--verbose)        VERBOSITY="-v"; shift ;;
         --skip-vault-unseal) SKIP_VAULT_UNSEAL=true; shift ;;
+        --no-cluster-cert-recovery) VAULT_CLUSTER_CERT_RECOVERY=false; shift ;;
         --help|-h)
             echo "Usage: $0 [ENVIRONMENT] [OPTIONS]"
             echo ""
             show_environment_help "$0" "Restart"
             echo "Options:"
             echo "  --skip-vault-unseal  Skip Vault unseal/auth refresh after restart"
+            echo "  --no-cluster-cert-recovery"
+            echo "                       Detect Vault Raft cluster-cert drift but do not auto-heal it"
             echo "  -v, --verbose        Enable verbose output"
             echo "  -h, --help           Show this help message"
             echo ""
@@ -103,6 +107,10 @@ VAULT_UNSEAL_CMD=(ansible-playbook
     --vault-password-file "$VAULT_PASSWORD_FILE"
     -e "kubectl_context=k3s-$KUBECTL_CONTEXT"
 )
+
+if [[ "$VAULT_CLUSTER_CERT_RECOVERY" == true ]]; then
+    VAULT_UNSEAL_CMD+=(-e "vault_recover_cluster_cert=true")
+fi
 
 [[ -n "$VERBOSITY" ]] && VAULT_UNSEAL_CMD+=("$VERBOSITY")
 

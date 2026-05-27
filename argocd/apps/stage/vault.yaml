@@ -27,6 +27,7 @@ spec:
           ha:
             enabled: true
             replicas: 3
+            clusterAddr: "http://$(HOSTNAME).vault-raft-internal:8201"
             raft:
               enabled: true
               setNodeId: true

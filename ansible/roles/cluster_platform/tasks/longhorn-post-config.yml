@@ -75,8 +75,18 @@
 
 - name: Check existing volumes with incorrect replica count
   shell: |
-    KUBECONFIG={{ kubeconfig_path }} kubectl get volumes -n longhorn-system -o jsonpath='{range .items[*]}{.metadata.name}:{.spec.numberOfReplicas}{"\n"}{end}' 2>/dev/null | \
-    awk -F: -v target={{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} '$2 != target && NF > 0 {print $1}' || echo ""
+    KUBECONFIG={{ kubeconfig_path }} kubectl get volumes -n longhorn-system \
+      -o jsonpath='{range .items[*]}{.metadata.name}:{.spec.numberOfReplicas}:{.status.kubernetesStatus.pvcNamespace}:{.status.kubernetesStatus.pvcName}{"\n"}{end}' 2>/dev/null | \
+    while IFS=: read -r volume replicas pvc_namespace pvc_name; do
+      [ -n "$volume" ] || continue
+      if [ -n "$pvc_namespace" ] && [ -n "$pvc_name" ]; then
+        storage_class="$(KUBECONFIG={{ kubeconfig_path }} kubectl get pvc "$pvc_name" -n "$pvc_namespace" -o jsonpath='{.spec.storageClassName}' 2>/dev/null || true)"
+        # Vault Raft volumes intentionally use a dedicated single-replica
+        # StorageClass; Vault itself provides replication across 3 voters.
+        [ "$storage_class" = "longhorn-vault-raft" ] && continue
+      fi
+      [ "$replicas" = "{{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}" ] || echo "$volume"
+    done
   register: incorrect_replica_volumes
   changed_when: false
   failed_when: false

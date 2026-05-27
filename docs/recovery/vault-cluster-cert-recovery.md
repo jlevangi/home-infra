@@ -45,13 +45,26 @@ is needed to elect a leader. Chicken and egg.
 
 ## Prevention
 
-The `argocd/apps/prod/vault.yaml` Helm values pin `server.ha.clusterAddr`
-explicitly so a chart upgrade can't silently shift the address. Don't
-remove that line without understanding the consequence.
+The prod and stage Vault Helm values pin `server.ha.clusterAddr` explicitly so
+a chart upgrade can't silently shift the address. Don't remove that line
+without understanding the consequence.
 
 ## Recovery (automated)
 
-Re-run the unseal playbook with the opt-in recovery flag:
+The standard maintenance wrappers now enable this recovery path by default:
+
+```bash
+./scripts/maintenance/recover-vault.sh --prod
+./scripts/maintenance/restart-k3s-cluster.sh --prod
+./scripts/maintenance/power-on-k3s-cluster.sh --prod
+```
+
+Those scripts still only perform destructive follower-data recovery after the
+playbook has detected the exact no-leader plus `tls: unrecognized name`
+signature. To force detection-only behavior for debugging, pass
+`--no-cluster-cert-recovery` to the wrapper script.
+
+When running the playbook directly, pass the recovery flag explicitly:
 
 ```bash
 ansible-playbook ansible/playbooks/maintenance/vault-unseal.yml \
@@ -75,6 +88,28 @@ The playbook will:
 
 No data loss occurs — Raft replicated everything to all 3 nodes before
 the cluster broke, so wiping the followers just discards stale duplicates.
+
+## Longhorn replica strategy for Vault Raft
+
+Vault Raft volumes use the dedicated `longhorn-vault-raft` StorageClass with
+`numberOfReplicas: "1"` by design. Vault already keeps the logical data set on
+three anti-affined Raft voters. Adding Longhorn-level replicas to each voter
+made every Vault write fan out through two replication systems and, during the
+2026-05-23 storage cascade, Longhorn replica rebuilds produced enough I/O
+pressure to time out Vault engines and trigger repeated reseals.
+
+The intended durability model is:
+
+- **Short-term pod/node loss:** Vault Raft remains available with quorum as long
+  as two of the three voters are healthy.
+- **Single Vault PV loss:** Replace or wipe the affected follower data dir; the
+  empty pod rejoins through `retry_join` and receives a Raft snapshot from the
+  leader.
+- **Cluster/data disaster:** Restore from Longhorn/NFS backups using the normal
+  recovery runbooks.
+
+Do not raise `longhorn-vault-raft` above one replica unless the extra Longhorn
+rebuild risk has been explicitly accepted.
 
 ## Recovery (manual)
 

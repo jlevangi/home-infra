@@ -18,6 +18,7 @@ VAULT_PASSWORD_FILE="$(get_ansible_vault_password_file)"
 TARGET_ENV=""
 VERBOSITY=""
 SWITCH_CONTEXT=true
+VAULT_CLUSTER_CERT_RECOVERY=true
 
 show_usage() {
     echo "Usage: $0 [ENVIRONMENT] [OPTIONS]"
@@ -25,6 +26,8 @@ show_usage() {
     show_environment_help "$0" "Recover Vault on"
     echo "Options:"
     echo "  --skip-context-switch  Do not switch kubectl context before running"
+    echo "  --no-cluster-cert-recovery"
+    echo "                         Detect Vault Raft cluster-cert drift but do not auto-heal it"
     echo "  -v, --verbose          Enable verbose output"
     echo "  -vv, -vvv              Enable more verbose output"
     echo "  -q, --quiet            Disable verbose output"
@@ -47,6 +50,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --env=*)             TARGET_ENV="${1#--env=}"; shift ;;
         --skip-context-switch) SWITCH_CONTEXT=false; shift ;;
+        --no-cluster-cert-recovery) VAULT_CLUSTER_CERT_RECOVERY=false; shift ;;
         -v|--verbose)        VERBOSITY="-v"; shift ;;
         -vv)                 VERBOSITY="-vv"; shift ;;
         -vvv)                VERBOSITY="-vvv"; shift ;;
@@ -105,6 +109,10 @@ ANSIBLE_CMD=(
     -e "target_cluster=$TARGET_CLUSTER"
     -e "kubectl_context=k3s-$KUBECTL_CONTEXT"
 )
+
+if [[ "$VAULT_CLUSTER_CERT_RECOVERY" == true ]]; then
+    ANSIBLE_CMD+=(-e "vault_recover_cluster_cert=true")
+fi
 
 [[ -n "$VERBOSITY" ]] && ANSIBLE_CMD+=("$VERBOSITY")
 
