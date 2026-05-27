@@ -90,7 +90,7 @@ variable "vm_count" {
 variable "vm_ids" {
   description = "Fixed Proxmox VMIDs for worker VMs."
   type        = list(number)
-  default     = [104, 105, 106]
+  default     = [101, 103, 105]
 }
 
 variable "template_name" {
@@ -197,7 +197,7 @@ module "nodes" {
   balloon           = var.balloon
   vm_storage        = var.vm_storage
   os_disk_size      = var.os_disk_size
-  data_disk_enabled = true
+  data_disk_enabled = false
   data_disk_size    = var.data_disk_size
   data_disk_storage = var.data_disk_storage
   nic_name          = var.nic_name

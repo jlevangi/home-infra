@@ -307,6 +307,20 @@
     - enable_longhorn_backup | default(true)
     - nfs_server_ip is defined
 
+- name: Verify Longhorn recurring jobs keep non-empty groups
+  shell: |
+    set -euo pipefail
+    for job in backup-hourly backup-daily backup-weekly; do
+      groups="$(KUBECONFIG={{ kubeconfig_path }} kubectl get recurringjob "$job" -n longhorn-system -o jsonpath='{.spec.groups[*]}')"
+      test -n "$groups"
+    done
+  args:
+    executable: /bin/bash
+  changed_when: false
+  when:
+    - enable_longhorn_backup | default(true)
+    - nfs_server_ip is defined
+
 - name: Display Longhorn installation info
   debug:
     msg: |

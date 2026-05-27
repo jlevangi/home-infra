@@ -273,6 +273,10 @@ longhorn_auto_salvage: true
 longhorn_engine_replica_timeout: 30                  # seconds (Longhorn max)
 longhorn_replica_replenishment_wait_interval: 600    # seconds before new replica is created after one fails
 longhorn_concurrent_replica_rebuild_per_node_limit: 2
+# Keep snapshot integrity checks disabled on v1/v2 data engines until the
+# flash migration has enough stable runtime; this avoids extra background I/O
+# during rebuild-heavy maintenance windows.
+longhorn_snapshot_data_integrity: "disabled"
 
 # -----------------------------------------------------------------------------
 # NVIDIA GPU WORKER CONFIGURATION
