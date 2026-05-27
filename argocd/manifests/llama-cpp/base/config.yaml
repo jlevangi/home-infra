@@ -49,11 +49,11 @@ models:
       --host 0.0.0.0
       --port ${PORT}
       --gpu-layers 10
-      --threads 22
+      --threads 42
       --ctx-size 524288
       --batch-size 1024
       --ubatch-size 256
-      --parallel 4
+      --parallel 2
       --flash-attn on
       --cache-type-k q4_0
       --cache-type-v q4_0
