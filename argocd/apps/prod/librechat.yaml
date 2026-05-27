@@ -26,6 +26,9 @@ spec:
           tag: latest
           pullPolicy: IfNotPresent
 
+        updateStrategy:
+          type: Recreate
+
         librechat:
           existingSecretName: librechat-credentials-env
           imageVolume:
