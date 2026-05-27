@@ -28,7 +28,11 @@ spec:
           restartPolicy: Never
           containers:
             - name: recover
-              image: bitnami/kubectl:1.32.4
+              # Bitnami publishes date/build-specific immutable tags, but not
+              # every Kubernetes patch version as a plain semver tag. `latest`
+              # was smoke-tested in prod and currently provides kubectl v1.36.1
+              # with /bin/sh, which this ConfigMap-mounted script requires.
+              image: bitnami/kubectl:latest
               imagePullPolicy: IfNotPresent
               command:
                 - /bin/sh
