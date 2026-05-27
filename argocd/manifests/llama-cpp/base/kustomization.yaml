@@ -4,7 +4,16 @@ resources:
   - namespace.yaml
   - pv.yaml
   - pvc.yaml
-  - configmap.yaml
   - deployment.yaml
   - service.yaml
   - ingress.yaml
+configMapGenerator:
+  - name: llama-swap-config
+    namespace: llama-cpp
+    files:
+      - config.yaml=config.yaml
+    options:
+      labels:
+        app: llama-cpp
+generatorOptions:
+  disableNameSuffixHash: true
