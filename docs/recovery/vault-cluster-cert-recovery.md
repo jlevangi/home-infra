@@ -51,6 +51,34 @@ without understanding the consequence.
 
 ## Recovery (automated)
 
+### In-cluster auto-recovery CronJob
+
+The `vault-auto-recovery` ArgoCD app installs a `vault-auto-recovery` CronJob
+in the `vault-raft` namespace. It runs every five minutes and handles the safe
+routine failure mode:
+
+1. Find Vault server pods.
+2. Read unseal keys from the `vault-init` secret.
+3. Unseal any pod that reports `sealed=true`.
+4. Confirm a Raft leader exists.
+5. If a pod was unsealed, refresh Vault's Kubernetes auth backend, force
+   ClusterSecretStore/ExternalSecret resyncs, and restart External Secrets
+   deployments.
+
+The CronJob intentionally does **not** perform destructive cluster-cert-drift
+recovery. If all pods are unsealed but no leader is elected and logs contain
+`tls: unrecognized name`, it exits failed with a clear diagnostic. Use the
+maintenance wrapper below for that recovery path.
+
+Inspect the last run with:
+
+```bash
+kubectl -n vault-raft get cronjob,job,pod -l app.kubernetes.io/name=vault-auto-recovery
+kubectl -n vault-raft logs job/<vault-auto-recovery-job-name>
+```
+
+### Maintenance wrapper recovery
+
 The standard maintenance wrappers now enable this recovery path by default:
 
 ```bash

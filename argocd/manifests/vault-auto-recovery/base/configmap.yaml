@@ -1,0 +1,141 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-auto-recovery
+  namespace: vault-raft
+data:
+  recover.sh: |
+    #!/bin/sh
+    set -eu
+
+    VAULT_NAMESPACE="${VAULT_NAMESPACE:-vault-raft}"
+    VAULT_POD_SELECTOR="${VAULT_POD_SELECTOR:-app.kubernetes.io/instance=vault-raft,app.kubernetes.io/name=vault,component=server}"
+    VAULT_INIT_SECRET="${VAULT_INIT_SECRET:-vault-init}"
+    VAULT_ACTIVE_ADDR="${VAULT_ACTIVE_ADDR:-http://vault-raft-active.vault-raft.svc:8200}"
+    EXTERNAL_SECRETS_NAMESPACE="${EXTERNAL_SECRETS_NAMESPACE:-external-secrets}"
+
+    log() {
+      printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"
+    }
+
+    get_secret_value() {
+      kubectl get secret "$VAULT_INIT_SECRET" -n "$VAULT_NAMESPACE" \
+        -o "go-template={{ index .data \"$1\" | base64decode }}"
+    }
+
+    vault_status_json() {
+      kubectl exec -n "$VAULT_NAMESPACE" "$1" -- vault status -format=json 2>/dev/null || true
+    }
+
+    is_status_sealed() {
+      printf '%s' "$1" | grep -q '"sealed":[[:space:]]*true'
+    }
+
+    has_leader() {
+      status="$1"
+      printf '%s' "$status" | grep -q '"leader_address":[[:space:]]*"[^"]\+'
+    }
+
+    pod_names="$(kubectl get pods -n "$VAULT_NAMESPACE" -l "$VAULT_POD_SELECTOR" \
+      -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | sed '/^$/d' | sort)"
+
+    if [ -z "$pod_names" ]; then
+      log "ERROR: no Vault pods found in namespace=$VAULT_NAMESPACE selector=$VAULT_POD_SELECTOR"
+      exit 1
+    fi
+
+    key1="$(get_secret_value unseal-key-1)"
+    key2="$(get_secret_value unseal-key-2)"
+    key3="$(get_secret_value unseal-key-3)"
+    root_token="$(get_secret_value root-token)"
+
+    unsealed_any=false
+    all_unsealed=true
+    primary_pod="$(printf '%s\n' "$pod_names" | head -n 1)"
+
+    for pod in $pod_names; do
+      phase="$(kubectl get pod "$pod" -n "$VAULT_NAMESPACE" -o jsonpath='{.status.phase}' 2>/dev/null || true)"
+      if [ "$phase" != "Running" ]; then
+        log "INFO: skipping $pod because phase=$phase"
+        all_unsealed=false
+        continue
+      fi
+
+      status="$(vault_status_json "$pod")"
+      if [ -z "$status" ]; then
+        log "WARN: $pod did not return Vault status"
+        all_unsealed=false
+        continue
+      fi
+
+      if is_status_sealed "$status"; then
+        log "INFO: $pod is sealed; unsealing"
+        kubectl exec -n "$VAULT_NAMESPACE" "$pod" -- vault operator unseal "$key1" >/dev/null 2>&1 || true
+        kubectl exec -n "$VAULT_NAMESPACE" "$pod" -- vault operator unseal "$key2" >/dev/null 2>&1 || true
+        kubectl exec -n "$VAULT_NAMESPACE" "$pod" -- vault operator unseal "$key3" >/dev/null 2>&1 || true
+
+        post_status="$(vault_status_json "$pod")"
+        if is_status_sealed "$post_status"; then
+          log "ERROR: $pod is still sealed after unseal attempts"
+          all_unsealed=false
+        else
+          log "INFO: $pod unsealed successfully"
+          unsealed_any=true
+        fi
+      else
+        log "INFO: $pod already unsealed"
+      fi
+    done
+
+    leader_active=false
+    for _ in $(seq 1 12); do
+      for pod in $pod_names; do
+        status="$(vault_status_json "$pod")"
+        if [ -n "$status" ] && has_leader "$status"; then
+          primary_pod="$pod"
+          leader_active=true
+          break 2
+        fi
+      done
+      sleep 5
+    done
+
+    if [ "$leader_active" != "true" ]; then
+      log "ERROR: Vault has no active Raft leader after status polling"
+      if kubectl logs -n "$VAULT_NAMESPACE" "$primary_pod" --tail=200 2>/dev/null | grep -q 'tls: unrecognized name'; then
+        log "ERROR: detected cluster-cert-drift signature; run ./scripts/maintenance/recover-vault.sh with cluster-cert recovery enabled"
+      fi
+      exit 1
+    fi
+
+    if [ "$unsealed_any" = "true" ]; then
+      log "INFO: refreshing Vault Kubernetes auth backend after unseal"
+      kubectl exec -n "$VAULT_NAMESPACE" "$primary_pod" -- sh -ec \
+        'VAULT_ADDR="$1" VAULT_TOKEN="$2" vault write auth/kubernetes/config token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" kubernetes_host="https://kubernetes.default.svc:443" kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt disable_iss_validation=true disable_local_ca_jwt=false' \
+        sh "$VAULT_ACTIVE_ADDR" "$root_token" >/dev/null
+
+      force_sync="$(date +%s)"
+
+      cluster_stores="$(kubectl get clustersecretstores -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null || true)"
+      for store in $cluster_stores; do
+        kubectl annotate clustersecretstore "$store" force-sync="$force_sync" --overwrite >/dev/null
+      done
+
+      external_secrets="$(kubectl get externalsecrets -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{"\n"}{end}' 2>/dev/null || true)"
+      for ref in $external_secrets; do
+        ns="${ref%/*}"
+        name="${ref#*/}"
+        kubectl annotate externalsecret -n "$ns" "$name" external-secrets.io/force-sync="$force_sync" --overwrite >/dev/null
+      done
+
+      deployments="$(kubectl get deployments -n "$EXTERNAL_SECRETS_NAMESPACE" -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null || true)"
+      for deployment in $deployments; do
+        kubectl rollout restart deployment "$deployment" -n "$EXTERNAL_SECRETS_NAMESPACE" >/dev/null
+      done
+
+      log "INFO: ESO auth refresh and resync requests completed"
+    elif [ "$all_unsealed" = "true" ]; then
+      log "INFO: all Vault pods are unsealed and leader is active; no action needed"
+    else
+      log "WARN: no pods were unsealed, but not every pod reported healthy"
+    fi
