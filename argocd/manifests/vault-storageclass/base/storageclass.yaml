@@ -2,6 +2,11 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: longhorn-vault-raft
+  annotations:
+    # StorageClass parameters are immutable. This StorageClass is stateless and
+    # safe to delete/recreate; existing PVCs/PVs keep their bound class name and
+    # Longhorn volumes are not deleted by recreating the StorageClass object.
+    argocd.argoproj.io/sync-options: Force=true,Replace=true
 provisioner: driver.longhorn.io
 allowVolumeExpansion: true
 reclaimPolicy: Delete
