@@ -130,7 +130,9 @@ data:
 
       deployments="$(kubectl get deployments -n "$EXTERNAL_SECRETS_NAMESPACE" -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null || true)"
       for deployment in $deployments; do
-        kubectl rollout restart deployment "$deployment" -n "$EXTERNAL_SECRETS_NAMESPACE" >/dev/null
+        if ! kubectl rollout restart deployment "$deployment" -n "$EXTERNAL_SECRETS_NAMESPACE" >/dev/null 2>&1; then
+          log "WARN: could not restart External Secrets deployment $deployment; it may already have been restarted by another recovery run"
+        fi
       done
 
       log "INFO: ESO auth refresh and resync requests completed"
