@@ -48,12 +48,12 @@ models:
       --alias Qwen3-Coder-Next-UD-Q4_K_M
       --host 0.0.0.0
       --port ${PORT}
-      --gpu-layers 10
-      --threads 42
-      --ctx-size 524288
-      --batch-size 1024
-      --ubatch-size 256
-      --parallel 2
+      --gpu-layers 6
+      --threads 22
+      --ctx-size 131072
+      --batch-size 512
+      --ubatch-size 128
+      --parallel 1
       --flash-attn on
       --cache-type-k q4_0
       --cache-type-v q4_0
@@ -77,12 +77,12 @@ models:
       --alias Qwen3.6-35B-A3B-UD-Q4_K_M
       --host 0.0.0.0
       --port ${PORT}
-      --gpu-layers 6
+      --gpu-layers 10
       --threads 22
-      --ctx-size 131072
-      --batch-size 512
-      --ubatch-size 128
-      --parallel 1
+      --ctx-size 524288
+      --batch-size 1024
+      --ubatch-size 256
+      --parallel 4
       --flash-attn on
       --cache-type-k q4_0
       --cache-type-v q4_0
