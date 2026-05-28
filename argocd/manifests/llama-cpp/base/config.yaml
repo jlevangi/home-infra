@@ -66,6 +66,40 @@ models:
     ttl: 3600
 
   # =================================================================
+  # Qwen3-Coder-Next-UD-Q4_K_M-hermes — HERMES-OPTIMIZED SINGLE-AGENT
+  # =================================================================
+  # Tuned for Hermes-style agent prompts: long system prompt, skill text,
+  # tool schemas, and large working transcripts. Keep the proven ngl=6
+  # profile, but trim maximum context enough to reduce KV pressure while still
+  # leaving headroom above the ~57-59k-token Hermes requests already observed.
+  # 96 k total ctx is a better compromise than 64 k on this 8 GiB Pascal GPU:
+  # still leaner than the generic 128 k chat alias, but less likely to clip
+  # larger tool-heavy turns or long assistant completions.
+  Qwen3-Coder-Next-UD-Q4_K_M-hermes:
+    cmd: |
+      /usr/local/bin/llama-server
+      --model /models/qwen3/Qwen3-Coder-Next-UD-Q4_K_M.gguf
+      --alias Qwen3-Coder-Next-UD-Q4_K_M-hermes
+      --host 0.0.0.0
+      --port ${PORT}
+      --gpu-layers 6
+      --threads 22
+      --ctx-size 98304
+      --batch-size 1024
+      --ubatch-size 256
+      --parallel 1
+      --flash-attn on
+      --cache-type-k q4_0
+      --cache-type-v q4_0
+      --reasoning auto
+      --no-webui
+      --no-kv-offload
+      --mlock
+    env:
+      - "CUDA_VISIBLE_DEVICES=0"
+    ttl: 3600
+
+  # =================================================================
   # Qwen3.6-35B-A3B-UD-Q4_K_M — Q4_K_M BALANCED (128K PER SLOT)
   # =================================================================
   # Same as Q4_K_S but the slightly larger Q4_K_M quant. With
