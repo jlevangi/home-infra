@@ -196,10 +196,12 @@ models:
   # =================================================================
   # Dedicated Hermes worker profile based on the proven Q4_K_M worker alias.
   # Hermes agent turns pay extra prefill and transcript cost (system prompt,
-  # skill docs, tool schemas, long histories), so this trims total ctx from
-  # 128 k to 96 k to reduce KV pressure while keeping headroom above the
-  # ~57-59k-token Hermes requests already observed. Keep the strong prefill
-  # settings and multi-slot throughput profile from the tuned worker alias.
+  # skill docs, tool schemas, long histories), so the slot budget matters more
+  # than the raw total ctx. Bump the total window to 524288 while keeping
+  # parallel=4 so llama.cpp exposes 4 x 128 k effective slots — the "saner
+  # live default" documented in BENCHMARKING.md. This avoids the old 24,576
+  # token slot cap that came from 98,304 / 4 while preserving the tuned worker
+  # alias's throughput-oriented prefill settings.
   Qwen3.6-35B-A3B-UD-Q4_K_M-worker-hermes:
     cmd: |
       /usr/local/bin/llama-server
@@ -209,7 +211,7 @@ models:
       --port ${PORT}
       --gpu-layers 10
       --threads 22
-      --ctx-size 98304
+      --ctx-size 524288
       --batch-size 2048
       --ubatch-size 512
       --parallel 4
