@@ -97,7 +97,39 @@ models:
       --mlock
     env:
       - "CUDA_VISIBLE_DEVICES=0"
-    ttl: 3600
+    ttl: 14400
+
+  # =================================================================
+  # Qwen3-Coder-Next-UD-Q4_K_M-hermes-fast — HERMES PREFILL / FIRST-TOKEN BIAS
+  # =================================================================
+  # Same ctx/ngl envelope as the safe Hermes alias, but with more aggressive
+  # prefill settings and reasoning disabled to improve first-token latency on
+  # long tool-heavy turns. This is the alias to benchmark when the safe alias
+  # is stable but too slow.
+  Qwen3-Coder-Next-UD-Q4_K_M-hermes-fast:
+    cmd: |
+      /usr/local/bin/llama-server
+      --model /models/qwen3/Qwen3-Coder-Next-UD-Q4_K_M.gguf
+      --alias Qwen3-Coder-Next-UD-Q4_K_M-hermes-fast
+      --host 0.0.0.0
+      --port ${PORT}
+      --gpu-layers 6
+      --threads 22
+      --ctx-size 98304
+      --batch-size 2048
+      --ubatch-size 512
+      --parallel 1
+      --flash-attn on
+      --cache-type-k q4_0
+      --cache-type-v q4_0
+      --reasoning off
+      --reasoning-budget 0
+      --no-webui
+      --no-kv-offload
+      --mlock
+    env:
+      - "CUDA_VISIBLE_DEVICES=0"
+    ttl: 14400
 
   # =================================================================
   # Qwen3.6-35B-A3B-UD-Q4_K_M — Q4_K_M BALANCED (128K PER SLOT)
