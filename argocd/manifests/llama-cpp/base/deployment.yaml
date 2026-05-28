@@ -45,8 +45,8 @@ spec:
               cpu: "4"
               memory: 80Gi
             limits:
-              cpu: "22"
-              memory: 130Gi
+              cpu: "42"
+              memory: 150Gi
           readinessProbe:
             httpGet:
               path: /health
