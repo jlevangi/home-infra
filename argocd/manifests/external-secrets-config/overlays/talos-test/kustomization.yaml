@@ -11,5 +11,7 @@ patches:
       - op: replace
         path: /apiVersion
         value: external-secrets.io/v1beta1
-commonLabels:
-  environment: talos-test
+labels:
+  - pairs:
+      environment: talos-test
+    includeSelectors: true

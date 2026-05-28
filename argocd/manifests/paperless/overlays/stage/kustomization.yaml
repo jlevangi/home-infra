@@ -59,5 +59,7 @@ patches:
               - name: consume
                 nfs: null
                 emptyDir: {}
-commonLabels:
-  environment: stage
+labels:
+  - pairs:
+      environment: stage
+    includeSelectors: true

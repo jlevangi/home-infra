@@ -27,5 +27,7 @@ patches:
       - op: add
         path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
         value: "k3s-stage.levangie.dev"
-commonLabels:
-  environment: stage
+labels:
+  - pairs:
+      environment: stage
+    includeSelectors: true

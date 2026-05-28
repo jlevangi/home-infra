@@ -67,5 +67,7 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/env/4/value
         value: "172.20.20.204"
-commonLabels:
-  environment: prod
+labels:
+  - pairs:
+      environment: prod
+    includeSelectors: true

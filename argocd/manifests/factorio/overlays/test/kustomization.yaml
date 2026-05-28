@@ -24,5 +24,7 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/env/4/value
         value: "k3s-test"
-commonLabels:
-  environment: test
+labels:
+  - pairs:
+      environment: test
+    includeSelectors: true

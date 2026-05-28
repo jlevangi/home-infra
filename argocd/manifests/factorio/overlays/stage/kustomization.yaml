@@ -27,5 +27,7 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/env/4/value
         value: "172.20.21.112"
-commonLabels:
-  environment: stage
+labels:
+  - pairs:
+      environment: stage
+    includeSelectors: true

@@ -24,5 +24,7 @@ patches:
       - op: add
         path: /spec/volumeName
         value: firefox-gluetun-config-pv
-commonLabels:
-  environment: prod
+labels:
+  - pairs:
+      environment: prod
+    includeSelectors: true

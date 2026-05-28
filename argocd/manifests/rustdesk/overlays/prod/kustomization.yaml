@@ -5,5 +5,7 @@ resources:
 images:
   - name: rustdesk/rustdesk-server
     newTag: "1.1.15"
-commonLabels:
-  environment: prod
+labels:
+  - pairs:
+      environment: prod
+    includeSelectors: true

@@ -48,5 +48,7 @@ patches:
       - op: add
         path: /spec/volumeName
         value: tracearr-data-pv
-commonLabels:
-  environment: prod
+labels:
+  - pairs:
+      environment: prod
+    includeSelectors: true

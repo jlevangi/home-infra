@@ -34,5 +34,7 @@ patches:
       - op: add
         path: /spec/template/spec/containers/0/resources/limits/nvidia.com~1gpu
         value: 1
-commonLabels:
-  environment: prod
+labels:
+  - pairs:
+      environment: prod
+    includeSelectors: true

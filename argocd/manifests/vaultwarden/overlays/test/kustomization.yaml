@@ -29,5 +29,7 @@ patches:
       - op: replace
         path: /spec/dataFrom/0/extract/key
         value: "test/vaultwarden"
-commonLabels:
-  environment: test
+labels:
+  - pairs:
+      environment: test
+    includeSelectors: true

@@ -21,5 +21,7 @@ patches:
         path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
         value: "k3s-test.levangie.dev"
 
-commonLabels:
-  environment: test
+labels:
+  - pairs:
+      environment: test
+    includeSelectors: true
