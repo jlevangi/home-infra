@@ -39,8 +39,8 @@ models:
   # Qwen3-Coder-Next-UD-Q4_K_M — EXPERIMENTAL CODING MODEL
   # =================================================================
   # New trial model mounted from /mnt/llm-tank/qwen3 on the GPU node.
-  # Start with the conservative Qwen MoE balanced profile and benchmark
-  # before promoting it to worker/planner role aliases.
+  # Direct load test on 2026-05-27 showed ngl=10 tries to allocate ~8.9 GiB
+  # on the 8 GiB P4000. Use a single-slot ngl=6 profile until benchmarked.
   Qwen3-Coder-Next-UD-Q4_K_M:
     cmd: |
       /usr/local/bin/llama-server
@@ -77,12 +77,12 @@ models:
       --alias Qwen3.6-35B-A3B-UD-Q4_K_M
       --host 0.0.0.0
       --port ${PORT}
-      --gpu-layers 10
+      --gpu-layers 6
       --threads 22
-      --ctx-size 524288
-      --batch-size 1024
-      --ubatch-size 256
-      --parallel 4
+      --ctx-size 131072
+      --batch-size 512
+      --ubatch-size 128
+      --parallel 1
       --flash-attn on
       --cache-type-k q4_0
       --cache-type-v q4_0
