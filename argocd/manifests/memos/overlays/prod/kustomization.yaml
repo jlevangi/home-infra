@@ -8,11 +8,11 @@ images:
 patches:
   - target:
       kind: PersistentVolumeClaim
-      name: memos-data-pvc
+      name: memos-data-v2-pvc
     patch: |
       - op: add
         path: /spec/volumeName
-        value: memos-data-pv
+        value: pvc-10d1b22a-a8c1-4515-9349-d093079cbce9
   - target:
       kind: Ingress
       name: memos-ingress
