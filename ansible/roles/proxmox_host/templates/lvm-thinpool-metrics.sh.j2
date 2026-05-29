@@ -30,12 +30,12 @@ if values=$(lvs --noheadings --nosuffix --units b --separator '|' --options data
   metadata_percent="$(printf '%s' "${metadata_percent}" | tr -d '[:space:]')"
   size_bytes="$(printf '%s' "${size_bytes}" | tr -d '[:space:]')"
 
-  printf 'node_lvm_thin_pool_data_percent{%s} %s\n' "${labels}" "${data_percent:-0}" >>"${tmp}"
-  printf 'node_lvm_thin_pool_metadata_percent{%s} %s\n' "${labels}" "${metadata_percent:-0}" >>"${tmp}"
-  printf 'node_lvm_thin_pool_size_bytes{%s} %s\n' "${labels}" "${size_bytes:-0}" >>"${tmp}"
-  printf 'node_lvm_thin_pool_scrape_error{%s} 0\n' "${labels}" >>"${tmp}"
+  printf 'node_lvm_thin_pool_data_percent{{ "{" }}%s{{ "}" }} %s\n' "${labels}" "${data_percent:-0}" >>"${tmp}"
+  printf 'node_lvm_thin_pool_metadata_percent{{ "{" }}%s{{ "}" }} %s\n' "${labels}" "${metadata_percent:-0}" >>"${tmp}"
+  printf 'node_lvm_thin_pool_size_bytes{{ "{" }}%s{{ "}" }} %s\n' "${labels}" "${size_bytes:-0}" >>"${tmp}"
+  printf 'node_lvm_thin_pool_scrape_error{{ "{" }}%s{{ "}" }} 0\n' "${labels}" >>"${tmp}"
 else
-  printf 'node_lvm_thin_pool_scrape_error{%s} 1\n' "${labels}" >>"${tmp}"
+  printf 'node_lvm_thin_pool_scrape_error{{ "{" }}%s{{ "}" }} 1\n' "${labels}" >>"${tmp}"
 fi
 
 if vg_free=$(vgs --noheadings --nosuffix --units b --options vg_free "${vg}" 2>/dev/null); then
