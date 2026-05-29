@@ -1,0 +1,18 @@
+# Generated from ansible/inventories/proxmox/hosts.yml by:
+# ansible-playbook -i ansible/inventories/proxmox/hosts.yml ansible/playbooks/render-proxmox-monitoring.yml
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: proxmox-node-exporter
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  jobName: proxmox-node-exporter
+  scrapeInterval: 30s
+  scrapeTimeout: 10s
+  staticConfigs:
+    - targets:
+        - 172.20.20.6:9100
+      labels:
+        proxmox_host: atlas

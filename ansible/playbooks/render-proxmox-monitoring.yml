@@ -1,0 +1,19 @@
+---
+- name: Render Proxmox host monitoring manifests from inventory
+  hosts: localhost
+  gather_facts: false
+  vars:
+    proxmox_monitoring_output: "{{ playbook_dir }}/../../argocd/manifests/monitoring-config/overlays/prod/scrapeconfig-proxmox-node-exporter.yaml"
+  tasks:
+    - name: Ensure proxmox_hosts group exists
+      ansible.builtin.assert:
+        that:
+          - groups.proxmox_hosts is defined
+          - groups.proxmox_hosts | length > 0
+        fail_msg: proxmox_hosts inventory group is required to render monitoring targets.
+
+    - name: Render Proxmox node exporter ScrapeConfig
+      ansible.builtin.template:
+        src: ../templates/proxmox-scrapeconfig.yaml.j2
+        dest: "{{ proxmox_monitoring_output }}"
+        mode: "0644"
