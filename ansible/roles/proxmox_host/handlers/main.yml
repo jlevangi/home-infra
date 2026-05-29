@@ -1,0 +1,5 @@
+---
+- name: Restart LVM thin-pool monitoring
+  ansible.builtin.service:
+    name: lvm2-monitor
+    state: restarted

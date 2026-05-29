@@ -1,0 +1,46 @@
+---
+- name: Validate configured LVM thin pools
+  ansible.builtin.assert:
+    that:
+      - item.vg is defined
+      - item.vg | length > 0
+      - item.name is defined
+      - item.name | length > 0
+    fail_msg: "Each proxmox_host_lvm_thin_pools entry needs vg and name."
+  loop: "{{ proxmox_host_lvm_thin_pools }}"
+  loop_control:
+    label: "{{ item.vg | default('missing-vg') }}/{{ item.name | default('missing-name') }}"
+
+- name: Ensure LVM configuration exists
+  ansible.builtin.stat:
+    path: /etc/lvm/lvm.conf
+  register: proxmox_host_lvm_conf
+
+- name: Fail when LVM configuration is missing
+  ansible.builtin.fail:
+    msg: /etc/lvm/lvm.conf was not found; cannot manage thin-pool autoextend settings.
+  when: not proxmox_host_lvm_conf.stat.exists
+
+- name: Manage LVM thin-pool autoextend settings
+  ansible.builtin.blockinfile:
+    path: /etc/lvm/lvm.conf
+    insertafter: '^activation\s*\{'
+    marker: "    # {mark} ANSIBLE MANAGED home-infra thin-pool autoextend"
+    block: |2
+          # Autoextend monitored thin pools before they can hard-fill the backing pool.
+          # The protected pools are defined in proxmox_host_lvm_thin_pools.
+          thin_pool_autoextend_threshold = {{ proxmox_host_lvm_autoextend_threshold | int }}
+          thin_pool_autoextend_percent = {{ proxmox_host_lvm_autoextend_percent | int }}
+  notify: Restart LVM thin-pool monitoring
+
+- name: Validate LVM configuration syntax
+  ansible.builtin.command: lvmconfig --validate
+  changed_when: false
+
+- name: Verify configured thin pools exist
+  ansible.builtin.command: >-
+    lvs --noheadings --readonly --options vg_name,lv_name /dev/{{ item.vg }}/{{ item.name }}
+  changed_when: false
+  loop: "{{ proxmox_host_lvm_thin_pools }}"
+  loop_control:
+    label: "{{ item.vg }}/{{ item.name }}"
