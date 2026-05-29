@@ -141,6 +141,39 @@ kubectl -n longhorn-system get volumes.longhorn.io
 kubectl -n longhorn-system get replicas.longhorn.io
 ```
 
+### Proxmox host thin-pool monitoring
+
+`atlas` is managed through the dedicated Proxmox inventory:
+
+```bash
+ansible-playbook -i ansible/inventories/proxmox/hosts.yml \
+  ansible/playbooks/proxmox-hosts.yml
+```
+
+The playbook manages LVM thin-pool autoextend, `prometheus-node-exporter`, and
+the LVM textfile metrics collector. Prometheus scrape targets are rendered from
+the same inventory:
+
+```bash
+ansible-playbook -i ansible/inventories/proxmox/hosts.yml \
+  ansible/playbooks/render-proxmox-monitoring.yml
+```
+
+Useful checks:
+
+```bash
+ansible -i ansible/inventories/proxmox/hosts.yml atlas \
+  -m ansible.builtin.command \
+  -a 'lvs -a -o vg_name,lv_name,lv_size,data_percent,metadata_percent,seg_monitor /dev/pve/data'
+
+curl -fsS http://172.20.20.6:9100/metrics | grep node_lvm_thin_pool
+```
+
+Grafana dashboard: **Proxmox Hosts**.
+
+Critical alert: `ProxmoxThinPoolDataHigh` fires when `pve/data` remains above
+85% for 15 minutes.
+
 ### ArgoCD and Vault
 
 ```bash
@@ -155,6 +188,93 @@ kubectl get clustersecretstore
 - If kubeconfig contexts look stale, rerun `./scripts/k3s/helpers/k3s-context-manager.sh setup`.
 - If deployment wrappers fail early, verify `~/.ansible_vault_pass` and SSH connectivity first.
 - If PVC-related issues appear after a restore, use the recovery docs before letting ArgoCD self-heal over manual changes.
+
+## Proxmox `pve/data` Thin-Pool Emergency Recovery
+
+`atlas` stores VM OS disks on the `pve/data` LVM thin pool. If this pool reaches
+100%, Proxmox can put VMs into `io-error`, K3s nodes can become `NotReady`, and
+in-flight migrations or `rsync` jobs can be killed mid-copy.
+
+### 1. Confirm pool pressure
+
+```bash
+ssh root@172.20.20.6 \
+  'lvs -a -o vg_name,lv_name,lv_size,data_percent,metadata_percent,seg_monitor /dev/pve/data && vgs pve'
+```
+
+If `Data%` is near 100, free space immediately or extend the pool before
+restarting affected VMs.
+
+### 2. Extend the thin pool when VG space is available
+
+```bash
+ssh root@172.20.20.6 'lvextend -L+15G /dev/pve/data'
+```
+
+Adjust `+15G` to the actual free VG space shown by `vgs pve`. If the VG has no
+free space, add storage or move VM disks off the pool first; autoextend cannot
+help without free extents.
+
+### 3. Unstick VMs in `io-error` or prelaunch lock states
+
+Identify affected VMs:
+
+```bash
+ssh root@172.20.20.6 'qm list'
+```
+
+For each stuck VM:
+
+```bash
+ssh root@172.20.20.6 'qm unlock <vmid> || true'
+ssh root@172.20.20.6 'qm stop <vmid> --skiplock || true'
+ssh root@172.20.20.6 'qm start <vmid>'
+```
+
+Known examples from the May 2026 incident:
+
+- `cp-3 = vm-100`
+- `worker-3 = vm-105`
+
+### 4. Verify Kubernetes recovery
+
+```bash
+./scripts/k3s/helpers/k3s-context-manager.sh switch prod
+kubectl get nodes
+kubectl get pods -A
+kubectl -n longhorn-system get volumes.longhorn.io
+```
+
+### 5. Restart interrupted migrations or `rsync` jobs
+
+If a data migration was running when Proxmox entered `io-error`, assume the copy
+was interrupted. Restart the migration sidecar/job from the beginning or resume
+with checksum validation. For PVC migrations, verify source and destination size
+and application readiness before deleting any old volume.
+
+## Large File Placement Policy
+
+Do not place large downloads, models, archives, transcode caches, or temporary
+bulk data on VM OS disks backed by `atlas` `pve/data`.
+
+Avoid these locations for large files:
+
+- `~/`
+- `/root`
+- `/tmp` when it is backed by the root filesystem
+- `/var/log`
+- application working directories on the OS disk
+
+Use an explicitly provisioned bulk-data location instead:
+
+- Longhorn PVC sized for the workload
+- NFS-backed media/download path
+- dedicated Proxmox storage pool
+- application-specific data volume with monitoring and retention policy
+
+For LLM models or other one-off large downloads, confirm the target path and
+backing storage before starting the download. A single large file on a VM OS disk
+can exhaust the shared thin pool and impact unrelated cluster nodes.
 
 ## Related Docs
 
