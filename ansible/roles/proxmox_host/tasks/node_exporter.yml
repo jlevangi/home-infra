@@ -1,2 +1,50 @@
 ---
-# Implemented by home-infra-vn5.3.
+- name: Install Prometheus node exporter
+  ansible.builtin.apt:
+    name: "{{ proxmox_host_node_exporter_package }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Ensure node exporter textfile collector directory exists
+  ansible.builtin.file:
+    path: "{{ proxmox_host_node_exporter_textfile_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure node exporter systemd override directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/prometheus-node-exporter.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Configure node exporter listen address and textfile collector
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/prometheus-node-exporter.service.d/home-infra.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Service]
+      ExecStart=
+      ExecStart=/usr/bin/prometheus-node-exporter \
+        --web.listen-address={{ proxmox_host_node_exporter_listen_address }} \
+        --collector.textfile.directory={{ proxmox_host_node_exporter_textfile_dir }}
+  notify: Restart Prometheus node exporter
+
+- name: Enable and start Prometheus node exporter
+  ansible.builtin.systemd:
+    name: prometheus-node-exporter
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Verify node exporter metrics endpoint locally
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ proxmox_host_node_exporter_listen_address.split(':')[-1] }}/metrics"
+    return_content: false
+    status_code: 200
