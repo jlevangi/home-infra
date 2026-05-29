@@ -1,0 +1,24 @@
+---
+- name: Validate Proxmox host role configuration
+  ansible.builtin.assert:
+    that:
+      - proxmox_host_lvm_autoextend_threshold | int > 0
+      - proxmox_host_lvm_autoextend_threshold | int < 100
+      - proxmox_host_lvm_autoextend_percent | int > 0
+      - proxmox_host_lvm_thin_pools is iterable
+    success_msg: >-
+      Proxmox host configuration is valid for {{ inventory_hostname }}.
+    fail_msg: >-
+      Invalid Proxmox host configuration. Ensure thin-pool autoextend values are
+      sane and proxmox_host_lvm_thin_pools is a list.
+
+- name: Show disabled Proxmox host management sections
+  ansible.builtin.debug:
+    msg:
+      - "LVM management enabled: {{ proxmox_host_manage_lvm }}"
+      - "Node exporter management enabled: {{ proxmox_host_manage_node_exporter }}"
+      - "LVM metrics management enabled: {{ proxmox_host_manage_lvm_metrics }}"
+  when:
+    - not proxmox_host_manage_lvm | bool
+    - not proxmox_host_manage_node_exporter | bool
+    - not proxmox_host_manage_lvm_metrics | bool

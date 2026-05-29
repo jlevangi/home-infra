@@ -1,0 +1,24 @@
+---
+# Shared defaults for Proxmox VE host management.
+#
+# Keep host-specific inventory values in ansible/inventories/proxmox/hosts.yml.
+# Subtasks added by follow-up issues should use these defaults so future Proxmox
+# hosts can opt in without copying atlas-specific values.
+
+# LVM thin-pool protection defaults.
+proxmox_host_manage_lvm: false
+proxmox_host_lvm_autoextend_threshold: 85
+proxmox_host_lvm_autoextend_percent: 20
+proxmox_host_lvm_thin_pools: []
+
+# Host metrics defaults.
+proxmox_host_manage_node_exporter: false
+proxmox_host_node_exporter_package: prometheus-node-exporter
+proxmox_host_node_exporter_listen_address: "0.0.0.0:9100"
+proxmox_host_node_exporter_textfile_dir: /var/lib/prometheus/node-exporter
+
+# Custom LVM metric collector defaults.
+proxmox_host_manage_lvm_metrics: false
+proxmox_host_lvm_metrics_script: /usr/local/sbin/prometheus-lvm-thinpool-metrics
+proxmox_host_lvm_metrics_output: "{{ proxmox_host_node_exporter_textfile_dir }}/lvm_thinpool.prom"
+proxmox_host_lvm_metrics_interval: 60

@@ -1,0 +1,6 @@
+---
+- name: Configure Proxmox VE hosts
+  hosts: proxmox_hosts
+  become: true
+  roles:
+    - ../roles/proxmox_host
