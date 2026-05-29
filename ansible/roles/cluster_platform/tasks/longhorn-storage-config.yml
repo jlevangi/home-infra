@@ -32,6 +32,20 @@
   register: replica_auto_balance_setting_result
   failed_when: false
 
+- name: Update Longhorn storage over-provisioning percentage
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl patch setting storage-over-provisioning-percentage -n longhorn-system \
+      --type='merge' -p='{"value":"{{ longhorn_storage_over_provisioning_percentage | default(150) }}"}'
+  register: storage_overprov_setting_result
+  failed_when: false
+
+- name: Update Longhorn replica auto-balance disk-pressure percentage
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl patch setting replica-auto-balance-disk-pressure-percentage -n longhorn-system \
+      --type='merge' -p='{"value":"{{ longhorn_replica_auto_balance_disk_pressure_percentage | default(90) }}"}'
+  register: disk_pressure_setting_result
+  failed_when: false
+
 - name: Update Longhorn rebuild and integrity tuning settings
   ansible.builtin.shell: |
     KUBECONFIG={{ kubeconfig_path }} kubectl patch setting {{ item.name }} -n longhorn-system \
@@ -69,6 +83,16 @@
       ✅ Successfully updated replica-auto-balance to {{ longhorn_replica_auto_balance | default('best-effort') }}
       {% else %}
       ⚠️  Replica auto-balance setting update failed (may not exist yet): {{ replica_auto_balance_setting_result.stderr | default('Unknown error') }}
+      {% endif %}
+      {% if storage_overprov_setting_result.rc == 0 %}
+      ✅ Successfully updated storage-over-provisioning-percentage to {{ longhorn_storage_over_provisioning_percentage | default(150) }}%
+      {% else %}
+      ⚠️  Storage over-provisioning setting update failed (may not exist yet): {{ storage_overprov_setting_result.stderr | default('Unknown error') }}
+      {% endif %}
+      {% if disk_pressure_setting_result.rc == 0 %}
+      ✅ Successfully updated replica-auto-balance-disk-pressure-percentage to {{ longhorn_replica_auto_balance_disk_pressure_percentage | default(90) }}%
+      {% else %}
+      ⚠️  Disk-pressure percentage setting update failed (may not exist yet): {{ disk_pressure_setting_result.stderr | default('Unknown error') }}
       {% endif %}
       Longhorn tuning settings reconciled: {{ longhorn_tuning_setting_results.results | default([]) | selectattr('rc', 'equalto', 0) | list | length }}/{{ longhorn_tuning_setting_results.results | default([]) | length }}
 

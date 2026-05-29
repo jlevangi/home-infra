@@ -258,6 +258,24 @@ longhorn_backup_retain_hourly: 8
 longhorn_backup_retain_daily: 7
 longhorn_backup_retain_weekly: 4
 
+# Longhorn Over-Provisioning & Rebalancing
+# 110% allows thin-provisioned volumes to exceed physical disk by 10% (needed
+# because our 3 flash workers share a single Proxmox host; scheduled capacity
+# regularly exceeds physical capacity). When a disk's scheduled/maximum ratio
+# tops this threshold, Longhorn marks it unschedulable, preventing NEW replicas
+# from landing there. Existing replicas are NOT evicted — use disk
+# evictionRequested for that.
+longhorn_storage_over_provisioning_percentage: 110
+# Lowering the disk-pressure threshold from the default 90% to 45% triggers
+# auto-rebalance when a disk's actual used space exceeds 55% of maximum. In
+# practice this means best-effort rebalancing will redistribute replicas AWAY
+# from heavily-used nodes (like worker-3 at ~49% used / 123% scheduled) BEFORE
+# the disk fills to 90%, gradually evening out usage across all flash nodes.
+# NOTE: best-effort only rebalances when volumes are (re-)attached, so this is
+# gentle — not a mass evacuation. It will NOT proactively migrate running
+# replicas; they move naturally as pods cycle (deployments, node reboots).
+longhorn_replica_auto_balance_disk_pressure_percentage: 45
+
 # Longhorn Engine/Rebuild Tuning
 # Tuned to be gentler than upstream defaults because our workers run on a
 # shared Proxmox host (atlas) whose ZFS-backed disks can spike I/O wait under
