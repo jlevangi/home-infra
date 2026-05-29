@@ -2,5 +2,8 @@
 - name: Configure Proxmox VE hosts
   hosts: proxmox_hosts
   become: true
+  vars_files:
+    - ../group_vars/proxmox.yml
+    - ../group_vars/proxmox_vault.yml
   roles:
     - ../roles/proxmox_host

@@ -16,3 +16,35 @@ spec:
         - 172.20.20.6:9100
       labels:
         proxmox_host: atlas
+        instance: atlas
+  relabelings:
+    - sourceLabels: [instance]
+      targetLabel: proxmox_host
+      regex: (.+)
+      replacement: $1
+      action: replace
+---
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: proxmox-pve-exporter
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  jobName: proxmox-pve-exporter
+  scrapeInterval: 30s
+  scrapeTimeout: 10s
+  metricsPath: /pve
+  staticConfigs:
+    - targets:
+        - 172.20.20.6:9221
+      labels:
+        proxmox_host: atlas
+        instance: atlas
+  relabelings:
+    - sourceLabels: [instance]
+      targetLabel: proxmox_host
+      regex: (.+)
+      replacement: $1
+      action: replace

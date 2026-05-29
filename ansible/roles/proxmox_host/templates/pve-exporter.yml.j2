@@ -1,0 +1,7 @@
+# {{ ansible_managed | default("Managed by home-infra Ansible") }}
+default:
+  user: {{ (proxmox_api_token_id | default(proxmox_host_pve_exporter_user)).split('!')[0] }}
+  token_name: {{ (proxmox_api_token_id | default('')).split('!')[1] | default('CHANGE_ME') }}
+  token_value: {{ proxmox_api_token_secret | default('CHANGE_ME') }}
+  verify_ssl: {{ proxmox_host_pve_exporter_verify_ssl | default(false) | lower }}
+  server: {{ proxmox_api_host | default(ansible_host) }}

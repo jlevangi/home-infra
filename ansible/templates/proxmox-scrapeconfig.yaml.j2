@@ -17,4 +17,39 @@ spec:
         - {{ hostvars[host].ansible_host }}:{{ (hostvars[host].proxmox_host_node_exporter_listen_address | default(proxmox_host_node_exporter_listen_address | default('0.0.0.0:9100'))).split(':')[-1] }}
       labels:
         proxmox_host: {{ host }}
+        instance: {{ host }}
 {% endfor %}
+  relabelings:
+    - sourceLabels: [instance]
+      targetLabel: proxmox_host
+      regex: (.+)
+      replacement: $1
+      action: replace
+---
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: proxmox-pve-exporter
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  jobName: proxmox-pve-exporter
+  scrapeInterval: 30s
+  scrapeTimeout: 10s
+  metricsPath: /pve
+  staticConfigs:
+{% for host in groups.proxmox_hosts | sort %}
+{%   set pve_port = hostvars[host].proxmox_host_pve_exporter_listen_port | default(proxmox_host_pve_exporter_listen_port | default(9221)) %}
+    - targets:
+        - {{ hostvars[host].ansible_host }}:{{ pve_port }}
+      labels:
+        proxmox_host: {{ host }}
+        instance: {{ host }}
+{% endfor %}
+  relabelings:
+    - sourceLabels: [instance]
+      targetLabel: proxmox_host
+      regex: (.+)
+      replacement: $1
+      action: replace

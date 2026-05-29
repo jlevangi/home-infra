@@ -9,3 +9,9 @@
     name: prometheus-node-exporter
     state: restarted
     daemon_reload: true
+
+- name: Restart Prometheus PVE exporter
+  ansible.builtin.systemd:
+    name: prometheus-pve-exporter
+    state: restarted
+    daemon_reload: true

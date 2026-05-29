@@ -22,3 +22,10 @@ proxmox_host_manage_lvm_metrics: false
 proxmox_host_lvm_metrics_script: /usr/local/sbin/prometheus-lvm-thinpool-metrics
 proxmox_host_lvm_metrics_output: "{{ proxmox_host_node_exporter_textfile_dir }}/lvm_thinpool.prom"
 proxmox_host_lvm_metrics_interval: 60
+
+# Proxmox VE API exporter defaults (prometheus-pve-exporter).
+proxmox_host_manage_pve_exporter: false
+proxmox_host_pve_exporter_listen_port: 9221
+proxmox_host_pve_exporter_config_path: /etc/prometheus/pve.yml
+proxmox_host_pve_exporter_user: "root@pam"
+proxmox_host_pve_exporter_verify_ssl: false

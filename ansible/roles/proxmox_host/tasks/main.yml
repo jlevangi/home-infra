@@ -34,3 +34,7 @@
 - name: Configure LVM textfile metrics
   ansible.builtin.include_tasks: lvm_metrics.yml
   when: proxmox_host_manage_lvm_metrics | bool
+
+- name: Configure Proxmox VE API exporter
+  ansible.builtin.include_tasks: pve_exporter.yml
+  when: proxmox_host_manage_pve_exporter | bool
