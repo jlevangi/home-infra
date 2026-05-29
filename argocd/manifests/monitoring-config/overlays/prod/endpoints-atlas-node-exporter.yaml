@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: atlas-node-exporter
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: atlas-node-exporter
+    app.kubernetes.io/component: proxmox-host-metrics
+subsets:
+  - addresses:
+      - ip: 172.20.20.6
+    ports:
+      - name: metrics
+        port: 9100
+        protocol: TCP
