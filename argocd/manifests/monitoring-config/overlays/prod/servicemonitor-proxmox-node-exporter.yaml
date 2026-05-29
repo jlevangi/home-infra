@@ -1,7 +1,7 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: atlas-node-exporter
+  name: proxmox-node-exporter
   namespace: monitoring
 spec:
   namespaceSelector:
@@ -9,8 +9,12 @@ spec:
       - monitoring
   selector:
     matchLabels:
-      app.kubernetes.io/name: atlas-node-exporter
+      app.kubernetes.io/name: proxmox-node-exporter
   endpoints:
     - port: metrics
       interval: 30s
       scrapeTimeout: 10s
+      relabelings:
+        - sourceLabels:
+            - __meta_kubernetes_endpoint_hostname
+          targetLabel: proxmox_host
