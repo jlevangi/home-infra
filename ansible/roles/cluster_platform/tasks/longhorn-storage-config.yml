@@ -181,6 +181,83 @@
   failed_when: false
   when: longhorn_media_node_selector | default('') | length > 0
 
+# -----------------------------------------------------------------------------
+# Cross-pool StorageClasses (flash-only and tank-only)
+# -----------------------------------------------------------------------------
+# These pin all replicas of a volume to a single disk-type via diskSelector,
+# for apps that opt out of the default best-effort cross-pool placement.
+# Default `longhorn` SC remains the cluster-wide default (nodeSelector=
+# general-storage, no diskSelector); volumes from it can land on either pool
+# and are audited by scripts/maintenance/verify-cross-pool-placement.sh.
+
+- name: Build longhorn-flash StorageClass manifest
+  set_fact:
+    longhorn_flash_storageclass_manifest: |
+      kind: StorageClass
+      apiVersion: storage.k8s.io/v1
+      metadata:
+        name: {{ longhorn_flash_storage_class_name | default('longhorn-flash') }}
+        annotations:
+          description: "Flash-only Longhorn storage (high IOPS / low latency). Use for write-heavy databases."
+      provisioner: driver.longhorn.io
+      allowVolumeExpansion: true
+      reclaimPolicy: "Delete"
+      volumeBindingMode: Immediate
+      parameters:
+        numberOfReplicas: "{{ longhorn_replica_count | default(2) }}"
+        staleReplicaTimeout: "30"
+        fromBackup: ""
+        fsType: "ext4"
+        dataLocality: "best-effort"
+        unmapMarkSnapChainRemoved: "ignored"
+        disableRevisionCounter: "true"
+        dataEngine: "v1"
+        backupTargetName: "default"
+        diskSelector: "flash"
+        recurringJobSelector: '[{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'
+
+- name: Create or update longhorn-flash StorageClass
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl apply -f - <<'EOF'
+    {{ longhorn_flash_storageclass_manifest }}
+    EOF
+  register: flash_storageclass_update_result
+  failed_when: false
+
+- name: Build longhorn-tank StorageClass manifest
+  set_fact:
+    longhorn_tank_storageclass_manifest: |
+      kind: StorageClass
+      apiVersion: storage.k8s.io/v1
+      metadata:
+        name: {{ longhorn_tank_storage_class_name | default('longhorn-tank') }}
+        annotations:
+          description: "Tank-only Longhorn storage (HDD ZFS, robust). Use for cold storage or batch-write apps."
+      provisioner: driver.longhorn.io
+      allowVolumeExpansion: true
+      reclaimPolicy: "Delete"
+      volumeBindingMode: Immediate
+      parameters:
+        numberOfReplicas: "{{ longhorn_replica_count | default(2) }}"
+        staleReplicaTimeout: "30"
+        fromBackup: ""
+        fsType: "ext4"
+        dataLocality: "best-effort"
+        unmapMarkSnapChainRemoved: "ignored"
+        disableRevisionCounter: "true"
+        dataEngine: "v1"
+        backupTargetName: "default"
+        diskSelector: "tank"
+        recurringJobSelector: '[{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'
+
+- name: Create or update longhorn-tank StorageClass
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl apply -f - <<'EOF'
+    {{ longhorn_tank_storageclass_manifest }}
+    EOF
+  register: tank_storageclass_update_result
+  failed_when: false
+
 - name: Display StorageClass update result
   debug:
     msg: |

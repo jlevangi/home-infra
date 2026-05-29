@@ -248,6 +248,21 @@ longhorn_ui_ingress_enabled: true
 longhorn_ui_app_url: "https://longhorn.{{ environment_domain }}"
 longhorn_validation_mode: "auto"  # auto skips the test PVC when healthy volumes already exist
 
+# Cross-pool storage architecture (added 2026-05-29 after the failing-SSD
+# incident — see plans/i-need-some-serious-ancient-adleman.md). Each k3s
+# worker has both a flash-backed Longhorn disk (/mnt/longhorn-flash, cheap
+# SSDs in an atlas ZFS mirror) and a tank-backed disk (/mnt/longhorn-tank,
+# the atlas tank zpool — slower HDDs but much more robust). Disks are tagged
+# "flash" and "tank" so the longhorn-flash / longhorn-tank StorageClasses can
+# pin volumes to one pool via diskSelector. The default `longhorn`
+# StorageClass keeps a best-effort cross-pool placement; an audit script
+# (scripts/maintenance/verify-cross-pool-placement.sh) flags volumes whose
+# replicas all landed on the same pool.
+longhorn_tank_disk_path: "/mnt/longhorn-tank"
+longhorn_flash_disk_path: "/mnt/longhorn-flash"
+longhorn_flash_storage_class_name: "longhorn-flash"
+longhorn_tank_storage_class_name: "longhorn-tank"
+
 # Longhorn Backup Configuration
 enable_longhorn_backup: true
 longhorn_backup_shared_across_clusters: true

@@ -1,9 +1,11 @@
 ---
-# Worker-2 lives on Atlas with a dedicated 300G tank-backed disk for Longhorn.
-# This triggers ansible/roles/k3s/tasks/longhorn-data-disk.yml to format and
-# mount the dedicated scsi1 disk at /var/lib/longhorn before Longhorn
-# schedules replicas.
+# Worker-2 lives on Atlas with two Longhorn-backing disks:
+#  - scsi3 (flash zpool, 250G, /mnt/longhorn-flash) — the primary fast tier.
+#    Currently mounted via fstab outside Ansible's purview; not managed here.
+#  - scsi2 (tank zpool, 250G, /mnt/longhorn-tank) — added 2026-05-29 for
+#    cross-pool replica resilience (plans/i-need-some-serious-ancient-adleman.md).
+#    Managed by ansible/roles/k3s/tasks/longhorn-tank-disk.yml.
 longhorn_node_tags:
   - general-storage
   - media-storage
-longhorn_data_disk_device: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi1
+longhorn_tank_disk_device: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi2

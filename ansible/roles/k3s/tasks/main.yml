@@ -19,6 +19,12 @@
     - longhorn_data_disk_device is defined
     - longhorn_data_disk_device | length > 0
 
+- name: Mount Longhorn tank disk on hosts that have one
+  include_tasks: longhorn-tank-disk.yml
+  when:
+    - longhorn_tank_disk_device is defined
+    - longhorn_tank_disk_device | length > 0
+
 - name: Mount LLM model disk on hosts that have one
   include_tasks: llm-model-disk.yml
   when:

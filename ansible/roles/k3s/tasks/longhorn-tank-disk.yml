@@ -1,0 +1,49 @@
+---
+# Format and mount a tank-pool-backed block device at /mnt/longhorn-tank.
+# Activated by setting `longhorn_tank_disk_device` (e.g. the by-id path of a
+# tank-backed scsi2 disk) in host_vars on workers that participate in the
+# cross-pool storage architecture. Pairs with the matching `default-disk-tank`
+# entry in the Longhorn node CR (see ansible/roles/cluster_platform/tasks/
+# longhorn-storage-config.yml) and the `longhorn-tank` StorageClass.
+
+- name: Stat Longhorn tank disk
+  ansible.builtin.stat:
+    path: "{{ longhorn_tank_disk_device }}"
+  register: longhorn_tank_disk
+  become: yes
+
+- name: Fail if Longhorn tank disk is missing
+  ansible.builtin.fail:
+    msg: "longhorn_tank_disk_device={{ longhorn_tank_disk_device }} not found on {{ inventory_hostname }}"
+  when: not longhorn_tank_disk.stat.exists
+
+- name: Format Longhorn tank disk as ext4
+  community.general.filesystem:
+    fstype: ext4
+    dev: "{{ longhorn_tank_disk_device }}"
+  become: yes
+
+- name: Resolve Longhorn tank disk UUID
+  ansible.builtin.command: blkid -s UUID -o value {{ longhorn_tank_disk_device }}
+  register: longhorn_tank_disk_uuid
+  changed_when: false
+  become: yes
+
+- name: Ensure {{ longhorn_tank_disk_path | default('/mnt/longhorn-tank') }} exists
+  ansible.builtin.file:
+    path: "{{ longhorn_tank_disk_path | default('/mnt/longhorn-tank') }}"
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Mount Longhorn tank disk
+  # nofail so a missing/failed disk leaves the node reachable for remote
+  # repair instead of hanging boot. Longhorn will report the disk absent;
+  # that's fixable. A boot hang is not.
+  ansible.posix.mount:
+    src: "UUID={{ longhorn_tank_disk_uuid.stdout }}"
+    path: "{{ longhorn_tank_disk_path | default('/mnt/longhorn-tank') }}"
+    fstype: ext4
+    opts: defaults,noatime,nofail
+    state: mounted
+  become: yes

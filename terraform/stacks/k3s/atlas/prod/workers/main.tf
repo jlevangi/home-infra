@@ -209,9 +209,15 @@ module "nodes" {
   balloon            = var.balloon
   vm_storage         = var.vm_storage
   os_disk_size       = var.os_disk_size
-  data_disk_enabled  = false
-  data_disk_size     = var.data_disk_size
+  # Tank-backed Longhorn disk (scsi2). Pairs with the longhorn-tank disk-mount
+  # task and longhorn-tank StorageClass — see plans/i-need-some-serious-ancient-adleman.md.
+  # Note: existing VMs (101/103/105) had this added live via `qm set`; the
+  # proxmox module's lifecycle.ignore_changes prevents Terraform from touching
+  # disks on existing VMs, so this block only takes effect on fresh deploys.
+  data_disk_enabled  = true
+  data_disk_size     = "250G"
   data_disk_storage  = var.data_disk_storage
+  data_disk_slot     = "scsi2"
   flash_disk_enabled = true
   flash_disk_size    = var.flash_disk_size
   flash_disk_storage = var.flash_disk_storage

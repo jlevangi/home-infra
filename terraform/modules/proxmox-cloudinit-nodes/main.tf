@@ -54,7 +54,7 @@ resource "proxmox_vm_qemu" "this" {
     content {
       format    = "raw"
       replicate = false
-      slot      = "scsi1"
+      slot      = var.data_disk_slot
       size      = var.data_disk_size
       type      = "disk"
       storage   = var.data_disk_storage

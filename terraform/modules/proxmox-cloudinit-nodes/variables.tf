@@ -114,6 +114,12 @@ variable "data_disk_storage" {
   default     = null
 }
 
+variable "data_disk_slot" {
+  description = "Proxmox SCSI slot for the second data disk when enabled."
+  type        = string
+  default     = "scsi1"
+}
+
 variable "flash_disk_enabled" {
   description = "Whether to attach the flash-backed Longhorn disk."
   type        = bool
