@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+output="{{ proxmox_host_lvm_metrics_output }}"
+tmp="${output}.$$"
+
+mkdir -p "$(dirname "${output}")"
+
+cat >"${tmp}" <<'METRICS'
+# HELP node_lvm_thin_pool_data_percent LVM thin pool data usage percentage.
+# TYPE node_lvm_thin_pool_data_percent gauge
+# HELP node_lvm_thin_pool_metadata_percent LVM thin pool metadata usage percentage.
+# TYPE node_lvm_thin_pool_metadata_percent gauge
+# HELP node_lvm_thin_pool_size_bytes LVM thin pool virtual size in bytes.
+# TYPE node_lvm_thin_pool_size_bytes gauge
+# HELP node_lvm_thin_pool_scrape_error Whether LVM thin pool metric collection failed for this pool.
+# TYPE node_lvm_thin_pool_scrape_error gauge
+# HELP node_lvm_vg_free_bytes LVM volume group free bytes.
+# TYPE node_lvm_vg_free_bytes gauge
+METRICS
+
+{% for pool in proxmox_host_lvm_thin_pools %}
+vg="{{ pool.vg }}"
+pool="{{ pool.name }}"
+labels="vg=\"${vg}\",thin_pool=\"${pool}\""
+
+if values=$(lvs --noheadings --nosuffix --units b --separator '|' --options data_percent,metadata_percent,lv_size "/dev/${vg}/${pool}" 2>/dev/null); then
+  IFS='|' read -r data_percent metadata_percent size_bytes <<<"${values}"
+  data_percent="$(printf '%s' "${data_percent}" | tr -d '[:space:]')"
+  metadata_percent="$(printf '%s' "${metadata_percent}" | tr -d '[:space:]')"
+  size_bytes="$(printf '%s' "${size_bytes}" | tr -d '[:space:]')"
+
+  printf 'node_lvm_thin_pool_data_percent{%s} %s\n' "${labels}" "${data_percent:-0}" >>"${tmp}"
+  printf 'node_lvm_thin_pool_metadata_percent{%s} %s\n' "${labels}" "${metadata_percent:-0}" >>"${tmp}"
+  printf 'node_lvm_thin_pool_size_bytes{%s} %s\n' "${labels}" "${size_bytes:-0}" >>"${tmp}"
+  printf 'node_lvm_thin_pool_scrape_error{%s} 0\n' "${labels}" >>"${tmp}"
+else
+  printf 'node_lvm_thin_pool_scrape_error{%s} 1\n' "${labels}" >>"${tmp}"
+fi
+
+if vg_free=$(vgs --noheadings --nosuffix --units b --options vg_free "${vg}" 2>/dev/null); then
+  vg_free="$(printf '%s' "${vg_free}" | tr -d '[:space:]')"
+  printf 'node_lvm_vg_free_bytes{vg="%s"} %s\n' "${vg}" "${vg_free:-0}" >>"${tmp}"
+fi
+
+{% endfor %}
+mv "${tmp}" "${output}"

@@ -1,2 +1,72 @@
 ---
-# Implemented by home-infra-vn5.4.
+- name: Ensure node exporter textfile collector directory exists for LVM metrics
+  ansible.builtin.file:
+    path: "{{ proxmox_host_node_exporter_textfile_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install LVM thin-pool metrics collector script
+  ansible.builtin.template:
+    src: lvm-thinpool-metrics.sh.j2
+    dest: "{{ proxmox_host_lvm_metrics_script }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install LVM thin-pool metrics service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/home-infra-lvm-thinpool-metrics.service
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Write Prometheus textfile metrics for LVM thin pools
+      Documentation=https://github.com/jlevangi/home-infra
+
+      [Service]
+      Type=oneshot
+      ExecStart={{ proxmox_host_lvm_metrics_script }}
+
+- name: Install LVM thin-pool metrics timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/home-infra-lvm-thinpool-metrics.timer
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Run LVM thin-pool Prometheus textfile metrics collector
+
+      [Timer]
+      OnBootSec=30s
+      OnUnitActiveSec={{ proxmox_host_lvm_metrics_interval | int }}s
+      AccuracySec=15s
+      Unit=home-infra-lvm-thinpool-metrics.service
+
+      [Install]
+      WantedBy=timers.target
+
+- name: Enable and start LVM thin-pool metrics timer
+  ansible.builtin.systemd:
+    name: home-infra-lvm-thinpool-metrics.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Generate LVM thin-pool metrics immediately
+  ansible.builtin.systemd:
+    name: home-infra-lvm-thinpool-metrics.service
+    state: started
+
+- name: Verify LVM thin-pool metrics output exists
+  ansible.builtin.stat:
+    path: "{{ proxmox_host_lvm_metrics_output }}"
+  register: proxmox_host_lvm_metrics_file
+
+- name: Fail when LVM thin-pool metrics output was not generated
+  ansible.builtin.fail:
+    msg: "{{ proxmox_host_lvm_metrics_output }} was not generated."
+  when: not proxmox_host_lvm_metrics_file.stat.exists
