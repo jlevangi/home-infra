@@ -64,7 +64,9 @@ spec:
           persistence:
             backup:
               size: 5Gi
-              storageClass: longhorn
+              # Tank-only: server-side backup data, write-rarely, durability over speed.
+              # First trial of the longhorn-tank StorageClass (see plans/i-need-some-serious-ancient-adleman.md).
+              storageClass: longhorn-tank
             uploads:
               size: 10Gi
               storageClass: longhorn
@@ -117,7 +119,8 @@ spec:
           schedule: "0 4 * * *"
           persistence:
             size: 10Gi
-            storageClass: longhorn
+            # Tank-only: nightly pg_dumps go here. Cold, append-mostly, durability over speed.
+            storageClass: longhorn-tank
           retention:
             days: 7
             weeks: 5
