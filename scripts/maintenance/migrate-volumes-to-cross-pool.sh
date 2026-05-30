@@ -7,13 +7,23 @@
 #      With the over-represented pool's disks loaded and the other pool nearly
 #      empty, the new replica goes to the under-represented pool.
 #   2. Wait for the volume to be healthy at 3 replicas.
-#   3. Drop numberOfReplicas back to 2 → Longhorn drops one extra. Anti-affinity
-#      preferences keep the cross-pool pair when possible.
+#   3. (Default) Drop numberOfReplicas back to 2 → Longhorn drops one extra.
+#      Anti-affinity preferences keep the cross-pool pair when possible.
+#      Use --keep-extra to skip this step and end at numberOfReplicas=3
+#      (e.g. when the cluster default is N=3 + replicaDiskSoftAntiAffinity).
 #   4. Confirm with the audit script that this volume is now cross-pool.
 #
 # When step 1 keeps placing the new replica on the over-represented pool,
 # rerun this script with --force-tank or --force-flash to temporarily disable
 # scheduling on the over-represented pool's disks for the bump.
+#
+# Empirical note (2026-05-30, home-infra-yov): Longhorn's
+# replicaDiskSoftAntiAffinity is a tiebreaker, not a guarantee. On existing
+# all-tank-replica volumes, simply bumping 2→3 with anti-affinity enabled
+# places the 3rd replica on tank too — the scheduler weights disk capacity
+# higher than the soft preference. --force-flash (or --force-tank for the
+# opposite case) is the reliable way to drive cross-pool placement on
+# already-imbalanced volumes.
 #
 # Usage:
 #   migrate-volumes-to-cross-pool.sh                 # process all misplaced
@@ -24,6 +34,8 @@
 #                                                     all current replicas
 #                                                     are flash-only)
 #   migrate-volumes-to-cross-pool.sh --force-flash   # opposite
+#   migrate-volumes-to-cross-pool.sh --keep-extra    # leave volume at N=3
+#                                                     instead of dropping back
 
 set -uo pipefail
 
@@ -33,6 +45,7 @@ NS=longhorn-system
 
 DRY_RUN=0
 FORCE_DIR=""
+KEEP_EXTRA=0
 TARGETS=()
 
 while [ $# -gt 0 ]; do
@@ -40,6 +53,7 @@ while [ $# -gt 0 ]; do
     --dry-run) DRY_RUN=1; shift ;;
     --force-tank) FORCE_DIR=tank; shift ;;
     --force-flash) FORCE_DIR=flash; shift ;;
+    --keep-extra) KEEP_EXTRA=1; shift ;;
     -h|--help)
       sed -n '2,/^$/p' "$0" | sed 's/^# \?//'
       exit 0
@@ -131,7 +145,11 @@ migrate_one() {
   echo "==== Migrating $vol ===="
 
   if [ "$DRY_RUN" -eq 1 ]; then
-    echo "  (dry-run) bump $vol numberOfReplicas → 3, wait, drop → 2"
+    if [ "$KEEP_EXTRA" -eq 1 ]; then
+      echo "  (dry-run) bump $vol numberOfReplicas → 3 and stop"
+    else
+      echo "  (dry-run) bump $vol numberOfReplicas → 3, wait, drop → 2"
+    fi
     return 0
   fi
 
@@ -142,6 +160,11 @@ migrate_one() {
   if ! wait_volume_replicas "$vol" 3 300; then
     echo "  TIMEOUT — volume did not reach 3 healthy replicas in 5 min"
     return 1
+  fi
+
+  if [ "$KEEP_EXTRA" -eq 1 ]; then
+    echo "  Done (stayed at numberOfReplicas=3, --keep-extra)."
+    return 0
   fi
 
   echo "  Drop back to 2 replicas"
