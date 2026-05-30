@@ -1,14 +1,24 @@
 # Default Longhorn storage class.
 #
-# Was previously created by the Longhorn helm chart via the
-# longhorn-storageclass ConfigMap (persistence.defaultClass=true) and
-# concurrently patched by Ansible's longhorn-storage-config role. As of
-# home-infra-btv, the helm chart's defaultClass is disabled and Ansible
-# no longer touches this object — ArgoCD owns it.
+# Owned by ArgoCD since home-infra-btv. The Longhorn helm chart's
+# persistence.defaultClass is disabled so longhorn-manager doesn't
+# fight on this object.
 #
-# Initial spec mirrors live prod state from 2026-05-30: numberOfReplicas=2
-# with no disk anti-affinity. home-infra-rd0 mutates this to N=3 +
-# replicaDiskSoftAntiAffinity=enabled once the migration lands.
+# numberOfReplicas=3 + replicaDiskSoftAntiAffinity=enabled (home-infra-rd0):
+# with 3 flash + 3 tank disks across workers 1/2/3 (worker-gpu-1 has tank
+# only), Longhorn schedules replicas to soft-prefer disks with different
+# tags. Spike (home-infra-pwo, 2026-05-30) verified this lands 2-tank +
+# 1-flash deterministically on this topology. NEW volumes pick this up;
+# existing N=2 volumes need migration via scripts/maintenance/migrate-
+# volumes-to-cross-pool.sh — tracked under home-infra-yov.
+#
+# Notes for downstream readers:
+# - The StorageClass parameter accepts "enabled" / "disabled" / "ignored",
+#   not "true" / "false". The cluster-level setting of the same name takes
+#   booleans; the SC parameter does not. See bd memory
+#   longhorn-sc-anti-affinity-value-format.
+# - replicaAutoBalance:best-effort stays so Longhorn rebalances replicas
+#   when a node drains or a disk fills.
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -20,8 +30,9 @@ allowVolumeExpansion: true
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 parameters:
-  numberOfReplicas: "2"
+  numberOfReplicas: "3"
   replicaAutoBalance: best-effort
+  replicaDiskSoftAntiAffinity: enabled
   staleReplicaTimeout: "30"
   fromBackup: ""
   fsType: ext4

@@ -24,3 +24,10 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      # StorageClass.parameters are immutable, so ArgoCD must delete +
+      # recreate the object when params change (kubectl apply errors with
+      # "Forbidden: updates to parameters are forbidden"). Sub-second
+      # downtime only affects new PVC binding; in-use PVCs and existing
+      # volumes are unaffected. Required for home-infra-rd0's N=2→3 +
+      # replicaDiskSoftAntiAffinity mutation.
+      - Replace=true
