@@ -209,7 +209,13 @@
         KUBECONFIG={{ kubeconfig }} kubectl delete volume {{ restored_volume_name }} -n longhorn-system --wait=true --timeout=60s 2>/dev/null || true
       failed_when: false
 
-    - name: Create Longhorn Volume from backup
+    # Longhorn v1.11.2 has an admission-webhook bug that rejects Volume CRs
+    # created with `spec.fromBackup` set: "cannot get backup volume for backup
+    # target  and volume X: backup target name and volume name cannot be
+    # empty". Workaround: create the Volume *without* fromBackup first (the
+    # webhook only validates fromBackup on CREATE, not UPDATE), then patch
+    # fromBackup so the restore controller picks it up.
+    - name: Create Longhorn Volume (empty)
       shell: |
         KUBECONFIG={{ kubeconfig }} kubectl apply -f - <<'EOF'
         apiVersion: longhorn.io/v1beta2
@@ -221,9 +227,15 @@
           frontend: blockdev
           size: "{{ pvc_size_bytes }}"
           numberOfReplicas: {{ longhorn_replica_count | default(2) }}
-          fromBackup: "{{ restore_volume.backup_url }}"
+          backupTargetName: default
         EOF
       register: volume_created
+
+    - name: Patch Longhorn Volume with fromBackup (triggers restore)
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl -n longhorn-system patch volume {{ restored_volume_name }} \
+          --type=merge -p '{"spec":{"fromBackup":"{{ restore_volume.backup_url }}"}}'
+      register: volume_restore_patched
 
     - name: Wait for Longhorn volume to be ready
       shell: |
