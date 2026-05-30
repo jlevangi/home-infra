@@ -268,11 +268,13 @@ def discover_from_longhorn_cr(args: argparse.Namespace) -> list[dict[str, Any]]:
             "volume_name": volume_name,
             "namespace": namespace,
             "pvc_name": pvc_name,
-            # Longhorn v1.11.2: `status.size` is often empty on completed backups
-            # (it's the incremental backup size, not the volume size). Fall back
-            # to `status.volumeSize`, which is always the original volume size.
-            "size_bytes": parse_size_bytes(status.get("size"))
-                          or parse_size_bytes(status.get("volumeSize")),
+            # Longhorn `status.size` is the *incremental* backup delta, not the
+            # volume size. For restore we always need the original volume size
+            # so the destination Volume + PV/PVC are sized correctly; use
+            # `status.volumeSize` first and fall back to `status.size` only if
+            # volumeSize is missing.
+            "size_bytes": parse_size_bytes(status.get("volumeSize"))
+                          or parse_size_bytes(status.get("size")),
             "cluster": cluster,
             "backup_id": backup_id,
             "backup_url": backup_url,
