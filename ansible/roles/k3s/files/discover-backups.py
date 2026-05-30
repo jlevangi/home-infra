@@ -258,10 +258,10 @@ def discover_from_longhorn_cr(args: argparse.Namespace) -> list[dict[str, Any]]:
 
         backup_url = status.get("url")
         if not backup_url:
-            raise SystemExit(
-                f"backup {backup_id} for {namespace}/{pvc_name} "
-                "does not have status.url"
-            )
+            # Skip backups that don't have a URL yet (CR was created but
+            # backup never finished or is stuck mid-Deleting). Don't fail
+            # the whole discovery on one bad backup.
+            continue
 
         volume_name = parse_volume_name_from_url(backup_url) or status.get("volumeName") or ""
         record = {

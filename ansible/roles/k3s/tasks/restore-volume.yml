@@ -237,6 +237,63 @@
           --type=merge -p '{"spec":{"fromBackup":"{{ restore_volume.backup_url }}"}}'
       register: volume_restore_patched
 
+    # Longhorn v1.11.2: the volume controller doesn't propagate the
+    # BackupVolume CR name into engine.spec.backupVolume after fromBackup
+    # is patched on the volume. Without engine.spec.backupVolume the engine
+    # logs "backup volume is empty for backup restoration" and the restore
+    # never downloads any data (status stuck at RestoreInProgress with
+    # actualSize=0 forever). Two manual fixes are needed:
+    #
+    #   1. Set the `backup-volume` LABEL on the volume CR so the volume
+    #      controller's ReconcileBackupVolumeState can find the BV CR.
+    #   2. Patch engine.spec.backupVolume directly (the controller respects
+    #      the engine spec if it's already set; without this it stays empty).
+    #
+    # Look up the matching BackupVolume CR by status.volumeName == this
+    # volume's name. There can be more than one BackupVolume CR per volume
+    # name across history (after a rebuild); pick the one whose
+    # lastBackupName matches the one we're restoring.
+    - name: Look up BackupVolume CR for this volume
+      # Uses kubectl jsonpath since `jq` isn't available on cp nodes.
+      # Picks the first BackupVolume whose spec.volumeName matches the
+      # restored volume's name. There may be more than one if a volume
+      # has been rebuilt; this picks any, which is generally correct
+      # because the BackupVolume controller dedupes by volumeName.
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl -n longhorn-system \
+          get backupvolumes \
+          -o jsonpath='{range .items[?(@.spec.volumeName=="{{ restored_volume_name }}")]}{.metadata.name}{"\n"}{end}' \
+          | head -1
+      register: backup_volume_cr_name
+      changed_when: false
+
+    - name: Set backup-volume label on Volume CR
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl -n longhorn-system label \
+          volume {{ restored_volume_name }} \
+          backup-volume={{ backup_volume_cr_name.stdout }} --overwrite
+      when: backup_volume_cr_name.stdout | length > 0
+
+    - name: Wait for engine to exist
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl -n longhorn-system \
+          get engine \
+          -o jsonpath='{range .items[?(@.spec.volumeName=="{{ restored_volume_name }}")]}{.metadata.name}{"\n"}{end}' \
+          | head -1
+      register: engine_name
+      until: engine_name.stdout | length > 0
+      retries: 20
+      delay: 3
+      changed_when: false
+
+    - name: Patch engine.spec.backupVolume so restore actually starts
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl -n longhorn-system patch engine {{ engine_name.stdout }} \
+          --type=merge -p '{"spec":{"backupVolume":"{{ backup_volume_cr_name.stdout }}"}}'
+      when:
+        - engine_name.stdout | length > 0
+        - backup_volume_cr_name.stdout | length > 0
+
     - name: Wait for Longhorn volume to be ready
       shell: |
         KUBECONFIG={{ kubeconfig }} kubectl get volume {{ restored_volume_name }} -n longhorn-system -o jsonpath='{.status.state}' 2>/dev/null
