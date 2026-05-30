@@ -1,0 +1,27 @@
+# Flash-only Longhorn storage class. All replicas pin to flash-tagged disks.
+# Use for write-heavy databases that can't tolerate HDD-speed writes.
+#
+# Was created by Ansible (longhorn-storage-config role) and concurrently
+# unowned by any helm-managed object. As of home-infra-btv, ArgoCD owns it.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn-flash
+  annotations:
+    description: "Flash-only Longhorn storage (high IOPS / low latency). Both replicas land on flash disks. Use for write-heavy databases that can't tolerate HDD-speed writes."
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  numberOfReplicas: "2"
+  staleReplicaTimeout: "30"
+  fromBackup: ""
+  fsType: ext4
+  dataLocality: best-effort
+  unmapMarkSnapChainRemoved: ignored
+  disableRevisionCounter: "true"
+  dataEngine: v1
+  backupTargetName: default
+  diskSelector: flash
+  recurringJobSelector: '[{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'

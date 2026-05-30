@@ -96,55 +96,16 @@
       {% endif %}
       Longhorn tuning settings reconciled: {{ longhorn_tuning_setting_results.results | default([]) | selectattr('rc', 'equalto', 0) | list | length }}/{{ longhorn_tuning_setting_results.results | default([]) | length }}
 
-- name: Build Longhorn primary StorageClass manifest
-  set_fact:
-    longhorn_primary_storageclass_manifest: |
-      kind: StorageClass
-      apiVersion: storage.k8s.io/v1
-      metadata:
-        name: longhorn
-        annotations:
-          storageclass.kubernetes.io/is-default-class: "true"
-      provisioner: driver.longhorn.io
-      allowVolumeExpansion: true
-      reclaimPolicy: "Delete"
-      volumeBindingMode: Immediate
-      parameters:
-        numberOfReplicas: "{{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}"
-        replicaAutoBalance: "{{ longhorn_replica_auto_balance | default('best-effort') }}"
-        staleReplicaTimeout: "30"
-        fromBackup: ""
-        fsType: "ext4"
-        dataLocality: "best-effort"
-        unmapMarkSnapChainRemoved: "ignored"
-        disableRevisionCounter: "true"
-        dataEngine: "v1"
-        backupTargetName: "default"
-        recurringJobSelector: '[{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'
-      {% if longhorn_default_node_selector | default('') | length > 0 %}
-        nodeSelector: "{{ longhorn_default_node_selector }}"
-      {% endif %}
-
-- name: Update Longhorn StorageClass ConfigMap to match replica count
-  ansible.builtin.shell: |
-    KUBECONFIG={{ kubeconfig_path }} kubectl patch configmap longhorn-storageclass -n longhorn-system \
-      --type='merge' -p='{{ {"data": {"storageclass.yaml": longhorn_primary_storageclass_manifest}} | to_json }}'
-  register: storageclass_configmap_update_result
-  failed_when: false
-
-- name: Wait for API server before StorageClass recreation
-  pause:
-    seconds: 10
-
-- name: Delete and recreate Longhorn StorageClass with correct replica count
-  ansible.builtin.shell: |
-    KUBECONFIG={{ kubeconfig_path }} kubectl delete storageclass longhorn --ignore-not-found=true
-    sleep 5
-    KUBECONFIG={{ kubeconfig_path }} kubectl apply -f - <<'EOF'
-    {{ longhorn_primary_storageclass_manifest }}
-    EOF
-  register: storageclass_update_result
-  failed_when: false
+# The default `longhorn`, `longhorn-flash`, and `longhorn-tank` StorageClasses
+# are now managed declaratively by ArgoCD via
+# argocd/manifests/longhorn-storage-classes/. The Longhorn helm chart's
+# persistence.defaultClass is set to false (see longhorn-values.yaml.j2) so
+# the helm-managed longhorn-storageclass ConfigMap no longer auto-applies the
+# default SC and won't fight ArgoCD. See home-infra-btv.
+#
+# longhorn-media remains Ansible-managed for now — it's conditional on
+# longhorn_media_node_selector and has no cross-pool concern; revisit if it
+# grows beyond a single-cluster use case.
 
 - name: Build Longhorn media StorageClass manifest
   set_fact:
@@ -181,97 +142,12 @@
   failed_when: false
   when: longhorn_media_node_selector | default('') | length > 0
 
-# -----------------------------------------------------------------------------
-# Cross-pool StorageClasses (flash-only and tank-only)
-# -----------------------------------------------------------------------------
-# These pin all replicas of a volume to a single disk-type via diskSelector,
-# for apps that opt out of the default best-effort cross-pool placement.
-# Default `longhorn` SC remains the cluster-wide default (nodeSelector=
-# general-storage, no diskSelector); volumes from it can land on either pool
-# and are audited by scripts/maintenance/verify-cross-pool-placement.sh.
-
-- name: Build longhorn-flash StorageClass manifest
-  set_fact:
-    longhorn_flash_storageclass_manifest: |
-      kind: StorageClass
-      apiVersion: storage.k8s.io/v1
-      metadata:
-        name: {{ longhorn_flash_storage_class_name | default('longhorn-flash') }}
-        annotations:
-          description: "Flash-only Longhorn storage (high IOPS / low latency). Use for write-heavy databases."
-      provisioner: driver.longhorn.io
-      allowVolumeExpansion: true
-      reclaimPolicy: "Delete"
-      volumeBindingMode: Immediate
-      parameters:
-        numberOfReplicas: "{{ longhorn_replica_count | default(2) }}"
-        staleReplicaTimeout: "30"
-        fromBackup: ""
-        fsType: "ext4"
-        dataLocality: "best-effort"
-        unmapMarkSnapChainRemoved: "ignored"
-        disableRevisionCounter: "true"
-        dataEngine: "v1"
-        backupTargetName: "default"
-        diskSelector: "flash"
-        recurringJobSelector: '[{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'
-
-- name: Create or update longhorn-flash StorageClass
-  ansible.builtin.shell: |
-    KUBECONFIG={{ kubeconfig_path }} kubectl apply -f - <<'EOF'
-    {{ longhorn_flash_storageclass_manifest }}
-    EOF
-  register: flash_storageclass_update_result
-  failed_when: false
-
-- name: Build longhorn-tank StorageClass manifest
-  set_fact:
-    longhorn_tank_storageclass_manifest: |
-      kind: StorageClass
-      apiVersion: storage.k8s.io/v1
-      metadata:
-        name: {{ longhorn_tank_storage_class_name | default('longhorn-tank') }}
-        annotations:
-          description: "Tank-only Longhorn storage (HDD ZFS, robust). Use for cold storage or batch-write apps."
-      provisioner: driver.longhorn.io
-      allowVolumeExpansion: true
-      reclaimPolicy: "Delete"
-      volumeBindingMode: Immediate
-      parameters:
-        numberOfReplicas: "{{ longhorn_replica_count | default(2) }}"
-        staleReplicaTimeout: "30"
-        fromBackup: ""
-        fsType: "ext4"
-        dataLocality: "best-effort"
-        unmapMarkSnapChainRemoved: "ignored"
-        disableRevisionCounter: "true"
-        dataEngine: "v1"
-        backupTargetName: "default"
-        diskSelector: "tank"
-        recurringJobSelector: '[{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'
-
-- name: Create or update longhorn-tank StorageClass
-  ansible.builtin.shell: |
-    KUBECONFIG={{ kubeconfig_path }} kubectl apply -f - <<'EOF'
-    {{ longhorn_tank_storageclass_manifest }}
-    EOF
-  register: tank_storageclass_update_result
-  failed_when: false
-
 - name: Display StorageClass update result
   debug:
     msg: |
       🔧 Longhorn StorageClass Update:
-      {% if storageclass_configmap_update_result.rc == 0 %}
-      ✅ Successfully updated StorageClass ConfigMap
-      {% else %}
-      ⚠️  ConfigMap update failed: {{ storageclass_configmap_update_result.stderr | default('Unknown error') }}
-      {% endif %}
-      {% if storageclass_update_result.rc == 0 %}
-      ✅ Successfully recreated StorageClass with {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }} replicas
-      {% else %}
-      ⚠️  StorageClass recreation failed: {{ storageclass_update_result.stderr | default('Unknown error') }}
-      {% endif %}
+      ℹ️  longhorn / longhorn-flash / longhorn-tank are now managed by ArgoCD
+         (argocd/manifests/longhorn-storage-classes/) — see home-infra-btv.
       {% if longhorn_media_node_selector | default('') | length > 0 %}
       {% if media_storageclass_update_result.rc == 0 %}
       ✅ Successfully applied {{ longhorn_media_storage_class_name | default('longhorn-media') }} for nodeSelector={{ longhorn_media_node_selector }}

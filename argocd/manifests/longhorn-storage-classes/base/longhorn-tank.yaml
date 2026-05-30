@@ -1,0 +1,27 @@
+# Tank-only Longhorn storage class. All replicas pin to tank-tagged disks
+# (atlas HDD ZFS pool). Use for cold storage or backup data.
+#
+# Was created by Ansible (longhorn-storage-config role) and concurrently
+# unowned by any helm-managed object. As of home-infra-btv, ArgoCD owns it.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn-tank
+  annotations:
+    description: "Tank-only Longhorn storage (HDD ZFS, robust). Both replicas land on tank disks. Use for cold storage or backup data."
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  numberOfReplicas: "2"
+  staleReplicaTimeout: "30"
+  fromBackup: ""
+  fsType: ext4
+  dataLocality: best-effort
+  unmapMarkSnapChainRemoved: ignored
+  disableRevisionCounter: "true"
+  dataEngine: v1
+  backupTargetName: default
+  diskSelector: tank
+  recurringJobSelector: '[{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'

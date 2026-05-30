@@ -1,0 +1,33 @@
+# Default Longhorn storage class.
+#
+# Was previously created by the Longhorn helm chart via the
+# longhorn-storageclass ConfigMap (persistence.defaultClass=true) and
+# concurrently patched by Ansible's longhorn-storage-config role. As of
+# home-infra-btv, the helm chart's defaultClass is disabled and Ansible
+# no longer touches this object — ArgoCD owns it.
+#
+# Initial spec mirrors live prod state from 2026-05-30: numberOfReplicas=2
+# with no disk anti-affinity. home-infra-rd0 mutates this to N=3 +
+# replicaDiskSoftAntiAffinity=enabled once the migration lands.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  numberOfReplicas: "2"
+  replicaAutoBalance: best-effort
+  staleReplicaTimeout: "30"
+  fromBackup: ""
+  fsType: ext4
+  dataLocality: best-effort
+  unmapMarkSnapChainRemoved: ignored
+  disableRevisionCounter: "true"
+  dataEngine: v1
+  backupTargetName: default
+  nodeSelector: general-storage

@@ -14,3 +14,10 @@ defaultSettings:
 {% if enable_longhorn_backup | default(true) and nfs_server_ip is defined %}
   backupTarget: "nfs://{{ nfs_server_ip }}:{{ nfs_share_backup }}{% if longhorn_backup_shared_across_clusters | default(false) %}/shared{% else %}/{{ cluster_environment | default('prod') }}{% endif %}"
 {% endif %}
+
+# StorageClass ownership: the chart's longhorn-storageclass ConfigMap (and the
+# default `longhorn` SC it generates) is disabled here so ArgoCD can own the
+# manifest under argocd/manifests/longhorn-storage-classes/ without fighting
+# longhorn-manager's configmap-driven reconcile. See home-infra-btv.
+persistence:
+  defaultClass: false
