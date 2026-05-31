@@ -5,6 +5,9 @@
 nvidia_gpu_worker: true
 longhorn_node_tags:
   - media-storage
+# No tank disk on this host — its scsi2 is the LLM model disk (below), not a
+# Longhorn-backing volume. Opt out of the group_vars default longhorn_tank_disk_slot.
+longhorn_tank_disk_slot: ""
 # Stable scsi1 path (by-id) — /dev/sd* enumeration is unreliable on this node
 # because Longhorn CSI iSCSI volumes attached for Plex/Jellyfin grab earlier
 # sd letters before the local data disk would.

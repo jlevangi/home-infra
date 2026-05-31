@@ -19,11 +19,25 @@
     - longhorn_data_disk_device is defined
     - longhorn_data_disk_device | length > 0
 
+- name: Resolve longhorn_tank_disk_device from slot when not set explicitly
+  # host_vars can set longhorn_tank_disk_device directly (non-QEMU layouts);
+  # otherwise derive it from longhorn_disk_device_template + longhorn_tank_disk_slot.
+  # Gated on worker_group so CP nodes (which inherit the cluster-level slot
+  # default) skip cleanly. An empty slot signals "this worker has no tank disk".
+  set_fact:
+    longhorn_tank_disk_device: "{{ longhorn_disk_device_template | replace('{slot}', longhorn_tank_disk_slot) }}"
+  when:
+    - longhorn_tank_disk_device is not defined
+    - longhorn_tank_disk_slot | default('') | length > 0
+    - longhorn_disk_device_template is defined
+    - inventory_hostname in groups[worker_group | default('')] | default([])
+
 - name: Mount Longhorn tank disk on hosts that have one
   include_tasks: longhorn-tank-disk.yml
   when:
     - longhorn_tank_disk_device is defined
     - longhorn_tank_disk_device | length > 0
+    - inventory_hostname in groups[worker_group | default('')] | default([])
 
 - name: Mount LLM model disk on hosts that have one
   include_tasks: llm-model-disk.yml
