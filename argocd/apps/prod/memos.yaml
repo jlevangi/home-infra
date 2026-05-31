@@ -14,9 +14,12 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: memos
+  # Auto-sync is intentionally disabled — the memos volume has a known
+  # SIGBUS-on-worker-1/3 issue (see bd memory memos-workaround-2026-05-29
+  # and home-infra-2oj). The volume is hand-pinned to worker-2 with
+  # replicaSoftAntiAffinity and a single-node placement. Auto-sync could
+  # try to reschedule the pod across nodes and re-trigger the SIGBUS.
+  # Re-enable once home-infra-2oj is resolved.
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
       - CreateNamespace=true
