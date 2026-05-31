@@ -141,6 +141,90 @@ kubectl -n longhorn-system get volumes.longhorn.io
 kubectl -n longhorn-system get replicas.longhorn.io
 ```
 
+#### Cross-pool storage model (prod)
+
+Each Atlas worker has two Longhorn disks: a flash tier (`/mnt/longhorn-flash`,
+SSD mirror, fast) and a tank tier (`/mnt/longhorn-tank`, HDD ZFS, robust).
+`worker-gpu-1` has only tank. Disks are tagged `flash` or `tank`. The default
+storage class is configured so each volume gets 3 replicas with a soft
+preference for spreading across disk types — typically 2 on tank + 1 on flash,
+giving a flash incident a place to fall back to.
+
+StorageClasses (prod, all managed by ArgoCD via
+`argocd/manifests/longhorn-storage-classes/` and
+`argocd/manifests/longhorn-redundant-sc/`):
+
+| SC | Replicas | Pinning | Use for |
+|---|---|---|---|
+| `longhorn` (default) | 3 | none, soft-spread across pools | almost everything |
+| `longhorn-redundant` | 3 | nodeSelector=general-storage | single-pod apps with no app-layer HA (Jellyfin, Plex, Grafana) |
+| `longhorn-flash` | 2 | diskSelector=flash | write-heavy DBs that can't tolerate HDD-speed writes |
+| `longhorn-tank` | 2 | diskSelector=tank | cold storage, batch-write, backup data |
+| `longhorn-media` | 3 | nodeSelector=media-storage | apps that should land on the GPU worker for hardware transcoding |
+
+The two pinned classes (`longhorn-flash` and `longhorn-tank`) intentionally
+have all replicas on one pool — a flash incident takes the pinned-flash apps
+down, by design, in exchange for the I/O profile. Use them only when the
+default class isn't appropriate.
+
+#### Verifying cross-pool placement
+
+```bash
+scripts/maintenance/verify-cross-pool-placement.sh
+```
+
+Walks every volume, classifies its replicas by disk-tag pool, and flags any
+volume whose replicas all landed on the same pool (skipping the intentionally
+pinned `longhorn-flash` / `longhorn-tank` volumes). Exit code 0 means no
+misplacements. Run on demand after Longhorn maintenance and at least monthly
+as drift detection.
+
+Known expected exception: `memos-data-v3` is pinned to one worker with both
+replicas on the same disk per the [Memos workaround](#) and will always
+flag — that's not a regression.
+
+#### Migrating a misplaced volume
+
+If the audit flags a volume, repair via:
+
+```bash
+# Dry-run first to see what would happen
+scripts/maintenance/migrate-volumes-to-cross-pool.sh --dry-run
+
+# For volumes whose replicas are all on tank, force the new replica to flash
+scripts/maintenance/migrate-volumes-to-cross-pool.sh --force-flash --keep-extra <volume>
+
+# Opposite case
+scripts/maintenance/migrate-volumes-to-cross-pool.sh --force-tank --keep-extra <volume>
+```
+
+`--keep-extra` leaves the volume at `numberOfReplicas=3` to match the default
+SC's new shape. Without it the script ends at N=2 cross-pool (older behavior).
+
+The script disables scheduling on the over-represented pool cluster-wide while
+the bump runs. This has a side effect: any other volume rebuilding a replica
+in that window can fail and rebuild on the wrong pool. Migrate one volume at
+a time; for large volumes (>50 GB actual size) or volumes mid-rebuild, run in
+isolation. See [Longhorn cross-pool resilience handoff](../../handoff/2026-05-29-longhorn-cross-pool-resilience.md)
+and the [anti-affinity spike notes](../../handoff/2026-05-30-cross-pool-replica-anti-affinity-spike.md)
+for the methodology lessons.
+
+#### Settings reference
+
+These are managed at the Longhorn-system level (not per-SC):
+
+```bash
+kubectl -n longhorn-system get setting replica-soft-anti-affinity \
+  replica-disk-soft-anti-affinity replica-auto-balance \
+  storage-over-provisioning-percentage
+```
+
+The StorageClass parameter `replicaDiskSoftAntiAffinity` accepts
+`enabled` / `disabled` / `ignored` (not booleans — that's the cluster-level
+setting's value form). Using `"true"` produces
+`invalid ReplicaDiskSoftAntiAffinity setting: true` from the csi-provisioner
+and pending PVCs.
+
 ### Proxmox host thin-pool monitoring
 
 `atlas` is managed through the dedicated Proxmox inventory:
