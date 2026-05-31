@@ -134,3 +134,14 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+  # The upstream sparkyfitness chart doesn't add Longhorn backup labels to
+  # its PVCs. Labels added at runtime (2026-05-31) for backup inclusion;
+  # ignore the resulting drift so ArgoCD doesn't strip them on each sync.
+  ignoreDifferences:
+    - group: ""
+      kind: PersistentVolumeClaim
+      jqPathExpressions:
+        - '.metadata.labels["recurring-job-group.longhorn.io/daily"]'
+        - '.metadata.labels["recurring-job-group.longhorn.io/hourly"]'
+        - '.metadata.labels["recurring-job-group.longhorn.io/weekly"]'
+        - '.metadata.labels["recurring-job.longhorn.io/source"]'
