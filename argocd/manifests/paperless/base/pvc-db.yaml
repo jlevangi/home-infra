@@ -16,4 +16,10 @@ spec:
   resources:
     requests:
       storage: 2Gi
-  storageClassName: longhorn
+  # paperless-db is the postgres data PVC. Pinned to longhorn-tank because
+  # postgres is a heavy continuous writer; routing its replicas to the flash
+  # pool starved shared Atlas flash IOPS during the 2026-05-31 incident.
+  # Volume CR also has diskSelector=["tank"] patched at runtime.
+  # NOTE: changing storageClassName on a bound PVC is a no-op; this aligns
+  # the manifest with runtime + future PVC recreations.
+  storageClassName: longhorn-tank

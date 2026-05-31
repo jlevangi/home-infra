@@ -84,7 +84,11 @@ spec:
             storageSpec:
               volumeClaimTemplate:
                 spec:
-                  storageClassName: longhorn
+                  # Prometheus TSDB is a continuous heavy writer; flash
+                  # IOPS is shared across all Atlas workers and got pegged
+                  # during the 2026-05-31 incident. Volume CR also has
+                  # diskSelector=["tank"] patched at runtime.
+                  storageClassName: longhorn-tank
                   accessModes: ["ReadWriteOnce"]
                   resources:
                     requests:
