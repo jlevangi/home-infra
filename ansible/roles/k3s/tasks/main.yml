@@ -14,7 +14,11 @@
   when: nvidia_gpu_worker | default(false) | bool
 
 - name: Mount Longhorn data disk on hosts that have one
-  include_tasks: longhorn-data-disk.yml
+  include_tasks: longhorn-disk.yml
+  vars:
+    disk_device: "{{ longhorn_data_disk_device }}"
+    disk_path: /var/lib/longhorn
+    disk_label: data
   when:
     - longhorn_data_disk_device is defined
     - longhorn_data_disk_device | length > 0
@@ -33,7 +37,11 @@
     - inventory_hostname in groups[worker_group | default('')] | default([])
 
 - name: Mount Longhorn tank disk on hosts that have one
-  include_tasks: longhorn-tank-disk.yml
+  include_tasks: longhorn-disk.yml
+  vars:
+    disk_device: "{{ longhorn_tank_disk_device }}"
+    disk_path: "{{ longhorn_tank_disk_path }}"
+    disk_label: tank
   when:
     - longhorn_tank_disk_device is defined
     - longhorn_tank_disk_device | length > 0

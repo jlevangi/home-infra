@@ -1,0 +1,54 @@
+---
+# Format (ext4) and mount a Longhorn-backing block device. Called from
+# main.yml once per disk via include_tasks with the following vars:
+#   disk_device: by-id path of the block device (e.g. /dev/disk/by-id/...)
+#   disk_path:   mount target (e.g. /var/lib/longhorn, /mnt/longhorn-tank)
+#   disk_label:  short label used in task names + the register var name
+#                so multiple invocations don't clobber each other's facts
+#                (e.g. "data", "tank", "flash")
+#
+# Replaces the previous per-disk longhorn-data-disk.yml and
+# longhorn-tank-disk.yml — both were 90%+ duplicates of this pattern.
+
+- name: "Stat Longhorn {{ disk_label }} disk"
+  ansible.builtin.stat:
+    path: "{{ disk_device }}"
+  register: longhorn_disk_stat
+  become: yes
+
+- name: "Fail if Longhorn {{ disk_label }} disk is missing"
+  ansible.builtin.fail:
+    msg: "Longhorn {{ disk_label }} disk {{ disk_device }} not found on {{ inventory_hostname }}"
+  when: not longhorn_disk_stat.stat.exists
+
+- name: "Format Longhorn {{ disk_label }} disk as ext4"
+  community.general.filesystem:
+    fstype: ext4
+    dev: "{{ disk_device }}"
+  become: yes
+
+- name: "Resolve Longhorn {{ disk_label }} disk UUID"
+  ansible.builtin.command: blkid -s UUID -o value {{ disk_device }}
+  register: longhorn_disk_uuid
+  changed_when: false
+  become: yes
+
+- name: "Ensure {{ disk_path }} exists"
+  ansible.builtin.file:
+    path: "{{ disk_path }}"
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: "Mount Longhorn {{ disk_label }} disk at {{ disk_path }}"
+  # nofail so a missing/failed disk leaves the node reachable for remote
+  # repair instead of hanging boot in systemd emergency mode. Longhorn
+  # will start without its data dir and report storage absent; that's
+  # fixable. A boot hang is not.
+  ansible.posix.mount:
+    src: "UUID={{ longhorn_disk_uuid.stdout }}"
+    path: "{{ disk_path }}"
+    fstype: ext4
+    opts: defaults,noatime,nofail
+    state: mounted
+  become: yes
