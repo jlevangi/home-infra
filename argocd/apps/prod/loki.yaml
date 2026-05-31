@@ -45,11 +45,15 @@ spec:
         singleBinary:
           replicas: 1
           persistence:
-            # Loki is a continuous log writer; flash IOPS is shared across
-            # all Atlas workers and got pegged during the 2026-05-31
-            # incident. Volume CR also has diskSelector=["tank"] patched
-            # at runtime.
-            storageClass: longhorn-tank
+            # The Loki PVC has diskSelector=["tank"] patched at runtime
+            # (2026-05-31 incident — continuous log writes were starving
+            # shared Atlas flash IOPS). The "right" value below is
+            # longhorn-tank, but StatefulSet volumeClaimTemplates is
+            # immutable post-creation and ArgoCD can't apply the change
+            # to the live object. The chart value stays longhorn until
+            # the PVC is recreated under home-infra-wdy; the runtime
+            # patch carries the actual placement.
+            storageClass: longhorn
             accessModes:
               - ReadWriteOnce
             size: 20Gi
@@ -121,13 +125,3 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-  # StatefulSet.spec.volumeClaimTemplates is immutable after creation.
-  # The loki chart values were updated to longhorn-tank (for future PVC
-  # creation) but the live StatefulSet still references longhorn. Ignore
-  # the drift so ArgoCD stays Synced. Tracked under home-infra-wdy.
-  ignoreDifferences:
-    - group: apps
-      kind: StatefulSet
-      name: loki
-      jsonPointers:
-        - /spec/volumeClaimTemplates
