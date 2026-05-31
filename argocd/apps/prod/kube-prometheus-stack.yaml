@@ -341,3 +341,13 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+  # StatefulSet.spec.volumeClaimTemplates is immutable after creation.
+  # The prometheus chart values were updated to longhorn-tank (for future
+  # PVC creation) but the live StatefulSet still references longhorn.
+  # Ignore the drift so ArgoCD stays Synced. Tracked under home-infra-wdy.
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      name: prometheus-prometheus-prometheus
+      jsonPointers:
+        - /spec/volumeClaimTemplates

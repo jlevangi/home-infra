@@ -121,3 +121,13 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+  # StatefulSet.spec.volumeClaimTemplates is immutable after creation.
+  # The loki chart values were updated to longhorn-tank (for future PVC
+  # creation) but the live StatefulSet still references longhorn. Ignore
+  # the drift so ArgoCD stays Synced. Tracked under home-infra-wdy.
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      name: loki
+      jsonPointers:
+        - /spec/volumeClaimTemplates
