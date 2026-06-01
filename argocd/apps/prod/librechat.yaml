@@ -139,9 +139,11 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: librechat
-  # home-infra-wdy: restored PVCs can bind through a concrete spec.volumeName
-  # that ArgoCD should not fight. This is an accepted immutable/restore-side
-  # drift, not a live patch hiding a storage-policy mismatch.
+  # home-infra-wdy / home-infra-e8o: restored PVCs can bind through a concrete
+  # spec.volumeName that ArgoCD should not fight. librechat-mongodb also carries
+  # an accepted immutable storageClassName difference after the manual restore
+  # onto the tank class. This is restore-side drift, not a live patch hiding a
+  # storage-policy mismatch.
   ignoreDifferences:
     - group: ""
       kind: PersistentVolumeClaim
@@ -153,6 +155,11 @@ spec:
       name: librechat-meilisearch
       jsonPointers:
         - /spec/volumeName
+    - group: ""
+      kind: PersistentVolumeClaim
+      name: librechat-mongodb
+      jsonPointers:
+        - /spec/storageClassName
     - group: ""
       kind: PersistentVolumeClaim
       name: librechat-mongodb
