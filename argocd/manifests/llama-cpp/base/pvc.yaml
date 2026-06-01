@@ -6,6 +6,9 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
+  # Empty storageClassName is intentional: this PVC binds to the static
+  # llama-cpp-models-pv host-backed volume and must not be provisioned through
+  # Longhorn.
   storageClassName: ""
   volumeName: llama-cpp-models-pv
   resources:

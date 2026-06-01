@@ -6,6 +6,10 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
+  # Be explicit instead of relying on the cluster default. MySQL is persistent
+  # app state, not a static host volume, so the canonical general-purpose class
+  # is the intended target during the naming transition.
+  storageClassName: longhorn-general
   resources:
     requests:
       storage: 10Gi

@@ -1,12 +1,13 @@
-# longhorn-redundant StorageClass
+# longhorn-singleton / longhorn-redundant StorageClass
 
 Higher-redundancy Longhorn storage class for apps that **lack application-layer
-HA** (single-pod, SQLite-backed, etc.). Compared to the default `longhorn` /
-`longhorn-media`:
+HA** (single-pod, SQLite-backed, etc.). `longhorn-singleton` is the canonical
+name; `longhorn-redundant` remains as a legacy alias during the PVC migration
+window. Compared to the general/default path and `longhorn-media`:
 
-| | longhorn (default) | longhorn-media | **longhorn-redundant** |
+| | longhorn-general / longhorn | longhorn-media | longhorn-singleton / longhorn-redundant |
 |---|---:|---:|---:|
-| numberOfReplicas | 2 | 2 | **3** |
+| numberOfReplicas | 3 | 3 | **3** |
 | nodeSelector | (none) | media-storage | **general-storage** |
 | Can place on GPU worker? | yes | yes | **no** |
 | dataLocality | disabled | best-effort | disabled |
@@ -26,8 +27,8 @@ significantly.
 The three volumes currently in this category have been **live-patched** with
 matching settings via `kubectl patch` (see comments in their PVC manifests).
 The patches survive cluster reboots but are not visible in the IaC tree. To
-fully converge IaC and runtime state, **migrate each PVC to this SC** using
-the procedure below.
+fully converge IaC and runtime state, **migrate each PVC to the canonical
+`longhorn-singleton` class** using the procedure below.
 
 ## Migration procedure (one PVC at a time)
 
@@ -50,7 +51,7 @@ kubectl annotate -n longhorn-system volume.longhorn.io/$OLD_PVC \
 kubectl scale -n $APP_NS deployment $APP_DEPLOY --replicas=0
 kubectl wait -n $APP_NS --for=delete pod -l app=$APP_DEPLOY --timeout=2m
 
-# 3. Create the new PVC using longhorn-redundant
+# 3. Create the new PVC using longhorn-singleton
 cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -59,7 +60,7 @@ metadata:
   namespace: $APP_NS
 spec:
   accessModes: [ReadWriteOnce]
-  storageClassName: longhorn-redundant
+  storageClassName: longhorn-singleton
   resources:
     requests:
       storage: $VOLUME_SIZE
@@ -126,6 +127,6 @@ from the PVC manifests' comments since the live state matches IaC.
 
 ## Removing the live patches (post-migration)
 
-Once a PVC is on `longhorn-redundant`, the Volume CRD's `numberOfReplicas` and
+Once a PVC is on `longhorn-singleton`, the Volume CRD's `numberOfReplicas` and
 `nodeSelector` are automatically set from the SC at create time. No manual
 patches needed.
