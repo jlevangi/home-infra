@@ -136,9 +136,11 @@ spec:
       - CreateNamespace=true
   # Two drift sources on sparkyfitness PVCs that ArgoCD can't reconcile:
   #
-  # 1. The upstream chart doesn't add Longhorn backup labels. Labels added
-  #    at runtime (2026-05-31) for backup inclusion; ignored here so
-  #    ArgoCD doesn't strip them on each sync.
+  # 1. The upstream chart doesn't expose a values hook for PVC metadata.labels
+  #    on the server-backup, server-uploads, or database-backup PVCs
+  #    (verified against v0.16.6.3 templates). Labels added at runtime
+  #    (2026-05-31) for backup inclusion are ignored here so ArgoCD doesn't
+  #    strip them on each sync.
   #
   # 2. The chart values declare storageClass: longhorn-tank for the backup
   #    + databaseBackup PVCs, but the live PVCs were created on `longhorn`
