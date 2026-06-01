@@ -145,9 +145,10 @@ kubectl -n longhorn-system get replicas.longhorn.io
 
 Each Atlas worker has a flash tier (`/mnt/longhorn-flash`) and a tank tier
 (`/mnt/longhorn-tank`); `worker-gpu-1` has tank only. Disks are tagged `flash`
-or `tank`. The current default class is legacy `longhorn`; the target default
-is `longhorn-general`. Both represent the same 3-replica soft cross-pool model
-during the naming transition.
+or `tank`. `longhorn` remains the normal general-purpose default.
+`longhorn-general` is an equivalent alias for the same 3-replica soft
+cross-pool model; healthy PVCs do not need to migrate between the two names
+just for cosmetic consistency.
 
 Use `docs/operations/storage-policy.md` for the class-selection rules, backup
 cadence, naming transition, and exceptions. This runbook keeps only the
@@ -155,7 +156,7 @@ operator-facing summary:
 
 | Canonical SC | Current alias | Replicas | Pinning | Operational summary |
 |---|---|---|---|---|
-| `longhorn-general` | `longhorn` | 3 | nodeSelector=general-storage, soft cross-pool | General-purpose default |
+| `longhorn-general` | `longhorn` | 3 | nodeSelector=general-storage, soft cross-pool | General-purpose default alias; `longhorn` remains fine |
 | `longhorn-singleton` | `longhorn-redundant` | 3 | nodeSelector=general-storage | Singleton state with no app-layer HA |
 | `longhorn-fast` | `longhorn-flash` | 2 | diskSelector=flash | Latency-sensitive, low-write PVCs |
 | `longhorn-steady` | `longhorn-tank` | 2 | diskSelector=tank | Heavy continuous writers |

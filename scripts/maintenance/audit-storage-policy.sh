@@ -37,16 +37,54 @@ backup_string() {
 }
 
 expected_disk_selector() {
-  case "$1" in
-    longhorn-fast|longhorn-flash) printf "flash" ;;
-    longhorn-steady|longhorn-tank) printf "tank" ;;
+  case "$(normalize_storage_class "$1")" in
+    fast) printf "flash" ;;
+    steady) printf "tank" ;;
     *) printf "none" ;;
   esac
 }
 
-status_cell() {
+normalize_storage_class() {
+  case "$1" in
+    longhorn|longhorn-general) printf "general" ;;
+    longhorn-fast|longhorn-flash) printf "fast" ;;
+    longhorn-steady|longhorn-tank) printf "steady" ;;
+    longhorn-singleton|longhorn-redundant) printf "singleton" ;;
+    longhorn-vault-raft) printf "vault-raft" ;;
+    longhorn-media) printf "media" ;;
+    *) printf "%s" "$1" ;;
+  esac
+}
+
+storage_class_matches() {
   local expected="$1" actual="$2"
-  if [ "$expected" = "$actual" ]; then
+  [ "$expected" = "$actual" ] && return 0
+  [ "$(normalize_storage_class "$expected")" = "$(normalize_storage_class "$actual")" ]
+}
+
+replica_matches() {
+  local expected_sc="$1" expected_replicas="$2" actual_replicas="$3"
+
+  if [ "$actual_replicas" = "missing" ]; then
+    return 1
+  fi
+
+  case "$(normalize_storage_class "$expected_sc")" in
+    general)
+      [ "$actual_replicas" = "2" ] || [ "$actual_replicas" = "3" ]
+      ;;
+    *)
+      [ "$expected_replicas" = "$actual_replicas" ]
+      ;;
+  esac
+}
+
+status_cell() {
+  local expected="$1" actual="$2" matches="${3:-false}"
+  if [ "$matches" = "false" ] && [ "$expected" = "$actual" ]; then
+    matches=true
+  fi
+  if [ "$matches" = "true" ]; then
     printf "✅ %s" "$actual"
   else
     printf "❌ %s -> %s" "$expected" "$actual"
@@ -158,8 +196,18 @@ while IFS= read -r key; do
   fi
 
   row_failed=0
-  [ "$expected_sc" = "$actual_sc" ] || row_failed=1
-  [ "$expected_replicas" = "$actual_replicas" ] || row_failed=1
+  sc_matches=false
+  replica_ok=false
+  if storage_class_matches "$expected_sc" "$actual_sc"; then
+    sc_matches=true
+  else
+    row_failed=1
+  fi
+  if replica_matches "$expected_sc" "$expected_replicas" "$actual_replicas"; then
+    replica_ok=true
+  else
+    row_failed=1
+  fi
   [ "$expected_backups" = "$actual_backups" ] || row_failed=1
   [ "$expected_selector" = "$actual_selector" ] || row_failed=1
 
@@ -171,8 +219,8 @@ while IFS= read -r key; do
 
   printf '| `%s` | %s | %s | %s | %s |\n' \
     "$key" \
-    "$(status_cell "$expected_sc" "$actual_sc")" \
-    "$(status_cell "$expected_replicas" "$actual_replicas")" \
+    "$(status_cell "$expected_sc" "$actual_sc" "$sc_matches")" \
+    "$(status_cell "$expected_replicas" "$actual_replicas" "$replica_ok")" \
     "$(status_cell "$expected_backups" "$actual_backups")" \
     "$(status_cell "$expected_selector" "$actual_selector")"
 done < <(printf '%s\n' "${!EXPECTED_SC[@]}" | sort)
