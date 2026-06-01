@@ -20,3 +20,19 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+  # home-infra-qop: seerr-config-pvc and jellyseerr-config-pvc were restored from
+  # backup onto manually-created PV/PVCs with storageClassName=longhorn. The
+  # manifests now target longhorn-fast for future recreations, but the live PVCs'
+  # storageClassName is immutable. The volumes have been patched with
+  # diskSelector=[flash] to match the policy intent.
+  ignoreDifferences:
+    - group: ""
+      kind: PersistentVolumeClaim
+      name: seerr-config-pvc
+      jsonPointers:
+        - /spec/storageClassName
+    - group: ""
+      kind: PersistentVolumeClaim
+      name: jellyseerr-config-pvc
+      jsonPointers:
+        - /spec/storageClassName
