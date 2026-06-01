@@ -145,20 +145,22 @@ kubectl -n longhorn-system get replicas.longhorn.io
 
 Each Atlas worker has a flash tier (`/mnt/longhorn-flash`) and a tank tier
 (`/mnt/longhorn-tank`); `worker-gpu-1` has tank only. Disks are tagged `flash`
-or `tank`. The default `longhorn` class uses 3 replicas with soft
-cross-pool placement so new volumes usually land 2x tank + 1x flash.
+or `tank`. The current default class is legacy `longhorn`; the target default
+is `longhorn-general`. Both represent the same 3-replica soft cross-pool model
+during the naming transition.
 
 Use `docs/operations/storage-policy.md` for the class-selection rules, backup
-cadence, and exceptions. This runbook keeps only the operator-facing summary:
+cadence, naming transition, and exceptions. This runbook keeps only the
+operator-facing summary:
 
-| SC | Replicas | Pinning | Operational summary |
-|---|---|---|---|
-| `longhorn` (default) | 3 | nodeSelector=general-storage, soft cross-pool | General-purpose default |
-| `longhorn-redundant` | 3 | nodeSelector=general-storage | Singleton state with no app-layer HA |
-| `longhorn-flash` | 2 | diskSelector=flash | Latency-sensitive, low-write PVCs |
-| `longhorn-tank` | 2 | diskSelector=tank | Heavy continuous writers |
-| `longhorn-vault-raft` | 1 | none | Vault raft only |
-| `longhorn-media` | 3 | nodeSelector=media-storage | Media workloads that must follow the GPU worker |
+| Canonical SC | Current alias | Replicas | Pinning | Operational summary |
+|---|---|---|---|---|
+| `longhorn-general` | `longhorn` | 3 | nodeSelector=general-storage, soft cross-pool | General-purpose default |
+| `longhorn-singleton` | `longhorn-redundant` | 3 | nodeSelector=general-storage | Singleton state with no app-layer HA |
+| `longhorn-fast` | `longhorn-flash` | 2 | diskSelector=flash | Latency-sensitive, low-write PVCs |
+| `longhorn-steady` | `longhorn-tank` | 2 | diskSelector=tank | Heavy continuous writers |
+| `longhorn-vault-raft` | none | 1 | none | Vault raft only |
+| `longhorn-media` | none | 3 | nodeSelector=media-storage | Media workloads that must follow the GPU worker |
 
 Pinned classes are intentional tradeoffs. If a steady-state volume only behaves
 correctly after a runtime `kubectl patch` on the Longhorn Volume CR, treat that
@@ -172,7 +174,7 @@ scripts/maintenance/verify-cross-pool-placement.sh
 
 Walks every volume, classifies its replicas by disk-tag pool, and flags any
 volume whose replicas all landed on the same pool (skipping the intentionally
-pinned `longhorn-flash` / `longhorn-tank` volumes). Exit code 0 means no
+pinned fast/steady classes and any legacy aliases still using those names). Exit code 0 means no
 misplacements. Run on demand after Longhorn maintenance and at least monthly
 as drift detection.
 
