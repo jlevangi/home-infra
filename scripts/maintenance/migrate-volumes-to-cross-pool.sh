@@ -98,6 +98,8 @@ list_misplaced() {
       fi
       [ "$sc" = "longhorn-flash" ] && continue
       [ "$sc" = "longhorn-tank" ] && continue
+      [ "$sc" = "longhorn-fast" ] && continue
+      [ "$sc" = "longhorn-steady" ] && continue
       pools=$("$KUBECTL" -n "$NS" get replicas -o json | "$JQ" -r --arg v "$vol" '
         [ .items[] | select(.spec.volumeName == $v) | .spec.diskID ] | .[]' | while read -r d; do
           [ -n "$d" ] && echo "$pool_map" | "$JQ" -r --arg k "$d" '.[$k] // "?"'

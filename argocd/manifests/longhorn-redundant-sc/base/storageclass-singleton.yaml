@@ -1,0 +1,24 @@
+# Canonical single-pod Longhorn storage class for stateful apps that have no
+# application-layer HA. Prefer this for new manifests; legacy alias is
+# `longhorn-redundant`.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn-singleton
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  backupTargetName: default
+  dataEngine: v1
+  dataLocality: disabled
+  disableRevisionCounter: "true"
+  fromBackup: ""
+  fsType: ext4
+  nodeSelector: general-storage
+  numberOfReplicas: "3"
+  replicaAutoBalance: best-effort
+  recurringJobSelector: '[{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'
+  staleReplicaTimeout: "30"
+  unmapMarkSnapChainRemoved: ignored

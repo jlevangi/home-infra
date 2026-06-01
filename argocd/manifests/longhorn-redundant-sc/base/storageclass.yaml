@@ -1,5 +1,6 @@
-# Higher-redundancy Longhorn storage class for apps that have no
-# application-layer HA (single-pod, SQLite-backed, etc).
+# Legacy higher-redundancy Longhorn storage class for apps that have no
+# application-layer HA (single-pod, SQLite-backed, etc). Kept during the naming
+# transition as an alias for `longhorn-singleton`.
 #
 # vs the default `longhorn` and `longhorn-media`:
 #   - numberOfReplicas: 3 (vs 2)           — survives 2 simultaneous replica failures

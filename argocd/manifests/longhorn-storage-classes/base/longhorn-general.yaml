@@ -1,0 +1,28 @@
+# Canonical general-purpose Longhorn storage class.
+#
+# During the naming transition, legacy `longhorn` remains the cluster default so
+# existing manifests that still omit storageClassName keep binding the same way.
+# New manifests should target `longhorn-general` explicitly.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn-general
+  annotations:
+    description: "Canonical general-purpose Longhorn storage (soft cross-pool placement). Preferred target for new manifests; legacy alias is longhorn."
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  numberOfReplicas: "3"
+  replicaAutoBalance: best-effort
+  replicaDiskSoftAntiAffinity: enabled
+  staleReplicaTimeout: "30"
+  fromBackup: ""
+  fsType: ext4
+  dataLocality: best-effort
+  unmapMarkSnapChainRemoved: ignored
+  disableRevisionCounter: "true"
+  dataEngine: v1
+  backupTargetName: default
+  nodeSelector: general-storage

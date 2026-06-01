@@ -1,15 +1,11 @@
-# Legacy tank-pinned Longhorn storage class. All replicas pin to tank-tagged
-# disks (atlas HDD ZFS pool). Kept during the naming transition as an alias for
-# `longhorn-steady`.
-#
-# Was created by Ansible (longhorn-storage-config role) and concurrently
-# unowned by any helm-managed object. As of home-infra-btv, ArgoCD owns it.
+# Canonical steady-writer Longhorn storage class. All replicas pin to tank-tagged
+# disks. Prefer this for heavy continuous writers.
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: longhorn-tank
+  name: longhorn-steady
   annotations:
-    description: "Legacy alias for the canonical longhorn-steady class. Both replicas land on tank disks."
+    description: "Canonical steady-writer Longhorn storage (tank-pinned). Preferred target for new manifests; legacy alias is longhorn-tank."
 provisioner: driver.longhorn.io
 allowVolumeExpansion: true
 reclaimPolicy: Delete

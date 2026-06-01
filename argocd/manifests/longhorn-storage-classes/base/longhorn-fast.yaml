@@ -1,15 +1,11 @@
-# Legacy tank-pinned Longhorn storage class. All replicas pin to tank-tagged
-# disks (atlas HDD ZFS pool). Kept during the naming transition as an alias for
-# `longhorn-steady`.
-#
-# Was created by Ansible (longhorn-storage-config role) and concurrently
-# unowned by any helm-managed object. As of home-infra-btv, ArgoCD owns it.
+# Canonical low-latency Longhorn storage class. All replicas pin to flash-tagged
+# disks. Prefer this for read-mostly, latency-sensitive state.
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: longhorn-tank
+  name: longhorn-fast
   annotations:
-    description: "Legacy alias for the canonical longhorn-steady class. Both replicas land on tank disks."
+    description: "Canonical fast Longhorn storage (flash-pinned, low latency). Preferred target for new manifests; legacy alias is longhorn-flash."
 provisioner: driver.longhorn.io
 allowVolumeExpansion: true
 reclaimPolicy: Delete
@@ -24,5 +20,5 @@ parameters:
   disableRevisionCounter: "true"
   dataEngine: v1
   backupTargetName: default
-  diskSelector: tank
+  diskSelector: flash
   recurringJobSelector: '[{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'

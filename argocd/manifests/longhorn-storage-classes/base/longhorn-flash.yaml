@@ -1,5 +1,5 @@
-# Flash-only Longhorn storage class. All replicas pin to flash-tagged disks.
-# Use for write-heavy databases that can't tolerate HDD-speed writes.
+# Legacy flash-pinned Longhorn storage class. All replicas pin to flash-tagged
+# disks. Kept during the naming transition as an alias for `longhorn-fast`.
 #
 # Was created by Ansible (longhorn-storage-config role) and concurrently
 # unowned by any helm-managed object. As of home-infra-btv, ArgoCD owns it.
@@ -8,7 +8,7 @@ kind: StorageClass
 metadata:
   name: longhorn-flash
   annotations:
-    description: "Flash-only Longhorn storage (high IOPS / low latency). Both replicas land on flash disks. Use for write-heavy databases that can't tolerate HDD-speed writes."
+    description: "Legacy alias for the canonical longhorn-fast class. Both replicas land on flash disks."
 provisioner: driver.longhorn.io
 allowVolumeExpansion: true
 reclaimPolicy: Delete

@@ -5,12 +5,13 @@
 # each Longhorn disk is tagged either "flash" (cheap-but-fast SSD) or "tank"
 # (slow-but-robust HDD ZFS). Volumes provisioned from the default `longhorn`
 # StorageClass should land one replica per pool so a flash incident leaves data
-# live on tank. Volumes pinned via `longhorn-flash` or `longhorn-tank` SCs are
-# expected to be all-on-one-pool by design and skipped.
+# live on tank. Volumes pinned via the fast/steady classes (`longhorn-fast` /
+# `longhorn-steady`, plus legacy aliases `longhorn-flash` / `longhorn-tank`)
+# are expected to be all-on-one-pool by design and skipped.
 #
 # This script:
 #  1. Walks every Longhorn Volume in longhorn-system.
-#  2. Resolves each volume's PVC and its StorageClass (skips longhorn-flash/-tank).
+#  2. Resolves each volume's PVC and its StorageClass (skips pinned fast/steady classes).
 #  3. For each replica, looks up which disk it's on and the disk's tags.
 #  4. Flags volumes where all replicas sit on the same pool (flash-only or
 #     tank-only) when the SC is the default `longhorn`.
@@ -70,7 +71,8 @@ while IFS=$'\t' read -r vol pvc_ns pvc_name; do
     sc=""
   fi
 
-  if [ "$sc" = "longhorn-flash" ] || [ "$sc" = "longhorn-tank" ]; then
+  if [ "$sc" = "longhorn-flash" ] || [ "$sc" = "longhorn-tank" ] || \
+     [ "$sc" = "longhorn-fast" ] || [ "$sc" = "longhorn-steady" ]; then
     skipped_sc=$((skipped_sc + 1))
     continue
   fi
