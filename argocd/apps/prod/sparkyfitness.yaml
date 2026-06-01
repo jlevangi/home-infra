@@ -134,19 +134,18 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-  # Two drift sources on sparkyfitness PVCs that ArgoCD can't reconcile:
+  # home-infra-kd3 / home-infra-e8o / home-infra-wdy: two drift sources on the
+  # sparkyfitness PVCs that ArgoCD can't reconcile today:
   #
   # 1. The upstream chart doesn't expose a values hook for PVC metadata.labels
   #    on the server-backup, server-uploads, or database-backup PVCs
-  #    (verified against v0.16.6.3 templates). Labels added at runtime
-  #    (2026-05-31) for backup inclusion are ignored here so ArgoCD doesn't
-  #    strip them on each sync.
+  #    (verified against v0.16.6.3 templates). Labels added at runtime for
+  #    backup inclusion are ignored here so ArgoCD doesn't strip them on sync.
   #
-  # 2. The chart values declare storageClass: longhorn-tank for the backup
-  #    + databaseBackup PVCs, but the live PVCs were created on `longhorn`
-  #    and PVC.spec.storageClassName is immutable on bound claims. The
-  #    chart value is the future-state for any recreation; runtime drift
-  #    is unavoidable until then.
+  # 2. The chart values target `longhorn-steady` via the legacy tank alias for
+  #    the backup PVCs, but the live claims were created on legacy `longhorn`.
+  #    PVC.spec.storageClassName is immutable on bound claims, so this drift
+  #    remains until the Wave 5 recreation work lands.
   ignoreDifferences:
     - group: ""
       kind: PersistentVolumeClaim

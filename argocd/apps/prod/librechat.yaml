@@ -139,6 +139,9 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: librechat
+  # home-infra-wdy: restored PVCs can bind through a concrete spec.volumeName
+  # that ArgoCD should not fight. This is an accepted immutable/restore-side
+  # drift, not a live patch hiding a storage-policy mismatch.
   ignoreDifferences:
     - group: ""
       kind: PersistentVolumeClaim

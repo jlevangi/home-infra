@@ -20,11 +20,10 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-  # PVC.spec.storageClassName is immutable on bound claims. The
-  # paperless-db-pvc was bound to `longhorn` and is now patched to use the
-  # tank pool via the volume CR's diskSelector; the manifest declares
-  # longhorn-tank for future PVC recreations. Ignore the drift on the live
-  # object so ArgoCD stays Synced. Tracked under home-infra-wdy.
+  # home-infra-e8o / home-infra-wdy: PVC.spec.storageClassName is immutable on
+  # bound claims. paperless-db-pvc was created on legacy `longhorn`; the
+  # manifest now targets `longhorn-steady` for the eventual recreation wave.
+  # Ignore the live claim's immutable field until that wave removes the drift.
   ignoreDifferences:
     - group: ""
       kind: PersistentVolumeClaim
