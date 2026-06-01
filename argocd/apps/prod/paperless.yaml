@@ -20,13 +20,3 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-  # home-infra-e8o / home-infra-wdy: PVC.spec.storageClassName is immutable on
-  # bound claims. paperless-db-pvc was created on legacy `longhorn`; the
-  # manifest now targets `longhorn-steady` for the eventual recreation wave.
-  # Ignore the live claim's immutable field until that wave removes the drift.
-  ignoreDifferences:
-    - group: ""
-      kind: PersistentVolumeClaim
-      name: paperless-db-pvc
-      jsonPointers:
-        - /spec/storageClassName

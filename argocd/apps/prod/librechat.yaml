@@ -105,7 +105,7 @@ spec:
             - LibreChat
           persistence:
             enabled: true
-            storageClass: longhorn
+            storageClass: longhorn-tank
             size: 8Gi
           resources:
             requests:
