@@ -20,13 +20,3 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-  # home-infra-e8o: bookstack-db-data-pvc was restored from backup onto a manually-created
-  # PV/PVC with storageClassName=longhorn. The manifest now targets longhorn-steady
-  # for future recreations, but the live PVC's storageClassName is immutable.
-  # The volume has been patched with diskSelector=[tank] to match the policy intent.
-  ignoreDifferences:
-    - group: ""
-      kind: PersistentVolumeClaim
-      name: bookstack-db-data-pvc
-      jsonPointers:
-        - /spec/storageClassName
