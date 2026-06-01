@@ -47,4 +47,6 @@ spec:
   resources:
     requests:
       storage: 1Gi
-  storageClassName: longhorn
+  # Regeneratable search index cache. Recreate on the canonical
+  # general-purpose class instead of pinning back to a restored PV name.
+  storageClassName: longhorn-general

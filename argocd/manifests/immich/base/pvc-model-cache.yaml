@@ -14,4 +14,6 @@ spec:
   resources:
     requests:
       storage: 10Gi
-  storageClassName: longhorn
+  # Regeneratable model cache. Recreate on the canonical general-purpose class
+  # instead of pinning back to a restored PV name.
+  storageClassName: longhorn-general
