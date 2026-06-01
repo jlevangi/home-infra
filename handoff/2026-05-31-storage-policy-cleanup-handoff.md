@@ -109,7 +109,7 @@ Discovered 8 PVCs without Longhorn backup labels:
 | PVC | Fix applied today | Notes |
 |---|---|---|
 | `data-vault-raft-1` | Replaced typo `recurringjob.group.longhorn.io/hourly` with the 4 correct labels (matches raft-0 and raft-2). | Was silently excluded from backups for an unknown duration. |
-| `private-app/private-app-config-pvc` | Added `daily` + `weekly` labels. | private-app manifests are in a private repo not in this codebase. |
+| one private app config PVC | Added `daily` + `weekly` labels. | The manifest source is private and not in this codebase. |
 | 4× sparkyfitness PVCs (`data-sparkyfitness-postgresql-0`, `sparkyfitness-server-uploads`, `sparkyfitness-server-backup`, `sparkyfitness-database-backup`) | Added `daily` + `weekly` labels. Chart doesn't support label injection. Added `ignoreDifferences` on the sparkyfitness Application so ArgoCD doesn't strip them. Also added `/spec/storageClassName` to that ignore block (the chart values say `longhorn-tank` for backup PVCs but live is `longhorn` and PVC SC is immutable — same pattern as paperless-db). | Future-proper fix: PVC recreation under Phase 4 Wave 5. |
 | `monitoring/storage-loki-0` | No backup labels by design (logs are operational, ephemeral). | Verify intent in policy doc. |
 | `memos/memos-data-v3-pvc` | No backup labels by intent (memos workaround per `memos-workaround-2026-05-29`). | Verify intent in policy doc. |
@@ -171,13 +171,13 @@ Default SC says N=3 but the volume population is mixed:
 
 ### Out-of-band labels
 
-- `private-app-config-pvc` labels exist only at runtime; private-app manifests are in a private repo (per memory `private-apps-public-repo`). Document this as the source-of-truth note in the policy doc; can't fix in this repo.
+- One private app PVC has labels that exist only at runtime; its manifest source is private. Document this as the source-of-truth note in the policy doc; can't fix in this repo.
 - The vault-raft-1 label fix from today: the chart's `dataStorage.labels` is correct (`recurring-job-group.longhorn.io/hourly|daily|weekly` + `recurring-job.longhorn.io/source`). The typo'd label on the live PVC was a manual artifact, now corrected. New PVCs from the chart would have the correct labels.
 
 ### Pending operational work (not blocking the cleanup, but track)
 
 - **`pve/data` worker rollout** — `home-infra-f7k` notes have the per-worker procedure (cordon/drain + qm set discard=on + reboot + fstrim). Each worker reboot needs a maintenance window.
-- **4 stale Longhorn backup alerts** (`private-app-config`, `nzbget-config`, `jellyseerr-config`, `netbootxyz-data`) — last successful backup ~2 days ago, during the storm period. Should clear on next hourly cron unless there's a deeper issue.
+- **4 stale Longhorn backup alerts** (one private config PVC, `nzbget-config`, `jellyseerr-config`, `netbootxyz-data`) — last successful backup ~2 days ago, during the storm period. Should clear on next hourly cron unless there's a deeper issue.
 - **4 unlabeled stale-backup alerts** — actually never-backed-up volumes that the alert rule's `> 0` check edge-cases. Could be fixed by tightening the rule or labeling the volumes; see `home-infra-95b` (the policy doc) for the decision.
 
 ---
@@ -193,7 +193,7 @@ Full plan: `~/.claude/plans/there-are-some-recent-moonlit-hamster.md` (workstati
 | Phase 3 | `home-infra-kd3` | README fix, longhorn-redundant SC alignment, push labels into chart values where possible, drop `ignoreDifferences` as waves resolve drift | Parallel with waves |
 | Phase 4 Wave 1 | `home-infra-xvx` | Recreate cache PVCs (immich-model-cache, hoarder-meilisearch) — confidence-build | Wave 2 |
 | Phase 4 Wave 2 | `home-infra-hgf` | Small read-mostly (notemark, snippetbox, linkding, ntfy, wallos) | Wave 3 |
-| Phase 4 Wave 3 | `home-infra-qop` | *arr configs (radarr, sonarr, prowlarr, private-arr, nzbget) | Wave 4 |
+| Phase 4 Wave 3 | `home-infra-qop` | *arr configs (radarr, sonarr, prowlarr, one private *arr PVC, nzbget) | Wave 4 |
 | Phase 4 Wave 4 | `home-infra-h7x` | App-state (bookstack, factorio, paperless data/media/export, changedetection, firefox) | Wave 5 |
 | Phase 4 Wave 5 | `home-infra-e8o` | DBs (paperless-db, librechat-mongodb, immich-db, bookstack-db-data, sparkyfitness postgres) | Wave 6 |
 | Phase 4 Wave 6 | `home-infra-xs4` | Single-pod no-HA (grafana, jellyfin-config, plex-config-rdn) | Wave 7 |

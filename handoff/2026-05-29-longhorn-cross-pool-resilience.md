@@ -101,7 +101,7 @@ The 14 volumes I had set to `numReplicas=1` during the recovery were bumped back
 ## Still TODO (after resilver finishes)
 
 1. **Migrate the 46 flash-only volumes to cross-pool** — beads `home-infra-?` (created above). Use the repair runbook. Do NOT do this until the failing-flash-drive resilver completes: rebuilds read from the existing flash replica, and reads of bad LBAs on `/dev/sdh` trigger SIGBUS in the engine process.
-2. **Re-attempt the failed restores** (paperless-db, private-app-config, radarr-config, jellyseerr-config, factorio-data, etc.) — beads `home-infra-13o`. The "v1.11.2 fromBackup webhook bug" was likely the failing drive in disguise — the webhook calls into the backupstore client which reads from the flash side. After the drive swap, retry.
+2. **Re-attempt the failed restores** (paperless-db, one private config PVC, radarr-config, jellyseerr-config, factorio-data, etc.) — beads `home-infra-13o`. The "v1.11.2 fromBackup webhook bug" was likely the failing drive in disguise — the webhook calls into the backupstore client which reads from the flash side. After the drive swap, retry.
 3. **Move write-heavy DB PVCs to `longhorn-flash` SC** — paperless-db, immich-db, librechat-mongodb, kioto-postgres-data, data-vault-raft-{0,1,2}. StorageClass on a PVC is immutable, so each is delete-then-restore-from-backup.
 4. **Add a cronjob manifest for the audit script** so misplacement is detected weekly. Emit a Prometheus metric.
 5. **Cleanup**: re-enable `replica-auto-balance` to `best-effort` once everything is stable (it's currently `disabled` cluster-side from today's recovery).

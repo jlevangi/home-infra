@@ -31,7 +31,7 @@
 | netbootxyz | 1 Running | netbootxyz-data: empty, degraded |
 | paperless | 3 Running (mariadb, redis, server) | paperless-db, paperless-redis: empty; original data PVCs (data/export/media) intact |
 | yams | 13 Running (jellyseerr, nzbget, radarr, etc.) | jellyseerr-config, nzbget-config, radarr-config: empty |
-| private-app | 1 Running | private-app-config: empty; cache/generated/metadata: original data intact |
+| private app namespace | 1 Running | one config PVC: empty; cache/generated/metadata: original data intact |
 | **sparkyfitness** | **stuck** (server pod Init:0/1) | server-backup volume attaching, server-uploads recreated empty |
 | **vault-raft** | **1/3 Ready** (raft-0 only) | data-vault-raft-0/-2 original; data-vault-raft-1 new empty PVC; raft-1 + raft-2 pods stuck on SIGBUS workers |
 
@@ -44,7 +44,7 @@ These volumes were **recreated empty** because Longhorn restore-from-backup is b
 | Volume | App | Backup Available? | Severity |
 |---|---|---|---|
 | `paperless-db` | paperless | yes (backup-9d85e2521e0f4c23, 15:00 UTC) | **HIGH** — mariadb data |
-| `private-app-config` | private-app | yes | HIGH — personal data |
+| one private app config PVC | private app namespace | yes | HIGH — personal data |
 | `radarr-config` | yams/radarr | yes | MED — catalog DB |
 | `jellyseerr-config` | yams/jellyseerr | yes | LOW — request history |
 | `factorio-data` | factorio | yes | LOW — savegame |
@@ -117,7 +117,7 @@ The restore feature is genuinely broken in this cluster.
 |---|---|
 | `replica-auto-balance` setting = `disabled` (was `best-effort` per Ansible) | Stop the cascade. Re-enable manually once vault/sparkyfitness recovered. |
 | Many volumes: `numberOfReplicas: 2 → 1` | Stop replenishment loops |
-| `private-app` deployment nodeSelector → worker-2 | Pin engine to safe node (private-app not in ArgoCD anyway) |
+| private app deployment nodeSelector → worker-2 | Pin engine to safe node (not in ArgoCD anyway) |
 | `sparkyfitness-server` deployment nodeSelector → worker-2 (temp) | Same; ArgoCD will revert this on next sync |
 
 ## Suggested Next Session
@@ -136,8 +136,8 @@ The restore feature is genuinely broken in this cluster.
 # After Longhorn restore is fixed, restore paperless-db:
 ./scripts/maintenance/restore-app.sh --prod --pvc paperless-db-pvc --yes
 
-# Restore private-app-config:
-./scripts/maintenance/restore-app.sh --prod --pvc private-app-config-pvc --yes
+# Restore the private app config PVC using the documentation kept with the
+# private app source of truth.
 
 # Restore radarr-config:
 ./scripts/maintenance/restore-app.sh --prod --pvc radarr-config-pvc --yes
