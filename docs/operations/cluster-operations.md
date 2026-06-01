@@ -143,29 +143,26 @@ kubectl -n longhorn-system get replicas.longhorn.io
 
 #### Cross-pool storage model (prod)
 
-Each Atlas worker has two Longhorn disks: a flash tier (`/mnt/longhorn-flash`,
-SSD mirror, fast) and a tank tier (`/mnt/longhorn-tank`, HDD ZFS, robust).
-`worker-gpu-1` has only tank. Disks are tagged `flash` or `tank`. The default
-storage class is configured so each volume gets 3 replicas with a soft
-preference for spreading across disk types — typically 2 on tank + 1 on flash,
-giving a flash incident a place to fall back to.
+Each Atlas worker has a flash tier (`/mnt/longhorn-flash`) and a tank tier
+(`/mnt/longhorn-tank`); `worker-gpu-1` has tank only. Disks are tagged `flash`
+or `tank`. The default `longhorn` class uses 3 replicas with soft
+cross-pool placement so new volumes usually land 2x tank + 1x flash.
 
-StorageClasses (prod, all managed by ArgoCD via
-`argocd/manifests/longhorn-storage-classes/` and
-`argocd/manifests/longhorn-redundant-sc/`):
+Use `docs/operations/storage-policy.md` for the class-selection rules, backup
+cadence, and exceptions. This runbook keeps only the operator-facing summary:
 
-| SC | Replicas | Pinning | Use for |
+| SC | Replicas | Pinning | Operational summary |
 |---|---|---|---|
-| `longhorn` (default) | 3 | none, soft-spread across pools | almost everything |
-| `longhorn-redundant` | 3 | nodeSelector=general-storage | single-pod apps with no app-layer HA (Jellyfin, Plex, Grafana) |
-| `longhorn-flash` | 2 | diskSelector=flash | write-heavy DBs that can't tolerate HDD-speed writes |
-| `longhorn-tank` | 2 | diskSelector=tank | cold storage, batch-write, backup data |
-| `longhorn-media` | 3 | nodeSelector=media-storage | apps that should land on the GPU worker for hardware transcoding |
+| `longhorn` (default) | 3 | nodeSelector=general-storage, soft cross-pool | General-purpose default |
+| `longhorn-redundant` | 3 | nodeSelector=general-storage | Singleton state with no app-layer HA |
+| `longhorn-flash` | 2 | diskSelector=flash | Latency-sensitive, low-write PVCs |
+| `longhorn-tank` | 2 | diskSelector=tank | Heavy continuous writers |
+| `longhorn-vault-raft` | 1 | none | Vault raft only |
+| `longhorn-media` | 3 | nodeSelector=media-storage | Media workloads that must follow the GPU worker |
 
-The two pinned classes (`longhorn-flash` and `longhorn-tank`) intentionally
-have all replicas on one pool — a flash incident takes the pinned-flash apps
-down, by design, in exchange for the I/O profile. Use them only when the
-default class isn't appropriate.
+Pinned classes are intentional tradeoffs. If a steady-state volume only behaves
+correctly after a runtime `kubectl patch` on the Longhorn Volume CR, treat that
+as policy drift and move it onto the correct StorageClass via PVC recreation.
 
 #### Verifying cross-pool placement
 
@@ -180,8 +177,8 @@ misplacements. Run on demand after Longhorn maintenance and at least monthly
 as drift detection.
 
 Known expected exception: `memos-data-v3` is pinned to one worker with both
-replicas on the same disk per the [Memos workaround](#) and will always
-flag — that's not a regression.
+replicas on the same disk per the memos workaround issue and will always
+flag; that's not a regression.
 
 #### Migrating a misplaced volume
 
@@ -362,6 +359,7 @@ can exhaust the shared thin pool and impact unrelated cluster nodes.
 
 ## Related Docs
 
+- [Storage Policy](storage-policy.md)
 - [GitOps And ArgoCD](gitops-and-argocd.md)
 - [Backup And Restore](../recovery/backup-and-restore.md)
 - [Longhorn Troubleshooting](../recovery/longhorn-troubleshooting.md)
