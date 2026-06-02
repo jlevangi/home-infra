@@ -108,8 +108,18 @@ data:
       exit 1
     fi
 
-    if [ "$unsealed_any" = "true" ]; then
-      log "INFO: refreshing Vault Kubernetes auth backend after unseal"
+    stores_not_ready="$(kubectl get clustersecretstores -o jsonpath='{range .items[?(@.status.conditions[0].status!="True")]}{.metadata.name}{"\n"}{end}' 2>/dev/null || true)"
+    needs_eso_refresh=false
+    if [ "$unsealed_any" = "true" ] || [ -n "$stores_not_ready" ]; then
+      needs_eso_refresh=true
+    fi
+
+    if [ "$needs_eso_refresh" = "true" ]; then
+      if [ "$unsealed_any" = "true" ]; then
+        log "INFO: refreshing Vault Kubernetes auth backend after unseal"
+      else
+        log "INFO: refreshing Vault Kubernetes auth backend because one or more ClusterSecretStores are not ready: $(printf '%s' "$stores_not_ready" | tr '\n' ' ' | sed 's/[[:space:]]\+$//')"
+      fi
       kubectl exec -n "$VAULT_NAMESPACE" "$primary_pod" -- sh -ec \
         'VAULT_ADDR="$1" VAULT_TOKEN="$2" vault write auth/kubernetes/config token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" kubernetes_host="https://kubernetes.default.svc:443" kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt disable_iss_validation=true disable_local_ca_jwt=false' \
         sh "$VAULT_ACTIVE_ADDR" "$root_token" >/dev/null
