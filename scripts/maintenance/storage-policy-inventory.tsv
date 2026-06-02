@@ -21,7 +21,7 @@ librechat	librechat-librechat-images	longhorn	3	daily,weekly
 librechat	librechat-meilisearch	longhorn	3	daily,weekly
 librechat	librechat-mongodb	longhorn-steady	2	daily,weekly
 linkding	linkding-data-pvc	longhorn	3	daily,weekly
-memos	memos-data-v3-pvc	longhorn-fast	2	none
+memos	memos-data-v3-pvc	longhorn-fast	2	daily,weekly
 microbin	microbin-data-pvc	longhorn	3	daily,weekly
 monitoring	alertmanager-prometheus-alertmanager-db-alertmanager-prometheus-alertmanager-0	longhorn	3	daily,weekly
 monitoring	kube-prometheus-stack-grafana-rdn	longhorn-singleton	3	daily,weekly
