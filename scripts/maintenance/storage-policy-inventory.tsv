@@ -16,7 +16,7 @@ immich	immich-power-tools-data-pvc	longhorn	3	hourly,daily,weekly
 jellyfin	jellyfin-config-pvc-rdn	longhorn-singleton	3	daily,weekly
 jellyfin	tracearr-data-pvc	longhorn	3	daily,weekly
 kioto	kioto-app-data-pvc	longhorn	3	daily,weekly
-kioto	kioto-postgres-data-pvc	longhorn-steady	2	daily,weekly
+kioto	kioto-postgres-data-pvc	longhorn-steady	2	hourly,daily,weekly
 librechat	librechat-librechat-images	longhorn	3	daily,weekly
 librechat	librechat-meilisearch	longhorn	3	daily,weekly
 librechat	librechat-mongodb	longhorn-steady	2	daily,weekly
