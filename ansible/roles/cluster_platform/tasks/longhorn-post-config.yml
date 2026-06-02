@@ -289,13 +289,13 @@
     - enable_longhorn_backup | default(true)
     - nfs_server_ip is defined
 
-- name: Label existing Longhorn-backed PVCs for daily and weekly backups
+- name: Backfill daily/weekly labels on Longhorn-backed PVCs
   shell: |
     KUBECONFIG={{ kubeconfig_path }} kubectl get pvc --all-namespaces \
       -o custom-columns='NAMESPACE:.metadata.namespace,NAME:.metadata.name,STORAGECLASS:.spec.storageClassName' \
       --no-headers | while read -r pvc_namespace pvc_name storage_class; do
         case "$storage_class" in
-          longhorn|longhorn-media|longhorn-redundant|longhorn-vault-raft)
+          longhorn|longhorn-general|longhorn-fast|longhorn-steady|longhorn-tank|longhorn-media|longhorn-redundant|longhorn-vault-raft)
             KUBECONFIG={{ kubeconfig_path }} kubectl label pvc "$pvc_name" -n "$pvc_namespace" \
               recurring-job-group.longhorn.io/daily=enabled \
               recurring-job-group.longhorn.io/weekly=enabled \

@@ -4,6 +4,7 @@ metadata:
   name: bookstack-db-data-pvc
   namespace: bookstack
   labels:
+    recurring-job-group.longhorn.io/hourly: "enabled"
     recurring-job-group.longhorn.io/daily: "enabled"
     recurring-job-group.longhorn.io/weekly: "enabled"
     app: bookstack

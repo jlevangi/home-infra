@@ -3,6 +3,9 @@ kind: PersistentVolumeClaim
 metadata:
   name: web-poker-mysql-pvc-v2
   namespace: web-poker
+  labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
 spec:
   accessModes:
     - ReadWriteOnce

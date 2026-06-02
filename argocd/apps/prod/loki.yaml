@@ -57,6 +57,11 @@ spec:
             accessModes:
               - ReadWriteOnce
             size: 20Gi
+            # Logs are operational history, not canonical application state.
+            # Per storage-policy.md, Loki may skip hourly if that loss window is acceptable.
+            labels:
+              recurring-job-group.longhorn.io/daily: "enabled"
+              recurring-job-group.longhorn.io/weekly: "enabled"
           resources:
             requests:
               cpu: 200m
