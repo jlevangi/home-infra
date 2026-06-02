@@ -1,9 +1,9 @@
 ---
 # Plex stores its library SQLite db on this PVC. Uses longhorn-redundant
-# (3 replicas, excludes GPU worker) because Plex is single-pod / single-db;
+# (3 replicas, singleton-focused placement policy) because Plex is single-pod / single-db;
 # a volume going faulted (vs degraded) crashes the pod. Migrated from the
 # old longhorn-media SC on 2026-05-21 — see
-# argocd/manifests/longhorn-redundant-sc/README.md.
+# argocd/manifests/longhorn-storage-classes/README.md.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

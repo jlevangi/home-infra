@@ -1,9 +1,12 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
+  - longhorn.yaml
   - longhorn-general.yaml
   - longhorn-fast.yaml
-  - longhorn-steady.yaml
-  - longhorn.yaml
   - longhorn-flash.yaml
   - longhorn-tank.yaml
+  - longhorn-steady.yaml
+  - longhorn-redundant.yaml
+  - longhorn-singleton.yaml
+  - longhorn-vault-raft.yaml

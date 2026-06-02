@@ -156,10 +156,10 @@ operator-facing summary:
 
 | Canonical SC | Current alias | Replicas | Pinning | Operational summary |
 |---|---|---|---|---|
-| `longhorn-general` | `longhorn` | 3 | nodeSelector=general-storage, soft cross-pool | General-purpose default alias; `longhorn` remains fine |
-| `longhorn-singleton` | `longhorn-redundant` | 3 | nodeSelector=general-storage | Singleton state with no app-layer HA |
+| `longhorn` | `longhorn-general` | 3 | nodeSelector=general-storage, soft cross-pool | General-purpose default; `longhorn-general` is only an alias |
+| `longhorn-redundant` | `longhorn-singleton` | 3 | nodeSelector=general-storage | Singleton state with no app-layer HA |
 | `longhorn-fast` | `longhorn-flash` | 2 | diskSelector=flash | Latency-sensitive, low-write PVCs |
-| `longhorn-steady` | `longhorn-tank` | 2 | diskSelector=tank | Heavy continuous writers |
+| `longhorn-tank` | `longhorn-steady` | 2 | diskSelector=tank | Heavy continuous writers |
 | `longhorn-vault-raft` | none | 1 | none | Vault raft only |
 | `longhorn-media` | none | 3 | nodeSelector=media-storage | Media workloads that must follow the GPU worker |
 

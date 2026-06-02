@@ -1,9 +1,9 @@
 ---
 # Grafana stores its dashboards/users in a SQLite db on this PVC.
-# Uses longhorn-redundant (3 replicas, excludes GPU worker) because
-# Grafana is single-pod / single-db; a volume going faulted (vs
+# Uses longhorn-redundant (3 replicas, singleton-focused placement policy)
+# because Grafana is single-pod / single-db; a volume going faulted (vs
 # degraded) crashes the pod. Migrated from the old longhorn SC on
-# 2026-05-20 — see argocd/manifests/longhorn-redundant-sc/README.md.
+# 2026-05-20 — see argocd/manifests/longhorn-storage-classes/README.md.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

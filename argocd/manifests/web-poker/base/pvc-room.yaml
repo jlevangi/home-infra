@@ -12,7 +12,7 @@ spec:
   # Be explicit instead of relying on the cluster default. This room-state PVC
   # follows the general-purpose policy unless later measurements justify a more
   # specialized class.
-  storageClassName: longhorn-general
+  storageClassName: longhorn
   resources:
     requests:
       storage: 1Gi

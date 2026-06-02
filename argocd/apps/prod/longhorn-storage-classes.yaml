@@ -5,7 +5,7 @@ metadata:
   namespace: argocd
   annotations:
     # Sync before any app that might bind a PVC to one of these classes.
-    # Same priority tier as longhorn-redundant-sc and vault-storageclass.
+    # Includes the vault and redundant singleton classes in the same bundle.
     argocd.argoproj.io/sync-wave: "-4"
   finalizers:
     - resources-finalizer.argocd.argoproj.io

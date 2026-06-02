@@ -4,9 +4,9 @@
 # persistence.defaultClass is disabled so longhorn-manager doesn't
 # fight on this object.
 #
-# During the canonical naming transition, this object remains the only default
+# `longhorn` is the canonical general-purpose class and remains the only default
 # so manifests that still omit storageClassName keep their current behavior.
-# New manifests should use `longhorn-general` explicitly.
+# `longhorn-general` remains as a legacy alias during the naming transition.
 #
 # numberOfReplicas=3 + replicaDiskSoftAntiAffinity=enabled (home-infra-rd0):
 # with 3 flash + 3 tank disks across workers 1/2/3 (worker-gpu-1 has tank
@@ -28,7 +28,7 @@ kind: StorageClass
 metadata:
   name: longhorn
   annotations:
-    description: "Legacy alias for the canonical longhorn-general class. Remains default during the naming transition."
+    description: "Canonical general-purpose Longhorn class. Remains default; longhorn-general is a legacy alias during the naming transition."
     storageclass.kubernetes.io/is-default-class: "true"
 provisioner: driver.longhorn.io
 allowVolumeExpansion: true

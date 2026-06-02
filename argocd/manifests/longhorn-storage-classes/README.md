@@ -6,16 +6,18 @@ ArgoCD-managed Longhorn StorageClasses for the prod cluster.
 
 | SC | Purpose |
 |---|---|
-| `longhorn-general` | Canonical general-purpose class. 3 replicas, soft cross-pool placement. |
+| `longhorn` | Canonical general-purpose class. 3 replicas, soft cross-pool placement. |
+| `longhorn-general` | Legacy alias for `longhorn`. |
 | `longhorn-fast` | Canonical flash-pinned class for low-latency, read-mostly state. |
-| `longhorn-steady` | Canonical tank-pinned class for heavy continuous writers. |
-| `longhorn` | Legacy alias for `longhorn-general`. Remains the default during the naming transition. |
+| `longhorn-tank` | Canonical tank-pinned class for heavy continuous writers. |
+| `longhorn-steady` | Legacy alias for `longhorn-tank`. |
 | `longhorn-flash` | Legacy alias for `longhorn-fast`. |
-| `longhorn-tank` | Legacy alias for `longhorn-steady`. |
+| `longhorn-redundant` | Canonical higher-redundancy class for singleton state. |
+| `longhorn-singleton` | Legacy alias for `longhorn-redundant`. |
+| `longhorn-vault-raft` | Vault raft only. Single replica on tank. |
 
-`longhorn-singleton` and legacy `longhorn-redundant` live in a sibling
-directory (`../longhorn-redundant-sc/`). `longhorn-media` is currently still
-Ansible-managed (no cross-pool concern; pre-dates this work).
+`longhorn-media` is currently still Ansible-managed (no cross-pool concern;
+pre-dates this work).
 
 ## Why ArgoCD owns these now
 
@@ -32,19 +34,18 @@ ownership:
 
 ## Current state
 
-The current manifests keep two naming sets in parallel:
+The current manifests keep canonical names plus temporary legacy aliases in parallel:
 
-- Canonical names used by new manifests: `longhorn-general`, `longhorn-fast`,
-  `longhorn-steady`
+- Canonical names used by new manifests: `longhorn`, `longhorn-fast`,
+  `longhorn-tank`, `longhorn-redundant`, `longhorn-vault-raft`
 - Legacy aliases kept for bound PVC compatibility during migration:
-  `longhorn`, `longhorn-flash`, `longhorn-tank`
+  `longhorn-general`, `longhorn-flash`, `longhorn-steady`, `longhorn-singleton`
 
-The legacy default `longhorn` already reflects the post-`home-infra-rd0` state:
+The canonical default `longhorn` already reflects the post-`home-infra-rd0` state:
 `numberOfReplicas: "3"` and `replicaDiskSoftAntiAffinity: "enabled"`.
 
-Only one default should exist during the transition. Once all managed PVCs use
-explicit canonical names, the default can move from `longhorn` to
-`longhorn-general` and the legacy aliases can be retired.
+Only one default should exist during the transition. `longhorn` remains that
+default; the alias objects can be retired after bound PVC migrations complete.
 
 ## Adding a new env
 

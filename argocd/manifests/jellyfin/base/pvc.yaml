@@ -1,9 +1,9 @@
 ---
 # Jellyfin stores its library SQLite db on this PVC. Uses longhorn-redundant
-# (3 replicas, excludes GPU worker) because Jellyfin is single-pod /
+# (3 replicas, singleton-focused placement policy) because Jellyfin is single-pod /
 # single-db; a volume going faulted (vs degraded) crashes the pod.
 # Migrated from the old longhorn-media SC on 2026-05-22 — see
-# argocd/manifests/longhorn-redundant-sc/README.md.
+# argocd/manifests/longhorn-storage-classes/README.md.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

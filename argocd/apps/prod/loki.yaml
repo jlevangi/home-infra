@@ -48,12 +48,12 @@ spec:
             # The Loki PVC has diskSelector=["tank"] patched at runtime
             # (2026-05-31 incident — continuous log writes were starving
             # shared Atlas flash IOPS). The "right" value below is
-            # longhorn-steady, but StatefulSet volumeClaimTemplates is
+            # longhorn-tank, but StatefulSet volumeClaimTemplates is
             # immutable post-creation and ArgoCD can't apply the change
             # to the live object. The chart value stayed longhorn until
             # the PVC is recreated under home-infra-wdy; the runtime
             # patch carries the actual placement.
-            storageClass: longhorn-steady
+            storageClass: longhorn-tank
             accessModes:
               - ReadWriteOnce
             size: 20Gi

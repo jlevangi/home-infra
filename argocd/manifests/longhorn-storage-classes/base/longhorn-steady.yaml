@@ -1,11 +1,11 @@
-# Canonical steady-writer Longhorn storage class. All replicas pin to tank-tagged
-# disks. Prefer this for heavy continuous writers.
+# Legacy steady-writer Longhorn storage class alias. All replicas pin to tank-tagged
+# disks. Keep this for bound PVC compatibility while new manifests target longhorn-tank.
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: longhorn-steady
   annotations:
-    description: "Canonical steady-writer Longhorn storage (tank-pinned). Preferred target for new manifests; legacy alias is longhorn-tank."
+    description: "Legacy alias for the canonical longhorn-tank class. Both replicas land on tank disks."
 provisioner: driver.longhorn.io
 allowVolumeExpansion: true
 reclaimPolicy: Delete
