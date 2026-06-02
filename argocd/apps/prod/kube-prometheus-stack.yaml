@@ -83,17 +83,22 @@ spec:
                 memory: 2Gi
             storageSpec:
               volumeClaimTemplate:
+                metadata:
+                  labels:
+                    recurring-job-group.longhorn.io/hourly: "enabled"
+                    recurring-job-group.longhorn.io/daily: "enabled"
+                    recurring-job-group.longhorn.io/weekly: "enabled"
                 spec:
                   # The Prometheus PVC has diskSelector=["tank"] patched at
                   # runtime (2026-05-31 incident — heavy TSDB writes were
                   # starving shared Atlas flash IOPS). The "right" value
-                  # below is longhorn-tank, but StatefulSet
+                  # below is longhorn-steady, but StatefulSet
                   # volumeClaimTemplates is immutable post-creation and
                   # ArgoCD can't apply the change to the live object. The
-                  # chart value stays longhorn until the PVC is recreated
+                  # chart value stayed longhorn until the PVC was recreated
                   # under home-infra-wdy; the runtime patch carries the
                   # actual placement.
-                  storageClassName: longhorn
+                  storageClassName: longhorn-steady
                   accessModes: ["ReadWriteOnce"]
                   resources:
                     requests:
