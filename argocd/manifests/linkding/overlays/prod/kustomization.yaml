@@ -5,8 +5,6 @@ resources:
 images:
   - name: sissbruecker/linkding
     newTag: "1.45.0"
-patchesStrategicMerge:
-  - pvc-patch.yaml
 patches:
   - target:
       kind: Ingress

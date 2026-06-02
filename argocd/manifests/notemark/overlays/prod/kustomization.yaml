@@ -4,13 +4,6 @@ resources:
   - ../../base
 patches:
   - target:
-      kind: PersistentVolumeClaim
-      name: notemark-data-pvc
-    patch: |
-      - op: replace
-        path: /spec/volumeName
-        value: notemark-data-pv
-  - target:
       kind: Ingress
       name: notemark-ingress
     patch: |

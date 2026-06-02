@@ -4,13 +4,6 @@ resources:
   - ../../base
 patches:
   - target:
-      kind: PersistentVolumeClaim
-      name: snippetbox-data-pvc
-    patch: |
-      - op: replace
-        path: /spec/volumeName
-        value: snippetbox-data-pv
-  - target:
       kind: Ingress
       name: snippetbox-ingress
     patch: |

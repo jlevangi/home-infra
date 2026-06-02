@@ -5,8 +5,6 @@ resources:
 images:
   - name: binwiederhier/ntfy
     newTag: "v2.21.0"
-patchesStrategicMerge:
-  - pvc-patch.yaml
 patches:
   - target:
       kind: Ingress

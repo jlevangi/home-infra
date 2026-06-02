@@ -5,8 +5,6 @@ resources:
 images:
   - name: bellamy/wallos
     newTag: "4.8.2"
-patchesStrategicMerge:
-  - pvc-patch.yaml
 patches:
   - target:
       kind: Ingress
