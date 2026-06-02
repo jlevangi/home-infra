@@ -109,17 +109,6 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: vault-raft
-  # home-infra-8o5 / home-infra-wdy: StatefulSet volumeClaimTemplates are
-  # immutable after creation. Keep this ignore until the vault raft PVC wave
-  # recreates the claims and re-establishes the intended Longhorn backup labels
-  # without a live template drift.
-  ignoreDifferences:
-    - group: apps
-      kind: StatefulSet
-      name: vault-raft
-      namespace: vault-raft
-      jsonPointers:
-        - /spec/volumeClaimTemplates/0/metadata/labels
   syncPolicy:
     automated:
       prune: true

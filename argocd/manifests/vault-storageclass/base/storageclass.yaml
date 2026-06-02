@@ -21,6 +21,10 @@ parameters:
   # Vault runs 3 Raft voters with application-level replication. Keep each
   # pod's Longhorn PV single-replica to avoid Longhorn rebuild storms causing
   # Vault engine timeouts/reseals during node maintenance or disk churn.
+  # Keep the single replica on tank-backed disks; the incident recovery pinned
+  # live volumes there manually, and the storage class now makes that placement
+  # declarative for future PVC recreations.
+  diskSelector: tank
   numberOfReplicas: "1"
   replicaAutoBalance: best-effort
   recurringJobSelector: '[{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'
