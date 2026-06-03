@@ -15,17 +15,14 @@ spec:
     server: https://kubernetes.default.svc
     namespace: notemark
   ignoreDifferences:
-    # The notemark PVC was restored from backup with a pre-bound volumeName
-    # and has volumeMode: Filesystem set by Kubernetes default.  Both fields
-    # are immutable after creation, so suppress the diff until the PVC is
-    # recreated under a future storage-class migration.
+    # Storage size formatting: the manifest declares 500Mi but Kubernetes
+    # normalises it to 524288k on the bound PVC.  The values are equal
+    # (524 288 000 bytes) but ArgoCD may flag the string difference.
     - group: ""
       kind: PersistentVolumeClaim
       name: notemark-data-pvc
       jsonPointers:
-        - /spec/volumeName
         - /spec/resources/requests/storage
-        - /spec/volumeMode
   syncPolicy:
     automated:
       prune: true
