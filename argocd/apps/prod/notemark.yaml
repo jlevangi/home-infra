@@ -23,6 +23,14 @@ spec:
       name: notemark-data-pvc
       jsonPointers:
         - /spec/resources/requests/storage
+    # ExternalSecret: ESO controller adds default sub-fields
+    # (conversionStrategy, decodingStrategy, metadataPolicy, nullBytePolicy)
+    # to spec.dataFrom[].extract that the manifest doesn't declare.
+    - group: external-secrets.io
+      kind: ExternalSecret
+      name: notemark-secrets
+      jsonPointers:
+        - /spec/dataFrom
   syncPolicy:
     automated:
       prune: true
