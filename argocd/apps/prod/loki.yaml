@@ -129,7 +129,7 @@ spec:
       kind: StatefulSet
       name: loki
       jsonPointers:
-        - /spec/volumeClaimTemplates/0/spec/storageClassName
+        - /spec/volumeClaimTemplates
   syncPolicy:
     automated:
       prune: true

@@ -20,6 +20,7 @@ spec:
       name: notemark-data-pvc
       jsonPointers:
         - /spec/volumeName
+        - /spec/resources/requests/storage
   syncPolicy:
     automated:
       prune: true
