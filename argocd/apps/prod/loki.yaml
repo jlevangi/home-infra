@@ -125,11 +125,24 @@ spec:
     server: https://kubernetes.default.svc
     namespace: monitoring
   ignoreDifferences:
+    # volumeClaimTemplates is immutable post-creation; live StatefulSet
+    # still has storageClass: longhorn-steady from the original PVC
+    # provisioner.  The chart declares longhorn-tank but the runtime PVC
+    # already uses longhorn-tank via manual patch.
     - group: apps
       kind: StatefulSet
       name: loki
       jsonPointers:
         - /spec/volumeClaimTemplates
+    # persistentVolumeClaimRetentionPolicy is also immutable on existing
+    # StatefulSets.  Live object retains {whenDeleted: Retain,
+    # whenScaled: Retain} (the safe default); the chart defaults to
+    # Delete.  Suppress the diff until we recreate the StatefulSet.
+    - group: apps
+      kind: StatefulSet
+      name: loki
+      jsonPointers:
+        - /spec/persistentVolumeClaimRetentionPolicy
   syncPolicy:
     automated:
       prune: true
