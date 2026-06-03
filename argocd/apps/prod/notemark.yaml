@@ -14,6 +14,12 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: notemark
+  ignoreDifferences:
+    - group: ""
+      kind: PersistentVolumeClaim
+      name: notemark-data-pvc
+      jsonPointers:
+        - /spec/volumeName
   syncPolicy:
     automated:
       prune: true

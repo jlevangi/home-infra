@@ -124,6 +124,12 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      name: loki
+      jsonPointers:
+        - /spec/volumeClaimTemplates/0/spec/storageClassName
   syncPolicy:
     automated:
       prune: true

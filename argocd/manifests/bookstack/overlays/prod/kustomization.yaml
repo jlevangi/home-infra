@@ -20,9 +20,6 @@ patches:
         path: /spec/volumeName
         value: bookstack-app-data-pv
   - target:
-      kind: PersistentVolumeClaim
-      name: bookstack-db-data-pvc
-  - target:
       kind: Ingress
       name: bookstack-ingress
     patch: |
