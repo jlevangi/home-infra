@@ -15,12 +15,17 @@ spec:
     server: https://kubernetes.default.svc
     namespace: notemark
   ignoreDifferences:
+    # The notemark PVC was restored from backup with a pre-bound volumeName
+    # and has volumeMode: Filesystem set by Kubernetes default.  Both fields
+    # are immutable after creation, so suppress the diff until the PVC is
+    # recreated under a future storage-class migration.
     - group: ""
       kind: PersistentVolumeClaim
       name: notemark-data-pvc
       jsonPointers:
         - /spec/volumeName
         - /spec/resources/requests/storage
+        - /spec/volumeMode
   syncPolicy:
     automated:
       prune: true
