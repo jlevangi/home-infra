@@ -379,6 +379,58 @@ models:
     ttl: 1800
 
   # =================================================================
+  # MiniMax-M2.7-UD-Q4_K_M — HEAVY CPU-RESIDENT MoE (NUMA-CRITICAL)
+  # =================================================================
+  # 138 GiB Unsloth Dynamic Q4_K_M, sharded into 4 GGUFs under
+  # /models/minimax/UD-Q4_K_M/. Weights vastly exceed the 8 GiB P4000,
+  # so all but a handful of layers live in system RAM and inference is
+  # CPU-bound on the dual Xeon E5-2690 v4 (2 NUMA nodes x 24 physical
+  # cores, no SMT, ~85 GiB per node).
+  #
+  # NUMA is mandatory: `--numa distribute` lets libnuma interleave both
+  # the mmap'd weight pages and KV cache across both memory controllers
+  # so each socket reads mostly-local pages. Without it, every other
+  # token round-trips across the QPI link and throughput collapses.
+  # mmap is left enabled (no --no-mmap, no --mlock) because the model
+  # is larger than the pod's memory limit headroom — the kernel page
+  # cache evicts cold layers under pressure instead of OOM-killing.
+  #
+  # -t 24 matches the per-NUMA-node physical core count, which keeps
+  # llama.cpp's worker threads from bouncing between sockets. The pod
+  # CPU limit (42) fits this comfortably; if benchmarks justify it,
+  # try -t 48 + bumping the deployment cpu limit before going wider.
+  #
+  # -ngl 4 is intentionally tiny: the P4000 shares VRAM with Plex /
+  # Jellyfin (~5 GiB usable) and the dynamic quant routing already
+  # offloads the most expensive expert layers selectively.
+  #
+  # ctx-size kept modest (32k) to bound KV cache anon memory inside
+  # the 150Gi pod limit — bump only after measuring resident set.
+  MiniMax-M2.7-UD-Q4_K_M:
+    cmd: |
+      /usr/local/bin/llama-server
+      --model /models/minimax/UD-Q4_K_M/MiniMax-M2.7-UD-Q4_K_M-00001-of-00004.gguf
+      --alias MiniMax-M2.7-UD-Q4_K_M
+      --host 0.0.0.0
+      --port ${PORT}
+      --numa distribute
+      --threads 24
+      --gpu-layers 4
+      --ctx-size 32768
+      --batch-size 512
+      --ubatch-size 128
+      --parallel 1
+      --flash-attn on
+      --cache-type-k q4_0
+      --cache-type-v q4_0
+      --no-kv-offload
+      --reasoning auto
+      --no-webui
+    env:
+      - "CUDA_VISIBLE_DEVICES=0"
+    ttl: 3600
+
+  # =================================================================
   # Dense 27B Q5_K_S with MTP speculative decoding + no-kv-offload.
   # +42% single-request gen vs non-MTP (2.03 -> 2.89 t/s). VRAM ~6160 MiB.
   # Thinking MUST be disabled per-request for MTP to work.
