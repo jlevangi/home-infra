@@ -53,15 +53,15 @@ variable "gpu_worker_cpu_sockets" {
 }
 
 variable "gpu_worker_memory" {
-  description = "Memory (MiB) for the GPU worker. Capped at 176128 MiB (172 GiB) so the pinned passthrough allocation fits within the atlas host's free RAM headroom after the other prod VMs reserve theirs."
+  description = "Memory (MiB) for the GPU worker. 204800 MiB (200 GiB) carves out enough headroom to keep the 138 GiB MiniMax-M2.7-UD-Q4_K_M GGUF resident alongside the KV cache without OOM-killing the pod. Memory hot-add does NOT work on this VM because hostpci0 (P4000 passthrough) pins the full allocation at start — bumping this requires a VM reboot, and total host commit on atlas (322 GiB) needs to stay above the sum of every prod VM's memory."
   type        = number
-  default     = 176128
+  default     = 204800
 }
 
 variable "gpu_worker_balloon" {
   description = "Balloon target (MiB) for the GPU worker (matches memory; ballooning is effectively disabled because hostpci0 requires pinned memory)."
   type        = number
-  default     = 176128
+  default     = 204800
 }
 
 variable "gpu_worker_llm_disk_size" {

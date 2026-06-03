@@ -29,9 +29,12 @@
 # more slots — they're CPU-bound enough that extra concurrency usually just
 # splits the floor.
 startPort: 5800
-# Remaining models load in seconds to a couple of minutes, so the
-# upstream 600 s timeout is ample again after removing MiniMax.
-healthCheckTimeout: 600
+# MiniMax-M2.7-UD-Q4_K_M is 138 GiB across 4 GGUF shards on the tank
+# zvol (spinning rust); the first cold-cache load has to stream the
+# entire model off HDD before /health flips ready. At ~150 MiB/s that's
+# ~15 minutes of read alone, so bump the proxy timeout to 30 minutes
+# and let smaller models continue to load well inside that window.
+healthCheckTimeout: 1800
 logLevel: info
 
 models:
