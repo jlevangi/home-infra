@@ -41,11 +41,19 @@ def _fetch(url: str, timeout: float = HTTP_TIMEOUT) -> str:
 
 
 def _poll_loop() -> None:
+    # /running returns {"running": [{"model": "...", "state": "ready", ...}, ...]}
+    # when models are loaded, and {"running": []} when none are. The older
+    # plain-string schema is also handled for forward/backward compatibility.
     global _running
     while True:
         try:
             data = json.loads(_fetch(f"{LLAMASWAP}/running"))
-            new = [m for m in data.get("running", []) if isinstance(m, str)]
+            new: list[str] = []
+            for entry in data.get("running", []):
+                if isinstance(entry, str):
+                    new.append(entry)
+                elif isinstance(entry, dict) and isinstance(entry.get("model"), str):
+                    new.append(entry["model"])
         except (urllib.error.URLError, json.JSONDecodeError, TimeoutError):
             new = []
         with _running_lock:
