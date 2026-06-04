@@ -1,0 +1,24 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: llama-cpp
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - llama-cpp
+  selector:
+    matchLabels:
+      app: llama-cpp
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 20s
+      # Override the default <pod-ip>:9090 instance label with a stable
+      # name so the dashboard's instance dropdown shows "cluster" and
+      # future LAN targets (e.g. PC running llama-swap) can sit alongside
+      # it with their own readable label via additionalScrapeConfigs.
+      relabelings:
+        - targetLabel: instance
+          replacement: cluster

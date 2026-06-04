@@ -15,3 +15,10 @@ configMapGenerator:
     options:
       labels:
         app: llama-cpp
+  - name: llama-metrics-sidecar
+    namespace: llama-cpp
+    files:
+      - sidecar-exporter.py=sidecar-exporter.py
+    options:
+      labels:
+        app: llama-cpp

@@ -1,0 +1,463 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-llama-cpp
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  llama-cpp.json: |
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": { "type": "datasource", "uid": "grafana" },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "description": "llama-cpp / llama-swap host + inference stats. Inference panels populate only while a model is loaded; host panels are always live. Use the instance dropdown to switch between the cluster pod and any LAN llama-swap targets.",
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "type": "stat",
+          "id": 1,
+          "title": "Active model(s)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "textMode": "value_and_name",
+            "colorMode": "value",
+            "graphMode": "none",
+            "orientation": "vertical"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [{ "type": "value", "options": { "0": { "text": "—", "color": "text" } } }],
+              "color": { "mode": "thresholds" },
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+              "noValue": "no model loaded"
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "llamacpp_active_model_info{instance=~\"$instance\"}",
+              "legendFormat": "{{model}}",
+              "instant": true
+            }
+          ]
+        },
+        {
+          "type": "stat",
+          "id": 2,
+          "title": "GPU temperature",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "graphMode": "area", "colorMode": "value", "orientation": "horizontal"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "celsius",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 70 },
+                  { "color": "red", "value": 85 }
+                ]
+              }
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "llamaswap_gpu_temperature_celsius{instance=~\"$instance\"}",
+              "legendFormat": "chip"
+            },
+            {
+              "refId": "B",
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "llamaswap_gpu_vram_temperature_celsius{instance=~\"$instance\"}",
+              "legendFormat": "vram"
+            }
+          ]
+        },
+        {
+          "type": "stat",
+          "id": 3,
+          "title": "GPU power",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "graphMode": "area", "colorMode": "value"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "watt",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 90 },
+                  { "color": "red", "value": 150 }
+                ]
+              }
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "llamaswap_gpu_power_draw_watts{instance=~\"$instance\"}"
+            }
+          ]
+        },
+        {
+          "type": "stat",
+          "id": 4,
+          "title": "RAM used",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "graphMode": "area", "colorMode": "value"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "min": 0, "max": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 0.8 },
+                  { "color": "red", "value": 0.95 }
+                ]
+              }
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "llamaswap_memory_used_bytes{instance=~\"$instance\"} / llamaswap_memory_total_bytes{instance=~\"$instance\"}"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "id": 5,
+          "title": "Inference throughput (tokens / sec)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 5 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "tps",
+              "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10, "spanNulls": false }
+            }
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] } },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "llamacpp:prompt_tokens_seconds{instance=~\"$instance\",model=~\"$model\"}",
+              "legendFormat": "{{model}} prompt"
+            },
+            {
+              "refId": "B",
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "llamacpp:predicted_tokens_seconds{instance=~\"$instance\",model=~\"$model\"}",
+              "legendFormat": "{{model}} generation"
+            }
+          ]
+        },
+        {
+          "type": "gauge",
+          "id": 6,
+          "title": "KV cache fill",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 5 },
+          "options": { "showThresholdLabels": false, "showThresholdMarkers": true },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "min": 0, "max": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 0.7 },
+                  { "color": "red", "value": 0.9 }
+                ]
+              }
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "llamacpp:kv_cache_usage_ratio{instance=~\"$instance\",model=~\"$model\"}",
+              "legendFormat": "{{model}}"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "id": 7,
+          "title": "Requests (in-flight & queued)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 5 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": { "drawStyle": "line", "fillOpacity": 20, "stacking": { "mode": "none" }, "spanNulls": false }
+            }
+          },
+          "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "llamacpp:requests_processing{instance=~\"$instance\",model=~\"$model\"}",
+              "legendFormat": "{{model}} processing"
+            },
+            {
+              "refId": "B",
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "llamacpp:requests_deferred{instance=~\"$instance\",model=~\"$model\"}",
+              "legendFormat": "{{model}} queued"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "id": 8,
+          "title": "GPU utilization",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent", "min": 0, "max": 100,
+              "custom": { "drawStyle": "line", "fillOpacity": 15 }
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "llamaswap_gpu_util_percent{instance=~\"$instance\"}",
+              "legendFormat": "compute"
+            },
+            {
+              "refId": "B",
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "llamaswap_gpu_memory_util_percent{instance=~\"$instance\"}",
+              "legendFormat": "memory bandwidth"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "id": 9,
+          "title": "GPU VRAM",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "custom": { "drawStyle": "line", "fillOpacity": 15 }
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "llamaswap_gpu_memory_used_bytes{instance=~\"$instance\"}",
+              "legendFormat": "used"
+            },
+            {
+              "refId": "B",
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "llamaswap_gpu_memory_total_bytes{instance=~\"$instance\"}",
+              "legendFormat": "total"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "id": 10,
+          "title": "CPU utilization per core",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 16, "x": 0, "y": 21 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent", "min": 0, "max": 100,
+              "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 5, "showPoints": "never" }
+            }
+          },
+          "options": { "legend": { "displayMode": "hidden" } },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "llamaswap_cpu_util_percent{instance=~\"$instance\"}",
+              "legendFormat": "core {{core}}"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "id": 11,
+          "title": "Load average",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 21 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": { "drawStyle": "line", "fillOpacity": 10 }
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "llamaswap_load_average{instance=~\"$instance\"}",
+              "legendFormat": "{{period}}"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "id": 12,
+          "title": "System memory",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 29 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "custom": { "drawStyle": "line", "fillOpacity": 15 }
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "llamaswap_memory_used_bytes{instance=~\"$instance\"}",
+              "legendFormat": "RAM used"
+            },
+            {
+              "refId": "B",
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "llamaswap_memory_total_bytes{instance=~\"$instance\"}",
+              "legendFormat": "RAM total"
+            },
+            {
+              "refId": "C",
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "llamaswap_swap_used_bytes{instance=~\"$instance\"}",
+              "legendFormat": "swap used"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "id": 13,
+          "title": "Network throughput",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 29 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Bps",
+              "custom": { "drawStyle": "line", "fillOpacity": 10 }
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "rate(llamaswap_network_bytes_total{instance=~\"$instance\"}[$__rate_interval])",
+              "legendFormat": "{{direction}}"
+            }
+          ]
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 39,
+      "tags": ["llama-cpp", "llm", "inference"],
+      "templating": {
+        "list": [
+          {
+            "current": { "selected": false, "text": "Prometheus", "value": "prometheus" },
+            "hide": 0,
+            "includeAll": false,
+            "label": "Datasource",
+            "multi": false,
+            "name": "datasource",
+            "options": [],
+            "query": "prometheus",
+            "refresh": 1,
+            "regex": "",
+            "skipUrlSync": false,
+            "type": "datasource"
+          },
+          {
+            "current": { "selected": false, "text": "cluster", "value": "cluster" },
+            "datasource": { "type": "prometheus", "uid": "$datasource" },
+            "definition": "label_values(llamaswap_load_average, instance)",
+            "hide": 0,
+            "includeAll": false,
+            "label": "Instance",
+            "multi": false,
+            "name": "instance",
+            "options": [],
+            "query": { "query": "label_values(llamaswap_load_average, instance)", "refId": "Instance" },
+            "refresh": 2,
+            "regex": "",
+            "sort": 1,
+            "type": "query"
+          },
+          {
+            "current": { "selected": true, "text": "All", "value": "$__all" },
+            "datasource": { "type": "prometheus", "uid": "$datasource" },
+            "definition": "label_values(llamacpp_active_model_info{instance=~\"$instance\"}, model)",
+            "hide": 0,
+            "includeAll": true,
+            "label": "Model",
+            "multi": true,
+            "name": "model",
+            "options": [],
+            "query": { "query": "label_values(llamacpp_active_model_info{instance=~\"$instance\"}, model)", "refId": "Model" },
+            "refresh": 2,
+            "regex": "",
+            "sort": 1,
+            "type": "query",
+            "allValue": ".*"
+          }
+        ]
+      },
+      "time": { "from": "now-1h", "to": "now" },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "llama-cpp",
+      "uid": "llama-cpp",
+      "version": 1,
+      "weekStart": ""
+    }

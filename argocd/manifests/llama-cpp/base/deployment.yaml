@@ -73,6 +73,36 @@ spec:
             - name: config
               mountPath: /etc/llama-swap/config
               readOnly: true
+        # Tiny stdlib-only Python sidecar that polls llama-swap's /running
+        # to know which model is loaded, then aggregates host metrics
+        # (llamaswap_*) with per-model llama.cpp metrics into one /metrics
+        # endpoint Prometheus can scrape. Inactive-model scrapes are
+        # skipped because llama-swap's upstream proxy hangs on them.
+        - name: metrics-sidecar
+          image: python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["python3", "/app/sidecar-exporter.py"]
+          ports:
+            - name: metrics
+              containerPort: 9090
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: sidecar-script
+              mountPath: /app
+              readOnly: true
       volumes:
         - name: models
           persistentVolumeClaim:
@@ -80,3 +110,7 @@ spec:
         - name: config
           configMap:
             name: llama-swap-config
+        - name: sidecar-script
+          configMap:
+            name: llama-metrics-sidecar
+            defaultMode: 0o555

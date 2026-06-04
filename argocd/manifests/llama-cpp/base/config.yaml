@@ -38,6 +38,21 @@ startPort: 5800
 healthCheckTimeout: 2700
 logLevel: info
 
+# Never auto-unload an idle model. The default 3600s TTL was causing
+# MiniMax to evict after an hour of silence, forcing a ~15 minute mlock
+# cold-load on the next request. With globalTTL: 0 any model without
+# an explicit ttl stays resident until llama-swap is asked to load a
+# different one or the process restarts.
+globalTTL: 0
+
+# Preload MiniMax at proxy startup so the cold mlock pass happens during
+# pod rollout, not on the first user request. The preload itself blocks
+# behind healthCheckTimeout (2700s) — give it the full window on HDDs.
+hooks:
+  on_startup:
+    preload:
+      - MiniMax-M2.7-UD-Q4_K_M
+
 models:
   # =================================================================
   # Qwen3-Coder-Next-UD-Q4_K_M — EXPERIMENTAL CODING MODEL
@@ -62,6 +77,7 @@ models:
       --cache-type-k q4_0
       --cache-type-v q4_0
       --reasoning auto
+      --metrics
       --no-webui
       --no-kv-offload
       --mlock
@@ -96,6 +112,7 @@ models:
       --cache-type-k q4_0
       --cache-type-v q4_0
       --reasoning auto
+      --metrics
       --no-webui
       --no-kv-offload
       --mlock
@@ -128,6 +145,7 @@ models:
       --cache-type-v q4_0
       --reasoning off
       --reasoning-budget 0
+      --metrics
       --no-webui
       --no-kv-offload
       --mlock
@@ -157,6 +175,7 @@ models:
       --cache-type-k q4_0
       --cache-type-v q4_0
       --reasoning auto
+      --metrics
       --no-webui
       --no-kv-offload
       --mlock
@@ -188,6 +207,7 @@ models:
       --cache-type-k q4_0
       --cache-type-v q4_0
       --reasoning auto
+      --metrics
       --no-webui
       --no-kv-offload
       --mlock
@@ -223,6 +243,7 @@ models:
       --cache-type-k q4_0
       --cache-type-v q4_0
       --reasoning auto
+      --metrics
       --no-webui
       --no-kv-offload
       --mlock
@@ -251,6 +272,7 @@ models:
       --cache-type-k q4_0
       --cache-type-v q4_0
       --reasoning auto
+      --metrics
       --no-webui
       --no-kv-offload
       --mlock
@@ -283,6 +305,7 @@ models:
       --cache-type-k q4_0
       --cache-type-v q4_0
       --reasoning off
+      --metrics
       --no-webui
     env:
       - "CUDA_VISIBLE_DEVICES=0"
@@ -316,6 +339,7 @@ models:
       --cache-type-v q4_0
       --reasoning off
       --reasoning-budget 0
+      --metrics
       --no-webui
     env:
       - "CUDA_VISIBLE_DEVICES=0"
@@ -344,6 +368,7 @@ models:
       --cache-type-v q4_0
       --reasoning off
       --reasoning-budget 0
+      --metrics
       --no-webui
     env:
       - "CUDA_VISIBLE_DEVICES=0"
@@ -377,6 +402,7 @@ models:
       --no-kv-offload
       --mlock
       --reasoning auto
+      --metrics
       --no-webui
     env:
       - "CUDA_VISIBLE_DEVICES=0"
@@ -434,10 +460,13 @@ models:
       --no-kv-offload
       --mlock
       --reasoning auto
+      --metrics
       --no-webui
     env:
       - "CUDA_VISIBLE_DEVICES=0"
-    ttl: 3600
+    # No ttl: MiniMax is preloaded via hooks.on_startup and must never
+    # be evicted (a re-mlock from the HDDs is ~15 min). Inherits the
+    # top-level globalTTL: 0.
 
   # =================================================================
   # Dense 27B Q5_K_S with MTP speculative decoding + no-kv-offload.
@@ -464,6 +493,7 @@ models:
       --no-kv-offload
       --mlock
       --reasoning auto
+      --metrics
       --no-webui
     env:
       - "CUDA_VISIBLE_DEVICES=0"

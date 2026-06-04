@@ -5,10 +5,12 @@ resources:
   - podmonitor-argocd.yaml
   - podmonitor-traefik.yaml
   - servicemonitor-gatus.yaml
+  - servicemonitor-llama-cpp.yaml
   - servicemonitor-longhorn.yaml
   - prometheusrule-platform.yaml
   - grafana-dashboard-observability-overview.yaml
   - grafana-dashboard-network-probes.yaml
+  - grafana-dashboard-llama-cpp.yaml
   - grafana-dashboard-logs-and-gitops.yaml
   - grafana-dashboard-vpa-recommendations.yaml
   - grafana-dashboard-proxmox-hosts.yaml
