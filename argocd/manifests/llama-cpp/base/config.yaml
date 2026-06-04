@@ -30,11 +30,12 @@
 # splits the floor.
 startPort: 5800
 # MiniMax-M2.7-UD-Q4_K_M is 138 GiB across 4 GGUF shards on the tank
-# zvol (spinning rust); the first cold-cache load has to stream the
-# entire model off HDD before /health flips ready. At ~150 MiB/s that's
-# ~15 minutes of read alone, so bump the proxy timeout to 30 minutes
-# and let smaller models continue to load well inside that window.
-healthCheckTimeout: 1800
+# zvol (spinning rust); with --mlock the first cold load has to stream
+# the entire model off HDD AND mlockall() it before /health flips ready.
+# A pre-warmed page cache lands closer to 10-15 minutes; a fully cold
+# start can push past 25, so allow 45 minutes of headroom here. Smaller
+# models still load well inside this window.
+healthCheckTimeout: 2700
 logLevel: info
 
 models:
@@ -407,8 +408,12 @@ models:
   # Jellyfin (~5 GiB usable) and the dynamic quant routing already
   # offloads the most expensive expert layers selectively.
   #
-  # ctx-size kept modest (32k) to bound KV cache anon memory inside
-  # the 150Gi pod limit — bump only after measuring resident set.
+  # --mlock forces all 138 GiB into RAM at load time, eliminating the
+  # 5k+ major page faults/sec that lazy mmap was producing during
+  # inference on this HDD-backed model store (observed 2026-06-03: only
+  # 17 % faulted in after 29 min of generation). The pod's 170 GiB cgroup
+  # limit + IPC_LOCK capability are sized for this; ctx-size held at 32k
+  # so the KV cache fits the remaining ~30 GiB headroom.
   MiniMax-M2.7-UD-Q4_K_M:
     cmd: |
       /usr/local/bin/llama-server
@@ -427,6 +432,7 @@ models:
       --cache-type-k q4_0
       --cache-type-v q4_0
       --no-kv-offload
+      --mlock
       --reasoning auto
       --no-webui
     env:
