@@ -53,6 +53,30 @@ hooks:
     preload:
       - MiniMax-M2.7-UD-Q4_K_M
 
+# Peer instances that this proxy can forward requests to. Peer models are
+# transparently advertised in /v1/models and proxied via /v1/chat/completions,
+# so OpenAI-shaped clients see one combined model list. Note that llama-swap
+# does NOT aggregate peer metrics or /running state — each peer must run its
+# own metrics sidecar scraped separately by Prometheus.
+#
+# pierce-pc: workstation on the LAN at 172.20.23.28 running llama-swap.exe
+# (Windows native, AMD ROCm). Exposes 4 Qwen3.6 variants that subagents
+# (Hermes / Opencode / Pi-agent) can dispatch through this cluster proxy.
+# Gemma4-31B / Gemma4-26B-A4B exist on both sides with identical IDs and are
+# intentionally excluded — llama-swap's first-match-wins lookup would always
+# pick the local copies anyway, so listing them under peers would mislead.
+peers:
+  pierce-pc:
+    proxy: http://pierce-pc.levangie.org:8080
+    models:
+      - Qwen3.6-27B
+      - Qwen3.6-35B-A3B
+      - Qwen3.6-27B-hermes
+      - Qwen3.6-35B-A3B-hermes
+    timeouts:
+      connect: 10
+      responseHeader: 60
+
 models:
   # =================================================================
   # Qwen3-Coder-Next-UD-Q4_K_M — EXPERIMENTAL CODING MODEL
