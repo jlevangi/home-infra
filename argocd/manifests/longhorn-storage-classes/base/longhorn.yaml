@@ -47,3 +47,4 @@ parameters:
   dataEngine: v1
   backupTargetName: default
   nodeSelector: general-storage
+  recurringJobSelector: '[{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'
