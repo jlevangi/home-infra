@@ -36,17 +36,13 @@ spec:
           env:
             - name: TZ
               value: "America/New_York"
-            - name: MySQL__Password
-              valueFrom:
-                secretKeyRef:
-                  name: netlock-rmm-secrets
-                  key: MySQL_Password
           ports:
             - containerPort: 7080
           volumeMounts:
             - name: appsettings
               mountPath: /app/appsettings.json
               subPath: appsettings.json
+              readOnly: true
           resources:
             requests:
               memory: "512Mi"
@@ -70,5 +66,6 @@ spec:
             failureThreshold: 3
       volumes:
         - name: appsettings
-          configMap:
-            name: netlock-server-appsettings
+          secret:
+            secretName: netlock-server-appsettings
+            defaultMode: 0444
