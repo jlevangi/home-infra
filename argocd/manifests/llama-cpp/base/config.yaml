@@ -67,7 +67,11 @@ hooks:
 # pick the local copies anyway, so listing them under peers would mislead.
 peers:
   pierce-pc:
-    proxy: http://pierce-pc.levangie.org:8080
+    # llama-swap.exe on Windows binds to :9080 by default (verified via
+    # Get-NetTCPConnection on the running process; the cluster's choice
+    # of :8080 is unrelated). If you ever change the PC's listen port,
+    # update this proxy URL to match.
+    proxy: http://pierce-pc.levangie.org:9080
     models:
       - Qwen3.6-27B
       - Qwen3.6-35B-A3B
