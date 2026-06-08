@@ -18,17 +18,18 @@ spec:
       nodeSelector:
         kubernetes.io/os: linux
       initContainers:
-        - name: wait-for-server
+        - name: wait-for-mysql
           image: busybox:1.35
           command: ['sh', '-c']
           args:
             - |
-              echo "Waiting for NetLock Server to be reachable..."
-              until nc -z netlock-server 7080; do
-                echo "Server not ready, waiting..."
+              echo "Waiting for MySQL to be ready..."
+              until nc -z netlock-mysql 3306; do
+                echo "MySQL not ready, waiting..."
                 sleep 5
               done
-              echo "Server is reachable!"
+              echo "MySQL is ready!"
+              sleep 5
       containers:
         - name: console
           image: nicomak101/netlock-rmm-web-console@sha256:737d8c387c48bc02abe623dc7a886da3b81c0cea36c49df38e3f79dfc3096957
