@@ -3,8 +3,6 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - pvc-mysql.yaml
-  - pvc-server-config.yaml
-  - configmap.yaml
   - external-secret.yaml
   - deployment-mysql.yaml
   - deployment-server.yaml
@@ -15,3 +13,12 @@ resources:
   - ingress.yaml
   - resource-quota.yaml
   - limit-range.yaml
+configMapGenerator:
+  - name: netlock-server-appsettings
+    namespace: netlock-rmm
+    files:
+      - appsettings.json=appsettings-server.json
+  - name: netlock-console-appsettings
+    namespace: netlock-rmm
+    files:
+      - appsettings.json=appsettings-console.json

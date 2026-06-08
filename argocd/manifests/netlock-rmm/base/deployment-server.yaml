@@ -35,70 +35,18 @@ spec:
           image: nicomak101/netlock-rmm-server@sha256:a13e6fb2520d0c8321614aa32dd8580b7486585189e1c5cf9c2f500a734caaf5
           env:
             - name: TZ
-              valueFrom:
-                configMapKeyRef:
-                  name: netlock-rmm-config
-                  key: TZ
-            - name: Kestrel__Endpoint__Http__Enabled
-              valueFrom:
-                configMapKeyRef:
-                  name: netlock-rmm-config
-                  key: Kestrel__Endpoint__Http__Enabled
-            - name: Kestrel__Endpoint__Http__Port
-              valueFrom:
-                configMapKeyRef:
-                  name: netlock-rmm-config
-                  key: Kestrel__Endpoint__Http__Port
-            - name: Kestrel__Endpoint__Https__Enabled
-              valueFrom:
-                configMapKeyRef:
-                  name: netlock-rmm-config
-                  key: Kestrel__Endpoint__Https__Enabled
-            - name: LettuceEncrypt__Enabled
-              valueFrom:
-                configMapKeyRef:
-                  name: netlock-rmm-config
-                  key: LettuceEncrypt__Enabled
-            - name: MySQL__Server
-              valueFrom:
-                configMapKeyRef:
-                  name: netlock-rmm-config
-                  key: MySQL__Server
-            - name: MySQL__Port
-              valueFrom:
-                configMapKeyRef:
-                  name: netlock-rmm-config
-                  key: MySQL__Port
-            - name: MySQL__Database
-              valueFrom:
-                configMapKeyRef:
-                  name: netlock-rmm-config
-                  key: MySQL__Database
-            - name: MySQL__User
-              valueFrom:
-                configMapKeyRef:
-                  name: netlock-rmm-config
-                  key: MySQL__User
-            - name: MySQL__SslMode
-              valueFrom:
-                configMapKeyRef:
-                  name: netlock-rmm-config
-                  key: MySQL__SslMode
+              value: "America/New_York"
             - name: MySQL__Password
               valueFrom:
                 secretKeyRef:
                   name: netlock-rmm-secrets
                   key: MySQL_Password
-            - name: PublicServerUrl
-              valueFrom:
-                configMapKeyRef:
-                  name: netlock-rmm-config
-                  key: PublicServerUrl
           ports:
             - containerPort: 7080
           volumeMounts:
-            - name: server-config
-              mountPath: /app/data
+            - name: appsettings
+              mountPath: /app/appsettings.json
+              subPath: appsettings.json
           resources:
             requests:
               memory: "512Mi"
@@ -121,6 +69,6 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 3
       volumes:
-        - name: server-config
-          persistentVolumeClaim:
-            claimName: netlock-server-config-pvc
+        - name: appsettings
+          configMap:
+            name: netlock-server-appsettings

@@ -34,40 +34,18 @@ spec:
           image: nicomak101/netlock-rmm-web-console@sha256:737d8c387c48bc02abe623dc7a886da3b81c0cea36c49df38e3f79dfc3096957
           env:
             - name: TZ
+              value: "America/New_York"
+            - name: MySQL__Password
               valueFrom:
-                configMapKeyRef:
-                  name: netlock-rmm-config
-                  key: TZ
-            - name: Kestrel__Endpoint__Http__Enabled
-              value: "true"
-            - name: Kestrel__Endpoint__Http__Port
-              value: "5000"
-            - name: Kestrel__Endpoint__Https__Enabled
-              value: "false"
-            - name: LettuceEncrypt__Enabled
-              value: "false"
-            - name: Webinterface__PublicOverrideUrl
-              valueFrom:
-                configMapKeyRef:
-                  name: netlock-rmm-config
-                  key: Webinterface__PublicOverrideUrl
-            - name: NetLock_Remote_Server__Server
-              valueFrom:
-                configMapKeyRef:
-                  name: netlock-rmm-config
-                  key: NetLock_Remote_Server__Server
-            - name: NetLock_Remote_Server__Port
-              valueFrom:
-                configMapKeyRef:
-                  name: netlock-rmm-config
-                  key: NetLock_Remote_Server__Port
-            - name: NetLock_Remote_Server__UseSSL
-              valueFrom:
-                configMapKeyRef:
-                  name: netlock-rmm-config
-                  key: NetLock_Remote_Server__UseSSL
+                secretKeyRef:
+                  name: netlock-rmm-secrets
+                  key: MySQL_Password
           ports:
             - containerPort: 5000
+          volumeMounts:
+            - name: appsettings
+              mountPath: /app/appsettings.json
+              subPath: appsettings.json
           resources:
             requests:
               memory: "256Mi"
@@ -89,3 +67,7 @@ spec:
             periodSeconds: 60
             timeoutSeconds: 5
             failureThreshold: 3
+      volumes:
+        - name: appsettings
+          configMap:
+            name: netlock-console-appsettings
