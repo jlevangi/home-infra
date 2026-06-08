@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: netlock-rmm-config
+  namespace: netlock-rmm
+data:
+  TZ: "America/New_York"
+
+  Kestrel__Endpoint__Http__Enabled: "true"
+  Kestrel__Endpoint__Http__Port: "7080"
+  Kestrel__Endpoint__Https__Enabled: "false"
+  LettuceEncrypt__Enabled: "false"
+
+  MySQL__Server: "netlock-mysql"
+  MySQL__Port: "3306"
+  MySQL__Database: "netlock"
+  MySQL__User: "netlock"
+  MySQL__SslMode: "None"
+
+  PublicServerUrl: "https://rmm-api.levangie.dev"
+  Webinterface__PublicOverrideUrl: "https://rmm.levangie.dev"
+  NetLock_Remote_Server__Server: "netlock-server"
+  NetLock_Remote_Server__Port: "7080"
+  NetLock_Remote_Server__UseSSL: "false"

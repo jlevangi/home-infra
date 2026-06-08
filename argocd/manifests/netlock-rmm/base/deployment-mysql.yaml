@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: netlock-mysql
+  namespace: netlock-rmm
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: netlock-mysql
+  template:
+    metadata:
+      labels:
+        app: netlock-mysql
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          args:
+            - --default-authentication-plugin=mysql_native_password
+            - --character-set-server=utf8mb4
+            - --collation-server=utf8mb4_unicode_ci
+          env:
+            - name: TZ
+              valueFrom:
+                configMapKeyRef:
+                  name: netlock-rmm-config
+                  key: TZ
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: netlock-rmm-secrets
+                  key: MySQL_Root_Password
+            - name: MYSQL_DATABASE
+              value: "netlock"
+            - name: MYSQL_USER
+              value: "netlock"
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: netlock-rmm-secrets
+                  key: MySQL_Password
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - name: db-storage
+              mountPath: /var/lib/mysql
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          readinessProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: db-storage
+          persistentVolumeClaim:
+            claimName: netlock-mysql-data-pvc

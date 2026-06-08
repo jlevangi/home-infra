@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: netlock-server-config-pvc
+  namespace: netlock-rmm
+  labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
+    app: netlock-server
+    component: app
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: longhorn

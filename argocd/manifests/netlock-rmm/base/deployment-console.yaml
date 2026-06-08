@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: netlock-console
+  namespace: netlock-rmm
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: netlock-console
+  template:
+    metadata:
+      labels:
+        app: netlock-console
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      initContainers:
+        - name: wait-for-server
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for NetLock Server to be reachable..."
+              until nc -z netlock-server 7080; do
+                echo "Server not ready, waiting..."
+                sleep 5
+              done
+              echo "Server is reachable!"
+      containers:
+        - name: console
+          image: nicomak101/netlock-rmm-web-console@sha256:737d8c387c48bc02abe623dc7a886da3b81c0cea36c49df38e3f79dfc3096957
+          env:
+            - name: TZ
+              valueFrom:
+                configMapKeyRef:
+                  name: netlock-rmm-config
+                  key: TZ
+            - name: Kestrel__Endpoint__Http__Enabled
+              value: "true"
+            - name: Kestrel__Endpoint__Http__Port
+              value: "5000"
+            - name: Kestrel__Endpoint__Https__Enabled
+              value: "false"
+            - name: LettuceEncrypt__Enabled
+              value: "false"
+            - name: Webinterface__PublicOverrideUrl
+              valueFrom:
+                configMapKeyRef:
+                  name: netlock-rmm-config
+                  key: Webinterface__PublicOverrideUrl
+            - name: NetLock_Remote_Server__Server
+              valueFrom:
+                configMapKeyRef:
+                  name: netlock-rmm-config
+                  key: NetLock_Remote_Server__Server
+            - name: NetLock_Remote_Server__Port
+              valueFrom:
+                configMapKeyRef:
+                  name: netlock-rmm-config
+                  key: NetLock_Remote_Server__Port
+            - name: NetLock_Remote_Server__UseSSL
+              valueFrom:
+                configMapKeyRef:
+                  name: netlock-rmm-config
+                  key: NetLock_Remote_Server__UseSSL
+          ports:
+            - containerPort: 5000
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          readinessProbe:
+            tcpSocket:
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: 5000
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            timeoutSeconds: 5
+            failureThreshold: 3
