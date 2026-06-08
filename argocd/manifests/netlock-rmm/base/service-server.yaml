@@ -10,7 +10,4 @@ spec:
     - name: http
       port: 7080
       targetPort: 7080
-    - name: relay
-      port: 7081
-      targetPort: 7081
   type: ClusterIP
