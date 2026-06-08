@@ -9,6 +9,8 @@ metadata:
 spec:
   type: LoadBalancer
   externalTrafficPolicy: Cluster
+  externalIPs:
+    - 172.20.20.104
   selector:
     app: rustdesk
   ports:
