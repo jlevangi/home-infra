@@ -28,3 +28,13 @@ spec:
                 name: netlock-server
                 port:
                   number: 7080
+    - host: rmm-relay.levangie.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: netlock-server
+                port:
+                  number: 7081
