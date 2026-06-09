@@ -47,4 +47,24 @@ The three scripts under [`scripts/workstation/`](../../../scripts/workstation/) 
 
 ## Status
 
-Manually deployed and operational since 2026-06-08 (commits `addc051`, `cb43756`, `eba66de`, `3ab50b1`). A beads issue tracks converting the manual procedure into an Ansible role.
+Manually deployed and operational since 2026-06-08 (commits `addc051`, `cb43756`, `eba66de`, `3ab50b1`). The umbrella Ansible-conversion issue tracks lifting this into a managed role.
+
+## Known follow-ups (beads)
+
+Pick up any of these on the next uptake — they're filed with enough context to land cold.
+
+| ID | Priority | Title |
+|---|---|---|
+| `home-infra-80f` | P3 | Convert pierce-pc workstation setup into Ansible role (umbrella — depends on the three below) |
+| `home-infra-li2` | P3 | Add a committed template/sample of pierce-pc's llama-swap `config.yaml` |
+| `home-infra-pd5` | P3 | Install `rocm-smi` on pierce-pc to unblock AMD GPU metrics for `instance=workstation` |
+| `home-infra-pwj` | P3 | Decide LibreChat behavior re: peer Qwen models surfaced via cluster `/v1/models` |
+| `home-infra-62g` | P3 | Document subagent peer dispatch (Hermes / Opencode / Pi-agent) — config + model routing |
+| `home-infra-mw6` | P4 | Tune pierce-pc llama-swap model TTL (currently `300s` = 5 min cold-load on next idle request) |
+| `home-infra-tv4` | P4 | `[bug]` llama-metrics sidecar suppresses HELP/TYPE lines after the first metric |
+
+Inspect any with `bd show <id>`; the graph (`bd show home-infra-80f`) shows what the Ansible role naturally subsumes.
+
+## Where we left off (2026-06-09)
+
+Everything in the topology diagram above is **live and working**. Documentation + idempotent install scripts are committed. The seven open issues above are real but none of them block the current setup — each is an enhancement, a deferred decision, or a cosmetic fix. Run `bash scripts/workstation/verify-setup.sh` to confirm the system is still green; expect all 6 checks to PASS.
