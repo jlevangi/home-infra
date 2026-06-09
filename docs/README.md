@@ -39,6 +39,11 @@ This directory is organized around current operator workflows first. Historical 
 - [Traefik SSL](reference/traefik-ssl.md)
   Current ACME and Cloudflare-based TLS configuration.
 
+## Workstation (WSL)
+
+- [WSL/LLM Setup](WSL/LLM/README.md)
+  Setting up `pierce-pc` as a llama-swap peer of the in-cluster `llama-cpp` deployment — Windows-side install, the WSL2 metrics sidecar, the cluster wiring that pairs with it, and the operational fixes earned the hard way.
+
 ## Personal / Sensitive
 
 - `SECRETS_RETRIEVAL.md`
