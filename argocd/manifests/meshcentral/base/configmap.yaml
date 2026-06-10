@@ -15,7 +15,6 @@ data:
         "AliasPort": 443,
         "RedirPort": 0,
         "TlsOffload": true,
-        "CertUrl": "https://mesh.levangie.dev/",
         "AgentPing": 60,
         "NoMongoDump": true,
         "MaintenanceMode": false
@@ -25,6 +24,7 @@ data:
           "title": "MeshCentral",
           "title2": "levangie.dev",
           "minify": true,
+          "CertUrl": "https://mesh.levangie.dev/",
           "newAccounts": true,
           "userNameIsEmail": false,
           "passwordRequirements": {
