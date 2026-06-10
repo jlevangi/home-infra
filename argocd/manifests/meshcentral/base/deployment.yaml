@@ -17,6 +17,13 @@ spec:
     spec:
       nodeSelector:
         kubernetes.io/os: linux
+      hostAliases:
+        # Force CertUrl to fetch the cert from the public-facing Caddy edge,
+        # not the internal Traefik (whose cert won't match what external
+        # agents see).
+        - ip: 172.20.20.3
+          hostnames:
+            - mesh.levangie.dev
       initContainers:
         - name: seed-config
           image: busybox:1.35
