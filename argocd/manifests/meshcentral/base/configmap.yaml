@@ -24,7 +24,7 @@ data:
           "title": "MeshCentral",
           "title2": "levangie.dev",
           "minify": true,
-          "NewAccounts": true,
+          "newAccounts": true,
           "userNameIsEmail": false,
           "passwordRequirements": {
             "min": 8,
