@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: meshcentral
+  namespace: meshcentral
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: meshcentral
+  template:
+    metadata:
+      labels:
+        app: meshcentral
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      initContainers:
+        - name: seed-config
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              set -eu
+              dst=/opt/meshcentral/meshcentral-data/config.json
+              if [ -f "$dst" ]; then
+                echo "config.json already present, leaving it alone."
+              else
+                echo "Seeding config.json from template..."
+                cp /template/config.json "$dst"
+              fi
+          volumeMounts:
+            - name: data
+              mountPath: /opt/meshcentral/meshcentral-data
+            - name: config-template
+              mountPath: /template
+      containers:
+        - name: meshcentral
+          image: meshcentral/meshcentral:1.2.0@sha256:8c84cb45be6c84dc94de38452a9ac0abd16aae7733dd5de97cf4d7ed77250a4b
+          ports:
+            - name: http
+              containerPort: 80
+          volumeMounts:
+            - name: data
+              mountPath: /opt/meshcentral/meshcentral-data
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          readinessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: meshcentral-data-pvc
+        - name: config-template
+          configMap:
+            name: meshcentral-config-template

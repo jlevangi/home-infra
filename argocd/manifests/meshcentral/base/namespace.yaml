@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: meshcentral
+  labels:
+    app.kubernetes.io/name: meshcentral
+    app.kubernetes.io/managed-by: argocd

@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: meshcentral-config-template
+  namespace: meshcentral
+data:
+  # Seeded into the data PVC on first start only (via init container).
+  # After that, MeshCentral owns this file at runtime — change settings via the
+  # admin UI, not by editing this ConfigMap.
+  config.json: |
+    {
+      "settings": {
+        "Cert": "mesh.levangie.dev",
+        "Port": 80,
+        "AliasPort": 443,
+        "RedirPort": 0,
+        "TlsOffload": true,
+        "AgentPing": 60,
+        "NoMongoDump": true,
+        "MaintenanceMode": false
+      },
+      "domains": {
+        "": {
+          "title": "MeshCentral",
+          "title2": "levangie.dev",
+          "minify": true,
+          "NewAccounts": true,
+          "userNameIsEmail": false,
+          "passwordRequirements": {
+            "min": 8,
+            "max": 128,
+            "upper": 1,
+            "lower": 1,
+            "numeric": 1
+          }
+        }
+      }
+    }
