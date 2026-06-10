@@ -15,6 +15,7 @@ data:
         "AliasPort": 443,
         "RedirPort": 0,
         "TlsOffload": true,
+        "CertUrl": "https://mesh.levangie.dev/",
         "AgentPing": 60,
         "NoMongoDump": true,
         "MaintenanceMode": false
