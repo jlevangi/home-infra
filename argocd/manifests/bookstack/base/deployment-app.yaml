@@ -33,6 +33,9 @@ spec:
       containers:
         - name: bookstack
           image: linuxserver/bookstack:latest
+          envFrom:
+            - configMapRef:
+                name: bookstack-config
           env:
             - name: DB_HOST
               valueFrom:
@@ -74,6 +77,11 @@ spec:
                 secretKeyRef:
                   name: bookstack-secrets
                   key: APP_KEY
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: bookstack-secrets
+                  key: OIDC_CLIENT_SECRET
             - name: TZ
               valueFrom:
                 configMapKeyRef:
