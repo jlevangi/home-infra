@@ -139,7 +139,8 @@ spec:
               mountPath: /app/config
       containers:
         - name: seerr
-          image: ghcr.io/seerr-team/seerr:latest
+          # v3.3.0 — seerr-team only publishes :latest/:develop to GHCR, no semver tags
+          image: ghcr.io/seerr-team/seerr@sha256:c92d2dc117f62185e7bcb88cd56efd374ea79210eaf433275449e8d5988eb5a8
           imagePullPolicy: IfNotPresent
           env:
             - name: LOG_LEVEL
