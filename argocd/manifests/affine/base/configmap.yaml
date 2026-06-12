@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: affine-config
+  namespace: affine
+data:
+  NODE_ENV: "production"
+  AFFINE_SERVER_EXTERNAL_URL: "https://affine.levangie.dev"
+  AFFINE_SERVER_HOST: "affine.levangie.dev"
+  AFFINE_SERVER_HTTPS: "true"
+  AFFINE_INDEXER_ENABLED: "false"
+  REDIS_SERVER_HOST: "affine-redis"
+  DB_USERNAME: "affine"
+  DB_DATABASE: "affine"
+  TZ: "America/New_York"
