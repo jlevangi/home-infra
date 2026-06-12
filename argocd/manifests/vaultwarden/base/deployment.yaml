@@ -47,6 +47,11 @@ spec:
                 secretKeyRef:
                   name: vaultwarden-secrets
                   key: SMTP_PASSWORD
+            - name: SSO_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: vaultwarden-secrets
+                  key: OIDC_CLIENT_SECRET
           volumeMounts:
             - name: data
               mountPath: /data

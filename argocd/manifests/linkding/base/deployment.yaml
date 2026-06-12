@@ -36,6 +36,12 @@ spec:
           envFrom:
             - configMapRef:
                 name: linkding-config
+          env:
+            - name: OIDC_RP_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: linkding-secrets
+                  key: OIDC_CLIENT_SECRET
           ports:
             - name: http
               containerPort: 9090

@@ -12,3 +12,8 @@ data:
   PAPERLESS_OCR_USER_ARGS: '{"continue_on_soft_render_error": true}'
   USERMAP_UID: "1000"
   USERMAP_GID: "1000"
+  PAPERLESS_APPS: "allauth.socialaccount.providers.openid_connect"
+  PAPERLESS_DISABLE_REGULAR_LOGIN: "false"
+  PAPERLESS_REDIRECT_LOGIN_TO_SSO: "false"
+  PAPERLESS_SOCIAL_AUTO_SIGNUP: "true"
+  PAPERLESS_SOCIALACCOUNT_ALLOW_SIGNUPS: "true"
