@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stirling-pdf
+  namespace: stirling-pdf
+  labels:
+    app: stirling-pdf
+    app.kubernetes.io/name: stirling-pdf
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: stirling-pdf
+  template:
+    metadata:
+      labels:
+        app: stirling-pdf
+        app.kubernetes.io/name: stirling-pdf
+    spec:
+      containers:
+        - name: stirling-pdf
+          image: docker.stirlingpdf.com/stirlingtools/stirling-pdf:2.12.0-fat
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: stirling-pdf-config
+          env:
+            - name: SECURITY_OAUTH2_CLIENT_KEYCLOAK_CLIENTSECRET
+              valueFrom:
+                secretKeyRef:
+                  name: stirling-pdf-secrets
+                  key: OIDC_CLIENT_SECRET
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: configs
+              mountPath: /configs
+            - name: tessdata
+              mountPath: /usr/share/tessdata
+            - name: storage
+              mountPath: /storage
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 4
+      volumes:
+        - name: configs
+          persistentVolumeClaim:
+            claimName: stirling-pdf-configs-pvc
+        - name: tessdata
+          persistentVolumeClaim:
+            claimName: stirling-pdf-tessdata-pvc
+        - name: storage
+          persistentVolumeClaim:
+            claimName: stirling-pdf-storage-pvc

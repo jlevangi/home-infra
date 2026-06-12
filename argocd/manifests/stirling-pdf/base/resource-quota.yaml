@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: stirling-pdf-storage-quota
+  namespace: stirling-pdf
+spec:
+  hard:
+    requests.storage: "13Gi"
+    persistentvolumeclaims: "3"
+    longhorn.io/requests.storage: "13Gi"
