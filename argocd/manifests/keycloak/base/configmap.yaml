@@ -6,6 +6,7 @@ metadata:
 data:
   KC_PROXY: "edge"
   KC_PROXY_ADDRESS_FORWARDING: "true"
+  KC_HOSTNAME: "auth.levangie.org"
   KC_HOSTNAME_URL: "https://auth.levangie.org"
   KC_HOSTNAME_STRICT: "false"
   KC_HTTP_ENABLED: "true"
