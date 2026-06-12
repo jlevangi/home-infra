@@ -21,16 +21,16 @@ spec:
     spec:
       containers:
         - name: notemark
-          image: ghcr.io/enchant97/note-mark-aio:0.17.1
+          image: ghcr.io/enchant97/note-mark:1.0.0
           imagePullPolicy: IfNotPresent
           env:
-            - name: JWT_SECRET
+            - name: AUTH_TOKEN__SECRET
               valueFrom:
                 secretKeyRef:
                   name: notemark-secrets
                   key: JWT_SECRET
-            - name: CORS_ORIGINS
-              value: "https://notemark.levangie.org"
+            - name: PUBLIC_URL
+              value: "https://notemark.levangie.dev"
           ports:
             - name: http
               containerPort: 8080

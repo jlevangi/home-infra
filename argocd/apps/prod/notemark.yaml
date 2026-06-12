@@ -32,9 +32,9 @@ spec:
       jsonPointers:
         - /spec/dataFrom
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
+    # automated sync temporarily disabled for v1.0.0 migration — see commit
+    # message; re-enable in the immediate follow-up commit after PVC wipe
+    # and clean V1 rollout.
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
