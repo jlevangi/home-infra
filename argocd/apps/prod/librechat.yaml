@@ -106,6 +106,8 @@ spec:
           image:
             registry: docker.io
             repository: bitnamilegacy/mongodb
+          updateStrategy:
+            type: Recreate
           auth:
             enabled: false
           databases:
