@@ -22,11 +22,36 @@ configs:
 {% if argocd_resource_tracking is defined %}
     resource.tracking.method: {{ argocd_resource_tracking }}
 {% endif %}
+{% if argocd_oidc_enabled | default(false) %}
+    url: https://argocd.{{ environment_domain }}
+    oidc.config: |
+      name: Keycloak
+      issuer: {{ argocd_oidc_issuer }}
+      clientID: {{ argocd_oidc_client_id | default('argocd') }}
+      clientSecret: $argocd-keycloak-secret:clientSecret
+      cliClientID: {{ argocd_oidc_cli_client_id | default('argocd-cli') }}
+      requestedScopes:
+        - openid
+        - profile
+        - email
+        - groups
+      requestedIDTokenClaims:
+        groups:
+          essential: true
+{% endif %}
 
   # RBAC configuration
   rbac:
     policy.default: role:readonly
+{% if argocd_oidc_enabled | default(false) %}
+    scopes: '[groups]'
+    policy.csv: |
+      g, argocd-admin, role:admin
+      g, argocd-readonly, role:readonly
 {% if argocd_admin_policy is defined %}
+{{ argocd_admin_policy | indent(6, true) }}
+{% endif %}
+{% elif argocd_admin_policy is defined %}
     policy.csv: |
 {{ argocd_admin_policy | indent(6, true) }}
 {% endif %}
