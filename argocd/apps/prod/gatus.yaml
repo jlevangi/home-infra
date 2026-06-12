@@ -63,6 +63,15 @@ spec:
               conditions:
                 - "[STATUS] == 200"
 
+            - name: Keycloak
+              group: Infrastructure
+              url: https://auth.levangie.org/realms/master/.well-known/openid-configuration
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+                - "[BODY].issuer == https://auth.levangie.org/realms/master"
+
             - name: Vault
               group: Infrastructure
               url: https://vault.levangie.dev
