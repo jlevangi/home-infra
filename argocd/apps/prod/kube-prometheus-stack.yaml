@@ -187,6 +187,10 @@ spec:
                   - url: http://alertmanager-ntfy-bridge.monitoring.svc.cluster.local/alerts/homelab-critical
                     send_resolved: true
                     timeout: 10s
+                  # Parallel mirror to n8n; bridge above is still primary.
+                  - url: http://n8n.n8n.svc.cluster.local:5678/webhook/alertmanager
+                    send_resolved: true
+                    timeout: 30s
           alertmanagerSpec:
             resources:
               requests:
