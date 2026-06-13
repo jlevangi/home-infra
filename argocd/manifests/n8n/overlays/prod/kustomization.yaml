@@ -3,7 +3,7 @@ kind: Kustomization
 resources:
   - ../../base
 images:
-  - name: docker.n8n.io/n8nio/n8n
+  - name: n8nio/n8n
     newTag: "2.26.3"
   - name: postgres
     newTag: "16.6"
