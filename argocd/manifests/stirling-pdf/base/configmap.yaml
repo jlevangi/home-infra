@@ -18,3 +18,4 @@ data:
   SYSTEM_DEFAULTLOCALE: "en-US"
   TZ: "America/New_York"
   UI_APPNAME: "Stirling PDF"
+  SECURITY_INITIALLOGIN_USERNAME: "pierce@levangie.org"

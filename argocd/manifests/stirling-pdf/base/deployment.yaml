@@ -32,6 +32,11 @@ spec:
                 secretKeyRef:
                   name: stirling-pdf-secrets
                   key: OIDC_CLIENT_SECRET
+            - name: SECURITY_INITIALLOGIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: stirling-pdf-secrets
+                  key: INITIAL_ADMIN_PASSWORD
           ports:
             - name: http
               containerPort: 8080
