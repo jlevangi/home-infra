@@ -83,11 +83,13 @@ If reachable but the actual chat request fails, look at the PC's llama-swap stdo
 
 ## GPU panels for `instance=workstation` are empty
 
-By design — `pierce-pc` does not have `rocm-smi` on PATH. llama-swap v218+ supports AMD GPU monitoring via `rocm-smi` (per the v218 changelog: "Add new power draw column header for rocm-smi monitoring") but skips the gauges if the binary isn't found.
+**Upstream-blocked, not a local config problem.** llama-swap v223's Windows GPU monitor (`internal/perf/monitor_windows.go`) only supports `nvidia-smi`. The Linux build's fallback chain (LACT → nvidia-smi → rocm-smi → sysfs) does NOT exist on Windows. Installing `rocm-smi.exe` on this host would not help — llama-swap on Windows literally never calls it.
 
-To enable: install AMD's ROCm SDK for Windows (large download, ~3 GiB) or just the `amd-smi`/`rocm-smi` tooling. After install, restart llama-swap and the GPU gauges should appear in `/metrics`.
+This is tracked upstream by mostlygeek/llama-swap [PR #779 — "perf: add vendor-agnostic GPU monitoring for Windows (experimental)"](https://github.com/mostlygeek/llama-swap/pull/779) by `noctrex`. It adds PDH (Windows Performance Counters) + D3DKMT (DirectX) backends with the new fallback chain: `nvidia-smi → D3DKMT+PDH → ErrNoGpuTool`. Tested upstream on AMD 7900XTX with ROCm; confirmed working. As of last check it was open and under coderabbit review.
 
-The dashboard panels themselves work fine for `instance=cluster` (which has NVIDIA + `nvidia-smi`) and just sit empty for workstation. No code change needed.
+**What to do today**: nothing — the dashboard panels for `instance=cluster` (NVIDIA + `nvidia-smi`) work fine; the workstation panels just sit empty until PR #779 lands and we `winget upgrade --id mostlygeek.llama-swap`. PDH does not require `rocm-smi.exe` or the AMD HIP SDK, so when this lights up, no additional installs are needed.
+
+Watch the PR; once merged + released, run `winget upgrade --id mostlygeek.llama-swap` and restart llama-swap via the Start/Stop shortcuts. GPU panels for `instance=workstation` should populate within ~30s (one scrape interval).
 
 ## Sidecar service shows `active` but port is unreachable for a moment after start
 

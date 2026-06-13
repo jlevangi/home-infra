@@ -130,7 +130,7 @@ If `pierce-pc` is renamed, moved, or replaced, those two paths are the only edit
 
 ## Caveats and known gaps
 
-- **No GPU metrics for `workstation`**. llama-swap's AMD GPU support requires `rocm-smi` on PATH; `pierce-pc` only has the ROCm runtime DLLs bundled with the llama.cpp build, not the standalone SDK. The Grafana dashboard's GPU panels are empty for `instance=workstation`. To fix, install AMD's ROCm SDK or the `amd-smi` tool on Windows.
+- **No GPU metrics for `workstation` — upstream-blocked.** llama-swap v223's Windows GPU monitor (`internal/perf/monitor_windows.go`) only supports `nvidia-smi`; AMD support exists in the Linux build but has never been ported to Windows. Tracked upstream by [mostlygeek/llama-swap PR #779](https://github.com/mostlygeek/llama-swap/pull/779) which adds PDH (Windows Performance Counters) + D3DKMT backends. When that merges + we `winget upgrade`, GPU panels for `instance=workstation` populate automatically. No local install required (PDH does not need rocm-smi or the AMD HIP SDK).
 - **Sidecar HELP/TYPE dedup is overly aggressive**. Cosmetic — Prometheus accepts metrics without HELP lines, and metric values flow correctly. Filed for cleanup.
 - **No auth between cluster and workstation**. LAN-trust only. If `pierce-pc:9080` is ever exposed beyond the LAN, add `apiKeys` to the PC config and reference an ExternalSecret-backed key in the cluster's `peers.pierce-pc.apiKey`.
 - **The workstation setup is not yet Ansible-managed**. Tracked separately; see the open beads issue referenced in `README.md`.

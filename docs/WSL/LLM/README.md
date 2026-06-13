@@ -55,15 +55,16 @@ Pick up any of these on the next uptake — they're filed with enough context to
 
 | ID | Priority | Title |
 |---|---|---|
-| `home-infra-80f` | P3 | Convert pierce-pc workstation setup into Ansible role (umbrella — depends on the three below) |
+| `home-infra-80f` | P3 | Convert pierce-pc workstation setup into Ansible role (umbrella — depends on the two below) |
 | `home-infra-li2` | P3 | Add a committed template/sample of pierce-pc's llama-swap `config.yaml` |
-| `home-infra-pd5` | P3 | Install `rocm-smi` on pierce-pc to unblock AMD GPU metrics for `instance=workstation` |
 | `home-infra-pwj` | P3 | Decide LibreChat behavior re: peer Qwen models surfaced via cluster `/v1/models` |
 | `home-infra-62g` | P3 | Document subagent peer dispatch (Hermes / Opencode / Pi-agent) — config + model routing |
 | `home-infra-mw6` | P4 | Tune pierce-pc llama-swap model TTL (currently `300s` = 5 min cold-load on next idle request) |
 | `home-infra-tv4` | P4 | `[bug]` llama-metrics sidecar suppresses HELP/TYPE lines after the first metric |
 
 Inspect any with `bd show <id>`; the graph (`bd show home-infra-80f`) shows what the Ansible role naturally subsumes.
+
+**Upstream-blocked (not bd-tracked anymore):** GPU panels for `instance=workstation` stay empty until [mostlygeek/llama-swap PR #779](https://github.com/mostlygeek/llama-swap/pull/779) merges and we `winget upgrade --id mostlygeek.llama-swap` — see `troubleshooting.md` "GPU panels for instance=workstation are empty". This was previously tracked as `home-infra-pd5`, now closed since no local action will help.
 
 ## Where we left off (2026-06-09)
 
