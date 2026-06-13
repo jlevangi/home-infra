@@ -4,12 +4,12 @@ metadata:
   name: keycloak-config
   namespace: keycloak
 data:
-  KC_PROXY: "edge"
-  KC_PROXY_ADDRESS_FORWARDING: "true"
-  KC_HOSTNAME: "auth.levangie.org"
-  KC_HOSTNAME_STRICT: "false"
-  KC_HOSTNAME_STRICT_HTTPS: "true"
+  # Keycloak 26: KC_PROXY removed; use KC_PROXY_HEADERS + KC_HTTP_ENABLED
+  KC_PROXY_HEADERS: "xforwarded"
   KC_HTTP_ENABLED: "true"
+  # Hostname: now expects a full URL in 26
+  KC_HOSTNAME: "https://auth.levangie.org"
+  KC_HOSTNAME_STRICT: "false"
   KC_HEALTH_ENABLED: "true"
   KC_METRICS_ENABLED: "true"
   KC_DB: "postgres"
@@ -17,4 +17,6 @@ data:
   KC_DB_URL_PORT: "5432"
   KC_DB_URL_DATABASE: "keycloak"
   KC_DB_USERNAME: "keycloak"
-  KEYCLOAK_ADMIN: "admin"
+  # KEYCLOAK_ADMIN renamed to KC_BOOTSTRAP_ADMIN_USERNAME in 26 (no-op since
+  # the admin user already exists in the DB — kept for clarity / first-run)
+  KC_BOOTSTRAP_ADMIN_USERNAME: "admin"

@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: keycloak
-          image: quay.io/keycloak/keycloak:22.0.3
+          image: quay.io/keycloak/keycloak:26.6.3
           imagePullPolicy: IfNotPresent
           args: ["start"]
           envFrom:
@@ -29,7 +29,7 @@ spec:
                 secretKeyRef:
                   name: keycloak-secrets
                   key: DB_PASSWORD
-            - name: KEYCLOAK_ADMIN_PASSWORD
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: keycloak-secrets
