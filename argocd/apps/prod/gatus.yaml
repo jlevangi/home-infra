@@ -310,14 +310,6 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
-            - name: Jellyseerr
-              group: Media
-              url: https://jellyseerr.levangie.dev
-              interval: 5m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
-
             - name: Sonarr
               group: Media
               url: https://sonarr.levangie.dev
