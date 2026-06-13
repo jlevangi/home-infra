@@ -39,25 +39,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: jellyseerr
-  namespace: yams
-  labels:
-    app: jellyseerr
-    app.kubernetes.io/name: jellyseerr
-    app.kubernetes.io/part-of: yams
-spec:
-  type: ClusterIP
-  selector:
-    app: jellyseerr
-  ports:
-    - name: http
-      port: 5055
-      targetPort: 5055
-      protocol: TCP
----
-apiVersion: v1
-kind: Service
-metadata:
   name: qbittorrent
   namespace: yams
   labels:

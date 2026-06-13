@@ -36,7 +36,6 @@ initial sync. After ArgoCD creates the PVCs, copy each source directory from
 ```text
 tautulli      -> tautulli-config-pvc:/config
 seerr         -> seerr-config-pvc:/app/config
-jellyseerr    -> jellyseerr-config-pvc:/app/config
 gluetun       -> gluetun-config-pvc:/config
 qbittorrent   -> qbittorrent-config-pvc:/config
 sonarr        -> sonarr-config-pvc:/config

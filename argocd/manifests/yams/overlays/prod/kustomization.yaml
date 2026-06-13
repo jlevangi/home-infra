@@ -19,13 +19,6 @@ patches:
         value: seerr-config-pv
   - target:
       kind: PersistentVolumeClaim
-      name: jellyseerr-config-pvc
-    patch: |
-      - op: replace
-        path: /spec/volumeName
-        value: jellyseerr-config-pv
-  - target:
-      kind: PersistentVolumeClaim
       name: qbittorrent-gluetun-config-pvc
     patch: |
       - op: replace

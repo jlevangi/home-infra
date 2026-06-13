@@ -179,65 +179,6 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: jellyseerr
-  namespace: yams
-  labels:
-    app: jellyseerr
-    app.kubernetes.io/name: jellyseerr
-    app.kubernetes.io/part-of: yams
-spec:
-  replicas: 1
-  strategy:
-    type: Recreate
-  selector:
-    matchLabels:
-      app: jellyseerr
-  template:
-    metadata:
-      labels:
-        app: jellyseerr
-        app.kubernetes.io/name: jellyseerr
-        app.kubernetes.io/part-of: yams
-    spec:
-      containers:
-        - name: jellyseerr
-          image: ghcr.io/fallenbagel/jellyseerr:latest
-          imagePullPolicy: IfNotPresent
-          env:
-            - name: LOG_LEVEL
-              value: debug
-            - name: TZ
-              value: America/New_York
-          ports:
-            - name: http
-              containerPort: 5055
-              protocol: TCP
-          volumeMounts:
-            - name: config
-              mountPath: /app/config
-          readinessProbe:
-            httpGet:
-              path: /api/v1/status
-              port: http
-            initialDelaySeconds: 20
-            periodSeconds: 15
-            timeoutSeconds: 3
-            failureThreshold: 3
-          resources:
-            requests:
-              cpu: 50m
-              memory: 128Mi
-            limits:
-              cpu: 500m
-              memory: 512Mi
-      volumes:
-        - name: config
-          persistentVolumeClaim:
-            claimName: jellyseerr-config-pvc
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
   name: qbittorrent
   namespace: yams
   labels:

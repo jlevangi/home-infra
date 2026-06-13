@@ -34,25 +34,6 @@ spec:
       storage: 500Mi
   storageClassName: longhorn-fast
 ---
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: jellyseerr-config-pvc
-  namespace: yams
-  labels:
-    recurring-job-group.longhorn.io/daily: "enabled"
-    recurring-job-group.longhorn.io/weekly: "enabled"
-    app: jellyseerr
-    volume-type: config
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 500Mi
-  storageClassName: longhorn-fast
----
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
