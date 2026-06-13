@@ -52,17 +52,16 @@ spec:
               memory: "4Gi"
           readinessProbe:
             httpGet:
-              path: /
+              path: /login
               port: 8080
             initialDelaySeconds: 60
             periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 6
           livenessProbe:
-            httpGet:
-              path: /
+            tcpSocket:
               port: 8080
-            initialDelaySeconds: 120
+            initialDelaySeconds: 180
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 4
