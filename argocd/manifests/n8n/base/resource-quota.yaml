@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: n8n-storage-quota
+  namespace: n8n
+spec:
+  hard:
+    requests.storage: "30Gi"
+    persistentvolumeclaims: "2"
+    longhorn.io/requests.storage: "30Gi"
