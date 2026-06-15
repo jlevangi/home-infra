@@ -93,7 +93,7 @@ models:
       --alias Qwen3-Coder-Next-UD-Q4_K_M
       --host 0.0.0.0
       --port ${PORT}
-      --gpu-layers 6
+      --gpu-layers 5
       --threads 22
       --ctx-size 131072
       --batch-size 512
