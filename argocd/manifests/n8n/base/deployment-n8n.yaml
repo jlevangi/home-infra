@@ -50,6 +50,11 @@ spec:
                 secretKeyRef:
                   name: n8n-secrets
                   key: N8N_ENCRYPTION_KEY
+            - name: PAPERLESS_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secrets
+                  key: PAPERLESS_API_TOKEN
           ports:
             - name: http
               containerPort: 5678
