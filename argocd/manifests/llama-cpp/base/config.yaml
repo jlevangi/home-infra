@@ -29,13 +29,11 @@
 # more slots — they're CPU-bound enough that extra concurrency usually just
 # splits the floor.
 startPort: 5800
-# MiniMax-M2.7-UD-Q4_K_M is 138 GiB across 4 GGUF shards on the tank
-# zvol (spinning rust); with --mlock the first cold load has to stream
-# the entire model off HDD AND mlockall() it before /health flips ready.
-# A pre-warmed page cache lands closer to 10-15 minutes; a fully cold
-# start can push past 25, so allow 45 minutes of headroom here. Smaller
-# models still load well inside this window.
-healthCheckTimeout: 2700
+# Heavy CPU-resident MoEs live on the tank zvol (spinning rust). MiniMax
+# with --mlock can need 25+ minutes from a cold page cache, and MiMo's
+# larger shard set exceeded the old 45 minute window during initial
+# testing, so allow two hours before llama-swap gives up on a load.
+healthCheckTimeout: 7200
 logLevel: info
 
 # Never auto-unload an idle model. The default 3600s TTL was causing
