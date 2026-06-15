@@ -509,7 +509,7 @@ models:
       --port ${PORT}
       --numa distribute
       --threads 24
-      --gpu-layers 8
+      --gpu-layers 6
       --ctx-size 32768
       --batch-size 512
       --ubatch-size 128
