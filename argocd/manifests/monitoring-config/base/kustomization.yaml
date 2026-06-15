@@ -14,4 +14,3 @@ resources:
   - grafana-dashboard-logs-and-gitops.yaml
   - grafana-dashboard-vpa-recommendations.yaml
   - grafana-dashboard-proxmox-hosts.yaml
-  - grafana-dashboard-proxmox-via-prometheus.yaml
