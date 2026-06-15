@@ -497,6 +497,37 @@ models:
     # top-level globalTTL: 0.
 
   # =================================================================
+  # MiMo-V2.5-MXFP4_MOE — HEAVY CPU-RESIDENT MoE TEST
+  # =================================================================
+  # 5-shard MXFP4 MoE under /models/mimo/2.5/MXFP4_MOE/. This is larger
+  # than MiniMax on disk, so do not preload it or mlock it until load
+  # time and memory behavior are measured on the prod GPU worker.
+  MiMo-V2.5-MXFP4_MOE:
+    cmd: |
+      /usr/local/bin/llama-server
+      --model /models/mimo/2.5/MXFP4_MOE/MiMo-V2.5-MXFP4_MOE-00001-of-00005.gguf
+      --alias MiMo-V2.5-MXFP4_MOE
+      --host 0.0.0.0
+      --port ${PORT}
+      --numa distribute
+      --threads 24
+      --gpu-layers 4
+      --ctx-size 32768
+      --batch-size 512
+      --ubatch-size 128
+      --parallel 1
+      --flash-attn on
+      --cache-type-k q4_0
+      --cache-type-v q4_0
+      --no-kv-offload
+      --reasoning auto
+      --metrics
+      --no-webui
+    env:
+      - "CUDA_VISIBLE_DEVICES=0"
+    ttl: 3600
+
+  # =================================================================
   # Dense 27B Q5_K_S with MTP speculative decoding + no-kv-offload.
   # +42% single-request gen vs non-MTP (2.03 -> 2.89 t/s). VRAM ~6160 MiB.
   # Thinking MUST be disabled per-request for MTP to work.
