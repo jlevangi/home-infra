@@ -43,13 +43,13 @@ logLevel: info
 # different one or the process restarts.
 globalTTL: 0
 
-# Preload the stable automation alias at proxy startup so the cold mlock pass happens during
+# Preload the default model at proxy startup so the cold mlock pass happens during
 # pod rollout, not on the first user request. The preload itself blocks
 # behind healthCheckTimeout, so give it the full window on HDDs.
 hooks:
   on_startup:
     preload:
-      - current_model
+      - MiMo-V2.5-MXFP4_MOE
 
 # Peer instances that this proxy can forward requests to. Peer models are
 # transparently advertised in /v1/models and proxied via /v1/chat/completions,
@@ -493,18 +493,18 @@ models:
     ttl: 3600
 
   # =================================================================
-  # current_model — DEFAULT HOT-LOADED AUTOMATION MODEL
+  # MiMo-V2.5-MXFP4_MOE — DEFAULT HOT-LOADED MODEL
   # =================================================================
-  # Stable model ID for automation clients. This currently points at the
   # 5-shard MiMo MXFP4 MoE under /models/mimo/2.5/MXFP4_MOE/. Live testing
   # on the prod GPU worker showed ngl=4 is stable (~2.6 tok/s); ngl=6 and
-  # ngl=8 exit during startup before sustained VRAM allocation. Repoint this
-  # alias when the default hot-loaded model changes instead of editing clients.
-  current_model:
+  # ngl=8 exit during startup before sustained VRAM allocation. Automation
+  # clients should read their default model from LLM_DEFAULT_MODEL instead of
+  # hardcoding this value.
+  MiMo-V2.5-MXFP4_MOE:
     cmd: |
       /usr/local/bin/llama-server
       --model /models/mimo/2.5/MXFP4_MOE/MiMo-V2.5-MXFP4_MOE-00001-of-00005.gguf
-      --alias current_model
+      --alias MiMo-V2.5-MXFP4_MOE
       --host 0.0.0.0
       --port ${PORT}
       --numa distribute
@@ -524,7 +524,7 @@ models:
       --no-webui
     env:
       - "CUDA_VISIBLE_DEVICES=0"
-    # No ttl: current_model is preloaded via hooks.on_startup and should stay
+    # No ttl: MiMo is preloaded via hooks.on_startup and should stay
     # resident once the long mlock pass completes. Inherits the top-level
     # globalTTL: 0.
 
