@@ -82,22 +82,13 @@ spec:
                   titleConvo: true
                   titleModel: "MiMo-V2.5-MXFP4_MOE"
                   modelDisplayLabel: "llama.cpp Server"
-                - name: "llama-pc"
+                - name: "lemonade-pc"
                   apiKey: "not-needed"
-                  baseURL: "http://pierce-pc.levangie.org:9080/v1"
+                  baseURL: "http://pierce-pc.levangie.org:13305/v1"
                   models:
-                    default:
-                      - "Qwen3.6-35B-A3B"
-                      - "Qwen3.6-35B-A3B-hermes"
-                      - "Qwen3.6-27B"
-                      - "Qwen3.6-27B-hermes"
-                      - "Gemma-4-12B-coder-fable5-composer2.5-v1"
-                      - "Gemma4-26B-A4B"
-                      - "Gemma4-31B"
                     fetch: true
                   titleConvo: true
-                  titleModel: "Qwen3.6-35B-A3B"
-                  modelDisplayLabel: "llama.cpp PC"
+                  modelDisplayLabel: "Lemonade PC"
           resources:
             requests:
               cpu: 100m
