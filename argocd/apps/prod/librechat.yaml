@@ -86,6 +86,7 @@ spec:
                   apiKey: "not-needed"
                   baseURL: "http://pierce-pc.levangie.org:13305/v1"
                   models:
+                    default: []
                     fetch: true
                   titleConvo: true
                   modelDisplayLabel: "Lemonade PC"
