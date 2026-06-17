@@ -44,7 +44,7 @@ This directory is organized around current operator workflows first. Historical 
 ## Workstation (WSL)
 
 - [WSL/LLM Setup](WSL/LLM/README.md)
-  Setting up `pierce-pc` as a llama-swap peer of the in-cluster `llama-cpp` deployment — Windows-side install, the WSL2 metrics sidecar, the cluster wiring that pairs with it, and the operational fixes earned the hard way.
+  Setting up `pierce-pc` as a standalone llama-swap workstation alongside the in-cluster `llama-cpp` deployment — Windows-side install, the WSL2 metrics sidecar, LibreChat direct endpoint wiring, and the operational fixes earned the hard way.
 
 ## Personal / Sensitive
 

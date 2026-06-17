@@ -59,27 +59,27 @@ wsl --shutdown
 
 Without mirrored mode, WSL2 services on `0.0.0.0:9090` are NOT reachable from the LAN — they sit behind a NAT'd Hyper-V virtual network. The fallback is `netsh interface portproxy add v4tov4 listenport=9090 listenaddress=0.0.0.0 connectport=9090 connectaddress=<wsl-ip>` from elevated PowerShell, but mirrored mode is the cleaner answer and the rest of this setup assumes it.
 
-## Peer routing returns 502 (cluster's `/v1/chat/completions` to a Qwen model fails)
+## LibreChat `llama.cpp PC` endpoint fails or shows no models
 
-The cluster's `peers.pierce-pc.proxy` URL must point at the right host + port. Check:
+LibreChat talks to the workstation directly at `http://pierce-pc.levangie.org:9080/v1`. Check the configured endpoint:
 
 ```bash
-git --no-pager show HEAD:argocd/manifests/llama-cpp/base/config.yaml | grep -A1 'pierce-pc:' | head
+git --no-pager show HEAD:argocd/apps/prod/librechat.yaml | grep -A4 'name: "llama-pc"'
 ```
 
-Expected: `proxy: http://pierce-pc.levangie.org:9080`. If you see `:8080`, that's the pre-`addc051` bug — rebase / pull / sync.
+Expected: `baseURL: "http://pierce-pc.levangie.org:9080/v1"`. If you see `:8080`, that's the pre-`addc051` port mistake — rebase / pull / sync.
 
-If the proxy URL is right but routing still 502s:
+If the URL is right but LibreChat still cannot fetch models:
 
 ```bash
-# from any cluster pod — can it reach the workstation llama-swap directly?
+# from any cluster pod - can it reach the workstation llama-swap directly?
 kubectl --context k3s-prod -n monitoring exec deploy/kube-prometheus-stack-grafana -- \
-  wget -qO- --timeout=5 http://pierce-pc.levangie.org:9080/running
+  wget -qO- --timeout=5 http://pierce-pc.levangie.org:9080/v1/models
 ```
 
-If that hangs, the workstation's llama-swap port is firewalled, or the host isn't running, or DNS lies. Test from the operator's machine: `curl http://pierce-pc.levangie.org:9080/running`.
+If that hangs, the workstation's llama-swap port is firewalled, the host is not running, or DNS lies. Test from the operator's machine: `curl http://pierce-pc.levangie.org:9080/v1/models`.
 
-If reachable but the actual chat request fails, look at the PC's llama-swap stdout (the Start shortcut hides the window — re-launch without `-WindowStyle Hidden` temporarily, OR rely on the in-process log capture via `GET http://127.0.0.1:9080/api/events`).
+If reachable but the actual chat request fails, look at the PC's llama-swap stdout. The Start shortcut hides the window; re-launch without `-WindowStyle Hidden` temporarily, or rely on the in-process log capture via `GET http://127.0.0.1:9080/api/events`.
 
 ## GPU panels for `instance=workstation` are empty
 
@@ -135,6 +135,12 @@ where.exe llama-swap
 
 If empty, `winget repair --id mostlygeek.llama-swap` or simply `winget uninstall --id mostlygeek.llama-swap; winget install --id mostlygeek.llama-swap`.
 
-## Stale entries in `/v1/models` after removing a peer model
+## Stale entries in LibreChat after changing workstation models
 
-llama-swap caches the peer model list at proxy startup. If you remove a model from `peers.pierce-pc.models` in the cluster config, ArgoCD will sync, the configmap hash changes, the pod rolls, and the new list takes effect. If you skipped the pod roll for some reason, force it: `kubectl --context k3s-prod -n llama-cpp rollout restart deploy/llama-cpp`.
+LibreChat fetches model lists from the endpoint, but the UI can hold client-side state. First confirm the workstation reports the expected list:
+
+```bash
+curl -s http://pierce-pc.levangie.org:9080/v1/models
+```
+
+If the API is correct but LibreChat is stale, refresh the browser session or restart the LibreChat pod so it reloads its config.

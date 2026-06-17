@@ -1,6 +1,6 @@
 # Architecture — WSL/LLM Workstation
 
-The design that connects `pierce-pc` to the in-cluster `llama-cpp` deployment, the reasoning behind each non-obvious choice, and the bits the cluster knows about the workstation.
+The design that runs `pierce-pc` alongside the in-cluster `llama-cpp` deployment, the reasoning behind each non-obvious choice, and the bits the cluster knows about the workstation.
 
 ## Components
 
@@ -38,25 +38,25 @@ The design that connects `pierce-pc` to the in-cluster `llama-cpp` deployment, t
                                           │  job=llama-cpp-pc               │
                                           │  instance=workstation           │
                                           │                                 │
-                                          │ llama-swap (in-cluster pod)     │
-                                          │  peers.pierce-pc.proxy:         │
-                                          │    http://pierce-pc...:9080     │
+                                          │ LibreChat direct endpoint       │
+                                          │  http://pierce-pc...:9080/v1    │
                                           └─────────────────────────────────┘
 ```
 
-## Why a llama-swap peer (and not just two separate endpoints)
+## Why separate endpoints
 
-llama-swap natively supports a `peers:` config block. Peer models appear in the local `/v1/models` listing and `POST /v1/chat/completions` calls for those model IDs are transparently proxied. This means:
+The cluster previously used llama-swap's `peers:` block to aggregate workstation models into the in-cluster `/v1/models` list. That was convenient for clients that only support one OpenAI-compatible base URL, but it made model ownership ambiguous in UIs such as LibreChat.
 
-- LibreChat and agent code only point at the cluster's llama-swap; they see one unified model list.
-- The cluster's choice of "which model lives where" is changed by editing one git file (`argocd/manifests/llama-cpp/base/config.yaml`), not by reconfiguring every client.
-- Adding a third instance later (e.g. another workstation or a Mac) is another entry in the same block.
+The current design keeps each machine as its own OpenAI-compatible endpoint:
 
-The peer block excludes `Gemma4-31B` and `Gemma4-26B-A4B` because those IDs collide with cluster-local models. llama-swap's resolver is first-match-wins (local always beats peer), so listing them would silently never route — the cluster's local copies serve every request. To peer-route a colliding model, rename it on the PC side (e.g. `Gemma4-31B-pc`) and add the renamed ID to the peers list.
+- `llama.cpp Server` points at the in-cluster llama-swap service and fetches cluster-local models.
+- `llama.cpp PC` points directly at `http://pierce-pc.levangie.org:9080/v1` and fetches workstation models.
+
+This is simpler operationally: model lists stay machine-scoped, duplicate model IDs are not hidden behind first-match routing, and clients that care where a model runs can choose the endpoint explicitly.
 
 ## Why a separate metrics sidecar (and not just the proxy's own /metrics)
 
-llama-swap's own `/metrics` exposes host-level gauges (`llamaswap_cpu_util_percent`, `llamaswap_gpu_*`, etc.) but **only for the local host**. It does not aggregate metrics across peers. Inference metrics (`llamacpp:prompt_tokens_total`, `llamacpp:predicted_tokens_seconds`, `llamacpp:kv_cache_usage_ratio`, …) are exposed by each llama-server child process on its own ephemeral port (`startPort + N`), accessible via `GET /upstream/<model>/metrics` on the proxy — but only for **currently-loaded** models. Inactive scrape paths block.
+llama-swap's own `/metrics` exposes host-level gauges (`llamaswap_cpu_util_percent`, `llamaswap_gpu_*`, etc.) for the local host. Inference metrics (`llamacpp:prompt_tokens_total`, `llamacpp:predicted_tokens_seconds`, `llamacpp:kv_cache_usage_ratio`, …) are exposed by each llama-server child process on its own ephemeral port (`startPort + N`), accessible via `GET /upstream/<model>/metrics` on the proxy — but only for **currently-loaded** models. Inactive scrape paths block.
 
 The sidecar resolves both gaps:
 
@@ -80,7 +80,7 @@ The `.wslconfig` requirement is the only non-default piece. The setup script ver
 
 ## Why llama-swap.exe binds to :9080 (and not :8080)
 
-Default port for llama-swap is 8080. The `Start Llama-Swap.lnk` shortcut on `pierce-pc` invokes it with `--listen 0.0.0.0:9080` explicitly. Reason: port 8080 was already in use on `pierce-pc` (Hyper-V default management endpoints + various dev tools commonly squat there), so the operator chose 9080 to avoid collision. The cluster's `peers.pierce-pc.proxy` URL must match. This was committed in `addc051` after the original `cb43756` shipped with the wrong port.
+Default port for llama-swap is 8080. The `Start Llama-Swap.lnk` shortcut on `pierce-pc` invokes it with `--listen 0.0.0.0:9080` explicitly. Reason: port 8080 was already in use on `pierce-pc` (Hyper-V default management endpoints + various dev tools commonly squat there), so the operator chose 9080 to avoid collision. LibreChat's `llama.cpp PC` endpoint points at this port directly.
 
 ## Why `instance=workstation` (label strategy)
 
@@ -98,18 +98,14 @@ This avoids the default `<pod-ip>:9090` instance label that the user can't reaso
 The two cluster-side files that reference `pierce-pc` are the entire surface:
 
 ```yaml
-# argocd/manifests/llama-cpp/base/config.yaml — peers block (excerpt)
-peers:
-  pierce-pc:
-    proxy: http://pierce-pc.levangie.org:9080
-    models:
-      - Qwen3.6-27B
-      - Qwen3.6-35B-A3B
-      - Qwen3.6-27B-hermes
-      - Qwen3.6-35B-A3B-hermes
-    timeouts:
-      connect: 10
-      responseHeader: 60
+# argocd/apps/prod/librechat.yaml — LibreChat custom endpoint (excerpt)
+endpoints:
+  custom:
+    - name: "llama-pc"
+      baseURL: "http://pierce-pc.levangie.org:9080/v1"
+      models:
+        fetch: true
+      modelDisplayLabel: "llama.cpp PC"
 ```
 
 ```yaml
@@ -132,5 +128,5 @@ If `pierce-pc` is renamed, moved, or replaced, those two paths are the only edit
 
 - **No GPU metrics for `workstation` — upstream-blocked.** llama-swap v223's Windows GPU monitor (`internal/perf/monitor_windows.go`) only supports `nvidia-smi`; AMD support exists in the Linux build but has never been ported to Windows. Tracked upstream by [mostlygeek/llama-swap PR #779](https://github.com/mostlygeek/llama-swap/pull/779) which adds PDH (Windows Performance Counters) + D3DKMT backends. When that merges + we `winget upgrade`, GPU panels for `instance=workstation` populate automatically. No local install required (PDH does not need rocm-smi or the AMD HIP SDK).
 - **Sidecar HELP/TYPE dedup is overly aggressive**. Cosmetic — Prometheus accepts metrics without HELP lines, and metric values flow correctly. Filed for cleanup.
-- **No auth between cluster and workstation**. LAN-trust only. If `pierce-pc:9080` is ever exposed beyond the LAN, add `apiKeys` to the PC config and reference an ExternalSecret-backed key in the cluster's `peers.pierce-pc.apiKey`.
+- **No auth between cluster and workstation**. LAN-trust only. If `pierce-pc:9080` is ever exposed beyond the LAN, add `apiKeys` to the PC config and pass the key to clients through Kubernetes secrets.
 - **The workstation setup is not yet Ansible-managed**. Tracked separately; see the open beads issue referenced in `README.md`.

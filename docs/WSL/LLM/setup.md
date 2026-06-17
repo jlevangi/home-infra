@@ -158,14 +158,14 @@ If any step fails, the script prints which one and exits non-zero. Use [troubles
 These two files in the repo encode everything the cluster knows about `pierce-pc`. They should already be present and pushed:
 
 ```bash
-git --no-pager show HEAD:argocd/manifests/llama-cpp/base/config.yaml | grep -A2 "^peers:"
+git --no-pager show HEAD:argocd/apps/prod/librechat.yaml | grep -A4 'name: "llama-pc"'
 git --no-pager show HEAD:argocd/manifests/monitoring-config/overlays/prod/scrapeconfig-llama-cpp-pc.yaml
 ```
 
 If the workstation is brand-new and these don't exist yet, the operator needs to add them. Use the cluster-side commit history as reference:
 
-- `cb43756` — original peer + ScrapeConfig
-- `addc051` — port fix (8080 → 9080)
+- `cb43756` — original workstation + ScrapeConfig wiring
+- `addc051` — port fix (8080 -> 9080)
 - `3ab50b1` — sidecar `/running` parser fix (dict-shaped entries)
 
 ## Step 7 — Confirm metrics flow in Grafana

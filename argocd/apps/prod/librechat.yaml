@@ -59,22 +59,45 @@ spec:
               presets: true
             endpoints:
               custom:
-                - name: "llama-cpp"
+                - name: "llama-server"
                   apiKey: "not-needed"
                   baseURL: "http://llama-cpp.llama-cpp.svc.cluster.local:8080/v1"
                   models:
                     default:
+                      - "MiMo-V2.5-MXFP4_MOE"
                       - "Qwen3-Coder-Next-UD-Q4_K_M"
+                      - "Qwen3-Coder-Next-UD-Q4_K_M-hermes"
+                      - "Qwen3-Coder-Next-UD-Q4_K_M-hermes-fast"
                       - "Qwen3.6-35B-A3B-UD-Q4_K_M-worker"
+                      - "Qwen3.6-35B-A3B-UD-Q4_K_M-worker-hermes"
                       - "Qwen3.6-35B-A3B-UD-Q4_K_M-planner"
                       - "Qwen3.6-35B-A3B-UD-Q4_K_M"
-                      - "Qwen3.6-35B-A3B-UD-Q4_K_S-worker"
                       - "Gemma4-26B-A4B"
+                      - "Gemma4-31B"
                       - "Qwen3.6-27B-Q5_K_S-MTP"
+                      - "Qwen3.6-27B-UD-Q8_K_XL"
+                      - "Qwopus3.5-9B-Coder-MTP"
+                      - "MiniMax-M2.7-UD-Q4_K_M"
                     fetch: true
                   titleConvo: true
-                  titleModel: "current_model"
-                  modelDisplayLabel: "llama.cpp"
+                  titleModel: "MiMo-V2.5-MXFP4_MOE"
+                  modelDisplayLabel: "llama.cpp Server"
+                - name: "llama-pc"
+                  apiKey: "not-needed"
+                  baseURL: "http://pierce-pc.levangie.org:9080/v1"
+                  models:
+                    default:
+                      - "Qwen3.6-35B-A3B"
+                      - "Qwen3.6-35B-A3B-hermes"
+                      - "Qwen3.6-27B"
+                      - "Qwen3.6-27B-hermes"
+                      - "Gemma-4-12B-coder-fable5-composer2.5-v1"
+                      - "Gemma4-26B-A4B"
+                      - "Gemma4-31B"
+                    fetch: true
+                  titleConvo: true
+                  titleModel: "Qwen3.6-35B-A3B"
+                  modelDisplayLabel: "llama.cpp PC"
           resources:
             requests:
               cpu: 100m
