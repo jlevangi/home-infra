@@ -64,7 +64,7 @@ spec:
                   baseURL: "http://llama-cpp.llama-cpp.svc.cluster.local:8080/v1"
                   models:
                     default:
-                      - "MiMo-V2.5-MXFP4_MOE"
+                      - "MiniMax-M2.7-UD-Q4_K_M"
                       - "Qwen3-Coder-Next-UD-Q4_K_M"
                       - "Qwen3-Coder-Next-UD-Q4_K_M-hermes"
                       - "Qwen3-Coder-Next-UD-Q4_K_M-hermes-fast"
@@ -77,10 +77,9 @@ spec:
                       - "Qwen3.6-27B-Q5_K_S-MTP"
                       - "Qwen3.6-27B-UD-Q8_K_XL"
                       - "Qwopus3.5-9B-Coder-MTP"
-                      - "MiniMax-M2.7-UD-Q4_K_M"
                     fetch: true
                   titleConvo: true
-                  titleModel: "MiMo-V2.5-MXFP4_MOE"
+                  titleModel: "MiniMax-M2.7-UD-Q4_K_M"
                   modelDisplayLabel: "llama.cpp Server"
                 - name: "lemonade-pc"
                   apiKey: "not-needed"

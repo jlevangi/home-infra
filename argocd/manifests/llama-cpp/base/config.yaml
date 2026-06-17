@@ -30,9 +30,8 @@
 # splits the floor.
 startPort: 5800
 # Heavy CPU-resident MoEs live on the tank zvol (spinning rust). MiniMax
-# with --mlock can need 25+ minutes from a cold page cache, and MiMo's
-# larger shard set exceeded the old 45 minute window during initial
-# testing, so allow two hours before llama-swap gives up on a load.
+# with --mlock can need 25+ minutes from a cold page cache, so allow two
+# hours before llama-swap gives up on a load.
 healthCheckTimeout: 7200
 logLevel: info
 
@@ -49,7 +48,7 @@ globalTTL: 0
 hooks:
   on_startup:
     preload:
-      - MiMo-V2.5-MXFP4_MOE
+      - MiniMax-M2.7-UD-Q4_K_M
 
 models:
   # =================================================================
@@ -463,42 +462,6 @@ models:
     env:
       - "CUDA_VISIBLE_DEVICES=0"
     ttl: 3600
-
-  # =================================================================
-  # MiMo-V2.5-MXFP4_MOE — DEFAULT HOT-LOADED MODEL
-  # =================================================================
-  # 5-shard MiMo MXFP4 MoE under /models/mimo/2.5/MXFP4_MOE/. Live testing
-  # on the prod GPU worker showed ngl=4 is stable (~2.6 tok/s); ngl=6 and
-  # ngl=8 exit during startup before sustained VRAM allocation. Automation
-  # clients should read their default model from LLM_DEFAULT_MODEL instead of
-  # hardcoding this value.
-  MiMo-V2.5-MXFP4_MOE:
-    cmd: |
-      /usr/local/bin/llama-server
-      --model /models/mimo/2.5/MXFP4_MOE/MiMo-V2.5-MXFP4_MOE-00001-of-00005.gguf
-      --alias MiMo-V2.5-MXFP4_MOE
-      --host 0.0.0.0
-      --port ${PORT}
-      --numa distribute
-      --threads 24
-      --gpu-layers 4
-      --ctx-size 32768
-      --batch-size 512
-      --ubatch-size 128
-      --parallel 1
-      --flash-attn on
-      --cache-type-k q4_0
-      --cache-type-v q4_0
-      --no-kv-offload
-      --reasoning auto
-      --metrics
-      --mlock
-      --no-webui
-    env:
-      - "CUDA_VISIBLE_DEVICES=0"
-    # No ttl: MiMo is preloaded via hooks.on_startup and should stay
-    # resident once the long mlock pass completes. Inherits the top-level
-    # globalTTL: 0.
 
   # =================================================================
   # Dense 27B Q5_K_S with MTP speculative decoding + no-kv-offload.

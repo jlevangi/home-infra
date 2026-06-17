@@ -7,7 +7,7 @@ clients should use by default.
 
 Keep llama-swap model IDs honest. The model key and `--alias` in
 `argocd/manifests/llama-cpp/base/config.yaml` should be the real model name,
-for example `MiMo-V2.5-MXFP4_MOE`.
+for example `MiniMax-M2.7-UD-Q4_K_M`.
 
 Do not rename the llama-swap model to a generic value such as `current_model`.
 That hides the actual model in `/running`, logs, Prometheus labels, and
