@@ -42,13 +42,14 @@ logLevel: info
 # different one or the process restarts.
 globalTTL: 0
 
-# Preload the default model at proxy startup so the cold mlock pass happens during
-# pod rollout, not on the first user request. The preload itself blocks
-# behind healthCheckTimeout, so give it the full window on HDDs.
+# Preload the memory embedding model at proxy startup. Mem0/Hermes memory writes
+# need a low-latency always-ready embedding route, and preloading the huge
+# MiniMax model blocks startup on HDD-backed storage while consuming almost all
+# GPU headroom. Heavy chat/coding models still load on demand.
 hooks:
   on_startup:
     preload:
-      - MiniMax-M2.7-UD-Q4_K_M
+      - Qwen3-Embedding-0.6B-Q8_0
 
 models:
   # =================================================================
