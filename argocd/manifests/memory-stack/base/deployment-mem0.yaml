@@ -1,0 +1,139 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mem0-api
+  namespace: memory-stack
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mem0-api
+  template:
+    metadata:
+      labels:
+        app: mem0-api
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:17-alpine
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: memory-stack-secrets
+                  key: MEM0_POSTGRES_PASSWORD
+          command: ["sh", "-c", "until pg_isready -h mem0-postgres -U postgres; do sleep 2; done"]
+      containers:
+        - name: mem0-api
+          image: jlevangie/hermes-mem0-server:20260621-memory-k3s
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c"]
+          args: ["alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"]
+          env:
+            - name: OPENAI_API_KEY
+              value: no-key-required
+            - name: OPENAI_BASE_URL
+              value: http://llm.levangie.dev/v1
+            - name: POSTGRES_HOST
+              value: mem0-postgres
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_DB
+              value: postgres
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: memory-stack-secrets
+                  key: MEM0_POSTGRES_PASSWORD
+            - name: POSTGRES_COLLECTION_NAME
+              value: memories
+            - name: APP_DB_NAME
+              value: mem0_app
+            - name: ADMIN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: memory-stack-secrets
+                  key: MEM0_ADMIN_API_KEY
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: memory-stack-secrets
+                  key: MEM0_JWT_SECRET
+            - name: AUTH_DISABLED
+              value: "false"
+            - name: DASHBOARD_URL
+              value: http://pierce-pc.levangie.org:3006
+            - name: MEM0_DEFAULT_LLM_MODEL
+              value: Qwen3.6-27B
+            - name: MEM0_DEFAULT_EMBEDDER_MODEL
+              value: Qwen3-Embedding-0.6B-Q8_0
+            - name: MEM0_EMBEDDING_DIMS
+              value: "1024"
+            - name: MEM0_TELEMETRY
+              value: "false"
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /openapi.json
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mem0-dashboard
+  namespace: memory-stack
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mem0-dashboard
+  template:
+    metadata:
+      labels:
+        app: mem0-dashboard
+    spec:
+      containers:
+        - name: dashboard
+          image: jlevangie/hermes-mem0-dashboard:20260621-memory-k3s
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: NEXT_PUBLIC_API_URL
+              value: http://pierce-pc.levangie.org:3006
+            - name: API_INTERNAL_URL
+              value: http://mem0-api:8889
+            - name: NEXT_PUBLIC_INSTANCE_NAME
+              value: Mem0
+          ports:
+            - name: http
+              containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
