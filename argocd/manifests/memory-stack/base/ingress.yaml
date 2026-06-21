@@ -20,6 +20,9 @@ spec:
           - path: /memories
             pathType: Prefix
             backend: {service: {name: mem0-api, port: {number: 8889}}}
+          - path: /search
+            pathType: Prefix
+            backend: {service: {name: mem0-api, port: {number: 8889}}}
           - path: /configure
             pathType: Prefix
             backend: {service: {name: mem0-api, port: {number: 8889}}}
@@ -45,6 +48,9 @@ spec:
             pathType: Prefix
             backend: {service: {name: mem0-api, port: {number: 8889}}}
           - path: /memories
+            pathType: Prefix
+            backend: {service: {name: mem0-api, port: {number: 8889}}}
+          - path: /search
             pathType: Prefix
             backend: {service: {name: mem0-api, port: {number: 8889}}}
           - path: /configure
