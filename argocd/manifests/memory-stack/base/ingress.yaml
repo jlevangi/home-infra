@@ -35,21 +35,31 @@ spec:
           - path: /generate-instructions
             pathType: Prefix
             backend: {service: {name: mem0-api, port: {number: 8889}}}
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: mem0-api-direct-ingress
-  namespace: memory-stack
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
-spec:
-  ingressClassName: traefik
-  rules:
     - host: mem0.levangie.org
       http:
         paths:
-          - path: /
+          - path: /auth
+            pathType: Prefix
+            backend: {service: {name: mem0-api, port: {number: 8889}}}
+          - path: /api-keys
+            pathType: Prefix
+            backend: {service: {name: mem0-api, port: {number: 8889}}}
+          - path: /memories
+            pathType: Prefix
+            backend: {service: {name: mem0-api, port: {number: 8889}}}
+          - path: /configure
+            pathType: Prefix
+            backend: {service: {name: mem0-api, port: {number: 8889}}}
+          - path: /reset
+            pathType: Prefix
+            backend: {service: {name: mem0-api, port: {number: 8889}}}
+          - path: /requests
+            pathType: Prefix
+            backend: {service: {name: mem0-api, port: {number: 8889}}}
+          - path: /entities
+            pathType: Prefix
+            backend: {service: {name: mem0-api, port: {number: 8889}}}
+          - path: /generate-instructions
             pathType: Prefix
             backend: {service: {name: mem0-api, port: {number: 8889}}}
 ---
@@ -64,6 +74,12 @@ spec:
   ingressClassName: traefik
   rules:
     - host: pierce-pc.levangie.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: {service: {name: mem0-dashboard, port: {number: 3000}}}
+    - host: mem0.levangie.org
       http:
         paths:
           - path: /
