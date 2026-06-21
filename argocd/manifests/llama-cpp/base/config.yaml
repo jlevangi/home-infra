@@ -52,6 +52,34 @@ hooks:
 
 models:
   # =================================================================
+  # Qwen3-Embedding-0.6B-Q8_0 — MEMORY EMBEDDINGS
+  # =================================================================
+  # Dedicated OpenAI-compatible embedding route for Mem0 / Hermes tiered
+  # memory. The 0.6B Q8 model is small enough for the 8 GiB P4000 and must
+  # stay single-slot with explicit embedding mode. Qwen's model card calls
+  # for last-token pooling.
+  Qwen3-Embedding-0.6B-Q8_0:
+    cmd: |
+      /usr/local/bin/llama-server
+      --model /models/qwen3/embedding-0.6b/Qwen3-Embedding-0.6B-Q8_0.gguf
+      --alias Qwen3-Embedding-0.6B-Q8_0
+      --host 0.0.0.0
+      --port ${PORT}
+      --gpu-layers 99
+      --threads 8
+      --ctx-size 32768
+      --batch-size 1024
+      --ubatch-size 512
+      --parallel 1
+      --embedding
+      --pooling last
+      --metrics
+      --no-webui
+    env:
+      - "CUDA_VISIBLE_DEVICES=0"
+    ttl: 14400
+
+  # =================================================================
   # Qwen3-Coder-Next-UD-Q4_K_M — EXPERIMENTAL CODING MODEL
   # =================================================================
   # New trial model mounted from /mnt/llm-tank/qwen3 on the GPU node.
