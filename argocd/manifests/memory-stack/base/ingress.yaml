@@ -4,7 +4,7 @@ metadata:
   name: mem0-api-ingress
   namespace: memory-stack
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
 spec:
   ingressClassName: traefik
   rules:
@@ -45,7 +45,7 @@ metadata:
   name: mem0-dashboard-ingress
   namespace: memory-stack
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
 spec:
   ingressClassName: traefik
   rules:
@@ -62,7 +62,7 @@ metadata:
   name: letta-ingress
   namespace: memory-stack
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
 spec:
   ingressClassName: traefik
   rules:
