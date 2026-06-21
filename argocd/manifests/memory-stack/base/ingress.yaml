@@ -1,10 +1,59 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: https-redirect
+  namespace: memory-stack
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+---
+# HTTP ingresses (redirect to HTTPS)
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: mem0-api-ingress
+  name: mem0-dashboard-ingress-http
   namespace: memory-stack
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: memory-stack-https-redirect@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: mem0.levangie.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: {service: {name: mem0-dashboard, port: {number: 3000}}}
+---
+# HTTPS dashboard ingress (real backend)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mem0-dashboard-ingress-https
+  namespace: memory-stack
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: mem0.levangie.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: {service: {name: mem0-dashboard, port: {number: 3000}}}
+---
+# HTTP API ingress (redirect to HTTPS for browser-facing paths)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mem0-api-ingress-http
+  namespace: memory-stack
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: memory-stack-https-redirect@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
@@ -39,30 +88,75 @@ spec:
             pathType: Prefix
             backend: {service: {name: mem0-api, port: {number: 8889}}}
 ---
+# HTTPS API ingress (real backend)
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: mem0-dashboard-ingress
+  name: mem0-api-ingress-https
   namespace: memory-stack
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
   ingressClassName: traefik
   rules:
     - host: mem0.levangie.dev
       http:
         paths:
-          - path: /
+          - path: /auth
             pathType: Prefix
-            backend: {service: {name: mem0-dashboard, port: {number: 3000}}}
+            backend: {service: {name: mem0-api, port: {number: 8889}}}
+          - path: /api-keys
+            pathType: Prefix
+            backend: {service: {name: mem0-api, port: {number: 8889}}}
+          - path: /memories
+            pathType: Prefix
+            backend: {service: {name: mem0-api, port: {number: 8889}}}
+          - path: /search
+            pathType: Prefix
+            backend: {service: {name: mem0-api, port: {number: 8889}}}
+          - path: /configure
+            pathType: Prefix
+            backend: {service: {name: mem0-api, port: {number: 8889}}}
+          - path: /reset
+            pathType: Prefix
+            backend: {service: {name: mem0-api, port: {number: 8889}}}
+          - path: /requests
+            pathType: Prefix
+            backend: {service: {name: mem0-api, port: {number: 8889}}}
+          - path: /entities
+            pathType: Prefix
+            backend: {service: {name: mem0-api, port: {number: 8889}}}
+          - path: /generate-instructions
+            pathType: Prefix
+            backend: {service: {name: mem0-api, port: {number: 8889}}}
 ---
+# HTTP Letta ingress (redirect)
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: letta-ingress
+  name: letta-ingress-http
   namespace: memory-stack
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: memory-stack-https-redirect@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: letta.levangie.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: {service: {name: letta, port: {number: 8283}}}
+---
+# HTTPS Letta ingress (real backend)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: letta-ingress-https
+  namespace: memory-stack
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
   ingressClassName: traefik
   rules:
