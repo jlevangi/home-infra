@@ -39,6 +39,23 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
+  name: mem0-api-direct-ingress
+  namespace: memory-stack
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: mem0.levangie.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: {service: {name: mem0-api, port: {number: 8889}}}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
   name: mem0-dashboard-ingress
   namespace: memory-stack
   annotations:
