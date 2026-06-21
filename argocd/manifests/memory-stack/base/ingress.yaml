@@ -8,37 +8,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: pierce-pc.levangie.org
-      http:
-        paths:
-          - path: /auth
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /api-keys
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /memories
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /search
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /configure
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /reset
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /requests
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /entities
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /generate-instructions
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-    - host: mem0.levangie.org
+    - host: mem0.levangie.dev
       http:
         paths:
           - path: /auth
@@ -79,13 +49,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: pierce-pc.levangie.org
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend: {service: {name: mem0-dashboard, port: {number: 3000}}}
-    - host: mem0.levangie.org
+    - host: mem0.levangie.dev
       http:
         paths:
           - path: /
@@ -102,7 +66,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: letta.levangie.org
+    - host: letta.levangie.dev
       http:
         paths:
           - path: /

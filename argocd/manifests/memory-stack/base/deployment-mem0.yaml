@@ -84,7 +84,7 @@ spec:
             - name: AUTH_DISABLED
               value: "false"
             - name: DASHBOARD_URL
-              value: http://mem0.levangie.org
+              value: http://mem0.levangie.dev
             - name: MEM0_DEFAULT_LLM_MODEL
               value: Qwen3.6-27B
             - name: MEM0_DEFAULT_EMBEDDER_MODEL
@@ -133,7 +133,7 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             - name: NEXT_PUBLIC_API_URL
-              value: http://mem0.levangie.org
+              value: http://mem0.levangie.dev
             - name: API_INTERNAL_URL
               value: http://mem0-api:8889
             - name: NEXT_PUBLIC_INSTANCE_NAME
