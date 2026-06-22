@@ -103,6 +103,69 @@ spec:
             - name: sidecar-script
               mountPath: /app
               readOnly: true
+        # Permanent embedding model sidecar. The 0.6B Q8 model is tiny
+        # (~610 MB VRAM) and stays loaded forever on port 8081. This avoids
+        # the embedding model being evicted when llama-swap loads a chat
+        # model. Both processes share the same GPU.
+        - name: llama-embeddings
+          image: ghcr.io/mostlygeek/llama-swap:unified-cuda
+          imagePullPolicy: IfNotPresent
+          command: ["/usr/local/bin/llama-server"]
+          args:
+            - --model
+            - /models/qwen3/embedding-0.6b/Qwen3-Embedding-0.6B-Q8_0.gguf
+            - --alias
+            - Qwen3-Embedding-0.6B-Q8_0
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8081"
+            - --gpu-layers
+            - "99"
+            - --threads
+            - "8"
+            - --ctx-size
+            - "32768"
+            - --batch-size
+            - "1024"
+            - --ubatch-size
+            - "512"
+            - --parallel
+            - "1"
+            - --embedding
+            - --pooling
+            - last
+            - --metrics
+            - --no-webui
+          env:
+            - name: CUDA_VISIBLE_DEVICES
+              value: "0"
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: all
+            - name: NVIDIA_DRIVER_CAPABILITIES
+              value: compute,utility
+          ports:
+            - name: embeddings
+              containerPort: 8081
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+            limits:
+              cpu: "4"
+              memory: 4Gi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: embeddings
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
       volumes:
         - name: models
           persistentVolumeClaim:

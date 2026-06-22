@@ -42,43 +42,13 @@ logLevel: info
 # different one or the process restarts.
 globalTTL: 0
 
-# Preload the memory embedding model at proxy startup. Mem0/Hermes memory writes
-# need a low-latency always-ready embedding route, and preloading the huge
-# MiniMax model blocks startup on HDD-backed storage while consuming almost all
-# GPU headroom. Heavy chat/coding models still load on demand.
-hooks:
-  on_startup:
-    preload:
-      - Qwen3-Embedding-0.6B-Q8_0
+# The embedding model (Qwen3-Embedding-0.6B-Q8_0) runs as a permanent
+# sidecar container in the same pod — listening on port 8081 — so it
+# never gets evicted when llama-swap loads a chat model. Traefik routes
+# /v1/embeddings to the sidecar Service and everything else to llama-swap.
+hooks: {}
 
 models:
-  # =================================================================
-  # Qwen3-Embedding-0.6B-Q8_0 — MEMORY EMBEDDINGS
-  # =================================================================
-  # Dedicated OpenAI-compatible embedding route for Mem0 / Hermes tiered
-  # memory. The 0.6B Q8 model is small enough for the 8 GiB P4000 and must
-  # stay single-slot with explicit embedding mode. Qwen's model card calls
-  # for last-token pooling.
-  Qwen3-Embedding-0.6B-Q8_0:
-    cmd: |
-      /usr/local/bin/llama-server
-      --model /models/qwen3/embedding-0.6b/Qwen3-Embedding-0.6B-Q8_0.gguf
-      --alias Qwen3-Embedding-0.6B-Q8_0
-      --host 0.0.0.0
-      --port ${PORT}
-      --gpu-layers 99
-      --threads 8
-      --ctx-size 32768
-      --batch-size 1024
-      --ubatch-size 512
-      --parallel 1
-      --embedding
-      --pooling last
-      --metrics
-      --no-webui
-    env:
-      - "CUDA_VISIBLE_DEVICES=0"
-    ttl: 14400
 
   # =================================================================
   # Qwen3-Coder-Next-UD-Q4_K_M — EXPERIMENTAL CODING MODEL

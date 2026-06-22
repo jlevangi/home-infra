@@ -6,6 +6,7 @@ resources:
   - pvc.yaml
   - deployment.yaml
   - service.yaml
+  - service-embeddings.yaml
   - ingress.yaml
 configMapGenerator:
   - name: llama-swap-config
