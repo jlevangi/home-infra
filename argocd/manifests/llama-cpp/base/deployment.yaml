@@ -103,10 +103,11 @@ spec:
             - name: sidecar-script
               mountPath: /app
               readOnly: true
-        # Permanent embedding model sidecar. The 0.6B Q8 model is tiny
-        # (~610 MB VRAM) and stays loaded forever on port 8081. This avoids
-        # the embedding model being evicted when llama-swap loads a chat
-        # model. Both processes share the same GPU.
+        # Permanent embedding model sidecar. The 0.6B Q8 model runs
+        # CPU-only (--gpu-layers 0, ~610 MB RAM) so it never competes
+        # for VRAM with chat models loaded by llama-swap. It stays
+        # loaded forever on port 8081. CPU inference is fast enough
+        # for the short prompts Mem0 uses for embeddings.
         - name: llama-embeddings
           image: ghcr.io/mostlygeek/llama-swap:unified-cuda
           imagePullPolicy: IfNotPresent
@@ -121,7 +122,7 @@ spec:
             - --port
             - "8081"
             - --gpu-layers
-            - "99"
+            - "0"
             - --threads
             - "8"
             - --ctx-size
@@ -137,13 +138,6 @@ spec:
             - last
             - --metrics
             - --no-webui
-          env:
-            - name: CUDA_VISIBLE_DEVICES
-              value: "0"
-            - name: NVIDIA_VISIBLE_DEVICES
-              value: all
-            - name: NVIDIA_DRIVER_CAPABILITIES
-              value: compute,utility
           ports:
             - name: embeddings
               containerPort: 8081
