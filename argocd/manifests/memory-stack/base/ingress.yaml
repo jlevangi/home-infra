@@ -8,6 +8,16 @@ spec:
     scheme: https
     permanent: true
 ---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-api-prefix
+  namespace: memory-stack
+spec:
+  stripPrefix:
+    prefixes:
+      - /api
+---
 # HTTP ingresses (redirect to HTTPS)
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -45,96 +55,57 @@ spec:
             pathType: Prefix
             backend: {service: {name: mem0-dashboard, port: {number: 3000}}}
 ---
-# HTTP API ingress (redirect to HTTPS for browser-facing paths)
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+# HTTP API IngressRoute (redirect + API backend with per-route StripPrefix)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
 metadata:
   name: mem0-api-ingress-http
   namespace: memory-stack
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
-    traefik.ingress.kubernetes.io/router.middlewares: memory-stack-https-redirect@kubernetescrd
 spec:
-  ingressClassName: traefik
-  rules:
-    - host: mem0.levangie.dev
-      http:
-        paths:
-          - path: /auth
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /api/auth
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /api-keys
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /memories
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /search
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /configure
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /reset
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /requests
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /entities
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /generate-instructions
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
+  entryPoints:
+    - web
+  routes:
+    # /api/auth/* → strip /api prefix → mem0-api
+    - match: Host(`mem0.levangie.dev`) && PathPrefix(`/api/auth`)
+      kind: Rule
+      middlewares:
+        - name: https-redirect
+      services:
+        - name: mem0-api
+          port: 8889
+    # All other API paths → redirect to HTTPS
+    - match: Host(`mem0.levangie.dev`) && (PathPrefix(`/auth`) || PathPrefix(`/api-keys`) || PathPrefix(`/memories`) || PathPrefix(`/search`) || PathPrefix(`/configure`) || PathPrefix(`/reset`) || PathPrefix(`/requests`) || PathPrefix(`/entities`) || PathPrefix(`/generate-instructions`))
+      kind: Rule
+      middlewares:
+        - name: https-redirect
+      services:
+        - name: mem0-api
+          port: 8889
 ---
-# HTTPS API ingress (real backend)
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+# HTTPS API IngressRoute (real backend with per-route StripPrefix)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
 metadata:
   name: mem0-api-ingress-https
   namespace: memory-stack
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
-  ingressClassName: traefik
-  rules:
-    - host: mem0.levangie.dev
-      http:
-        paths:
-          - path: /auth
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /api/auth
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /api-keys
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /memories
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /search
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /configure
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /reset
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /requests
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /entities
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
-          - path: /generate-instructions
-            pathType: Prefix
-            backend: {service: {name: mem0-api, port: {number: 8889}}}
+  entryPoints:
+    - websecure
+  routes:
+    # /api/auth/* → strip /api prefix → mem0-api
+    - match: Host(`mem0.levangie.dev`) && PathPrefix(`/api/auth`)
+      kind: Rule
+      middlewares:
+        - name: strip-api-prefix
+      services:
+        - name: mem0-api
+          port: 8889
+    # All other API paths → mem0-api directly
+    - match: Host(`mem0.levangie.dev`) && (PathPrefix(`/auth`) || PathPrefix(`/api-keys`) || PathPrefix(`/memories`) || PathPrefix(`/search`) || PathPrefix(`/configure`) || PathPrefix(`/reset`) || PathPrefix(`/requests`) || PathPrefix(`/entities`) || PathPrefix(`/generate-instructions`))
+      kind: Rule
+      services:
+        - name: mem0-api
+          port: 8889
 ---
 # HTTP Letta ingress (redirect)
 apiVersion: networking.k8s.io/v1
