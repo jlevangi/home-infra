@@ -63,6 +63,9 @@ spec:
           - path: /auth
             pathType: Prefix
             backend: {service: {name: mem0-api, port: {number: 8889}}}
+          - path: /api/auth
+            pathType: Prefix
+            backend: {service: {name: mem0-api, port: {number: 8889}}}
           - path: /api-keys
             pathType: Prefix
             backend: {service: {name: mem0-api, port: {number: 8889}}}
@@ -103,6 +106,9 @@ spec:
       http:
         paths:
           - path: /auth
+            pathType: Prefix
+            backend: {service: {name: mem0-api, port: {number: 8889}}}
+          - path: /api/auth
             pathType: Prefix
             backend: {service: {name: mem0-api, port: {number: 8889}}}
           - path: /api-keys
