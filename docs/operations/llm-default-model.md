@@ -96,7 +96,7 @@ SQL
 
 These active workflows are expected to use `$env.LLM_DEFAULT_MODEL`:
 
-- `Alertmanager -> LLM -> ntfy`
+- `Alertmanager -> LLM -> ntfy` (processes **both warning and critical** alerts since 2026-06-24)
 - `Changedetection -> LLM gate -> ntfy`
 - `Paperless -> LLM classify -> rename + bill alert`
 

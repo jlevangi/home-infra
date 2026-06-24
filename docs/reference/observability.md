@@ -7,7 +7,7 @@ The integrated observability path in this repo is:
 - Promtail for log shipping
 - Blackbox Exporter for Prometheus-native network probes
 - Gatus for application endpoint checks
-- Alertmanager -> `ntfy` for notifications
+- Alertmanager -> `ntfy` for notifications (with parallel n8n LLM enrichment for both warning and critical alerts)
 
 `Smokeping` is retired from the active observability path in this repository.
 
