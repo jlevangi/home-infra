@@ -46,7 +46,9 @@ globalTTL: 0
 # sidecar container in the same pod — listening on port 8081 — so it
 # never gets evicted when llama-swap loads a chat model. Traefik routes
 # /v1/embeddings to the sidecar Service and everything else to llama-swap.
-hooks: {}
+hooks:
+  on_startup:
+    preload: "Qwen3.6-27B-Q5_K_S-MTP"
 
 models:
 
