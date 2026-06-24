@@ -182,6 +182,10 @@ spec:
                   - url: http://alertmanager-ntfy-bridge.monitoring.svc.cluster.local/alerts/homelab-alerts
                     send_resolved: true
                     timeout: 10s
+                  # Parallel mirror to n8n for LLM enrichment (same pattern as critical)
+                  - url: http://n8n.n8n.svc.cluster.local:5678/webhook/alertmanager
+                    send_resolved: true
+                    timeout: 30s
               - name: ntfy-prod-critical
                 webhook_configs:
                   - url: http://alertmanager-ntfy-bridge.monitoring.svc.cluster.local/alerts/homelab-critical
