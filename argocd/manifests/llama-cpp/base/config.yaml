@@ -48,7 +48,8 @@ globalTTL: 0
 # /v1/embeddings to the sidecar Service and everything else to llama-swap.
 hooks:
   on_startup:
-    preload: "Qwen3.6-27B-Q5_K_S-MTP"
+    preload:
+      - "Qwen3.6-27B-Q5_K_S-MTP"
 
 models:
 
