@@ -147,10 +147,10 @@ spec:
             summary: Node has been saturated for 30 minutes
             description: Load per core on {{ $labels.instance }} has exceeded 4 for 30 minutes (currently {{ printf "%.2f" $value }}). Replaces the upstream NodeSystemSaturation alert with a homelab-tolerant threshold.
         - alert: ProxmoxThinPoolDataHigh
-          expr: node_lvm_thin_pool_data_percent{vg="pve", thin_pool="data"} > 85
+          expr: node_lvm_thin_pool_data_percent{vg="pve", thin_pool="data"} > 90
           for: 15m
           labels:
             severity: critical
           annotations:
-            summary: Proxmox thin pool {{ $labels.vg }}/{{ $labels.thin_pool }} is above 85%
+            summary: Proxmox thin pool {{ $labels.vg }}/{{ $labels.thin_pool }} is above 90%
             description: Proxmox host {{ $labels.instance }} LVM thin pool {{ $labels.vg }}/{{ $labels.thin_pool }} is {{ printf "%.2f" $value }}% full. Extend the pool or move VM disks before it reaches 100% and Proxmox VMs enter io-error.
