@@ -495,3 +495,37 @@ models:
     env:
       - "CUDA_VISIBLE_DEVICES=0"
     ttl: 3600
+
+  # =================================================================
+  # Qwen3.6-27B-Q5_K_S-MTP-n8n — Same model, reasoning disabled for
+  # n8n alert enrichment workflow. n8n's expression parser can't pass
+  # chat_template_kwargs.enable_thinking=false per-request, so this
+  # alias bakes --reasoning off so the n8n Alertmanager→LLM→ntfy
+  # workflow gets clean summary+action output instead of thinking dump.
+  # =================================================================
+  Qwen3.6-27B-Q5_K_S-MTP-n8n:
+    cmd: |
+      /usr/local/bin/llama-server
+      --model /models/qwen3.6/27b/Qwen3.6-27B-Q5_K_S.gguf
+      --alias Qwen3.6-27B-Q5_K_S-MTP-n8n
+      --host 0.0.0.0
+      --port ${PORT}
+      --gpu-layers 16
+      --threads 22
+      --ctx-size 262144
+      --batch-size 2048
+      --ubatch-size 512
+      --parallel 1
+      --flash-attn on
+      --cache-type-k q5_1
+      --cache-type-v q5_1
+      --spec-type draft-mtp
+      --spec-draft-n-max 3
+      --no-kv-offload
+      --mlock
+      --reasoning off
+      --metrics
+      --no-webui
+    env:
+      - "CUDA_VISIBLE_DEVICES=0"
+    ttl: 3600
