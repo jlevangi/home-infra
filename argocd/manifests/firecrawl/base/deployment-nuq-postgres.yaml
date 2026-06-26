@@ -39,11 +39,11 @@ spec:
             runAsGroup: 999
           env:
             - name: POSTGRES_USER
-              value: "firecrawl"
+              value: "postgres"
             - name: POSTGRES_PASSWORD
-              value: "firecrawl_password"
+              value: "password"
             - name: POSTGRES_DB
-              value: "firecrawl"
+              value: "postgres"
             - name: PGDATA
               value: "/var/lib/postgresql/data/pgdata"
           ports:
@@ -80,4 +80,4 @@ spec:
       volumes:
         - name: postgres-storage
           persistentVolumeClaim:
-            claimName: nuq-postgres-pvc-v3
+            claimName: nuq-postgres-pvc-v4
