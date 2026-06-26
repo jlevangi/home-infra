@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: firecrawl
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      terminationGracePeriodSeconds: 180
+      containers:
+        - name: api
+          image: ghcr.io/firecrawl/firecrawl:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - node
+          args:
+            - "--max-old-space-size=4096"
+            - "dist/src/index.js"
+          ports:
+            - containerPort: 3002
+              name: http
+          env:
+            - name: FLY_PROCESS_GROUP
+              value: "app"
+          envFrom:
+            - configMapRef:
+                name: firecrawl-config
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "1000m"
+            limits:
+              memory: "4Gi"
+              cpu: "2000m"
+          livenessProbe:
+            httpGet:
+              path: /v0/health/liveness
+              port: 3002
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /v0/health/readiness
+              port: 3002
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3

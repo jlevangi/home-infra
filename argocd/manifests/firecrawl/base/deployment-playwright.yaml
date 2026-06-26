@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: playwright-service
+  namespace: firecrawl
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: playwright-service
+  template:
+    metadata:
+      labels:
+        app: playwright-service
+    spec:
+      containers:
+        - name: playwright-service
+          image: ghcr.io/firecrawl/playwright-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: playwright-service-config
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
