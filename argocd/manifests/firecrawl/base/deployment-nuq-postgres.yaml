@@ -32,18 +32,18 @@ spec:
               mountPath: /var/lib/postgresql/data
       containers:
         - name: postgres
-          image: postgres:16
+          image: ghcr.io/firecrawl/nuq-postgres:latest
           imagePullPolicy: IfNotPresent
           securityContext:
             runAsUser: 999
             runAsGroup: 999
           env:
             - name: POSTGRES_USER
-              value: "firecrawl"
+              value: "postgres"
             - name: POSTGRES_PASSWORD
-              value: "firecrawl_password"
+              value: "password"
             - name: POSTGRES_DB
-              value: "firecrawl"
+              value: "postgres"
             - name: PGDATA
               value: "/var/lib/postgresql/data/pgdata"
           ports:
@@ -80,4 +80,4 @@ spec:
       volumes:
         - name: postgres-storage
           persistentVolumeClaim:
-            claimName: nuq-postgres-pvc
+            claimName: nuq-postgres-pvc-v2
