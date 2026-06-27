@@ -43,15 +43,15 @@ spec:
           resources:
             requests:
               cpu: "4"
-              memory: 150Gi
+              memory: 140Gi
             limits:
               cpu: "42"
-              memory: 170Gi
+              memory: 140Gi
           # IPC_LOCK lifts the container's default RLIMIT_MEMLOCK (8 MiB) so
           # llama-server can mlock the full 138 GiB MiniMax weights into RAM
           # and avoid HDD-bound major page faults during inference. The 200
-          # GiB VM only has ~30 GiB of non-llama headroom (jellyfin + plex
-          # worst-case limits), so the cgroup limit must stay below that.
+          # GiB VM now has less non-llama headroom because other host VMs also
+          # need RAM, so keep the cgroup limit bounded below total host memory.
           securityContext:
             capabilities:
               add: ["IPC_LOCK"]
