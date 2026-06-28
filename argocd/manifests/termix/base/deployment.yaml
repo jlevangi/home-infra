@@ -31,7 +31,7 @@ spec:
             - name: ENABLE_GUACAMOLE
               value: "true"
             - name: GUACD_HOST
-              value: termix-guacd
+              value: localhost
             - name: GUACD_PORT
               value: "4822"
           ports:
@@ -62,31 +62,6 @@ spec:
             initialDelaySeconds: 90
             periodSeconds: 30
             timeoutSeconds: 10
-      volumes:
-        - name: termix-data
-          persistentVolumeClaim:
-            claimName: termix-data-pvc
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: termix-guacd
-  namespace: termix
-  labels:
-    app: termix-guacd
-    app.kubernetes.io/name: guacd
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: termix-guacd
-  template:
-    metadata:
-      labels:
-        app: termix-guacd
-        app.kubernetes.io/name: guacd
-    spec:
-      containers:
         - name: guacd
           image: guacamole/guacd:1.6.0
           imagePullPolicy: IfNotPresent
@@ -101,3 +76,7 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
+      volumes:
+        - name: termix-data
+          persistentVolumeClaim:
+            claimName: termix-data-pvc
