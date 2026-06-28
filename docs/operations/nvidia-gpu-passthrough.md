@@ -50,22 +50,26 @@ Expected result: both `03:00.0` and `03:00.1` should be bound to `vfio-pci`.
 
 ## Terraform / Cluster Rollout
 
-1. Create the dedicated GPU worker:
-
+1. Create or update the dedicated GPU worker from the active Atlas worker stack:
 ```bash
-cd terraform/k3_cluster_prod_atlas_gpu_worker
+cd terraform/stacks/k3s/atlas/prod/workers
 terraform init
 terraform plan
 terraform apply
 ```
 
-2. Join it to the cluster with the existing deployment workflow:
+The GPU worker is currently sized at 120 GiB (`122880` MiB) RAM in Terraform.
+GPU passthrough pins the allocation at VM start, so memory changes require a VM
+restart and should be coordinated with host-level memory headroom on `atlas`.
 
+2. Join it to the cluster with the existing deployment workflow:
 ```bash
 ./scripts/k3s/deploy-cluster.sh --prod
 ```
 
-3. Let ArgoCD sync the `nvidia-device-plugin`, `plex`, and `jellyfin` apps.
+3. Let ArgoCD sync the `nvidia-device-plugin`, `llama-cpp`, `plex`, and
+   `jellyfin` apps. `llama-cpp` should stay below the VM memory ceiling; its
+   steady-state llama-swap container request/limit is currently 100 GiB.
 
 ## Post-Deploy Checks
 
