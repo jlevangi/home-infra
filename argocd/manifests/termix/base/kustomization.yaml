@@ -5,6 +5,7 @@ resources:
   - pvc.yaml
   - deployment.yaml
   - service.yaml
+  - service-guacd.yaml
   - ingress.yaml
   - resource-quota.yaml
   - limit-range.yaml

@@ -18,7 +18,7 @@ The `termix` Deployment runs a single pod with two containers:
 | `termix` | `ghcr.io/lukegus/termix:latest` | Web UI and SSH/remote-session management |
 | `guacd` | `guacamole/guacd:1.6.0` | Apache Guacamole protocol proxy for RDP, VNC, and Telnet sessions |
 
-`guacd` is intentionally a sidecar in the same pod as Termix. Termix connects to it over the pod-local loopback interface:
+`guacd` is intentionally a sidecar in the same pod as Termix. The deployment supports both connection paths:
 
 ```yaml
 ENABLE_GUACAMOLE: "true"
@@ -26,7 +26,9 @@ GUACD_HOST: localhost
 GUACD_PORT: "4822"
 ```
 
-There is no separate `termix-guacd` Service or Deployment. If RDP/VNC/Telnet stops working, verify the sidecar first:
+Termix admin settings may also point at `guacd:4822`. A small ClusterIP Service named `guacd` selects the `termix` pod and forwards port `4822` to the sidecar so that admin/UI configuration works without a separate guacd Deployment.
+
+There is no separate `termix-guacd` Deployment. If RDP/VNC/Telnet stops working, verify the sidecar first:
 
 ```bash
 kubectl -n termix get pod -l app=termix
