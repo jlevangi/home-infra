@@ -71,6 +71,28 @@ restart and should be coordinated with host-level memory headroom on `atlas`.
    `jellyfin` apps. `llama-cpp` should stay below the VM memory ceiling; its
    steady-state llama-swap container request/limit is currently 100 GiB.
 
+## Single-Node Maintenance / Memory Resize
+
+For GPU node maintenance, avoid a normal `kubectl drain`: the node holds
+Longhorn replicas and draining can trigger avoidable replica churn. Use the
+Longhorn-safe helper instead:
+
+```bash
+./scripts/maintenance/single-node-longhorn-maintenance.sh --prod --node k3s-prod-worker-gpu-1 --prepare
+```
+
+The prepare phase extends Longhorn's replica replenishment wait, disables new
+Longhorn replica scheduling on the GPU node without eviction, disables ArgoCD
+auto-sync for `root-prod`, `llama-cpp`, `plex`, and `jellyfin`, scales those
+workloads to zero, cordons the node, and waits for attached Longhorn volumes to
+detach.
+
+After manually power-cycling the VM from Proxmox, restore normal operation:
+
+```bash
+./scripts/maintenance/single-node-longhorn-maintenance.sh --prod --node k3s-prod-worker-gpu-1 --restore
+```
+
 ## Post-Deploy Checks
 
 Run these after ArgoCD finishes syncing:

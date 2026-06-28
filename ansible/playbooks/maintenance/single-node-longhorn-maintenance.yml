@@ -1,0 +1,246 @@
+---
+# Prepare or restore a single K3s node for maintenance without triggering
+# unnecessary Longhorn replica evacuation/rebuild storms.
+#
+# Required variables:
+#   target_cluster      - Ansible group name (e.g., k3s_cluster_prod)
+#   target_node         - Kubernetes node name (e.g., k3s-prod-worker-gpu-1)
+#
+# Optional variables:
+#   maintenance_action  - prepare | restore (default: prepare)
+#   longhorn_wait_during_maintenance - replica replenishment wait in seconds (default: 7200)
+#   longhorn_wait_normal             - normal replica replenishment wait in seconds (default: 600)
+#   node_workloads      - list of deployment workloads to scale away/back
+#
+# This playbook intentionally does NOT power off or reboot the VM. After
+# `maintenance_action=prepare` completes, power-cycle the VM from Proxmox or a
+# local operator shell, then run `maintenance_action=restore` after it is back.
+
+- name: Validate single-node maintenance variables
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Assert required variables are defined
+      ansible.builtin.assert:
+        that:
+          - target_cluster is defined
+          - target_node is defined
+          - maintenance_action | default('prepare') in ['prepare', 'restore']
+        fail_msg: >-
+          Required variables: target_cluster, target_node, and optional
+          maintenance_action must be one of prepare|restore.
+
+    - name: Assert target cluster groups exist
+      ansible.builtin.assert:
+        that:
+          - target_cluster in groups
+          - (target_cluster ~ '_master') in groups
+          - groups[target_cluster ~ '_master'] | length > 0
+        fail_msg: "Cluster group '{{ target_cluster }}' or its _master group was not found."
+
+- name: Prepare or restore the Kubernetes node
+  hosts: "{{ target_cluster }}_master"
+  become: true
+  gather_facts: false
+  run_once: true
+  vars:
+    maintenance_action: "{{ maintenance_action | default('prepare') }}"
+    longhorn_wait_during_maintenance: "{{ longhorn_wait_during_maintenance | default(7200) }}"
+    longhorn_wait_normal: "{{ longhorn_wait_normal | default(600) }}"
+    maintenance_workload_timeout: "{{ maintenance_workload_timeout | default('300s') }}"
+    root_argocd_app: >-
+      {{ 'root-prod' if target_cluster == 'k3s_cluster_prod'
+         else 'root-stage' if target_cluster == 'k3s_cluster_stage'
+         else 'root-test' if target_cluster == 'k3s_cluster_test'
+         else '' }}
+    node_workloads:
+      - namespace: llama-cpp
+        kind: deployment
+        name: llama-cpp
+        argocd_app: llama-cpp
+        replicas: 1
+      - namespace: plex
+        kind: deployment
+        name: plex
+        argocd_app: plex
+        replicas: 1
+      - namespace: jellyfin
+        kind: deployment
+        name: jellyfin
+        argocd_app: jellyfin
+        replicas: 1
+  tasks:
+    - name: Verify target node exists
+      ansible.builtin.command: >-
+        k3s kubectl get node {{ target_node }}
+      changed_when: false
+
+    - name: Read current Longhorn replica replenishment wait interval
+      ansible.builtin.command: >-
+        k3s kubectl -n longhorn-system get settings.longhorn.io
+        replica-replenishment-wait-interval -o jsonpath={.value}
+      register: longhorn_current_wait
+      changed_when: false
+
+    - name: Display current Longhorn wait interval
+      ansible.builtin.debug:
+        msg: "Longhorn replica-replenishment-wait-interval is {{ longhorn_current_wait.stdout }} seconds"
+
+    - name: Prepare node for maintenance
+      when: maintenance_action == 'prepare'
+      block:
+        - name: Extend Longhorn replica replenishment wait interval
+          ansible.builtin.command: >-
+            k3s kubectl -n longhorn-system patch settings.longhorn.io
+            replica-replenishment-wait-interval --type=merge
+            -p '{"value":"{{ longhorn_wait_during_maintenance }}"}'
+          changed_when: true
+
+        - name: Disable new Longhorn replica scheduling on target node without eviction
+          ansible.builtin.command: >-
+            k3s kubectl -n longhorn-system patch nodes.longhorn.io {{ target_node }}
+            --type=merge -p '{"spec":{"allowScheduling":false,"evictionRequested":false}}'
+          changed_when: true
+
+        - name: Cordon target node
+          ansible.builtin.command: "k3s kubectl cordon {{ target_node }}"
+          register: cordon_result
+          changed_when: "'cordoned' in cordon_result.stdout or 'cordoned' in cordon_result.stderr"
+
+        - name: Temporarily disable ArgoCD auto-sync for root app
+          ansible.builtin.shell: |
+            set -euo pipefail
+            app="{{ root_argocd_app }}"
+            automated="$(k3s kubectl -n argocd get application "$app" -o jsonpath='{.spec.syncPolicy.automated}' 2>/dev/null || true)"
+            if [ -n "$automated" ]; then
+              k3s kubectl -n argocd patch application "$app" --type=json \
+                -p='[{"op":"remove","path":"/spec/syncPolicy/automated"}]'
+            fi
+          args:
+            executable: /bin/bash
+          changed_when: true
+          when: root_argocd_app | length > 0
+
+        - name: Temporarily disable ArgoCD auto-sync for node workloads
+          ansible.builtin.shell: |
+            set -euo pipefail
+            app="{{ item.argocd_app | default(item.name) }}"
+            automated="$(k3s kubectl -n argocd get application "$app" -o jsonpath='{.spec.syncPolicy.automated}' 2>/dev/null || true)"
+            if [ -n "$automated" ]; then
+              k3s kubectl -n argocd patch application "$app" --type=json \
+                -p='[{"op":"remove","path":"/spec/syncPolicy/automated"}]'
+            fi
+          args:
+            executable: /bin/bash
+          loop: "{{ node_workloads }}"
+          loop_control:
+            label: "{{ item.argocd_app | default(item.name) }}"
+          changed_when: true
+
+        - name: Scale node workloads down
+          ansible.builtin.command: >-
+            k3s kubectl -n {{ item.namespace }} scale {{ item.kind }}/{{ item.name }} --replicas=0
+          loop: "{{ node_workloads }}"
+          loop_control:
+            label: "{{ item.namespace }}/{{ item.name }}"
+          changed_when: true
+
+        - name: Wait for node workloads to scale down
+          ansible.builtin.command: >-
+            k3s kubectl -n {{ item.namespace }} rollout status {{ item.kind }}/{{ item.name }}
+            --timeout={{ maintenance_workload_timeout }}
+          loop: "{{ node_workloads }}"
+          loop_control:
+            label: "{{ item.namespace }}/{{ item.name }}"
+          changed_when: false
+
+        - name: Wait for Longhorn volumes to detach from target node
+          ansible.builtin.shell: |
+            set -o pipefail
+            attached="$(k3s kubectl -n longhorn-system get volumes.longhorn.io -o jsonpath='{range .items[?(@.status.currentNodeID=="{{ target_node }}")]}{.metadata.name}{"\n"}{end}')"
+            test -z "$attached"
+          args:
+            executable: /bin/bash
+          register: longhorn_detach_check
+          retries: 60
+          delay: 10
+          until: longhorn_detach_check.rc == 0
+          changed_when: false
+
+        - name: Display manual power-cycle instruction
+          ansible.builtin.debug:
+            msg: >-
+              {{ target_node }} is cordoned, GPU workloads are scaled down,
+              Longhorn scheduling is disabled without eviction, and no Longhorn
+              volumes are attached to the node. Power off/start the VM from
+              Proxmox now, then run this playbook with maintenance_action=restore.
+
+    - name: Restore node after maintenance
+      when: maintenance_action == 'restore'
+      block:
+        - name: Wait for target node to be Ready
+          ansible.builtin.command: >-
+            k3s kubectl wait node/{{ target_node }} --for=condition=Ready --timeout=10m
+          changed_when: false
+
+        - name: Re-enable Longhorn replica scheduling on target node
+          ansible.builtin.command: >-
+            k3s kubectl -n longhorn-system patch nodes.longhorn.io {{ target_node }}
+            --type=merge -p '{"spec":{"allowScheduling":true,"evictionRequested":false}}'
+          changed_when: true
+
+        - name: Restore normal Longhorn replica replenishment wait interval
+          ansible.builtin.command: >-
+            k3s kubectl -n longhorn-system patch settings.longhorn.io
+            replica-replenishment-wait-interval --type=merge
+            -p '{"value":"{{ longhorn_wait_normal }}"}'
+          changed_when: true
+
+        - name: Uncordon target node
+          ansible.builtin.command: "k3s kubectl uncordon {{ target_node }}"
+          register: uncordon_result
+          changed_when: "'uncordoned' in uncordon_result.stdout or 'uncordoned' in uncordon_result.stderr"
+
+        - name: Scale node workloads back up
+          ansible.builtin.command: >-
+            k3s kubectl -n {{ item.namespace }} scale {{ item.kind }}/{{ item.name }} --replicas={{ item.replicas | default(1) }}
+          loop: "{{ node_workloads }}"
+          loop_control:
+            label: "{{ item.namespace }}/{{ item.name }}"
+          changed_when: true
+
+        - name: Wait for restored workloads to roll out
+          ansible.builtin.command: >-
+            k3s kubectl -n {{ item.namespace }} rollout status {{ item.kind }}/{{ item.name }}
+            --timeout={{ maintenance_workload_timeout }}
+          loop: "{{ node_workloads }}"
+          loop_control:
+            label: "{{ item.namespace }}/{{ item.name }}"
+          changed_when: false
+
+        - name: Re-enable ArgoCD auto-sync for node workloads
+          ansible.builtin.command: >-
+            k3s kubectl -n argocd patch application {{ item.argocd_app | default(item.name) }}
+            --type=merge -p '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'
+          loop: "{{ node_workloads }}"
+          loop_control:
+            label: "{{ item.argocd_app | default(item.name) }}"
+          changed_when: true
+
+        - name: Re-enable ArgoCD auto-sync for root app
+          ansible.builtin.command: >-
+            k3s kubectl -n argocd patch application {{ root_argocd_app }}
+            --type=merge -p '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'
+          changed_when: true
+          when: root_argocd_app | length > 0
+
+        - name: Show target node allocation summary
+          ansible.builtin.shell: >-
+            k3s kubectl describe node {{ target_node }} |
+            sed -n '/Allocated resources:/,/Events:/p'
+          register: node_allocation
+          changed_when: false
+
+        - name: Display target node allocation summary
+          ansible.builtin.debug:
+            msg: "{{ node_allocation.stdout_lines }}"
