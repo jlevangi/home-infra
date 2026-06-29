@@ -83,45 +83,44 @@
       changed_when: true
       run_once: true
 
-    - name: Drain all nodes (workloads only — leave Longhorn instance-managers running)
-      # We EXCLUDE Longhorn instance-manager pods from the drain
-      # (--pod-selector 'longhorn.io/component!=instance-manager'). Instance-managers
-      # host the live engine/replica processes; force-killing them while a volume is
-      # still mid-detach faults the replicas (sets failedAt), which forces a full
-      # rebuild on the next restart — the "all replicas degraded" storm.
-      #
-      # By draining only the workload pods, each Longhorn volume detaches cleanly
-      # (failedAt stays empty) while its replicas stay put; the instance-managers
-      # then die gracefully when the node powers off. The follow-up
-      # "Wait for Longhorn volumes to detach" task confirms the clean detach.
-      #
-      # --disable-eviction keeps the drain fast by bypassing workload
-      # PodDisruptionBudgets (irrelevant in a full-cluster shutdown); excluding the
-      # instance-managers means we no longer hit their PDB, which is why
-      # --disable-eviction was originally needed.
+    - name: List all namespaces
       command: >
-        kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} drain {{ item }}
-        --pod-selector 'longhorn.io/component!=instance-manager'
-        --ignore-daemonsets
-        --delete-emptydir-data
-        --force
-        --disable-eviction
-        --timeout={{ drain_timeout }}
+        kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }}
+        get namespaces -o jsonpath='{.items[*].metadata.name}'
       delegate_to: localhost
       become: no
-      loop: "{{ cluster_nodes }}"
-      register: drain_results
-      changed_when: true
-      ignore_errors: yes
+      register: all_namespaces
+      changed_when: false
       run_once: true
 
-    - name: Warn about drain failures
-      debug:
-        msg: "WARNING: drain failed for {{ item.item }} — {{ item.stderr | default('unknown error') }}"
-      loop: "{{ drain_results.results }}"
-      loop_control:
-        label: "{{ item.item }}"
-      when: item.rc is defined and item.rc != 0
+    - name: Determine workload namespaces to evict (preserve Longhorn + core stack)
+      set_fact:
+        workload_namespaces: >-
+          {{ all_namespaces.stdout.split()
+             | difference(['longhorn-system', 'kube-system']) }}
+      run_once: true
+
+    - name: Evict workload pods so Longhorn volumes detach cleanly
+      # Delete only workload pods and KEEP the entire longhorn-system stack running
+      # (longhorn-manager, instance-managers, AND the CSI controllers like
+      # csi-attacher). Longhorn detaches volumes through the CSI flow, so the CSI
+      # controllers must stay up — draining them strands every detach and volumes
+      # never reach 'detached'. Instance-managers must also stay up so replicas
+      # detach cleanly (failedAt empty) instead of being faulted into a full
+      # rebuild on the next restart (the "all replicas degraded" storm).
+      #
+      # Nodes are already cordoned (previous task), so deleted pods stay Pending
+      # and release their volumes; the restart playbook's uncordon lets the
+      # controllers reschedule them — no scale-state bookkeeping needed.
+      # kube-system is preserved to avoid disrupting core services during detach.
+      command: >
+        kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }}
+        delete pods --all -n {{ item }} --grace-period=30 --wait=false
+      delegate_to: localhost
+      become: no
+      loop: "{{ workload_namespaces }}"
+      changed_when: true
+      ignore_errors: yes
       run_once: true
 
     - name: Check if Longhorn volume CRD exists
