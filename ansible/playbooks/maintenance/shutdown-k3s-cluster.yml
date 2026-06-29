@@ -83,14 +83,25 @@
       changed_when: true
       run_once: true
 
-    - name: Drain all nodes
-      # --disable-eviction bypasses PodDisruptionBudgets and uses raw DELETE.
-      # Required for shutdown because Longhorn instance-managers have a PDB
-      # that blocks eviction whenever every node is draining at once. Pods
-      # die with the VM anyway, so PDB-protected availability isn't relevant
-      # in a full-cluster shutdown.
+    - name: Drain all nodes (workloads only — leave Longhorn instance-managers running)
+      # We EXCLUDE Longhorn instance-manager pods from the drain
+      # (--pod-selector 'longhorn.io/component!=instance-manager'). Instance-managers
+      # host the live engine/replica processes; force-killing them while a volume is
+      # still mid-detach faults the replicas (sets failedAt), which forces a full
+      # rebuild on the next restart — the "all replicas degraded" storm.
+      #
+      # By draining only the workload pods, each Longhorn volume detaches cleanly
+      # (failedAt stays empty) while its replicas stay put; the instance-managers
+      # then die gracefully when the node powers off. The follow-up
+      # "Wait for Longhorn volumes to detach" task confirms the clean detach.
+      #
+      # --disable-eviction keeps the drain fast by bypassing workload
+      # PodDisruptionBudgets (irrelevant in a full-cluster shutdown); excluding the
+      # instance-managers means we no longer hit their PDB, which is why
+      # --disable-eviction was originally needed.
       command: >
         kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} drain {{ item }}
+        --pod-selector 'longhorn.io/component!=instance-manager'
         --ignore-daemonsets
         --delete-emptydir-data
         --force

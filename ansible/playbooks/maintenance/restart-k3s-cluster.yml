@@ -214,9 +214,50 @@
       changed_when: false
       run_once: true
 
+    - name: Wait for Longhorn instance-manager pods to be Ready
+      # Instance-managers host the engine/replica processes. They cannot schedule
+      # while a node is cordoned (they don't tolerate the unschedulable taint),
+      # which is why uncordon must happen first. Gate here so we know the storage
+      # data plane is up on every node before declaring the cluster healthy.
+      command: >
+        kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }} wait
+        --for=condition=Ready pod -l longhorn.io/component=instance-manager
+        -n longhorn-system --timeout=600s
+      delegate_to: localhost
+      become: no
+      changed_when: false
+      run_once: true
+
+    - name: Wait for Longhorn volumes to settle (no degraded/faulted robustness)
+      # If the clean-detach shutdown worked, volumes re-attach with all reusable
+      # replicas present and stay healthy. This catches any volume that attached
+      # degraded (e.g. a workload raced ahead of an instance-manager) and is
+      # rebuilding, so the restart does not report success mid-rebuild.
+      shell: >
+        kubectl --kubeconfig {{ maintenance_kubeconfig_tempfile.path }}
+        get volumes.longhorn.io -n longhorn-system
+        -o jsonpath='{range .items[?(@.status.robustness=="degraded")]}{.metadata.name}{" "}{end}{range .items[?(@.status.robustness=="faulted")]}{.metadata.name}{" "}{end}'
+      delegate_to: localhost
+      become: no
+      register: unhealthy_volumes
+      retries: 60
+      delay: 10
+      until: (unhealthy_volumes.stdout | trim) == ""
+      changed_when: false
+      failed_when: false
+      run_once: true
+
+    - name: Warn about volumes still degraded/faulted after settle window
+      debug:
+        msg: >-
+          WARNING: these Longhorn volumes are still degraded/faulted after the
+          settle window (likely rebuilding): {{ unhealthy_volumes.stdout | trim }}
+      when: (unhealthy_volumes.stdout | default('') | trim) != ""
+      run_once: true
+
     - name: Longhorn storage control plane is ready
       debug:
-        msg: "Longhorn manager and CSI control-plane pods are Ready"
+        msg: "Longhorn manager, CSI, and instance-manager pods are Ready"
       run_once: true
 
     - name: Get final cluster status
