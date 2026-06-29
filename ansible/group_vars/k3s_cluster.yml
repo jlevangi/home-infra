@@ -277,13 +277,18 @@ longhorn_backup_retain_daily: 7
 longhorn_backup_retain_weekly: 4
 
 # Longhorn Over-Provisioning & Rebalancing
-# 110% allows thin-provisioned volumes to exceed physical disk by 10% (needed
-# because our 3 flash workers share a single Proxmox host; scheduled capacity
-# regularly exceeds physical capacity). When a disk's scheduled/maximum ratio
-# tops this threshold, Longhorn marks it unschedulable, preventing NEW replicas
-# from landing there. Existing replicas are NOT evicted — use disk
-# evictionRequested for that.
-longhorn_storage_over_provisioning_percentage: 110
+# Allows thin-provisioned volumes to exceed physical disk size. When a disk's
+# scheduled/maximum ratio tops this threshold, Longhorn marks it unschedulable,
+# preventing NEW replicas from landing there. Existing replicas are NOT evicted —
+# use disk evictionRequested for that.
+#
+# 2026-06-29: raised 110 -> 200 after migrating the flash pool to smaller 2x500GB
+# Samsung drives (100G per-worker flash disk, down from 250G). The flash disks
+# carry ~188Gi of thin-provisioned replicas (only ~10Gi actually used), which at
+# 100G exceeded the old 110% limit (DiskPressure -> unschedulable, blocking flash
+# rebuilds). 200% clears that. TEMPORARY: the real fix is reducing the flash
+# tier's replica footprint (move general replicas to tank) — see follow-up issue.
+longhorn_storage_over_provisioning_percentage: 200
 # Disk-pressure threshold for auto-balance. Held at Longhorn default 90%
 # because the 45% experiment (committed 2026-05-29 in 9206e3f) caused a mass
 # eviction cascade on prod's 3-worker cluster: worker-3 at 50% used exceeded
