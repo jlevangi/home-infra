@@ -254,6 +254,11 @@ data:
         is_critical = topic == "homelab-critical" or severity == "critical"
         quiet_text = quiet_remaining_text()
         if status == "resolved":
+            # Resolved critical alerts arrive through the critical receiver, but
+            # sending them back to the critical ntfy topic can still buzz phones
+            # that have topic-level urgent notification settings. Keep all
+            # resolution notices low-priority on the default alerts topic.
+            topic = DEFAULT_TOPIC
             priority = 1
             tags = ["white_check_mark"]
         elif quiet_text:

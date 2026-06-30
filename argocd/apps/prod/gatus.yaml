@@ -80,6 +80,14 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
+            - name: MeshCentral
+              group: Infrastructure
+              url: https://mesh.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
             - name: Grafana
               group: Monitoring
               url: https://grafana.levangie.dev

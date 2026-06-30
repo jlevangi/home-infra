@@ -26,6 +26,19 @@
     enabled: yes
     state: started
 
+- name: Raise inotify limits for watcher-heavy Kubernetes workloads
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-k8s-inotify.conf
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      # MeshCentral and other Node.js-based workloads can exhaust the Debian
+      # defaults after a node reboot, causing EMFILE crashes from fs.watch().
+      fs.inotify.max_user_watches = 1048576
+      fs.inotify.max_user_instances = 8192
+  notify: Reload sysctl
+
 # - name: Copy bash_aliases to the user's home directory
 #   ansible.builtin.copy:
 #     src: bash_aliases
