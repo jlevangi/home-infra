@@ -7,7 +7,6 @@ resources:
   - endpoints-home-assistant.yaml
   - servicemonitor-home-assistant.yaml
   - scrapeconfig-proxmox-node-exporter.yaml
-  - scrapeconfig-llama-cpp-pc.yaml
 configMapGenerator:
   - name: grafana-dashboard-home-assistant
     namespace: monitoring

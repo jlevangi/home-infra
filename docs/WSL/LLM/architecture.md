@@ -29,14 +29,14 @@ The design that runs `pierce-pc` alongside the in-cluster `llama-cpp` deployment
                                         │                                 │
                                         │ user systemd: enabled + linger  │
                                         └──────────────┬──────────────────┘
-                                                       │ LAN
+                                                       │ LAN, operator-started only
                                                        │ pierce-pc.levangie.org:9090
                                                        ▼
                                           k3s-prod (Atlas Proxmox)
                                           ┌─────────────────────────────────┐
-                                          │ Prometheus (ScrapeConfig)       │
-                                          │  job=llama-cpp-pc               │
-                                          │  instance=workstation           │
+                                          │ No Prometheus scrape            │
+                                          │  workstation can stay stopped   │
+                                          │  without TargetDown alerts      │
                                           │                                 │
                                           │ LibreChat direct endpoint       │
                                           │  http://pierce-pc...:9080/v1    │
@@ -84,18 +84,18 @@ Default port for llama-swap is 8080. The `Start Llama-Swap.lnk` shortcut on `pie
 
 ## Why `instance=workstation` (label strategy)
 
-The Grafana `llama-cpp` dashboard's `$instance` template variable runs `label_values(llamaswap_load_average, instance)` against Prometheus. Both scrape jobs set a static, human-readable `instance` label via target relabeling:
+The Grafana `llama-cpp` dashboard's `$instance` template variable runs `label_values(llamaswap_load_average, instance)` against Prometheus. The cluster-side scrape sets a static, human-readable `instance` label via target relabeling:
 
 | Source | `instance` | Set by |
 |---|---|---|
 | In-cluster sidecar | `cluster` | `argocd/manifests/monitoring-config/base/servicemonitor-llama-cpp.yaml` — `relabelings: targetLabel=instance replacement=cluster` |
-| `pierce-pc` sidecar | `workstation` | `argocd/manifests/monitoring-config/overlays/prod/scrapeconfig-llama-cpp-pc.yaml` — `staticConfigs[0].labels.instance: workstation` |
+| `pierce-pc` sidecar | not scraped | intentionally disabled so the PC can stay stopped without alerts |
 
-This avoids the default `<pod-ip>:9090` instance label that the user can't reason about, and gives the dashboard dropdown stable values. Adding a third workstation later only requires another `ScrapeConfig` with a different `instance:` value.
+This avoids the default `<pod-ip>:9090` instance label that the user can't reason about. Adding workstation scraping back later would require a new `ScrapeConfig` with an explicit `instance:` value.
 
 ## What the cluster knows about the workstation
 
-The two cluster-side files that reference `pierce-pc` are the entire surface:
+The cluster-side surface for `pierce-pc` is intentionally limited to the optional LibreChat endpoint:
 
 ```yaml
 # argocd/apps/prod/librechat.yaml — LibreChat custom endpoint (excerpt)
@@ -108,21 +108,7 @@ endpoints:
       modelDisplayLabel: "llama.cpp PC"
 ```
 
-```yaml
-# argocd/manifests/monitoring-config/overlays/prod/scrapeconfig-llama-cpp-pc.yaml
-spec:
-  jobName: llama-cpp-pc
-  scrapeInterval: 30s
-  scrapeTimeout: 20s
-  metricsPath: /metrics
-  staticConfigs:
-    - targets:
-        - pierce-pc.levangie.org:9090
-      labels:
-        instance: workstation
-```
-
-If `pierce-pc` is renamed, moved, or replaced, those two paths are the only edits needed on the cluster side.
+Prometheus scraping of `pierce-pc` was removed because llama-swap is not intended to run on the PC full-time.
 
 ## Caveats and known gaps
 

@@ -73,35 +73,8 @@ else
     fail "$WORKSTATION_HOST:$SIDECAR_PORT not reachable from this host — check: DNS, Windows Firewall, .wslconfig networkingMode=mirrored"
 fi
 
-header "6. cluster Prometheus target llama-cpp-pc"
-if ! command -v kubectl >/dev/null; then
-    skip "kubectl not on PATH — cannot probe cluster"
-else
-    GRAFANA_POD=$(kubectl --context "$CLUSTER_CONTEXT" -n "$GRAFANA_NS" get pod -l "$GRAFANA_SELECTOR" -o name 2>/dev/null | head -1)
-    if [[ -z "$GRAFANA_POD" ]]; then
-        skip "grafana pod not found in $CLUSTER_CONTEXT/$GRAFANA_NS"
-    else
-        STATUS=$(kubectl --context "$CLUSTER_CONTEXT" -n "$GRAFANA_NS" exec "$GRAFANA_POD" -- \
-            wget -qO- --timeout=8 "http://prometheus-operated.$GRAFANA_NS.svc.cluster.local:9090/api/v1/targets?state=any" 2>/dev/null \
-            | python3 -c "
-import json,sys
-d=json.load(sys.stdin)
-for t in d['data']['activeTargets']:
-    if t['labels'].get('job')=='llama-cpp-pc':
-        print(f\"{t['health']} url={t['scrapeUrl']}\"); sys.exit(0)
-print('not-found'); sys.exit(0)
-" 2>/dev/null)
-        if [[ "$STATUS" == up* ]]; then
-            pass "Prometheus target llama-cpp-pc UP ($STATUS)"
-        elif [[ "$STATUS" == down* ]]; then
-            fail "Prometheus target DOWN — $STATUS — sidecar reachable from this host but not from cluster"
-        elif [[ "$STATUS" == 'not-found' ]]; then
-            fail "no llama-cpp-pc job in Prometheus — is the ScrapeConfig synced? check ArgoCD app monitoring-config"
-        else
-            skip "could not determine target status — $STATUS"
-        fi
-    fi
-fi
+header "6. cluster Prometheus target"
+skip "workstation llama-swap is intentionally not scraped by cluster Prometheus"
 
 echo
 if (( FAILED == 0 )); then

@@ -149,43 +149,25 @@ It checks, in order:
 2. `llama-swap.exe` exposes host metrics on `127.0.0.1:9080/metrics` (gates on v218+)
 3. Sidecar `/healthz` returns `ok` on `127.0.0.1:9090`
 4. Sidecar `/metrics` returns at least one `llamaswap_*` value line
-5. From the operator's machine: `kubectl exec` in a cluster pod can fetch `http://pierce-pc.levangie.org:9090/metrics` (proves Prometheus will be able to)
+5. From the operator's machine: `pierce-pc.levangie.org:9090` is reachable when the sidecar is running
 
 If any step fails, the script prints which one and exits non-zero. Use [troubleshooting.md](troubleshooting.md) for the common failures.
 
-## Step 6 — Confirm the cluster side is already wired
+## Step 6 — Confirm the cluster side is intentionally minimal
 
-These two files in the repo encode everything the cluster knows about `pierce-pc`. They should already be present and pushed:
+The cluster no longer scrapes the workstation with Prometheus. Pierce does not keep `llama-swap` running on the PC full-time, so a cluster-side ScrapeConfig would create noisy `TargetDown` alerts whenever the PC path is intentionally stopped.
+
+LibreChat may still expose the PC as an operator-started endpoint:
 
 ```bash
 git --no-pager show HEAD:argocd/apps/prod/librechat.yaml | grep -A4 'name: "llama-pc"'
-git --no-pager show HEAD:argocd/manifests/monitoring-config/overlays/prod/scrapeconfig-llama-cpp-pc.yaml
 ```
 
-If the workstation is brand-new and these don't exist yet, the operator needs to add them. Use the cluster-side commit history as reference:
+## Step 7 — Confirm cluster metrics flow in Grafana
 
-- `cb43756` — original workstation + ScrapeConfig wiring
-- `addc051` — port fix (8080 -> 9080)
-- `3ab50b1` — sidecar `/running` parser fix (dict-shaped entries)
+Open Grafana → `llama-cpp` dashboard. The `$instance` dropdown should list `cluster`. Workstation metrics are not scraped by default, so there should be no `workstation` target or `llama-cpp-pc` alert when the PC-side llama-swap is stopped.
 
-## Step 7 — Confirm metrics flow in Grafana
-
-Open Grafana → `llama-cpp` dashboard. The `$instance` dropdown should list `cluster` and `workstation`. Switch to `workstation`:
-
-- CPU per-core, RAM, swap, network, load average → populated
-- GPU panels → **empty** (expected; see troubleshooting.md "no GPU metrics")
-- Active model → empty until a Qwen request fires; populated within ~30s after
-
-Trigger a peer request from any cluster node:
-
-```bash
-kubectl --context k3s-prod -n llama-cpp exec deploy/llama-cpp -c llama-swap -- \
-  curl -s http://localhost:8080/v1/chat/completions \
-  -H 'Content-Type: application/json' \
-  -d '{"model":"Qwen3.6-27B","messages":[{"role":"user","content":"hi"}],"max_tokens":4}'
-```
-
-Within ~30s, the dashboard's `Active model(s)` panel shows `Qwen3.6-27B`, the prompt/generation tok/s panels populate, and `llamacpp:*` metrics in Prometheus carry the `model="Qwen3.6-27B"` label.
+To test the operator-started PC path, use the local script/API checks above rather than Grafana/Prometheus.
 
 ## Operational reference
 
