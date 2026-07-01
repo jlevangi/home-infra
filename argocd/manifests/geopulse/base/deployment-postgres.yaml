@@ -34,7 +34,7 @@ spec:
         - name: postgres
           image: postgis/postgis:17-3.5
           imagePullPolicy: IfNotPresent
-          command:
+          args:
             - postgres
             - -c
             - timezone=UTC
