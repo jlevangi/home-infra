@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: geopulse-storage-limits
+  namespace: geopulse
+spec:
+  limits:
+    - type: PersistentVolumeClaim
+      max:
+        storage: "10Gi"
+      min:
+        storage: "100Mi"
+      default:
+        storage: "1Gi"
+      defaultRequest:
+        storage: "1Gi"

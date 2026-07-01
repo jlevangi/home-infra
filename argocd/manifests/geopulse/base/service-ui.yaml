@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: geopulse-ui
+  namespace: geopulse
+spec:
+  type: ClusterIP
+  selector:
+    app: geopulse-ui
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
