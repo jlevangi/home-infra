@@ -2,11 +2,28 @@
 
 Concrete failure modes seen during the original buildout (2026-06-07/08), what they look like, and how to fix them. If you hit something new, add it here.
 
-## Prometheus target `llama-cpp-pc` exists or is `down`
+## Prometheus target `llama-cpp-pc` is `down`
 
-This target should no longer exist. Workstation scraping was removed because Pierce does not keep PC-side `llama-swap` running full-time, and a cluster scrape created noisy `TargetDown` alerts when the PC path was intentionally stopped.
+This is expected when Pierce is not actively running PC-side `llama-swap`.
+Prometheus still scrapes the target so Grafana has workstation metrics while it
+is in use, but Alertmanager routes `TargetDown{job="llama-cpp-pc"}` to the null
+receiver so it should not page or notify.
 
-If Prometheus still shows `job=llama-cpp-pc`, check that ArgoCD has pruned the old `ScrapeConfig` from `monitoring` and that the `monitoring-config` app is synced.
+Only troubleshoot this state when the workstation endpoint is supposed to be
+running and Grafana/Prometheus data is missing.
+
+Most likely failure path. Diagnose by checking each layer from the outside in:
+
+```bash
+# (1) does the sidecar respond to the cluster?
+kubectl --context k3s-prod -n monitoring exec deploy/kube-prometheus-stack-grafana -- \
+  wget -qO- --timeout=5 http://pierce-pc.levangie.org:9090/healthz
+# expected: ok
+```
+
+If that hangs or refuses, the problem is networking (firewall, DNS, mirrored mode misconfigured, sidecar dead). Go to "Sidecar not reachable from LAN" below.
+
+If `/healthz` returns `ok` but `/metrics` returns no body, the sidecar is up but llama-swap is unreachable to the sidecar. Go to "Sidecar runs but emits zero `llamaswap_*` metrics".
 
 ## Sidecar runs but emits zero `llamaswap_*` metrics
 
@@ -30,7 +47,7 @@ The sidecar synthesizes `llamacpp_active_model_info{model="..."}` for each model
 - **`--metrics` is missing from the running model's `cmd`.** Spawned llama-server returns HTTP 501 on `/metrics`. Check `C:\Users\pierc\llama-cpp\config.yaml` — every model's `cmd:` block should contain a `--metrics` line. After fixing, restart llama-swap so it re-reads the config.
 - **Older `/running` schema bug.** The original sidecar (pre-`3ab50b1`) filtered `/running` entries with `isinstance(m, str)` but the API actually returns dicts like `{"model": "...", "state": "ready"}`. The fixed parser handles both. If the workstation copy is older than the canonical script, re-run `install-metrics-sidecar-wsl.sh`.
 
-## Sidecar not reachable from LAN
+## Sidecar not reachable from LAN (Prometheus target stuck `down`)
 
 Verify the WSL2 networking mode is `mirrored`:
 

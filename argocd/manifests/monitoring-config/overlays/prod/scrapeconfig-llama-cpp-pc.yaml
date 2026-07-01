@@ -1,0 +1,25 @@
+# Prometheus scrape target for the workstation llama-swap instance.
+# pierce-pc.levangie.org resolves to 172.20.23.28 (LAN); the host runs
+# llama-swap.exe with a metrics aggregator sidecar listening on :9090
+# that mirrors the script at argocd/manifests/llama-cpp/base/sidecar-exporter.py.
+#
+# The static instance=workstation label lets the existing Grafana
+# 'llama-cpp' dashboard's $instance template variable auto-discover
+# this target alongside the in-cluster instance=cluster scrape.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: llama-cpp-pc
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  jobName: llama-cpp-pc
+  scrapeInterval: 30s
+  scrapeTimeout: 20s
+  metricsPath: /metrics
+  staticConfigs:
+    - targets:
+        - pierce-pc.levangie.org:9090
+      labels:
+        instance: workstation

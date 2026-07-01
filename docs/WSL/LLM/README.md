@@ -16,7 +16,7 @@ The cluster side lives in `argocd/manifests/llama-cpp/` and `argocd/manifests/mo
    agents     ──►                      │  llama-swap.exe (Windows, ROCm)
                                        │  sidecar @ :9090
    Prometheus ── scrape ──► cluster:9090
-   Prometheus ── no scrape ──► pierce-pc (operator-started only)
+   Prometheus ── scrape ──► pierce-pc.levangie.org:9090
                                        │
                                        ▼
                        Grafana dashboard `llama-cpp`
@@ -45,11 +45,16 @@ The three scripts under [`scripts/workstation/`](../../../scripts/workstation/) 
 
 - `argocd/apps/prod/librechat.yaml` — LibreChat exposes `llama.cpp PC` as a direct fetched endpoint against this workstation
 - `argocd/manifests/llama-cpp/base/sidecar-exporter.py` — canonical source of the Python sidecar (the workstation copy is a patched fork)
-- Workstation Prometheus scraping is intentionally disabled so alerts do not fire when `llama-swap` is not running on Pierce's PC.
+- `argocd/manifests/monitoring-config/overlays/prod/scrapeconfig-llama-cpp-pc.yaml` — Prometheus ScrapeConfig that pulls `pierce-pc.levangie.org:9090`
 
 ## Status
 
 Manually deployed and operational since 2026-06-08 (commits `addc051`, `cb43756`, `eba66de`, `3ab50b1`). The umbrella Ansible-conversion issue tracks lifting this into a managed role.
+
+Prometheus intentionally scrapes the workstation target for Grafana history
+while PC-side `llama-swap` is running, but Alertmanager suppresses
+`TargetDown{job="llama-cpp-pc"}` notifications because Pierce does not keep the
+PC endpoint running full-time.
 
 ## Known follow-ups (beads)
 
@@ -68,4 +73,4 @@ Inspect any with `bd show <id>`; the graph (`bd show home-infra-80f`) shows what
 
 ## Where we left off (2026-06-09)
 
-The workstation path is operator-started only. Documentation + idempotent install scripts are committed, but cluster Prometheus intentionally does not scrape `pierce-pc`, so it will not alert when `llama-swap` is stopped. Run `bash scripts/workstation/verify-setup.sh` when intentionally using the PC endpoint; expect the local checks to pass and the cluster scrape check to SKIP.
+Everything in the topology diagram above is **live and working**. Documentation + idempotent install scripts are committed. The open issues above are real but none of them block the current setup — each is an enhancement, a deferred decision, or a cosmetic fix. Run `bash scripts/workstation/verify-setup.sh` to confirm the system is still green; expect all 6 checks to PASS.

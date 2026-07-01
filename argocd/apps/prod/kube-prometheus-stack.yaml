@@ -166,6 +166,13 @@ spec:
                 - receiver: ntfy-null
                   matchers:
                     - alertname="NodeSystemSaturation"
+                # Keep scraping the operator-started workstation llama-swap
+                # target for Grafana usage/history, but do not notify when
+                # Pierce intentionally leaves llama-swap stopped on the PC.
+                - receiver: ntfy-null
+                  matchers:
+                    - alertname="TargetDown"
+                    - job="llama-cpp-pc"
                 - receiver: ntfy-prod-critical
                   matchers:
                     - severity="critical"
