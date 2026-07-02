@@ -5,7 +5,6 @@ resources:
 images:
   - name: vaultwarden/server
     newTag: "1.36.0"
-# Prod uses base values (vw.levangie.dev) - no patches needed
 patches:
   - target:
       kind: PersistentVolumeClaim
@@ -18,6 +17,19 @@ patches:
       kind: Ingress
       name: vaultwarden-ingress
     patch: |
+      - op: add
+        path: /spec/rules/-
+        value:
+          host: vw.levangie.org
+          http:
+            paths:
+              - path: /
+                pathType: Prefix
+                backend:
+                  service:
+                    name: vaultwarden
+                    port:
+                      number: 80
       - op: add
         path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
         value: "k3s-prod.levangie.dev"
