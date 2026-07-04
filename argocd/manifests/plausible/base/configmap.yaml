@@ -12,80 +12,13 @@ data:
   POSTGRES_HOST: "plausible-postgres"
   CLICKHOUSE_DATABASE_URL: "http://plausible-clickhouse:8123/plausible_events_db"
   TZ: "America/New_York"
-  # ClickHouse low-resources config
-  clickhouse-logs.xml: |
-    <clickhouse>
-      <logger>
-        <level>warning</level>
-        <log>/var/log/clickhouse-server/clickhouse-server.log</log>
-        <errorlog>/var/log/clickhouse-server/clickhouse-server.err.log</errorlog>
-        <size>1000M</size>
-        <count>10</count>
-      </logger>
-      <query_log>
-        <database>system</database>
-        <table>query_log</table>
-        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
-      </query_log>
-      <query_thread_log>
-        <database>system</database>
-        <table>query_thread_log</table>
-        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
-      </query_thread_log>
-      <text_log>
-        <level>warning</level>
-        <database>system</database>
-        <table>text_log</table>
-        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
-      </text_log>
-      <metric_log>
-        <database>system</database>
-        <table>metric_log</table>
-        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
-        <ttl>event_date + INTERVAL 30 DAY</ttl>
-        <engine>MergeTree
-        PARTITION BY event_date
-        ORDER BY (event_time)
-        TTL event_date + interval 30 day
-        SETTINGS ttl_only_drop_parts=1</engine>
-      </metric_log>
-      <asynchronous_metric_log>
-        <database>system</database>
-        <table>asynchronous_metric_log</table>
-        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
-      </asynchronous_metric_log>
-      <asynchronous_metric_log>
-        <database>system</database>
-        <table>asynchronous_metric_log</table>
-        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
-      </asynchronous_metric_log>
-      <session_log>
-        <database>system</database>
-        <table>session_log</table>
-      </session_log>
-      <part_log>
-        <database>system</database>
-        <table>part_log</table>
-        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
-      </part_log>
-    </clickhouse>
+  # ClickHouse config - minimal adjustments
   clickhouse-ipv4-only.xml: |
     <clickhouse>
       <listen_host>0.0.0.0</listen_host>
     </clickhouse>
   clickhouse-low-resources.xml: |
     <clickhouse>
-      <max_server_memory_usage>524288000</max_server_memory_usage>
-    </clickhouse>
-  clickhouse-low-resources-profile.xml: |
-    <clickhouse>
-      <profiles>
-        <default>
-          <max_memory_usage>20000000000</max_memory_usage>
-          <max_bytes_before_external_group_by>20000000000</max_bytes_before_external_group_by>
-          <max_bytes_before_external_sort>20000000000</max_bytes_before_external_sort>
-          <max_execution_time>0</max_execution_time>
-          <distributed_ddl_task_timeout>0</distributed_ddl_task_timeout>
-        </default>
-      </profiles>
+      <max_server_memory_usage>1073741824</max_server_memory_usage>
+      <max_concurrent_queries>100</max_concurrent_queries>
     </clickhouse>

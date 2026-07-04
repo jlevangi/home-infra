@@ -73,20 +73,12 @@ spec:
             - name: event-logs
               mountPath: /var/log/clickhouse-server
             - name: clickhouse-config
-              mountPath: /etc/clickhouse-server/config.d/logs.xml
-              subPath: clickhouse-logs.xml
-              readOnly: true
-            - name: clickhouse-config
               mountPath: /etc/clickhouse-server/config.d/ipv4-only.xml
               subPath: clickhouse-ipv4-only.xml
               readOnly: true
             - name: clickhouse-config
               mountPath: /etc/clickhouse-server/config.d/low-resources.xml
               subPath: clickhouse-low-resources.xml
-              readOnly: true
-            - name: clickhouse-config
-              mountPath: /etc/clickhouse-server/users.d/default-profile-overrides.xml
-              subPath: clickhouse-low-resources-profile.xml
               readOnly: true
       volumes:
         - name: event-data
