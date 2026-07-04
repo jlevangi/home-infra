@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: plausible-storage-quota
+  namespace: plausible
+spec:
+  hard:
+    requests.storage: "70Gi"
+    persistentvolumeclaims: "2"
+    longhorn.io/requests.storage: "70Gi"
