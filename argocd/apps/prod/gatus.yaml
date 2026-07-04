@@ -88,6 +88,16 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
+            - name: Plausible
+              group: Applications
+              url: https://plausible.levangie.dev/api/health
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+                - "[BODY].postgres == ok"
+                - "[BODY].clickhouse == ok"
+
             - name: Grafana
               group: Monitoring
               url: https://grafana.levangie.dev
