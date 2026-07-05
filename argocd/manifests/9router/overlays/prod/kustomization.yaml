@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+images:
+  - name: ghcr.io/decolua/9router
+    newTag: v0.5.18
+patches:
+  - target:
+      kind: Ingress
+      name: 9router-ingress
+    patch: |
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: "k3s-prod.levangie.dev"
+labels:
+  - pairs:
+      environment: prod
+    includeSelectors: true

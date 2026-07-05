@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: 9router-storage-quota
+  namespace: 9router
+spec:
+  hard:
+    requests.storage: "1Gi"
+    persistentvolumeclaims: "1"
+    longhorn.io/requests.storage: "1Gi"

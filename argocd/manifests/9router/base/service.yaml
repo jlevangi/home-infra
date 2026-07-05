@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: 9router
+  namespace: 9router
+  labels:
+    app: 9router
+    app.kubernetes.io/name: 9router
+spec:
+  type: ClusterIP
+  selector:
+    app: 9router
+  ports:
+    - name: http
+      port: 20128
+      targetPort: 20128
+      protocol: TCP
