@@ -25,7 +25,7 @@ spec:
           command:
             - /bin/sh
             - -c
-            - chown -R node:node /app/data
+            - chown -R 1000:1000 /app/data
           volumeMounts:
             - name: data
               mountPath: /app/data
