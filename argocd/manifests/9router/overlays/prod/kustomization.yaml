@@ -8,7 +8,7 @@ images:
 patches:
   - target:
       kind: Ingress
-      name: 9router-ingress
+      name: nine-router-ingress
     patch: |
       - op: add
         path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
