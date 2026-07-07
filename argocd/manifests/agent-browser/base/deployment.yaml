@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-browser
+  namespace: agent-browser
+  labels:
+    app: agent-browser
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: agent-browser
+  template:
+    metadata:
+      labels:
+        app: agent-browser
+    spec:
+      containers:
+        - name: browser
+          image: ghcr.io/pljhonglu/openclaw_browser:main
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: WIDTH
+              value: "1920"
+            - name: HEIGHT
+              value: "1080"
+            - name: VNC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: agent-browser-secrets
+                  key: VNC_PASSWORD
+            - name: CDP_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: agent-browser-secrets
+                  key: CDP_TOKEN
+          ports:
+            - name: cdp
+              containerPort: 9222
+              protocol: TCP
+            - name: novnc
+              containerPort: 6080
+              protocol: TCP
+          volumeMounts:
+            - name: chrome-profile
+              mountPath: /data/chrome-profile
+            - name: dshm
+              mountPath: /dev/shm
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 3Gi
+      volumes:
+        - name: chrome-profile
+          persistentVolumeClaim:
+            claimName: agent-browser-profile-pvc
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi
