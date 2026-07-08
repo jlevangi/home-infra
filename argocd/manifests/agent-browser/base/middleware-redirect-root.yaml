@@ -1,0 +1,10 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: agent-browser-redirect-root
+  namespace: agent-browser
+spec:
+  redirectRegex:
+    regex: ^https?://browser\.levangie\.dev/?$
+    replacement: https://browser.levangie.dev/vnc.html
+    permanent: false

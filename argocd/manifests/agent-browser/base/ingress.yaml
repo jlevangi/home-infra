@@ -5,6 +5,7 @@ metadata:
   namespace: agent-browser
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.middlewares: agent-browser-agent-browser-redirect-root@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:

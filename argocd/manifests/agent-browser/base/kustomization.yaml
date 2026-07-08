@@ -6,5 +6,6 @@ resources:
   - pvc.yaml
   - deployment.yaml
   - service.yaml
+  - middleware-redirect-root.yaml
   - ingress.yaml
   - ingress-cdp.yaml
