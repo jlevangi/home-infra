@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: semaphore
+  namespace: semaphore
+  labels:
+    app: semaphore
+    app.kubernetes.io/name: semaphore
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: semaphore
+  template:
+    metadata:
+      labels:
+        app: semaphore
+        app.kubernetes.io/name: semaphore
+    spec:
+      securityContext:
+        fsGroup: 0
+      initContainers:
+        - name: init-data
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /var/lib/semaphore/repositories /var/lib/semaphore/secrets /var/lib/semaphore/ssh-agent-sockets
+              chown -R 0:0 /var/lib/semaphore
+              chmod -R g+rwX /var/lib/semaphore
+          volumeMounts:
+            - name: semaphore-data
+              mountPath: /var/lib/semaphore
+      containers:
+        - name: semaphore
+          image: semaphoreui/semaphore:v2.18.25-ansible2.16.5
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: semaphore-config
+            - secretRef:
+                name: semaphore-secrets
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          volumeMounts:
+            - name: semaphore-data
+              mountPath: /var/lib/semaphore
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /api/ping
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /api/ping
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+      volumes:
+        - name: semaphore-data
+          persistentVolumeClaim:
+            claimName: semaphore-data-pvc

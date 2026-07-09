@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: semaphore-storage-quota
+  namespace: semaphore
+spec:
+  hard:
+    requests.storage: "2Gi"
+    persistentvolumeclaims: "1"
+    longhorn.io/requests.storage: "2Gi"

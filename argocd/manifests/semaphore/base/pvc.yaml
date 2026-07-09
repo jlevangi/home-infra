@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: semaphore-data-pvc
+  namespace: semaphore
+  labels:
+    app: semaphore
+    app.kubernetes.io/name: semaphore
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: longhorn

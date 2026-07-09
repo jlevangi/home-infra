@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: semaphore-config
+  namespace: semaphore
+data:
+  SEMAPHORE_DB_DIALECT: sqlite
+  SEMAPHORE_DB_HOST: /var/lib/semaphore/database.sqlite
+  SEMAPHORE_WEB_ROOT: https://semaphore.levangie.dev
+  SEMAPHORE_PORT: ":3000"
+  SEMAPHORE_TMP_PATH: /tmp/semaphore
+  SEMAPHORE_REPOS_DIR: /var/lib/semaphore/repositories
+  SEMAPHORE_SECRETS_PATH: /var/lib/semaphore/secrets
+  SEMAPHORE_SSH_AGENT_SOCKETS_DIR: /var/lib/semaphore/ssh-agent-sockets
+  SEMAPHORE_HOME_DIR_MODE: project_home
+  SEMAPHORE_GIT_CLIENT: cmd_git
+  SEMAPHORE_SCHEDULE_TIMEZONE: America/New_York
+  SEMAPHORE_MAX_PARALLEL_TASKS: "2"
+  SEMAPHORE_PASSWORD_LOGIN_DISABLED: "false"
+  SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT: "false"
