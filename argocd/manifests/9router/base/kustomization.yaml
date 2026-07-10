@@ -6,6 +6,7 @@ resources:
   - deployment.yaml
   - service.yaml
   - ingress.yaml
+  - configmap-seed-local-llm.yaml
   - external-secret.yaml
   - resource-quota.yaml
   - limit-range.yaml

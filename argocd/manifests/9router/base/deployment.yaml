@@ -29,6 +29,21 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /app/data
+        - name: seed-local-llm
+          image: ghcr.io/decolua/9router:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - node
+            - /app/seed/seed-local-llm.js
+          env:
+            - name: NINE_ROUTER_DB
+              value: /app/data/db/data.sqlite
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+            - name: local-llm-seed
+              mountPath: /app/seed
+              readOnly: true
       containers:
         - name: 9router
           image: ghcr.io/decolua/9router:latest
@@ -81,3 +96,6 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: 9router-data-pvc
+        - name: local-llm-seed
+          configMap:
+            name: 9router-local-llm-seed
