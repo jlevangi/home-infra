@@ -4,7 +4,7 @@ resources:
   - ../../base
 images:
   - name: quay.io/keycloak/keycloak
-    newTag: "26.6.3"
+    newTag: "26.7.0"
   - name: postgres
     newTag: "16"
 patches:

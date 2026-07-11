@@ -4,7 +4,7 @@ resources:
   - ../../base
 images:
   - name: factoriotools/factorio
-    newTag: "2.0.76"
+    newTag: "2.1.9"
 patches:
   # Use a stable LoadBalancer VIP for LAN access and fixed NodePorts for router forwarding.
   # Port forward on router: external 34197/UDP -> <stable-node-ip>:32097/UDP
