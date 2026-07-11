@@ -7,37 +7,34 @@
     "scripts/**"
   ],
   "kubernetes": {
-    "fileMatch": ["argocd/manifests/.+/overlays/.+/kustomization\\.yaml$"]
+    "managerFilePatterns": ["/argocd/manifests/.+/overlays/.+/kustomization\\.yaml$/"]
   },
   "argocd": {
-    "fileMatch": ["argocd/apps/.+\\.yaml$"]
+    "managerFilePatterns": ["/argocd/apps/.+\\.yaml$/"]
   },
   "packageRules": [
     {
-      "description": "Stage container images - weekly automerge",
-      "matchFileNames": ["argocd/manifests/*/overlays/stage/**"],
+      "description": "Prod container images - weekly PRs, manual merge",
+      "matchFileNames": ["argocd/manifests/*/overlays/prod/**"],
       "schedule": ["after 6am on Monday"],
-      "automerge": true,
-      "groupName": "stage-container-images"
+      "automerge": false,
+      "groupName": "prod-container-images"
     },
     {
-      "description": "Stage Helm charts - weekly automerge",
-      "matchFileNames": ["argocd/apps/stage/**"],
+      "description": "Prod Helm charts - weekly PRs, manual merge",
+      "matchFileNames": ["argocd/apps/prod/**"],
       "matchManagers": ["argocd"],
       "schedule": ["after 6am on Monday"],
-      "automerge": true,
-      "groupName": "stage-helm-charts"
+      "automerge": false,
+      "groupName": "prod-helm-charts"
     },
     {
-      "description": "Prod - disabled initially",
-      "matchFileNames": ["argocd/apps/prod/**", "argocd/manifests/*/overlays/prod/**"],
-      "enabled": false
-    },
-    {
-      "description": "Test/Talos - disabled",
+      "description": "Inactive non-prod K3s environments - disabled",
       "matchFileNames": [
+        "argocd/apps/stage/**",
         "argocd/apps/test/**",
         "argocd/apps/talos-test/**",
+        "argocd/manifests/*/overlays/stage/**",
         "argocd/manifests/*/overlays/test/**"
       ],
       "enabled": false
