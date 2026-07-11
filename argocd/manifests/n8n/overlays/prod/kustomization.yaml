@@ -6,7 +6,7 @@ images:
   - name: n8nio/n8n
     newTag: "2.26.3"
   - name: postgres
-    newTag: "16.6"
+    newTag: "18.4"
 patches:
   - target:
       kind: Ingress

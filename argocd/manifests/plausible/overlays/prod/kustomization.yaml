@@ -4,9 +4,9 @@ resources:
   - ../../base
 images:
   - name: postgres
-    newTag: "16-alpine"
+    newTag: "18-alpine"
   - name: clickhouse/clickhouse-server
-    newTag: "24.12-alpine"
+    newTag: "26.5-alpine"
   - name: ghcr.io/plausible/community-edition
     newTag: v3.2.1
 patches:
