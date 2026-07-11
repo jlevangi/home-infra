@@ -1,0 +1,87 @@
+---
+- name: Check Vault status before replacing {{ vault_pod_name }}
+  ansible.builtin.shell: >
+    kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+    {{ vault_pod_name }} -- vault status -format=json
+  register: vault_status_before
+  changed_when: false
+  retries: 12
+  delay: 5
+  until: vault_status_before.rc == 0 and (vault_status_before.stdout | default('') | trim | length) > 0
+
+- name: Parse Vault status before replacing {{ vault_pod_name }}
+  ansible.builtin.set_fact:
+    vault_status_before_json: "{{ vault_status_before.stdout | from_json }}"
+
+- name: Abort if {{ vault_pod_name }} is sealed before replacement
+  ansible.builtin.fail:
+    msg: "{{ vault_pod_name }} is sealed before replacement; run vault-unseal.yml first."
+  when: vault_status_before_json.sealed | default(true)
+
+- name: Delete {{ vault_pod_name }} for OnDelete StatefulSet rollout
+  ansible.builtin.shell: >
+    kubectl --context {{ kubectl_context }} delete pod {{ vault_pod_name }}
+    -n {{ vault_namespace }}
+    --wait=false
+  register: vault_delete_pod
+  changed_when: vault_delete_pod.rc == 0
+
+- name: Wait for {{ vault_pod_name }} to have target revision
+  ansible.builtin.shell: >
+    kubectl --context {{ kubectl_context }} get pod {{ vault_pod_name }}
+    -n {{ vault_namespace }}
+    -o jsonpath='{.metadata.labels.controller-revision-hash}'
+  register: vault_pod_revision
+  changed_when: false
+  retries: "{{ (vault_roll_timeout_seconds | int / 10) | int }}"
+  delay: 10
+  until: vault_pod_revision.stdout == vault_update_revision
+
+- name: Wait for Vault API after replacing {{ vault_pod_name }}
+  ansible.builtin.shell: >
+    kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+    {{ vault_pod_name }} -- vault status -format=json
+  register: vault_status_after
+  failed_when: false
+  changed_when: false
+  retries: 24
+  delay: 5
+  until: >-
+    (vault_status_after.stdout | default('') | trim | length) > 0
+
+- name: Unseal {{ vault_pod_name }} when needed
+  ansible.builtin.shell: >
+    kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+    {{ vault_pod_name }} -- vault operator unseal '{{ item }}'
+  loop: "{{ vault_unseal_keys }}"
+  failed_when: false
+  no_log: true
+  when: (vault_status_after.stdout | from_json).sealed | default(true)
+
+- name: Verify {{ vault_pod_name }} is unsealed after replacement
+  ansible.builtin.shell: >
+    kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+    {{ vault_pod_name }} -- vault status -format=json
+  register: vault_status_final
+  changed_when: false
+  retries: 12
+  delay: 5
+  until: >-
+    vault_status_final.rc == 0 and
+    (vault_status_final.stdout | default('') | trim | length) > 0 and
+    not (vault_status_final.stdout | from_json).sealed
+
+- name: Verify all Vault pods are Ready before continuing
+  ansible.builtin.shell: >
+    kubectl --context {{ kubectl_context }} get sts {{ vault_statefulset_name }}
+    -n {{ vault_namespace }}
+    -o jsonpath='{.status.readyReplicas}/{.status.replicas}'
+  register: vault_ready_count
+  changed_when: false
+  retries: 12
+  delay: 5
+  until: vault_ready_count.stdout == (vault_sts.spec.replicas | string) + '/' + (vault_sts.spec.replicas | string)
+
+- name: Report {{ vault_pod_name }} replaced
+  ansible.builtin.debug:
+    msg: "{{ vault_pod_name }} now runs revision {{ vault_update_revision }} and is unsealed."

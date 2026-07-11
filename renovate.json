@@ -21,6 +21,12 @@
       "groupName": "prod-container-images"
     },
     {
+      "description": "Vault chart - manual only due OnDelete StatefulSet rollout",
+      "matchFileNames": ["argocd/apps/prod/vault.yaml"],
+      "matchManagers": ["argocd"],
+      "enabled": false
+    },
+    {
       "description": "Prod Helm charts - weekly PRs, manual merge",
       "matchFileNames": ["argocd/apps/prod/**"],
       "matchManagers": ["argocd"],

@@ -1,0 +1,180 @@
+---
+# Safely roll Vault StatefulSet pods after a Helm/chart update with OnDelete strategy.
+#
+# Usage:
+#   ansible-playbook ansible/playbooks/maintenance/vault-roll-statefulset.yml \
+#     -e "kubectl_context=k3s-prod"
+#
+# Optional:
+#   -e "vault_namespace=vault-raft vault_statefulset_name=vault-raft"
+#   -e "vault_dry_run=true"
+
+- name: Safely roll Vault StatefulSet pods
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    vault_context_overrides:
+      k3s-prod: &vault_raft_overrides
+        vault_namespace: "vault-raft"
+        vault_statefulset_name: "vault-raft"
+      k3s-stage: *vault_raft_overrides
+    vault_context_defaults: "{{ vault_context_overrides.get(kubectl_context | default(''), {}) }}"
+    vault_namespace: "{{ vault_context_defaults.vault_namespace | default('vault') }}"
+    vault_statefulset_name: "{{ vault_context_defaults.vault_statefulset_name | default('vault') }}"
+    vault_dry_run: false
+    vault_roll_timeout_seconds: 600
+    vault_init_secret_name: "vault-init"
+    kubectl_kubeconfig: "{{ lookup('ansible.builtin.env', 'KUBECONFIG') | default('/home/pierce/.kube/config', true) }}"
+
+  environment:
+    KUBECONFIG: "{{ kubectl_kubeconfig }}"
+
+  pre_tasks:
+    - name: Assert kubectl_context is provided
+      ansible.builtin.assert:
+        that:
+          - kubectl_context is defined
+          - kubectl_context | length > 0
+        fail_msg: "kubectl_context is required (e.g. k3s-prod, k3s-stage)"
+
+  tasks:
+    - name: Read Vault StatefulSet rollout state
+      ansible.builtin.shell: >
+        kubectl --context {{ kubectl_context }} get sts {{ vault_statefulset_name }}
+        -n {{ vault_namespace }}
+        -o json
+      register: vault_sts_raw
+      changed_when: false
+
+    - name: Parse Vault StatefulSet rollout state
+      ansible.builtin.set_fact:
+        vault_sts: "{{ vault_sts_raw.stdout | from_json }}"
+        vault_current_revision: "{{ (vault_sts_raw.stdout | from_json).status.currentRevision | default('') }}"
+        vault_update_revision: "{{ (vault_sts_raw.stdout | from_json).status.updateRevision | default('') }}"
+        vault_update_strategy: "{{ (vault_sts_raw.stdout | from_json).spec.updateStrategy.type | default('RollingUpdate') }}"
+
+    - name: Report current rollout state
+      ansible.builtin.debug:
+        msg:
+          - "StatefulSet: {{ vault_namespace }}/{{ vault_statefulset_name }}"
+          - "Update strategy: {{ vault_update_strategy }}"
+          - "Current revision: {{ vault_current_revision }}"
+          - "Update revision: {{ vault_update_revision }}"
+          - "Template image: {{ vault_sts.spec.template.spec.containers[0].image }}"
+
+    - name: Stop when Vault already rolled out
+      ansible.builtin.meta: end_play
+      when:
+        - vault_current_revision == vault_update_revision
+        - vault_sts.status.updatedReplicas | default(0) | int == vault_sts.spec.replicas | int
+
+    - name: Abort if StatefulSet is not OnDelete
+      ansible.builtin.fail:
+        msg: "{{ vault_namespace }}/{{ vault_statefulset_name }} uses {{ vault_update_strategy }}, not OnDelete. Use kubectl rollout status instead."
+      when: vault_update_strategy != "OnDelete"
+
+    - name: Find Vault pods needing replacement
+      ansible.builtin.shell: >
+        kubectl --context {{ kubectl_context }} get pods
+        -n {{ vault_namespace }}
+        -l app.kubernetes.io/instance={{ vault_statefulset_name }},component=server
+        -o jsonpath='{range .items[?(@.metadata.labels.controller-revision-hash!="{{ vault_update_revision }}")]}{.metadata.name}{"\n"}{end}'
+      register: vault_pods_to_roll_raw
+      changed_when: false
+
+    - name: Find Vault pods already on target revision
+      ansible.builtin.shell: >
+        kubectl --context {{ kubectl_context }} get pods
+        -n {{ vault_namespace }}
+        -l app.kubernetes.io/instance={{ vault_statefulset_name }},component=server
+        -o jsonpath='{range .items[?(@.metadata.labels.controller-revision-hash=="{{ vault_update_revision }}")]}{.metadata.name}{"\n"}{end}'
+      register: vault_pods_current_raw
+      changed_when: false
+
+    - name: Select pods that need replacement
+      ansible.builtin.set_fact:
+        vault_pods_to_roll: "{{ vault_pods_to_roll_raw.stdout_lines | default([]) | map('trim') | reject('equalto', '') | sort | list }}"
+        vault_pods_current: "{{ vault_pods_current_raw.stdout_lines | default([]) | map('trim') | reject('equalto', '') | sort | list }}"
+
+    - name: Show planned pod replacements
+      ansible.builtin.debug:
+        msg: "Pods to replace: {{ vault_pods_to_roll | join(', ') }}"
+
+    - name: Verify already-updated Vault pods are unsealed
+      ansible.builtin.shell: >
+        kubectl --context {{ kubectl_context }} exec -n {{ vault_namespace }}
+        {{ item }} -- vault status -format=json
+      register: vault_already_updated_status
+      changed_when: false
+      retries: 12
+      delay: 5
+      until: >-
+        vault_already_updated_status.rc == 0 and
+        (vault_already_updated_status.stdout | default('') | trim | length) > 0 and
+        not (vault_already_updated_status.stdout | from_json).sealed
+      loop: "{{ vault_pods_current }}"
+
+    - name: Verify already-updated Vault pods are Ready
+      ansible.builtin.shell: >
+        kubectl --context {{ kubectl_context }} get pod {{ item }}
+        -n {{ vault_namespace }}
+        -o jsonpath='{.status.containerStatuses[0].ready}'
+      register: vault_already_updated_ready
+      changed_when: false
+      retries: 12
+      delay: 5
+      until: vault_already_updated_ready.stdout == 'true'
+      loop: "{{ vault_pods_current }}"
+
+    - name: Stop when all Vault pods already run target revision
+      ansible.builtin.meta: end_play
+      when: vault_pods_to_roll | length == 0
+
+    - name: Read vault-init secret before rollout
+      ansible.builtin.shell: >
+        kubectl --context {{ kubectl_context }} get secret {{ vault_init_secret_name }}
+        -n {{ vault_namespace }} -o json
+      register: vault_init_secret_raw
+      changed_when: false
+      no_log: true
+
+    - name: Parse Vault unseal keys
+      ansible.builtin.set_fact:
+        vault_unseal_keys:
+          - "{{ (vault_init_secret_raw.stdout | from_json).data['unseal-key-1'] | b64decode }}"
+          - "{{ (vault_init_secret_raw.stdout | from_json).data['unseal-key-2'] | b64decode }}"
+          - "{{ (vault_init_secret_raw.stdout | from_json).data['unseal-key-3'] | b64decode }}"
+      no_log: true
+
+    - name: Stop after dry-run plan
+      ansible.builtin.meta: end_play
+      when: vault_dry_run | bool
+
+    - name: Replace Vault pods one at a time
+      ansible.builtin.include_tasks: vault-roll-statefulset-pod.yml
+      loop: "{{ vault_pods_to_roll }}"
+      loop_control:
+        loop_var: vault_pod_name
+
+    - name: Verify all Vault pods run target revision after rollout
+      ansible.builtin.shell: >
+        kubectl --context {{ kubectl_context }} get pods
+        -n {{ vault_namespace }}
+        -l app.kubernetes.io/instance={{ vault_statefulset_name }},component=server
+        -o jsonpath='{range .items[?(@.metadata.labels.controller-revision-hash!="{{ vault_update_revision }}")]}{.metadata.name}{"\n"}{end}'
+      register: vault_old_revision_pods_final
+      changed_when: false
+      failed_when: (vault_old_revision_pods_final.stdout | trim | length) > 0
+
+    - name: Verify final Vault StatefulSet readiness
+      ansible.builtin.shell: >
+        kubectl --context {{ kubectl_context }} get sts {{ vault_statefulset_name }}
+        -n {{ vault_namespace }}
+        -o jsonpath='{.status.readyReplicas}/{.status.replicas}'
+      register: vault_final_ready_count
+      changed_when: false
+      retries: 12
+      delay: 5
+      until: vault_final_ready_count.stdout == (vault_sts.spec.replicas | string) + '/' + (vault_sts.spec.replicas | string)
