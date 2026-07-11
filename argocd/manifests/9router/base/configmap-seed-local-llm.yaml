@@ -166,6 +166,12 @@ data:
       const settings = currentSettings?.data ? JSON.parse(currentSettings.data) : {};
       settings.headroomEnabled = true;
       settings.headroomUrl = headroomUrl;
+      settings.authMode = "oidc";
+      settings.oidcIssuerUrl = "https://auth.levangie.org/realms/master";
+      settings.oidcClientId = "9router";
+      settings.oidcClientSecret = process.env.OIDC_CLIENT_SECRET;
+      settings.oidcScopes = "openid profile email";
+      settings.oidcLoginLabel = "Sign in with Keycloak";
       upsertSettings.run(JSON.stringify(settings));
     })();
 
