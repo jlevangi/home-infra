@@ -53,6 +53,8 @@ data:
     const db = new Database(dbPath);
     db.pragma("journal_mode = WAL");
 
+    const headroomUrl = "http://headroom:8787";
+
     const upsertNode = db.prepare(`
       INSERT INTO providerNodes(id, type, name, data, createdAt, updatedAt)
       VALUES(?, ?, ?, ?, ?, ?)
@@ -93,6 +95,16 @@ data:
       WHERE scope = 'customModels'
         AND key = ?
     `);
+
+    const upsertSettings = db.prepare(`
+      INSERT INTO settings(id, data)
+      VALUES(1, ?)
+      ON CONFLICT(id) DO UPDATE SET data = excluded.data
+    `);
+
+    const currentSettings = db.prepare(`
+      SELECT data FROM settings WHERE id = 1
+    `).get();
 
     db.transaction(() => {
       const currentKeys = [];
@@ -150,6 +162,11 @@ data:
           if (!endpointKeys.has(key)) deleteCustomModel.run(key);
         });
       });
+
+      const settings = currentSettings?.data ? JSON.parse(currentSettings.data) : {};
+      settings.headroomEnabled = true;
+      settings.headroomUrl = headroomUrl;
+      upsertSettings.run(JSON.stringify(settings));
     })();
 
     db.pragma("wal_checkpoint(TRUNCATE)");
