@@ -4,11 +4,11 @@ terraform {
   required_providers {
     proxmox = {
       source  = "telmate/proxmox"
-      version = "3.0.2-rc07"
+      version = "3.0.2-rc08"
     }
     talos = {
       source  = "siderolabs/talos"
-      version = "~> 0.10"
+      version = "~> 0.11"
     }
   }
 }
