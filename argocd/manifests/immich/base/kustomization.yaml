@@ -18,6 +18,7 @@ resources:
   - deployment-power-tools.yaml
   - service-power-tools.yaml
   - ingress-power-tools.yaml
+  - middleware-kaylee-album-root-redirect.yaml
   - ingress.yaml
   - resource-quota.yaml
   - limit-range.yaml
