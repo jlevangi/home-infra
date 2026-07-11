@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: headroom
+  namespace: 9router
+  labels:
+    app: headroom
+    app.kubernetes.io/name: headroom
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: headroom
+  template:
+    metadata:
+      labels:
+        app: headroom
+        app.kubernetes.io/name: headroom
+    spec:
+      containers:
+        - name: headroom
+          image: ghcr.io/chopratejas/headroom:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - headroom
+            - proxy
+          args:
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8787"
+            - --openai-api-url
+            - http://nine-router:20128/v1
+            - --no-cache
+            - --no-rate-limit
+            - --no-ccr-inject-tool
+            - --no-ccr-marker
+          env:
+            - name: HOME
+              value: /tmp/headroom-home
+            - name: HEADROOM_WORKSPACE_DIR
+              value: /tmp/headroom-home/.headroom
+            - name: HEADROOM_CONFIG_DIR
+              value: /tmp/headroom-home/.headroom/config
+            - name: HEADROOM_HOST
+              value: 0.0.0.0
+            - name: HEADROOM_PORT
+              value: "8787"
+            - name: OPENAI_TARGET_API_URL
+              value: http://nine-router:20128/v1
+            - name: HEADROOM_MODE
+              value: token
+            - name: HEADROOM_NO_CCR_INJECT_TOOL
+              value: "1"
+            - name: HEADROOM_NO_CCR_MARKER
+              value: "1"
+            - name: HEADROOM_TELEMETRY
+              value: "off"
+          ports:
+            - name: http
+              containerPort: 8787
+              protocol: TCP
+          volumeMounts:
+            - name: headroom-home
+              mountPath: /tmp/headroom-home
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
+      volumes:
+        - name: headroom-home
+          emptyDir: {}

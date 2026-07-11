@@ -4,7 +4,9 @@ resources:
   - namespace.yaml
   - pvc.yaml
   - deployment.yaml
+  - deployment-headroom.yaml
   - service.yaml
+  - service-headroom.yaml
   - ingress.yaml
   - configmap-seed-local-llm.yaml
   - external-secret.yaml
