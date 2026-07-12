@@ -63,6 +63,27 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
+  name: seerr-jellyfin-ingress
+  namespace: yams
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: jellyseerr.levangie.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: seerr-jellyfin
+                port:
+                  number: 5055
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
   name: qbittorrent-ingress
   namespace: yams
   annotations:

@@ -33,6 +33,25 @@ spec:
     requests:
       storage: 500Mi
   storageClassName: longhorn
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: seerr-jellyfin-config-pvc
+  namespace: yams
+  labels:
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
+    app: seerr-jellyfin
+    volume-type: config
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Mi
+  storageClassName: longhorn
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

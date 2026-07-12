@@ -39,6 +39,25 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  name: seerr-jellyfin
+  namespace: yams
+  labels:
+    app: seerr-jellyfin
+    app.kubernetes.io/name: seerr-jellyfin
+    app.kubernetes.io/part-of: yams
+spec:
+  type: ClusterIP
+  selector:
+    app: seerr-jellyfin
+  ports:
+    - name: http
+      port: 5055
+      targetPort: 5055
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
   name: qbittorrent
   namespace: yams
   labels:
