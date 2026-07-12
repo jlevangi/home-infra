@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: netbootxyz
-          image: lscr.io/linuxserver/netbootxyz:latest
+          image: ghcr.io/netbootxyz/netbootxyz:latest
           imagePullPolicy: IfNotPresent
           env:
             - name: PUID
@@ -32,6 +32,12 @@ spec:
               value: "America/New_York"
             - name: SUBFOLDER
               value: "/"
+            - name: WEB_APP_PORT
+              value: "3000"
+            - name: NGINX_PORT
+              value: "80"
+            - name: TFTPD_OPTS
+              value: "--tftp-single-port"
           ports:
             - name: http
               containerPort: 3000
