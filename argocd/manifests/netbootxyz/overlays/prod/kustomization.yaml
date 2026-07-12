@@ -4,7 +4,7 @@ resources:
   - ../../base
 images:
   - name: ghcr.io/netbootxyz/netbootxyz
-    newTag: "latest"
+    newTag: "0.7.6-nbxyz23"
 patches:
   # Pin to a specific node for stable hostPort TFTP access
   - target:
