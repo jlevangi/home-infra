@@ -35,12 +35,11 @@ spec:
           resources:
             requests:
               cpu: 500m
-              # Keep request near the limit so Jellyfin is less likely to be selected during node pressure.
-              memory: 14Gi
+              memory: 2Gi
             limits:
               cpu: 6000m
               # Headroom for the 8Gi tmpfs transcode volume which counts against pod memory.
-              memory: 14Gi
+              memory: 16Gi
           livenessProbe:
             httpGet:
               path: /health
