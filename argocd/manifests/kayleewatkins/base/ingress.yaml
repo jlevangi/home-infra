@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kayleewatkins-ingress
+  namespace: kayleewatkins
+  labels:
+    environment: prod
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    external-dns.alpha.kubernetes.io/target: k3s-prod.levangie.dev
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: kaylee.levangie.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kayleewatkins
+                port:
+                  number: 80

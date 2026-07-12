@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kayleewatkins
+  namespace: kayleewatkins
+  labels:
+    app: kayleewatkins
+    environment: prod
+spec:
+  ports:
+    - port: 80
+      targetPort: http
+      name: http
+  selector:
+    app: kayleewatkins
+    environment: prod

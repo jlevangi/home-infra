@@ -1,0 +1,136 @@
+apiVersion: v1
+data:
+  gallery.json: |
+    []
+  index.html: "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n
+    \ <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n
+    \ <title>Kaylee N. Watkins — In Loving Memory</title>\n  <meta name=\"description\"
+    content=\"In loving memory of Kaylee N. Watkins\">\n  <link rel=\"preconnect\"
+    href=\"https://fonts.googleapis.com\">\n  <link href=\"https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@300;400&display=swap\"
+    rel=\"stylesheet\">\n  <style>\n    /* ── Reset & Base ── */\n    *, *::before,
+    *::after { box-sizing: border-box; margin: 0; padding: 0; }\n    html { scroll-behavior:
+    smooth; }\n    body {\n      font-family: 'Inter', system-ui, sans-serif;\n      font-weight:
+    300;\n      color: #1a1a1a;\n      background: #faf7f2;\n      line-height: 1.7;\n
+    \     -webkit-font-smoothing: antialiased;\n    }\n    ::selection { background:
+    #d4a574; color: #fff; }\n    img { max-width: 100%; height: auto; display: block;
+    }\n    a { color: inherit; }\n\n    /* ── Typography ── */\n    h1, h2, h3 { font-family:
+    'Cormorant Garamond', serif; font-weight: 300; }\n    .serif { font-family: 'Cormorant
+    Garamond', serif; }\n\n    /* ── Hero ── */\n    .hero {\n      min-height: 100vh;\n
+    \     display: flex;\n      flex-direction: column;\n      align-items: center;\n
+    \     justify-content: center;\n      text-align: center;\n      padding: 2rem;\n
+    \     background: linear-gradient(180deg, #faf7f2 0%, #f0e8dc 50%, #e8dcc8 100%);\n
+    \     position: relative;\n      overflow: hidden;\n    }\n    .hero::before {\n
+    \     content: '';\n      position: absolute;\n      top: 0; left: 0; right: 0;
+    bottom: 0;\n      background: radial-gradient(ellipse at 50% -20%, rgba(212,165,116,0.15)
+    0%, transparent 60%);\n      pointer-events: none;\n    }\n    .hero-name {\n
+    \     font-size: clamp(3rem, 10vw, 7rem);\n      font-weight: 300;\n      letter-spacing:
+    0.05em;\n      line-height: 1.1;\n      margin-bottom: 0.5rem;\n    }\n    .hero-dates
+    {\n      font-size: clamp(1rem, 2.5vw, 1.5rem);\n      letter-spacing: 0.3em;\n
+    \     color: #8a7a6a;\n      margin-bottom: 1.5rem;\n    }\n    .hero-line {\n
+    \     font-size: clamp(1.1rem, 2.5vw, 1.4rem);\n      font-style: italic;\n      color:
+    #6b5d50;\n      max-width: 600px;\n    }\n    .hero-scroll {\n      position:
+    absolute;\n      bottom: 2rem;\n      left: 50%;\n      transform: translateX(-50%);\n
+    \     opacity: 0.4;\n      animation: float 3s ease-in-out infinite;\n    }\n
+    \   @keyframes float {\n      0%, 100% { transform: translateX(-50%) translateY(0);
+    }\n      50% { transform: translateX(-50%) translateY(-8px); }\n    }\n\n    /*
+    ── Sections ── */\n    section { padding: 5rem 1.5rem; max-width: 800px; margin:
+    0 auto; }\n    section h2 {\n      font-size: 2.2rem;\n      text-align: center;\n
+    \     margin-bottom: 0.5rem;\n      color: #2a2a2a;\n    }\n    .section-divider
+    {\n      width: 60px; height: 1px;\n      background: #c4b4a0;\n      margin:
+    0.5rem auto 2.5rem;\n    }\n\n    /* ── About / Tribute ── */\n    .tribute p
+    {\n      font-size: 1.1rem;\n      color: #444;\n      margin-bottom: 1.5rem;\n
+    \     text-indent: 1.5em;\n    }\n    .tribute p:first-of-type { text-indent:
+    0; }\n\n    /* ── Photo Grid ── */\n    .photo-grid {\n      display: grid;\n
+    \     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));\n      gap:
+    1rem;\n      margin-top: 1.5rem;\n    }\n    .photo-grid img {\n      width: 100%;\n
+    \     height: 300px;\n      object-fit: cover;\n      border-radius: 4px;\n      transition:
+    transform 0.3s ease;\n    }\n    .photo-grid img:hover { transform: scale(1.02);
+    }\n\n    /* ── Video ── */\n    .video-wrapper {\n      position: relative;\n
+    \     padding-bottom: 56.25%;\n      height: 0;\n      overflow: hidden;\n      border-radius:
+    4px;\n      background: #e0d8cc;\n      margin-top: 1.5rem;\n    }\n    .video-wrapper
+    iframe {\n      position: absolute;\n      top: 0; left: 0;\n      width: 100%;
+    height: 100%;\n      border: 0;\n    }\n\n    /* ── Embeds ── */\n    .embed-container
+    {\n      margin-top: 1.5rem;\n      border-radius: 4px;\n      overflow: hidden;\n
+    \   }\n    .embed-container iframe { width: 100%; border: 0; }\n\n    /* ── Photo
+    Album Link ── */\n    .album-link {\n      display: inline-flex;\n      align-items:
+    center;\n      gap: 0.5rem;\n      margin-top: 1.5rem;\n      padding: 0.75rem
+    1.5rem;\n      background: #fff;\n      border: 1px solid #d4c8b8;\n      border-radius:
+    4px;\n      text-decoration: none;\n      color: #2a2a2a;\n      font-size: 0.95rem;\n
+    \     transition: all 0.2s;\n    }\n    .album-link:hover {\n      background:
+    #f5ede2;\n      border-color: #c4b4a0;\n    }\n\n    /* ── Footer ── */\n    footer
+    {\n      text-align: center;\n      padding: 3rem 1.5rem;\n      color: #8a7a6a;\n
+    \     font-size: 0.85rem;\n      border-top: 1px solid #e8dcc8;\n    }\n\n    /*
+    ── Lightbox ── */\n    .lightbox {\n      display: none;\n      position: fixed;\n
+    \     z-index: 1000;\n      top: 0; left: 0; right: 0; bottom: 0;\n      background:
+    rgba(0,0,0,0.9);\n      align-items: center;\n      justify-content: center;\n
+    \     cursor: pointer;\n    }\n    .lightbox.active { display: flex; }\n    .lightbox
+    img {\n      max-width: 90vw;\n      max-height: 90vh;\n      object-fit: contain;\n
+    \     border-radius: 4px;\n    }\n\n    /* ── Responsive ── */\n    @media (max-width:
+    600px) {\n      section { padding: 3rem 1rem; }\n      .photo-grid { grid-template-columns:
+    1fr; }\n      .photo-grid img { height: 250px; }\n    }\n  </style>\n</head>\n<body>\n\n
+    \ <!-- ═══ Lightbox ═══ -->\n  <div id=\"lightbox\" class=\"lightbox\" onclick=\"this.classList.remove('active')\">\n
+    \   <img id=\"lightbox-img\" src=\"\" alt=\"\">\n  </div>\n\n  <!-- ═══ Hero ═══
+    -->\n  <header class=\"hero\">\n    <h1 class=\"hero-name\">Kaylee N. Watkins</h1>\n
+    \   <p class=\"hero-dates\">1990 — 2026</p>\n    <p class=\"hero-line\">\"A heart
+    that touched everyone she met\"</p>\n    <div class=\"hero-scroll\">⌄</div>\n
+    \ </header>\n\n  <!-- ═══ Tribute ═══ -->\n  <section class=\"tribute\">\n    <h2>In
+    Loving Memory</h2>\n    <div class=\"section-divider\"></div>\n    <p>\n      Kaylee
+    was a light in the lives of everyone who knew her. Her warmth, her laugh,\n      and
+    her boundless kindness left an indelible mark on this world.\n    </p>\n    <p>\n
+    \     She had a way of making people feel seen — truly seen. Whether it was a
+    quiet\n      conversation over coffee, a shared moment of joy, or her unwavering
+    support\n      during the hard times, Kaylee gave freely of her heart.\n    </p>\n
+    \   <p>\n      She loved deeply, lived fully, and reminded us all what really
+    matters: the\n      people we hold close, the memories we make, and the love we
+    leave behind.\n    </p>\n    <p>\n      Though she is no longer with us, her spirit
+    lives on in every story told,\n      every photograph treasured, and every song
+    that reminds us of her.\n    </p>\n    <p style=\"text-align:center; margin-top:2rem;
+    font-style:italic; color:#8a7a6a;\">\n      Forever loved. Forever missed. Forever
+    in our hearts.\n    </p>\n  </section>\n\n  <!-- ═══ Photos ═══ -->\n  <section>\n
+    \   <h2>Photos</h2>\n    <div class=\"section-divider\"></div>\n    <p style=\"text-align:center;
+    color:#666; margin-bottom:1rem;\">\n      Memories captured through the years\n
+    \   </p>\n    <div class=\"photo-grid\" id=\"photoGrid\">\n      <!-- Photos loaded
+    from gallery.json -->\n    </div>\n    <div style=\"text-align:center;\">\n      <a
+    class=\"album-link\" href=\"https://kayleewatkins.com/s/kaylee-n-watkins\" target=\"_blank\">\n
+    \       ↗ View full photo album\n      </a>\n    </div>\n  </section>\n\n  <!--
+    ═══ Memorial Video ═══ -->\n  <section>\n    <h2>Celebration of Life</h2>\n    <div
+    class=\"section-divider\"></div>\n    <p style=\"text-align:center; color:#666;
+    margin-bottom:1rem;\">\n      A tribute slideshow from her memorial service\n
+    \   </p>\n    <div class=\"embed-container\">\n      <div class=\"video-wrapper\">\n
+    \       <!-- Replace src with the actual video URL when available -->\n        <iframe
+    src=\"https://kayleewatkins.com/s/kaylee-n-watkins/video\" \n                allow=\"fullscreen\"
+    loading=\"lazy\"\n                title=\"Memorial slideshow video\"></iframe>\n
+    \     </div>\n    </div>\n  </section>\n\n  <!-- ═══ Spotify Playlist ═══ -->\n
+    \ <section>\n    <h2>Her Playlist</h2>\n    <div class=\"section-divider\"></div>\n
+    \   <p style=\"text-align:center; color:#666; margin-bottom:1rem;\">\n      Songs
+    that defined her celebration of life<br>\n      <small style=\"color:#a09080;\">—
+    music she loved, memories she left —</small>\n    </p>\n    <div class=\"embed-container\"
+    style=\"border-radius:12px;\">\n      <!-- REPLACE the src below with the actual
+    Spotify playlist embed URL -->\n      <iframe id=\"spotify-embed\"\n        src=\"about:blank\"\n
+    \       width=\"100%\" height=\"352\"\n        allow=\"autoplay; clipboard-write;
+    encrypted-media; fullscreen; picture-in-picture\"\n        loading=\"lazy\"\n
+    \       title=\"Kaylee's Celebration of Life Playlist\"\n        style=\"border-radius:12px;\">\n
+    \     </iframe>\n    </div>\n    <p id=\"spotify-placeholder\" style=\"text-align:center;
+    color:#a09080; font-style:italic; margin-top:1rem;\">\n      Spotify playlist
+    link coming soon\n    </p>\n  </section>\n\n  <!-- ═══ Footer ═══ -->\n  <footer>\n
+    \   <p>In loving memory of Kaylee N. Watkins</p>\n    <p style=\"margin-top:0.25rem;\">1990
+    — 2026</p>\n  </footer>\n\n  <script>\n    // ── Lightbox ──\n    const lightbox
+    = document.getElementById('lightbox');\n    const lightboxImg = document.getElementById('lightbox-img');\n\n
+    \   // ── Load photos from gallery.json ──\n    fetch('gallery.json')\n      .then(r
+    => r.json())\n      .then(photos => {\n        const grid = document.getElementById('photoGrid');\n
+    \       if (!photos || photos.length === 0) {\n          grid.innerHTML = '<p
+    style=\"grid-column:1/-1; text-align:center; color:#999;\">Photos coming soon</p>';\n
+    \         return;\n        }\n        photos.forEach(src => {\n          const
+    img = document.createElement('img');\n          img.src = src;\n          img.loading
+    = 'lazy';\n          img.alt = '';\n          img.addEventListener('click', ()
+    => {\n            lightboxImg.src = src;\n            lightbox.classList.add('active');\n
+    \         });\n          grid.appendChild(img);\n        });\n      })\n      .catch(()
+    => {\n        document.getElementById('photoGrid').innerHTML =\n          '<p
+    style=\"grid-column:1/-1; text-align:center; color:#999;\">Photos coming soon</p>';\n
+    \     });\n  </script>\n</body>\n</html>\n"
+kind: ConfigMap
+metadata:
+  name: kayleewatkins-content
+  namespace: kayleewatkins
+  labels:
+    environment: prod
