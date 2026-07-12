@@ -24,14 +24,8 @@ spec:
           image: ghcr.io/netbootxyz/netbootxyz:latest
           imagePullPolicy: IfNotPresent
           env:
-            - name: PUID
-              value: "1000"
-            - name: PGID
-              value: "1000"
             - name: TZ
               value: "America/New_York"
-            - name: SUBFOLDER
-              value: "/"
             - name: WEB_APP_PORT
               value: "3000"
             - name: NGINX_PORT

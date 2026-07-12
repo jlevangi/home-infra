@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: netbootxyz-migrate-config
+  namespace: netbootxyz
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: k3s-prod-worker-2
+      containers:
+        - name: migrate-config
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              rm -f /config/nginx/nginx.conf
+              rm -rf /config/nginx/site-confs
+          volumeMounts:
+            - name: netbootxyz-data
+              mountPath: /config
+              subPath: config
+      volumes:
+        - name: netbootxyz-data
+          persistentVolumeClaim:
+            claimName: netbootxyz-data-pvc
