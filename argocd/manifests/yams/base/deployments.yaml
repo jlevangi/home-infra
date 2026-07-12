@@ -214,8 +214,8 @@ spec:
               mountPath: /app/config
       containers:
         - name: seerr
-          # v3.3.0 — seerr-team only publishes :latest/:develop to GHCR, no semver tags
-          image: ghcr.io/seerr-team/seerr@sha256:c92d2dc117f62185e7bcb88cd56efd374ea79210eaf433275449e8d5988eb5a8
+          # preview-new-oidc enables experimental OIDC login required for Keycloak pilot
+          image: ghcr.io/seerr-team/seerr@sha256:3f408e611b36c13848daebfd3856476c4c1e63a81f1b8b419d00b808c0bcbce2
           imagePullPolicy: IfNotPresent
           env:
             - name: LOG_LEVEL
