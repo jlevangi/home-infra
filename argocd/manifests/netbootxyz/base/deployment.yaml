@@ -3,6 +3,8 @@ kind: Deployment
 metadata:
   name: netbootxyz
   namespace: netbootxyz
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
   labels:
     app: netbootxyz
     app.kubernetes.io/name: netbootxyz
