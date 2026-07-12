@@ -14,11 +14,35 @@
   },
   "packageRules": [
     {
-      "description": "Prod container images - weekly PRs, manual merge",
+      "description": "Prod container image non-major updates - weekly PRs, manual merge",
       "matchFileNames": ["argocd/manifests/*/overlays/prod/**"],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest"],
       "schedule": ["after 6am on Monday"],
       "automerge": false,
       "groupName": "prod-container-images"
+    },
+    {
+      "description": "Postgres major upgrades need manual data migration planning",
+      "matchFileNames": ["argocd/manifests/*/overlays/prod/**"],
+      "matchPackageNames": ["postgres"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "ClickHouse major upgrades need Plausible-specific validation and rollback planning",
+      "matchFileNames": ["argocd/manifests/*/overlays/prod/**"],
+      "matchPackageNames": ["clickhouse/clickhouse-server"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "netbootxyz major updates - isolate from database image upgrades",
+      "matchFileNames": ["argocd/manifests/netbootxyz/overlays/prod/**"],
+      "matchPackageNames": ["lscr.io/linuxserver/netbootxyz"],
+      "matchUpdateTypes": ["major"],
+      "schedule": ["after 6am on Monday"],
+      "automerge": false,
+      "groupName": "prod-netbootxyz-major"
     },
     {
       "description": "Vault chart - manual only due OnDelete StatefulSet rollout",
@@ -27,12 +51,33 @@
       "enabled": false
     },
     {
-      "description": "Prod Helm charts - weekly PRs, manual merge",
+      "description": "Prod Helm chart non-major updates - weekly PRs, manual merge",
       "matchFileNames": ["argocd/apps/prod/**"],
       "matchManagers": ["argocd"],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest"],
       "schedule": ["after 6am on Monday"],
       "automerge": false,
       "groupName": "prod-helm-charts"
+    },
+    {
+      "description": "kube-prometheus-stack major updates - isolate CRD/operator changes",
+      "matchFileNames": ["argocd/apps/prod/kube-prometheus-stack.yaml"],
+      "matchManagers": ["argocd"],
+      "matchPackageNames": ["kube-prometheus-stack"],
+      "matchUpdateTypes": ["major"],
+      "schedule": ["after 6am on Monday"],
+      "automerge": false,
+      "groupName": "prod-kube-prometheus-stack-major"
+    },
+    {
+      "description": "Loki major updates - isolate chart schema and StatefulSet changes",
+      "matchFileNames": ["argocd/apps/prod/loki.yaml"],
+      "matchManagers": ["argocd"],
+      "matchPackageNames": ["loki"],
+      "matchUpdateTypes": ["major"],
+      "schedule": ["after 6am on Monday"],
+      "automerge": false,
+      "groupName": "prod-loki-major"
     },
     {
       "description": "Inactive non-prod K3s environments - disabled",
