@@ -3,8 +3,8 @@ kind: Kustomization
 resources:
   - ../../base
 images:
-  - name: lscr.io/linuxserver/netbootxyz
-    newTag: "0.7.6"
+  - name: ghcr.io/netbootxyz/netbootxyz
+    newTag: "latest"
 patches:
   # Pin to a specific node for stable hostPort TFTP access
   - target:
