@@ -4,7 +4,7 @@ resources:
   - ../../base
 images:
   - name: lscr.io/linuxserver/netbootxyz
-    newTag: "2.0.53"
+    newTag: "0.7.6"
 patches:
   # Pin to a specific node for stable hostPort TFTP access
   - target:
