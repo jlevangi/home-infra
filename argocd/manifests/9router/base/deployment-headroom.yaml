@@ -65,27 +65,27 @@ spec:
               mountPath: /tmp/headroom-home
           resources:
             requests:
-              cpu: 100m
-              memory: 512Mi
+              cpu: 250m
+              memory: 768Mi
             limits:
-              cpu: "1"
-              memory: 2Gi
+              cpu: "2"
+              memory: 3Gi
           readinessProbe:
             httpGet:
               path: /readyz
               port: http
-            initialDelaySeconds: 10
+            initialDelaySeconds: 15
             periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 6
+            timeoutSeconds: 15
+            failureThreshold: 12
           livenessProbe:
             httpGet:
               path: /livez
               port: http
-            initialDelaySeconds: 30
+            initialDelaySeconds: 60
             periodSeconds: 20
-            timeoutSeconds: 5
-            failureThreshold: 5
+            timeoutSeconds: 15
+            failureThreshold: 6
       volumes:
         - name: headroom-home
           emptyDir: {}
