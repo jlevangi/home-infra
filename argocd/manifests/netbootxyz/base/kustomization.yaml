@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - pvc.yaml
+  - job-migrate-config.yaml
   - deployment.yaml
   - service.yaml
   - ingress.yaml
