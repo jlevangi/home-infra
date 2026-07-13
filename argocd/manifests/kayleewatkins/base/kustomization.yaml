@@ -7,7 +7,6 @@ resources:
   - service.yaml
   - ingress.yaml
   - content-configmap.yaml
-  - ingressroute-immich-share.yaml
 labels:
   - pairs:
       environment: prod
