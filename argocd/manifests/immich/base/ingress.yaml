@@ -5,7 +5,6 @@ metadata:
   namespace: immich
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-    traefik.ingress.kubernetes.io/router.middlewares: immich-kaylee-album-root-redirect@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
@@ -20,26 +19,6 @@ spec:
                 port:
                   number: 2283
     - host: immich.levangie.org
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: immich-server
-                port:
-                  number: 2283
-    - host: kayleewatkins.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: immich-server
-                port:
-                  number: 2283
-    - host: www.kayleewatkins.com
       http:
         paths:
           - path: /

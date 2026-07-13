@@ -21,3 +21,23 @@ spec:
                 name: kayleewatkins
                 port:
                   number: 80
+    - host: kayleewatkins.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kayleewatkins
+                port:
+                  number: 80
+    - host: www.kayleewatkins.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kayleewatkins
+                port:
+                  number: 80
