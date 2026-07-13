@@ -1,10 +1,6 @@
 apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: kayleewatkins-content
-  namespace: kayleewatkins
 data:
-  gallery.json: "[]"
+  gallery.json: '[]'
   index.html: |
     <!DOCTYPE html>
     <html lang="en">
@@ -14,12 +10,10 @@ data:
       <title>Kaylee N. Watkins — In Loving Memory</title>
       <meta name="description" content="In loving memory of Kaylee N. Watkins (2008-2026)">
       <link rel="preconnect" href="https://fonts.googleapis.com">
-      <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+      <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
       <!-- Privacy-friendly analytics by Plausible -->
       <script async defer src="https://plausible.levangie.dev/js/pa-y-heS5v132ZSlJrMcUgXG.js"></script>
-      <script>
-        window.plausible = window.plausible || function() { (plausible.q = plausible.q || []).push(arguments) };
-      </script>
+      <script>window.plausible = window.plausible || function() { (plausible.q = plausible.q || []).push(arguments) }</script>
       <style>
         /* ── Reset & Base ── */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -37,315 +31,314 @@ data:
         a { color: inherit; }
 
         /* ── Typography ── */
-        h1, h2, h3 { font-family: 'Cormorant Garamond', serif; font-weight: 300; }
-        .serif { font-family: 'Cormorant Garamond', serif; }
+        h1, h2, h3, h4 {
+          font-family: 'Cormorant Garamond', serif;
+          font-weight: 400;
+          text-align: center;
+          letter-spacing: 0.02em;
+        }
+        h2 {
+          font-size: 2rem;
+          color: #5a4a3a;
+          margin-bottom: 0.25rem;
+        }
+        h3 { font-size: 1.5rem; }
 
         /* ── Hero ── */
         .hero {
-          min-height: 100vh;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
           text-align: center;
-          padding: 2rem;
-          background: linear-gradient(180deg, #faf7f2 0%, #f0e8dc 50%, #e8dcc8 100%);
+          padding: 3rem 2rem 2rem;
+          background: linear-gradient(180deg, #faf7f2 0%, #f0e8dc 100%);
           position: relative;
-          overflow: hidden;
         }
-        .hero::before {
+        .hero::after {
           content: '';
           position: absolute;
-          top: 0; left: 0; right: 0; bottom: 0;
-          background: radial-gradient(ellipse at 50% -20%, rgba(212,165,116,0.15) 0%, transparent 60%);
-          pointer-events: none;
+          bottom: 0; left: 10%; right: 10%;
+          height: 1px;
+          background: #c4b4a0;
+        }
+        .hero-portrait {
+          width: 140px;
+          height: 140px;
+          border-radius: 50%;
+          object-fit: cover;
+          margin-bottom: 1.25rem;
+          border: 3px solid #fff;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.08);
         }
         .hero-name {
-          font-size: clamp(3rem, 10vw, 7rem);
+          font-family: 'Cormorant Garamond', serif;
           font-weight: 300;
+          font-size: clamp(2.2rem, 7vw, 4rem);
+          color: #2a1a0a;
           letter-spacing: 0.05em;
           line-height: 1.1;
-          margin-bottom: 0.5rem;
+          margin-bottom: 0.3rem;
         }
         .hero-dates {
-          font-size: clamp(1rem, 2.5vw, 1.5rem);
-          letter-spacing: 0.3em;
+          font-size: 1.1rem;
           color: #8a7a6a;
+          margin-bottom: 1rem;
         }
         .hero-line {
           font-family: 'Cormorant Garamond', serif;
+          font-size: 1.3rem;
           font-style: italic;
-          font-size: clamp(1.1rem, 2.5vw, 1.4rem);
-          margin-top: 1.5rem;
-          color: #6b5d50;
-          max-width: 600px;
+          color: #5a4a3a;
+          max-width: 500px;
+          opacity: 0.8;
         }
-        .hero-line .attribution {
+        .hero-attribution {
           display: block;
-          font-size: 0.7em;
-          font-style: normal;
-          margin-top: 0.5rem;
-          color: #8a7a6a;
           font-family: 'Inter', sans-serif;
+          font-size: 0.75em;
           font-weight: 300;
           letter-spacing: 0.05em;
-        }
-        .hero-scroll {
-          position: absolute;
-          bottom: 2rem;
-          left: 50%;
-          transform: translateX(-50%);
-          opacity: 0.4;
-          animation: float 3s ease-in-out infinite;
-        }
-        @keyframes float {
-          0%, 100% { transform: translateX(-50%) translateY(0); }
-          50% { transform: translateX(-50%) translateY(-8px); }
+          color: #8a7a6a;
+          margin-top: 0.35rem;
+          opacity: 1;
         }
 
         /* ── Sections ── */
-        section { padding: 5rem 1.5rem; max-width: 800px; margin: 0 auto; }
-        section h2 {
-          font-size: 2.2rem;
-          font-weight: 300;
-          margin-bottom: 0.5rem;
-          color: #2a2a2a;
+        section {
+          max-width: 720px;
+          margin: 0 auto;
+          padding: 3.5rem 2rem;
         }
         .section-divider {
           width: 60px; height: 1px;
           background: #c4b4a0;
-          margin: 0 auto 2rem;
+          margin: 0.5rem auto 2rem;
         }
-        .section-text {
+
+        /* ── Tribute ── */
+        .tribute p {
           font-size: 1.05rem;
-          color: #4a3a2a;
-          max-width: 600px;
-          margin: 0 auto;
+          color: #444;
+          margin-bottom: 1.4rem;
+          text-indent: 1.5em;
         }
-        .section-text p { margin-bottom: 1rem; }
+        .tribute p:first-of-type { text-indent: 0; }
 
-        /* ── Buttons ── */
-        .btn {
-          display: inline-block;
-          padding: 0.75rem 1.5rem;
-          border: 1px solid #c4b4a0;
-          border-radius: 4px;
-          text-decoration: none;
-          font-size: 0.9rem;
-          transition: background 0.2s, color 0.2s;
-          color: #2a2a2a;
-          background: transparent;
-        }
-        .btn:hover { background: #d4c8b8; color: #fff; }
-
-        /* ── Support Box ── */
+        /* ── Support / CTA ── */
         .support-box {
-          background: #f0e8dc;
-          border-radius: 12px;
+          background: linear-gradient(135deg, #f5ede2, #ede0d0);
+          border: 1px solid #d4c8b8;
+          border-radius: 8px;
           padding: 2rem;
-          margin-top: 2rem;
-          max-width: 500px;
-          margin-left: auto;
-          margin-right: auto;
+          text-align: center;
+          margin-top: 1.5rem;
+        }
+        .support-box h3 {
+          margin-bottom: 0.5rem;
+          color: #3a2a1a;
         }
         .support-box p {
+          color: #5a4a3a;
           font-size: 0.95rem;
-          color: #4a3a2a;
-          margin-bottom: 1rem;
+          margin-bottom: 1.25rem;
         }
-        .support-box .btn { background: #fff; }
+        .btn-support {
+          display: inline-block;
+          padding: 0.85rem 2rem;
+          background: #d4a574;
+          color: #fff;
+          font-size: 0.95rem;
+          font-weight: 500;
+          letter-spacing: 0.04em;
+          text-decoration: none;
+          border-radius: 6px;
+          transition: background 0.25s;
+        }
+        .btn-support:hover { background: #c49464; }
 
-        /* ── Photo Grid ── */
-        .photo-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-          gap: 1rem;
-          margin-top: 1.5rem;
+        /* ── Links ── */
+        .album-link {
+          display: inline-block;
+          margin-top: 1.25rem;
+          color: #8a7a6a;
+          text-decoration: none;
+          font-size: 0.9rem;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          border-bottom: 1px solid #c4b4a0;
+          padding-bottom: 0.15rem;
+          transition: opacity 0.3s;
         }
-        .photo-grid img {
-          width: 100%;
-          height: 300px;
-          object-fit: cover;
-          border-radius: 4px;
-          transition: transform 0.3s ease;
-        }
-        .photo-grid img:hover { transform: scale(1.02); }
-
-        /* ── Video ── */
-        .video-wrapper {
-          position: relative;
-          padding-bottom: 56.25%;
-          height: 0;
-          overflow: hidden;
-          border-radius: 4px;
-          background: #e0d8cc;
-          margin-top: 1.5rem;
-        }
-        .video-wrapper iframe {
-          position: absolute;
-          top: 0; left: 0;
-          width: 100%;
-          height: 100%;
-          border: 0;
-        }
+        .album-link:hover { opacity: 0.6; }
 
         /* ── Embeds ── */
-        .embed-container { margin-top: 1.5rem; border-radius: 4px; overflow: hidden; }
-        .embed-container iframe { width: 100%; border: 0; }
-
-        /* ── Photo Album Link ── */
-        .album-link {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.5rem;
-          margin-top: 1.5rem;
-          padding: 0.75rem 1.5rem;
-          background: #fff;
-          border: 1px solid #d4c8b8;
-          border-radius: 4px;
-          text-decoration: none;
-          color: #2a2a2a;
-          font-size: 0.95rem;
-        }
-        .album-link:hover { background: #f0e8dc; }
-
-        /* ── Spotify ── */
-        .spotify-wrap {
-          margin-top: 1.5rem;
-          border-radius: 12px;
-          overflow: hidden;
-        }
-        .spotify-wrap iframe {
-          width: 100%;
-          border: 0;
-        }
+        .embed-container { margin-top: 1.5rem; }
+        .spotify-wrap { margin-top: 1.5rem; }
 
         /* ── Footer ── */
         footer {
           text-align: center;
-          padding: 3rem 1.5rem;
-          font-size: 0.9rem;
+          padding: 3rem 2rem;
           color: #8a7a6a;
+          font-size: 0.85rem;
         }
         footer .heart { color: #d4a574; }
 
-        /* ── Misc ── */
-        .text-center { text-align: center; }
-        .mt-2 { margin-top: 2rem; }
+        @media (max-width: 600px) {
+          section { padding: 2.5rem 1rem; }
+          .hero { padding: 2rem 1rem 1.5rem; }
+          .hero-portrait { width: 110px; height: 110px; }
+          .support-box { padding: 1.5rem; }
+        }
       </style>
     </head>
     <body>
+
+      <!-- ═══ Hero ═══ -->
       <header class="hero">
+        <img
+          class="hero-portrait"
+          src="https://cdn.tukioswebsites.com/6d05c9b2-0e84-4560-92b3-fc191d6564bb/lg"
+          alt="Kaylee N. Watkins"
+          loading="eager"
+        >
         <h1 class="hero-name">Kaylee N. Watkins</h1>
-        <p class="hero-dates">2008 — 2026</p>
+        <p class="hero-dates">April 9, 2008 — July 3, 2026</p>
         <p class="hero-line">
-          "In the darkness, BE the light"
-          <span class="attribution">— David Watkins</span>
+          &ldquo;In the darkness, BE the light&rdquo;
+          <span class="hero-attribution">— David Watkins</span>
         </p>
-        <div class="hero-scroll">⌄</div>
       </header>
 
-      <!-- ── Tribute ── -->
+      <!-- ═══ Tribute ═══ -->
       <section>
-        <h2>Remembering Kaylee</h2>
+        <h2>In Loving Memory</h2>
         <div class="section-divider"></div>
-        <div class="section-text">
+        <div class="tribute">
           <p>
-            With the heaviest hearts, we remember Kaylee N. Watkins —
-            a radiant soul who brought light, laughter, and love to everyone she knew.
-            Her kindness touched so many, and though her time here was far too short,
-            the beauty of her spirit will live on forever in the lives of all who were
-            lucky enough to know her.
+            Kaylee N. Watkins, 18, of Kettering, Ohio, passed away on Friday, July 3rd, 2026.
+            She was born on April 9, 2008, to David and Andry Watkins.
           </p>
           <p>
-            In the face of incredible pain, Kaylee never stopped giving — she went
-            out of her way to make others feel seen, supported, and loved. Her
-            strength, her warmth, and her generous heart continue to inspire us all.
+            A recent graduate of Kettering Fairmont High School (2026), Kaylee was eagerly 
+            looking forward to beginning the next chapter of her life at Wright State University,
+            where she planned to study Early Childhood Education. She had already completed two 
+            years in Fairmont's Early Childhood Education career-tech program and knew exactly 
+            what she wanted to do with her life — to become an elementary school teacher. Anyone 
+            who knew Kaylee knew she had found her calling.
           </p>
           <p>
-            She is deeply loved and profoundly missed. May her light continue to shine
-            through each of us.
+            Children absolutely loved Kaylee, and she loved them just as much. Whether she was 
+            working at Explorations Child Enrichment, spending time with family, or simply 
+            meeting a child for the first time, her kindness, patience, and gentle spirit made 
+            every child feel safe, valued, and loved. She possessed a rare gift for making 
+            others smile and feel important.
+          </p>
+          <p>
+            Kaylee's heart was as beautiful as her smile. She was one of the kindest and most 
+            compassionate people you could ever meet — quick to offer a compliment, generous 
+            with her time, and remarkably loyal to her forever friends Lindsay, Jaynie, Lily, 
+            Becky, and the love of her life, Jacob. She saw the good in people and chose 
+            kindness every chance she had.
+          </p>
+          <p style="text-align:center; font-style:italic; color:#8a7a6a;">
+            &ldquo;In the darkness, BE the light.&rdquo;<br>
+            <span style="font-size:0.85rem;">— David Watkins</span>
           </p>
         </div>
       </section>
 
-      <!-- ── Obituary ── -->
-      <section>
-        <h2>Obituary</h2>
-        <div class="section-divider"></div>
-        <div class="text-center">
-          <p class="section-text" style="max-width:600px;">
-            Read Kaylee's full obituary and leave a message for the family
-          </p>
-          <div class="mt-2">
-            <a href="https://www.routsong.com/obituaries/kaylee-watkins"
-               class="btn" target="_blank" rel="noopener noreferrer">
-              ↗ View obituary at Routsong Funeral Home
-            </a>
-          </div>
-        </div>
-      </section>
-
-      <!-- ── Support ── -->
+      <!-- ═══ Support ═══ -->
       <section>
         <h2>Support the Family</h2>
         <div class="section-divider"></div>
+        <p style="text-align:center; color:#666;">
+          Help ease the burden on Kaylee's family during this unimaginable time.
+          Every contribution, no matter the size, makes a difference.
+        </p>
         <div class="support-box">
+          <h3>Kaylee Watkins Memorial Fund</h3>
           <p>
-            For those who have asked how to help, contributions to support Kaylee's
-            family during this heartbreaking time are deeply appreciated.
+            Donations help the Watkins family with funeral expenses and allow them 
+            space to grieve without financial worry. Please give what you can and 
+            share the link with anyone who knew Kaylee's light.
           </p>
-          <a href="https://www.gofundme.com/f/help-us-honor-kaylees-beautiful-life?attribution_id=sl:a221eeed-3143-480f-bcf9-c55d1f227284&lang=en_US&ts=1783343597&utm_campaign=fp_sharesheet&utm_content=amp20_t1&utm_medium=customer&utm_source=copy_link"
-             class="btn" target="_blank" rel="noopener noreferrer">
-            ♥ Donate via GoFundMe
+          <a class="btn-support" href="https://www.gofundme.com/f/help-us-honor-kaylees-beautiful-life?attribution_id=sl:a221eeed-3143-480f-bcf9-c55d1f227284&lang=en_US&ts=1783343597&utm_campaign=fp_sharesheet&utm_content=amp20_t1&utm_medium=customer&utm_source=copy_link" target="_blank">
+            Donate on GoFundMe →
           </a>
         </div>
       </section>
 
-      <!-- ── Photos ── -->
+      <!-- ═══ Obituary ═══ -->
       <section>
-        <h2>Photo Album</h2>
+        <h2>Obituary</h2>
         <div class="section-divider"></div>
-        <div class="text-center">
-          <div class="embed-container">
-            <iframe
-              src="https://kayleewatkins.com/s/kaylee-n-watkins"
-              width="100%" height="700"
-              allow="autoplay * clipboard-read clipboard-write encrypted-media * web-share"
-              allowfullscreen
-              style="border:0;border-radius:4px;"
-              title="Kaylee's photo album">
-            </iframe>
-          </div>
-          <a href="https://kayleewatkins.com/s/kaylee-n-watkins"
-             class="album-link" target="_blank" rel="noopener noreferrer">
-            ↗ Open full photo album in new tab
+        <p style="text-align:center; color:#666; margin-bottom:1rem;">
+          Read the full obituary and leave a message for the family
+        </p>
+        <div style="text-align:center;">
+          <a class="album-link" href="https://www.routsong.com/obituaries/kaylee-watkins" target="_blank">
+            ↗ View at Routsong Funeral Home
           </a>
         </div>
       </section>
 
-      <!-- ── Music ── -->
+      <!-- ═══ Photos ═══ -->
       <section>
-        <h2>Songs That Captured Her Heart</h2>
+        <h2>Photos</h2>
         <div class="section-divider"></div>
-        <div class="text-center">
-          <p class="section-text">Kay's playlist 💛 — music from her viewing and funeral</p>
-          <div class="spotify-wrap">
-            <iframe
-              src="https://open.spotify.com/embed/playlist/0fVcmpyli9k1gs6Cp9zUIq?utm_source=generator&theme=0"
-              width="100%" height="500"
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-              loading="lazy"
-              title="Kaylee's Celebration of Life Playlist">
-            </iframe>
-          </div>
+        <p style="text-align:center; color:#666; margin-bottom:1rem;">
+          Memories captured through the years
+        </p>
+        <div class="embed-container" style="border-radius:4px; background:#e0d8cc;">
+          <iframe
+            src="https://kayleewatkins.com/s/kaylee-n-watkins"
+            width="100%" height="600"
+            allow="fullscreen"
+            loading="lazy"
+            title="Kaylee's photo album"
+            style="border:0; border-radius:4px;">
+          </iframe>
+        </div>
+        <div style="text-align:center;">
+          <a class="album-link" href="https://kayleewatkins.com/s/kaylee-n-watkins" target="_blank">
+            ↗ Open full album in new tab
+          </a>
         </div>
       </section>
 
+      <!-- ═══ Spotify Playlist ═══ -->
+      <section>
+        <h2>Her Playlist</h2>
+        <div class="section-divider"></div>
+        <p style="text-align:center; color:#666; margin-bottom:1rem;">
+          Songs that captured her heart
+        </p>
+        <div class="spotify-wrap">
+          <iframe
+            src="https://open.spotify.com/embed/playlist/0fVcmpyli9k1gs6Cp9zUIq?utm_source=generator&theme=0"
+            width="100%" height="500"
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            loading="lazy"
+            title="Kaylee's Celebration of Life Playlist"
+            style="border-radius:12px;">
+          </iframe>
+        </div>
+      </section>
+
+      <!-- ═══ Footer ═══ -->
       <footer>
         <p>In loving memory of Kaylee N. Watkins</p>
         <p style="margin-top:0.25rem;">2008 — 2026</p>
         <p style="margin-top:1rem;">Made with <span class="heart">♥</span> by those who loved you</p>
       </footer>
+
     </body>
     </html>
+kind: ConfigMap
+metadata:
+  labels:
+    environment: prod
+  name: kayleewatkins-content
+  namespace: kayleewatkins
