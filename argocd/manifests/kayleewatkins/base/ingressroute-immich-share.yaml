@@ -15,4 +15,4 @@ spec:
           name: immich-server
           namespace: immich
           port: 2283
-      priority: 100
+      priority: 1000
