@@ -140,7 +140,7 @@ spec:
       containers:
         - name: seerr
           # preview-new-oidc enables experimental OIDC login required for Keycloak pilot
-          image: ghcr.io/seerr-team/seerr@sha256:3f408e611b36c13848daebfd3856476c4c1e63a81f1b8b419d00b808c0bcbce2
+          image: ghcr.io/seerr-team/seerr:preview-new-oidc
           imagePullPolicy: IfNotPresent
           env:
             - name: LOG_LEVEL
@@ -215,7 +215,7 @@ spec:
       containers:
         - name: seerr
           # preview-new-oidc enables experimental OIDC login required for Keycloak pilot
-          image: ghcr.io/seerr-team/seerr@sha256:3f408e611b36c13848daebfd3856476c4c1e63a81f1b8b419d00b808c0bcbce2
+          image: ghcr.io/seerr-team/seerr:preview-new-oidc
           imagePullPolicy: IfNotPresent
           env:
             - name: LOG_LEVEL
