@@ -1,136 +1,261 @@
 apiVersion: v1
 data:
-  gallery.json: |
-    []
-  index.html: "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n
-    \ <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n
-    \ <title>Kaylee N. Watkins — In Loving Memory</title>\n  <meta name=\"description\"
-    content=\"In loving memory of Kaylee N. Watkins\">\n  <link rel=\"preconnect\"
-    href=\"https://fonts.googleapis.com\">\n  <link href=\"https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@300;400&display=swap\"
-    rel=\"stylesheet\">\n  <style>\n    /* ── Reset & Base ── */\n    *, *::before,
-    *::after { box-sizing: border-box; margin: 0; padding: 0; }\n    html { scroll-behavior:
-    smooth; }\n    body {\n      font-family: 'Inter', system-ui, sans-serif;\n      font-weight:
-    300;\n      color: #1a1a1a;\n      background: #faf7f2;\n      line-height: 1.7;\n
-    \     -webkit-font-smoothing: antialiased;\n    }\n    ::selection { background:
-    #d4a574; color: #fff; }\n    img { max-width: 100%; height: auto; display: block;
-    }\n    a { color: inherit; }\n\n    /* ── Typography ── */\n    h1, h2, h3 { font-family:
-    'Cormorant Garamond', serif; font-weight: 300; }\n    .serif { font-family: 'Cormorant
-    Garamond', serif; }\n\n    /* ── Hero ── */\n    .hero {\n      min-height: 100vh;\n
-    \     display: flex;\n      flex-direction: column;\n      align-items: center;\n
-    \     justify-content: center;\n      text-align: center;\n      padding: 2rem;\n
-    \     background: linear-gradient(180deg, #faf7f2 0%, #f0e8dc 50%, #e8dcc8 100%);\n
-    \     position: relative;\n      overflow: hidden;\n    }\n    .hero::before {\n
-    \     content: '';\n      position: absolute;\n      top: 0; left: 0; right: 0;
-    bottom: 0;\n      background: radial-gradient(ellipse at 50% -20%, rgba(212,165,116,0.15)
-    0%, transparent 60%);\n      pointer-events: none;\n    }\n    .hero-name {\n
-    \     font-size: clamp(3rem, 10vw, 7rem);\n      font-weight: 300;\n      letter-spacing:
-    0.05em;\n      line-height: 1.1;\n      margin-bottom: 0.5rem;\n    }\n    .hero-dates
-    {\n      font-size: clamp(1rem, 2.5vw, 1.5rem);\n      letter-spacing: 0.3em;\n
-    \     color: #8a7a6a;\n      margin-bottom: 1.5rem;\n    }\n    .hero-line {\n
-    \     font-size: clamp(1.1rem, 2.5vw, 1.4rem);\n      font-style: italic;\n      color:
-    #6b5d50;\n      max-width: 600px;\n    }\n    .hero-scroll {\n      position:
-    absolute;\n      bottom: 2rem;\n      left: 50%;\n      transform: translateX(-50%);\n
-    \     opacity: 0.4;\n      animation: float 3s ease-in-out infinite;\n    }\n
-    \   @keyframes float {\n      0%, 100% { transform: translateX(-50%) translateY(0);
-    }\n      50% { transform: translateX(-50%) translateY(-8px); }\n    }\n\n    /*
-    ── Sections ── */\n    section { padding: 5rem 1.5rem; max-width: 800px; margin:
-    0 auto; }\n    section h2 {\n      font-size: 2.2rem;\n      text-align: center;\n
-    \     margin-bottom: 0.5rem;\n      color: #2a2a2a;\n    }\n    .section-divider
-    {\n      width: 60px; height: 1px;\n      background: #c4b4a0;\n      margin:
-    0.5rem auto 2.5rem;\n    }\n\n    /* ── About / Tribute ── */\n    .tribute p
-    {\n      font-size: 1.1rem;\n      color: #444;\n      margin-bottom: 1.5rem;\n
-    \     text-indent: 1.5em;\n    }\n    .tribute p:first-of-type { text-indent:
-    0; }\n\n    /* ── Photo Grid ── */\n    .photo-grid {\n      display: grid;\n
-    \     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));\n      gap:
-    1rem;\n      margin-top: 1.5rem;\n    }\n    .photo-grid img {\n      width: 100%;\n
-    \     height: 300px;\n      object-fit: cover;\n      border-radius: 4px;\n      transition:
-    transform 0.3s ease;\n    }\n    .photo-grid img:hover { transform: scale(1.02);
-    }\n\n    /* ── Video ── */\n    .video-wrapper {\n      position: relative;\n
-    \     padding-bottom: 56.25%;\n      height: 0;\n      overflow: hidden;\n      border-radius:
-    4px;\n      background: #e0d8cc;\n      margin-top: 1.5rem;\n    }\n    .video-wrapper
-    iframe {\n      position: absolute;\n      top: 0; left: 0;\n      width: 100%;
-    height: 100%;\n      border: 0;\n    }\n\n    /* ── Embeds ── */\n    .embed-container
-    {\n      margin-top: 1.5rem;\n      border-radius: 4px;\n      overflow: hidden;\n
-    \   }\n    .embed-container iframe { width: 100%; border: 0; }\n\n    /* ── Photo
-    Album Link ── */\n    .album-link {\n      display: inline-flex;\n      align-items:
-    center;\n      gap: 0.5rem;\n      margin-top: 1.5rem;\n      padding: 0.75rem
-    1.5rem;\n      background: #fff;\n      border: 1px solid #d4c8b8;\n      border-radius:
-    4px;\n      text-decoration: none;\n      color: #2a2a2a;\n      font-size: 0.95rem;\n
-    \     transition: all 0.2s;\n    }\n    .album-link:hover {\n      background:
-    #f5ede2;\n      border-color: #c4b4a0;\n    }\n\n    /* ── Footer ── */\n    footer
-    {\n      text-align: center;\n      padding: 3rem 1.5rem;\n      color: #8a7a6a;\n
-    \     font-size: 0.85rem;\n      border-top: 1px solid #e8dcc8;\n    }\n\n    /*
-    ── Lightbox ── */\n    .lightbox {\n      display: none;\n      position: fixed;\n
-    \     z-index: 1000;\n      top: 0; left: 0; right: 0; bottom: 0;\n      background:
-    rgba(0,0,0,0.9);\n      align-items: center;\n      justify-content: center;\n
-    \     cursor: pointer;\n    }\n    .lightbox.active { display: flex; }\n    .lightbox
-    img {\n      max-width: 90vw;\n      max-height: 90vh;\n      object-fit: contain;\n
-    \     border-radius: 4px;\n    }\n\n    /* ── Responsive ── */\n    @media (max-width:
-    600px) {\n      section { padding: 3rem 1rem; }\n      .photo-grid { grid-template-columns:
-    1fr; }\n      .photo-grid img { height: 250px; }\n    }\n  </style>\n</head>\n<body>\n\n
-    \ <!-- ═══ Lightbox ═══ -->\n  <div id=\"lightbox\" class=\"lightbox\" onclick=\"this.classList.remove('active')\">\n
-    \   <img id=\"lightbox-img\" src=\"\" alt=\"\">\n  </div>\n\n  <!-- ═══ Hero ═══
-    -->\n  <header class=\"hero\">\n    <h1 class=\"hero-name\">Kaylee N. Watkins</h1>\n
-    \   <p class=\"hero-dates\">1990 — 2026</p>\n    <p class=\"hero-line\">\"A heart
-    that touched everyone she met\"</p>\n    <div class=\"hero-scroll\">⌄</div>\n
-    \ </header>\n\n  <!-- ═══ Tribute ═══ -->\n  <section class=\"tribute\">\n    <h2>In
-    Loving Memory</h2>\n    <div class=\"section-divider\"></div>\n    <p>\n      Kaylee
-    was a light in the lives of everyone who knew her. Her warmth, her laugh,\n      and
-    her boundless kindness left an indelible mark on this world.\n    </p>\n    <p>\n
-    \     She had a way of making people feel seen — truly seen. Whether it was a
-    quiet\n      conversation over coffee, a shared moment of joy, or her unwavering
-    support\n      during the hard times, Kaylee gave freely of her heart.\n    </p>\n
-    \   <p>\n      She loved deeply, lived fully, and reminded us all what really
-    matters: the\n      people we hold close, the memories we make, and the love we
-    leave behind.\n    </p>\n    <p>\n      Though she is no longer with us, her spirit
-    lives on in every story told,\n      every photograph treasured, and every song
-    that reminds us of her.\n    </p>\n    <p style=\"text-align:center; margin-top:2rem;
-    font-style:italic; color:#8a7a6a;\">\n      Forever loved. Forever missed. Forever
-    in our hearts.\n    </p>\n  </section>\n\n  <!-- ═══ Photos ═══ -->\n  <section>\n
-    \   <h2>Photos</h2>\n    <div class=\"section-divider\"></div>\n    <p style=\"text-align:center;
-    color:#666; margin-bottom:1rem;\">\n      Memories captured through the years\n
-    \   </p>\n    <div class=\"photo-grid\" id=\"photoGrid\">\n      <!-- Photos loaded
-    from gallery.json -->\n    </div>\n    <div style=\"text-align:center;\">\n      <a
-    class=\"album-link\" href=\"https://kayleewatkins.com/s/kaylee-n-watkins\" target=\"_blank\">\n
-    \       ↗ View full photo album\n      </a>\n    </div>\n  </section>\n\n  <!--
-    ═══ Memorial Video ═══ -->\n  <section>\n    <h2>Celebration of Life</h2>\n    <div
-    class=\"section-divider\"></div>\n    <p style=\"text-align:center; color:#666;
-    margin-bottom:1rem;\">\n      A tribute slideshow from her memorial service\n
-    \   </p>\n    <div class=\"embed-container\">\n      <div class=\"video-wrapper\">\n
-    \       <!-- Replace src with the actual video URL when available -->\n        <iframe
-    src=\"https://kayleewatkins.com/s/kaylee-n-watkins/video\" \n                allow=\"fullscreen\"
-    loading=\"lazy\"\n                title=\"Memorial slideshow video\"></iframe>\n
-    \     </div>\n    </div>\n  </section>\n\n  <!-- ═══ Spotify Playlist ═══ -->\n
-    \ <section>\n    <h2>Her Playlist</h2>\n    <div class=\"section-divider\"></div>\n
-    \   <p style=\"text-align:center; color:#666; margin-bottom:1rem;\">\n      Songs
-    that defined her celebration of life<br>\n      <small style=\"color:#a09080;\">—
-    music she loved, memories she left —</small>\n    </p>\n    <div class=\"embed-container\"
-    style=\"border-radius:12px;\">\n      <!-- REPLACE the src below with the actual
-    Spotify playlist embed URL -->\n      <iframe id=\"spotify-embed\"\n        src=\"about:blank\"\n
-    \       width=\"100%\" height=\"352\"\n        allow=\"autoplay; clipboard-write;
-    encrypted-media; fullscreen; picture-in-picture\"\n        loading=\"lazy\"\n
-    \       title=\"Kaylee's Celebration of Life Playlist\"\n        style=\"border-radius:12px;\">\n
-    \     </iframe>\n    </div>\n    <p id=\"spotify-placeholder\" style=\"text-align:center;
-    color:#a09080; font-style:italic; margin-top:1rem;\">\n      Spotify playlist
-    link coming soon\n    </p>\n  </section>\n\n  <!-- ═══ Footer ═══ -->\n  <footer>\n
-    \   <p>In loving memory of Kaylee N. Watkins</p>\n    <p style=\"margin-top:0.25rem;\">1990
-    — 2026</p>\n  </footer>\n\n  <script>\n    // ── Lightbox ──\n    const lightbox
-    = document.getElementById('lightbox');\n    const lightboxImg = document.getElementById('lightbox-img');\n\n
-    \   // ── Load photos from gallery.json ──\n    fetch('gallery.json')\n      .then(r
-    => r.json())\n      .then(photos => {\n        const grid = document.getElementById('photoGrid');\n
-    \       if (!photos || photos.length === 0) {\n          grid.innerHTML = '<p
-    style=\"grid-column:1/-1; text-align:center; color:#999;\">Photos coming soon</p>';\n
-    \         return;\n        }\n        photos.forEach(src => {\n          const
-    img = document.createElement('img');\n          img.src = src;\n          img.loading
-    = 'lazy';\n          img.alt = '';\n          img.addEventListener('click', ()
-    => {\n            lightboxImg.src = src;\n            lightbox.classList.add('active');\n
-    \         });\n          grid.appendChild(img);\n        });\n      })\n      .catch(()
-    => {\n        document.getElementById('photoGrid').innerHTML =\n          '<p
-    style=\"grid-column:1/-1; text-align:center; color:#999;\">Photos coming soon</p>';\n
-    \     });\n  </script>\n</body>\n</html>\n"
+  gallery.json: '[]'
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Kaylee N. Watkins — In Loving Memory</title>
+      <meta name="description" content="In loving memory of Kaylee N. Watkins">
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+      <style>
+        /* ── Reset & Base ── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+          font-family: 'Inter', system-ui, sans-serif;
+          font-weight: 300;
+          color: #1a1a1a;
+          background: #faf7f2;
+          line-height: 1.7;
+          -webkit-font-smoothing: antialiased;
+        }
+        ::selection { background: #d4a574; color: #fff; }
+        img { max-width: 100%; height: auto; display: block; }
+        a { color: inherit; }
+
+        /* ── Typography ── */
+        h1, h2, h3, h4 {
+          font-family: 'Cormorant Garamond', serif;
+          font-weight: 400;
+          text-align: center;
+          letter-spacing: 0.02em;
+        }
+        h2 {
+          font-size: 2rem;
+          color: #5a4a3a;
+          margin-bottom: 0.25rem;
+        }
+        h3 { font-size: 1.5rem; }
+
+        /* ── Hero ── */
+        .hero {
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          padding: 2rem;
+          background: linear-gradient(180deg, #faf7f2 0%, #f0e8dc 100%);
+          position: relative;
+        }
+        .hero::before {
+          content: '';
+          position: absolute;
+          top: 0; left: 0; right: 0;
+          height: 6px;
+          background: linear-gradient(90deg, #c4b4a0, #d4a574, #c4b4a0);
+        }
+        .hero-name {
+          font-family: 'Cormorant Garamond', serif;
+          font-weight: 300;
+          font-size: clamp(2.5rem, 8vw, 5rem);
+          color: #2a1a0a;
+          letter-spacing: 0.05em;
+          line-height: 1.1;
+          margin-bottom: 0.5rem;
+        }
+        .hero-dates {
+          font-size: 1.2rem;
+          color: #8a7a6a;
+          margin-bottom: 1.5rem;
+        }
+        .hero-line {
+          font-family: 'Cormorant Garamond', serif;
+          font-size: 1.5rem;
+          font-style: italic;
+          color: #5a4a3a;
+          max-width: 600px;
+          opacity: 0.8;
+        }
+        .hero-scroll {
+          position: absolute;
+          bottom: 2rem;
+          font-size: 1.5rem;
+          opacity: 0.4;
+          animation: bounce 2s infinite;
+        }
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(8px); }
+        }
+
+        /* ── Sections ── */
+        section {
+          max-width: 720px;
+          margin: 0 auto;
+          padding: 5rem 2rem;
+        }
+        .section-divider {
+          width: 60px; height: 1px;
+          background: #c4b4a0;
+          margin: 0.5rem auto 2.5rem;
+        }
+
+        /* ── About / Tribute ── */
+        .tribute p {
+          font-size: 1.1rem;
+          color: #444;
+          margin-bottom: 1.5rem;
+          text-indent: 1.5em;
+        }
+        .tribute p:first-of-type { text-indent: 0; }
+
+        /* ── Embed / Album ── */
+        .embed-container {
+          margin-top: 1.5rem;
+        }
+
+        /* ── Spotify ── */
+        .spotify-wrap {
+          margin-top: 1.5rem;
+        }
+
+        /* ── Links ── */
+        .album-link {
+          display: inline-block;
+          margin-top: 1.25rem;
+          color: #8a7a6a;
+          text-decoration: none;
+          font-size: 0.9rem;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          border-bottom: 1px solid #c4b4a0;
+          padding-bottom: 0.15rem;
+          transition: opacity 0.3s;
+        }
+        .album-link:hover { opacity: 0.6; }
+
+        /* ── Footer ── */
+        footer {
+          text-align: center;
+          padding: 3rem 2rem;
+          color: #8a7a6a;
+          font-size: 0.85rem;
+        }
+        footer .heart { color: #d4a574; }
+
+        @media (max-width: 600px) {
+          section { padding: 3rem 1rem; }
+        }
+      </style>
+    </head>
+    <body>
+
+      <!-- ═══ Hero ═══ -->
+      <header class="hero">
+        <h1 class="hero-name">Kaylee N. Watkins</h1>
+        <p class="hero-dates">2008 — 2026</p>
+        <p class="hero-line">"In the darkness, BE the light"</p>
+        <div class="hero-scroll">⌄</div>
+      </header>
+
+      <!-- ═══ Tribute ═══ -->
+      <section>
+        <h2>In Loving Memory</h2>
+        <div class="section-divider"></div>
+        <div class="tribute">
+          <p>
+            With the heaviest hearts, we remember Kaylee N. Watkins — 
+            a radiant soul who brought light, laughter, and love to everyone she knew.
+            Her warmth was contagious, her kindness unwavering, and her spirit impossible to forget.
+          </p>
+          <p>
+            Kaylee had a gift for making people feel seen and valued. Whether through a shared 
+            laugh, a listening ear, or her signature optimism, she left an indelible mark on all 
+            who were lucky enough to cross her path. Her memory will be cherished by family, 
+            friends, and everyone whose life she touched along the way.
+          </p>
+          <p>
+            She is deeply loved and profoundly missed. May her light continue to shine 
+            through all of us.
+          </p>
+        </div>
+      </section>
+
+      <!-- ═══ Obituary ═══ -->
+      <section>
+        <h2>Obituary</h2>
+        <div class="section-divider"></div>
+        <p style="text-align:center; color:#666; margin-bottom:1rem;">
+          Read Kaylee&#39;s full obituary and leave a message for the family
+        </p>
+        <div style="text-align:center;">
+          <a class="album-link" href="https://www.routsong.com/obituaries/kaylee-watkins" target="_blank">
+            ↗ View obituary at Routsong Funeral Home
+          </a>
+        </div>
+      </section>
+
+      <!-- ═══ Photos ═══ -->
+      <section>
+        <h2>Photos</h2>
+        <div class="section-divider"></div>
+        <p style="text-align:center; color:#666; margin-bottom:1rem;">
+          Memories captured through the years
+        </p>
+        <div class="embed-container" style="border-radius:4px; background:#e0d8cc;">
+          <iframe
+            src="https://kayleewatkins.com/s/kaylee-n-watkins"
+            width="100%" height="600"
+            allow="fullscreen"
+            loading="lazy"
+            title="Kaylee&#39;s photo album"
+            style="border:0; border-radius:4px;">
+          </iframe>
+        </div>
+        <div style="text-align:center;">
+          <a class="album-link" href="https://kayleewatkins.com/s/kaylee-n-watkins" target="_blank">
+            ↗ Open full photo album in new tab
+          </a>
+        </div>
+      </section>
+
+      <!-- ═══ Spotify Playlist ═══ -->
+      <section>
+        <h2>Her Playlist</h2>
+        <div class="section-divider"></div>
+        <p style="text-align:center; color:#666; margin-bottom:1rem;">
+          Songs that captured her heart
+        </p>
+        <div class="spotify-wrap">
+          <iframe
+            src="https://open.spotify.com/embed/playlist/5qvARQ4RUEJ6dcSGYL9rKS?utm_source=generator&theme=0"
+            width="100%" height="352"
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            loading="lazy"
+            title="Kaylee's Celebration of Life Playlist"
+            style="border-radius:12px;">
+          </iframe>
+        </div>
+      </section>
+
+      <!-- ═══ Footer ═══ -->
+      <footer>
+        <p>In loving memory of Kaylee N. Watkins</p>
+        <p style="margin-top:0.25rem;">2008 — 2026</p>
+        <p style="margin-top:1rem;">Made with <span class="heart">♥</span> by those who loved you</p>
+      </footer>
+
+    </body>
+    </html>
 kind: ConfigMap
 metadata:
-  name: kayleewatkins-content
-  namespace: kayleewatkins
   labels:
     environment: prod
+  name: kayleewatkins-content
+  namespace: kayleewatkins
