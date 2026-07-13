@@ -12,13 +12,13 @@ data:
   POSTGRES_HOST: "plausible-postgres"
   CLICKHOUSE_DATABASE_URL: "http://plausible-clickhouse:8123/plausible_events_db"
   TZ: "America/New_York"
-  # ClickHouse config - minimal adjustments
+  # ClickHouse config - keep below 2Gi container limit while allowing Plausible stats queries to finish
   clickhouse-ipv4-only.xml: |
     <clickhouse>
       <listen_host>0.0.0.0</listen_host>
     </clickhouse>
   clickhouse-low-resources.xml: |
     <clickhouse>
-      <max_server_memory_usage>1073741824</max_server_memory_usage>
-      <max_concurrent_queries>100</max_concurrent_queries>
+      <max_server_memory_usage>1610612736</max_server_memory_usage>
+      <max_concurrent_queries>20</max_concurrent_queries>
     </clickhouse>

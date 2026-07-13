@@ -98,6 +98,14 @@ spec:
                 - "[BODY].postgres == ok"
                 - "[BODY].clickhouse == ok"
 
+            - name: Kaylee Watkins
+              group: Applications
+              url: https://kayleewatkins.com
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
             - name: Grafana
               group: Monitoring
               url: https://grafana.levangie.dev
