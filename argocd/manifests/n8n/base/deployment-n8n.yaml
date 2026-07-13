@@ -55,6 +55,26 @@ spec:
                 secretKeyRef:
                   name: n8n-secrets
                   key: PAPERLESS_API_TOKEN
+            - name: KEYCLOAK_INVITE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secrets
+                  key: KEYCLOAK_INVITE_CLIENT_ID
+            - name: KEYCLOAK_INVITE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secrets
+                  key: KEYCLOAK_INVITE_CLIENT_SECRET
+            - name: KEYCLOAK_INVITE_GROUP_ID
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secrets
+                  key: KEYCLOAK_INVITE_GROUP_ID
+            - name: JELLYFIN_INVITE_CODES
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secrets
+                  key: JELLYFIN_INVITE_CODES
           ports:
             - name: http
               containerPort: 5678
