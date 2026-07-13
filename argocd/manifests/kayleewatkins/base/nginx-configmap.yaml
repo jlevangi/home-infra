@@ -16,41 +16,42 @@ data:
         gzip on;
         gzip_types text/css application/javascript text/html application/json;
 
-        location /s/ {
+        location ^~ /s/ {
             proxy_pass http://immich-server.immich.svc.cluster.local:2283;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Proto https;
             proxy_intercept_errors off;
             proxy_buffering off;
-
             expires off;
         }
 
-        location /api/ {
+        location ^~ /api/ {
             proxy_pass http://immich-server.immich.svc.cluster.local:2283;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-
+            proxy_set_header X-Forwarded-Proto https;
             expires off;
         }
 
-        location /_app/ {
+        location ^~ /_app/ {
             proxy_pass http://immich-server.immich.svc.cluster.local:2283;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-
+            proxy_set_header X-Forwarded-Proto https;
             expires 7d;
             add_header Cache-Control "public, immutable";
         }
 
-        location /custom.css {
+        location ^~ /custom.css {
             proxy_pass http://immich-server.immich.svc.cluster.local:2283;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
         }
 
         location / {
