@@ -293,19 +293,19 @@ data:
 
       <!-- ═══ Spotify Playlist ═══ -->
       <section>
-        <h2>Her Playlist</h2>
+        <h2>Memorial Playlist</h2>
         <div class="section-divider"></div>
         <p style="text-align:center; color:#666; margin-bottom:1rem;">
-          Songs that captured her heart
+          Music from Kaylee&#39;s celebration of life service
         </p>
-        <div class="spotify-wrap">
+        <div class="spotify-wrap" style="min-height:560px;">
           <iframe
             src="https://open.spotify.com/embed/playlist/0fVcmpyli9k1gs6Cp9zUIq?utm_source=generator&theme=0"
-            width="100%" height="352"
+            width="100%" height="560"
             allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
             loading="lazy"
             title="Kaylee's Celebration of Life Playlist"
-            style="border-radius:12px;">
+            style="border-radius:12px; border:0;">
           </iframe>
         </div>
       </section>
