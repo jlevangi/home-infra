@@ -392,13 +392,14 @@ spec:
                 - "[STATUS] == any(200, 401)"
                 - "[RESPONSE_TIME] < 5000"
 
-            - name: Wizarr
+            - name: Jellyfin Invite
               group: Media
-              url: https://join.levangie.dev
+              url: https://join.levangie.dev/healthz
               interval: 5m
               conditions:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
+                - "[BODY] == ok"
 
             - name: Plex
               group: Media

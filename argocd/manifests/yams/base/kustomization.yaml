@@ -3,9 +3,14 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - configmaps.yaml
+  - jellyfin-invite-app.yaml
   - external-secret.yaml
+  - external-secret-jellyfin-invite.yaml
   - pvc.yaml
+  - pvc-jellyfin-invite.yaml
+  - deployment-jellyfin-invite.yaml
   - deployments.yaml
+  - service-jellyfin-invite.yaml
   - services.yaml
   - ingresses.yaml
   - resource-quota.yaml

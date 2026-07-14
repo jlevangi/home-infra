@@ -1,78 +1,78 @@
 # Jellyfin invite automation
 
-Wizarr is the user-facing onboarding/landing page. Access control stays in Keycloak.
+`join.levangie.dev` serves a small Flask app in the `yams` namespace. Invite state is stored in SQLite on the `jellyfin-invite-data-pvc` Longhorn PVC. Keycloak remains the identity and access source of truth.
 
-## Current flow
+## Flow
 
-1. Create a normal Wizarr invite.
-2. Invitee follows the Wizarr onboarding link/code.
-3. Invitee submits their email and the same Wizarr invite code to the n8n webhook:
-   `POST https://n8n.levangie.dev/webhook/jellyfin-invite`
-4. n8n validates the code against the Wizarr API.
-5. n8n searches Keycloak for the submitted email.
-6. If the Keycloak user already exists, n8n adds them to `jellyfin-users`.
-7. If the Keycloak user does not exist, n8n creates the account, adds it to `jellyfin-users`, and sends a Keycloak setup email with `VERIFY_EMAIL` + `UPDATE_PASSWORD` required actions.
-8. The `jellyfin-users` group grants the realm role used by Jellyfin and Seerr/Jellyseerr access.
+1. Admin opens `https://join.levangie.dev/admin`.
+2. Admin enters the shared admin token, note, and expiry days, then creates an invite.
+3. Invitee opens `https://join.levangie.dev/j/<code>`.
+4. Invitee submits email; the app validates the code in SQLite.
+5. The app creates or finds the Keycloak user, grants `jellyfin-users`, sends the Keycloak setup email, and marks the code used.
 
-## Live components
+Success text shown to users:
 
-- Keycloak client: `n8n-invite-automation`
+```text
+Account has been created, and Jellyfin access granted. Please check your email to set a password.
+
+You will sign in using Keycloak for:
+- jellyfin.levangie.org
+- request.levangie.org
+```
+
+## Components
+
+- Deployment: `argocd/manifests/yams/base/deployment-jellyfin-invite.yaml`
+- App ConfigMap: `argocd/manifests/yams/base/jellyfin-invite-app.yaml`
+- Service: `argocd/manifests/yams/base/service-jellyfin-invite.yaml`
+- PVC: `argocd/manifests/yams/base/pvc-jellyfin-invite.yaml`
+- Secret source: `kv/prod/jellyfin-invite`
+- Keycloak client: `n8n-invite-automation` can be reused for the first pass.
 - Keycloak target group: `jellyfin-users`
-- Wizarr API key name: `n8n-invite-validation`
-- n8n workflow: `Jellyfin Invite Code → Keycloak Access`
-- n8n workflow ID: `jellyfinInviteCodeAccess`
-- Vault path: `kv/prod/n8n`
 
-## n8n environment variables
+Expected Vault keys at `kv/prod/jellyfin-invite`:
 
-These are sourced from Vault through `argocd/manifests/n8n/base/external-secret.yaml` and wired into the n8n Deployment:
+- `ADMIN_TOKEN`
+- `KEYCLOAK_CLIENT_ID`
+- `KEYCLOAK_CLIENT_SECRET`
+- `KEYCLOAK_GROUP_ID`
 
-- `KEYCLOAK_INVITE_CLIENT_ID`
-- `KEYCLOAK_INVITE_CLIENT_SECRET`
-- `KEYCLOAK_INVITE_GROUP_ID`
-- `WIZARR_API_KEY`
+## Admin API
 
-## Test commands
-
-Invalid code should return 403-style JSON:
+All admin APIs require `X-Admin-Token`.
 
 ```bash
-curl -sS -X POST https://n8n.levangie.dev/webhook/jellyfin-invite \
+curl -sS https://join.levangie.dev/api/admin/invites \
+  -H "X-Admin-Token: $ADMIN_TOKEN"
+
+curl -sS -X POST https://join.levangie.dev/api/admin/invites \
+  -H "Content-Type: application/json" \
+  -H "X-Admin-Token: $ADMIN_TOKEN" \
+  -d '{"note":"test","expiresDays":1}'
+
+curl -sS -X POST https://join.levangie.dev/api/admin/invites/<code>/revoke \
+  -H "X-Admin-Token: $ADMIN_TOKEN"
+```
+
+## Public API
+
+```bash
+curl -sS -X POST https://join.levangie.dev/api/activate \
   -H 'Content-Type: application/json' \
-  -d '{"email":"nobody@example.com","inviteCode":"bad"}'
+  -d '{"email":"pierce+jellyfin-invite-e2e@example.com","code":"<code>"}'
 ```
 
-Valid code but missing account should return a “create account first” message:
+Invalid, expired, used, or revoked codes return HTTP 403 JSON.
+
+## Verification
 
 ```bash
-curl -sS -X POST https://n8n.levangie.dev/webhook/jellyfin-invite \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"nobody@example.com","inviteCode":"<wizarr-code>"}'
+kubectl kustomize argocd/manifests/yams/overlays/prod
+KUBECONFIG=/home/pierce/.kube/config kubectl --context k3s-prod -n yams rollout status deploy/jellyfin-invite
+curl -sS https://join.levangie.dev/healthz
+curl -sS https://join.levangie.dev/j/<code>
 ```
 
-Real test:
+## Notes
 
-```bash
-curl -sS -X POST https://n8n.levangie.dev/webhook/jellyfin-invite \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"real-user@example.com","inviteCode":"<wizarr-code>"}'
-```
-
-Then verify the user group in Keycloak or by checking the user can sign into Jellyfin/Jellyseerr with Keycloak.
-
-## Wizarr onboarding step
-
-Wizarr has a DB-backed Jellyfin `pre_invite` wizard step named `Activate Jellyfin access with Keycloak`. It renders an inline form that POSTs email + invite code to `https://n8n.levangie.dev/webhook/jellyfin-invite` before the normal Wizarr invite flow consumes the code.
-
-If testing with `curl -L`, preserve cookies or Wizarr loses invite session state between `/j/<code>` and `/wizard/pre-wizard`:
-
-```bash
-curl -ksS -c /tmp/wizarr.cookies -b /tmp/wizarr.cookies -L \
-  https://join.levangie.dev/j/<wizarr-code>
-```
-
-## Operational pitfall
-
-n8n active workflows are loaded from the `workflow_history` row referenced by `workflow_entity.activeVersionId`. Updating only `workflow_entity.nodes` changes the draft but not the live active workflow. When repairing via SQL, update both the draft and the active history row, then restart n8n.
-
-The n8n Code node sandbox does not expose `process` or `fetch`. Use `$env` for env vars and native HTTP Request nodes for Keycloak API calls.
+Wizarr remains reachable at `wizarr.levangie.dev` for now, but `join.levangie.dev` routes to `jellyfin-invite`. n8n is no longer in the invite-code path.

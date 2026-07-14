@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jellyfin-invite
+  namespace: yams
+  labels:
+    app: jellyfin-invite
+    app.kubernetes.io/name: jellyfin-invite
+    app.kubernetes.io/part-of: yams
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: jellyfin-invite
+  template:
+    metadata:
+      labels:
+        app: jellyfin-invite
+        app.kubernetes.io/name: jellyfin-invite
+        app.kubernetes.io/part-of: yams
+    spec:
+      containers:
+        - name: app
+          image: python:3.12.11-alpine3.22
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - pip install --no-cache-dir Flask==3.0.3 && python /app/app.py
+          env:
+            - name: DB_PATH
+              value: /data/invites.sqlite3
+            - name: KEYCLOAK_BASE
+              value: https://auth.levangie.org
+            - name: KEYCLOAK_REALM
+              value: master
+            - name: ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: jellyfin-invite-secrets
+                  key: ADMIN_TOKEN
+            - name: KEYCLOAK_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: jellyfin-invite-secrets
+                  key: KEYCLOAK_CLIENT_ID
+            - name: KEYCLOAK_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: jellyfin-invite-secrets
+                  key: KEYCLOAK_CLIENT_SECRET
+            - name: KEYCLOAK_GROUP_ID
+              valueFrom:
+                secretKeyRef:
+                  name: jellyfin-invite-secrets
+                  key: KEYCLOAK_GROUP_ID
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: app
+              mountPath: /app
+              readOnly: true
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+      volumes:
+        - name: app
+          configMap:
+            name: jellyfin-invite-app
+        - name: data
+          persistentVolumeClaim:
+            claimName: jellyfin-invite-data-pvc
