@@ -870,7 +870,8 @@ spec:
     spec:
       containers:
         - name: wizarr
-          image: ghcr.io/wizarrrr/wizarr:latest
+          # Pinned release; update deliberately, not via :latest
+          image: ghcr.io/wizarrrr/wizarr:v2026.7.1
           imagePullPolicy: IfNotPresent
           env:
             - name: APP_URL
