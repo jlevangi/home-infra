@@ -21,6 +21,9 @@ spec:
         app.kubernetes.io/name: jellyfin-invite
         app.kubernetes.io/part-of: jellyfin-invite
     spec:
+      securityContext:
+        fsGroup: 101
+        fsGroupChangePolicy: OnRootMismatch
       imagePullSecrets:
         - name: jellyfin-invite-ghcr
       containers:
