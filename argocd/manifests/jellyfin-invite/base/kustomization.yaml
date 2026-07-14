@@ -3,7 +3,6 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - external-secret.yaml
-  - external-secret-ghcr.yaml
   - pvc.yaml
   - deployment.yaml
   - service.yaml

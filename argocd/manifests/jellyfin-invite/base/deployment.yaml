@@ -24,8 +24,6 @@ spec:
       securityContext:
         fsGroup: 101
         fsGroupChangePolicy: OnRootMismatch
-      imagePullSecrets:
-        - name: jellyfin-invite-ghcr
       containers:
         - name: app
           image: ghcr.io/jlevangi/jellyfin-invite:0.1.1
