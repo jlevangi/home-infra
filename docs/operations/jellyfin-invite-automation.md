@@ -1,6 +1,6 @@
 # Jellyfin invite automation
 
-`join.levangie.dev` serves the dedicated `ghcr.io/jlevangi/jellyfin-invite:0.1.0` Flask/Gunicorn app in the `jellyfin-invite` namespace. Invite state is stored in SQLite on the `jellyfin-invite-data-pvc` Longhorn PVC. Keycloak remains the identity and access source of truth.
+`join.levangie.dev` serves the dedicated `ghcr.io/jlevangi/jellyfin-invite:sha-e8e46ad` Flask/Gunicorn app in the `jellyfin-invite` namespace. Invite state is stored in SQLite on the `jellyfin-invite-data-pvc` Longhorn PVC. Keycloak remains the identity and access source of truth.
 
 ## Flow
 
