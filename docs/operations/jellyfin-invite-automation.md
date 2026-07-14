@@ -6,12 +6,12 @@ Wizarr is the user-facing onboarding/landing page. Access control stays in Keycl
 
 1. Create a normal Wizarr invite.
 2. Invitee follows the Wizarr onboarding link/code.
-3. Invitee creates a Keycloak account at `https://auth.levangie.org`.
-4. Invitee submits their email and the same Wizarr invite code to the n8n webhook:
+3. Invitee submits their email and the same Wizarr invite code to the n8n webhook:
    `POST https://n8n.levangie.dev/webhook/jellyfin-invite`
-5. n8n validates the code against the Wizarr API.
-6. n8n finds the existing Keycloak user by email.
-7. n8n adds the user to the Keycloak group `jellyfin-users`.
+4. n8n validates the code against the Wizarr API.
+5. n8n searches Keycloak for the submitted email.
+6. If the Keycloak user already exists, n8n adds them to `jellyfin-users`.
+7. If the Keycloak user does not exist, n8n creates the account, adds it to `jellyfin-users`, and sends a Keycloak setup email with `VERIFY_EMAIL` + `UPDATE_PASSWORD` required actions.
 8. The `jellyfin-users` group grants the realm role used by Jellyfin and Seerr/Jellyseerr access.
 
 ## Live components
