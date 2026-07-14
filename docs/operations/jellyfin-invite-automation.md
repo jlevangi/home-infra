@@ -60,6 +60,17 @@ curl -sS -X POST https://n8n.levangie.dev/webhook/jellyfin-invite \
 
 Then verify the user group in Keycloak or by checking the user can sign into Jellyfin/Jellyseerr with Keycloak.
 
+## Wizarr onboarding step
+
+Wizarr has a DB-backed Jellyfin `pre_invite` wizard step named `Activate Jellyfin access with Keycloak`. It renders an inline form that POSTs email + invite code to `https://n8n.levangie.dev/webhook/jellyfin-invite` before the normal Wizarr invite flow consumes the code.
+
+If testing with `curl -L`, preserve cookies or Wizarr loses invite session state between `/j/<code>` and `/wizard/pre-wizard`:
+
+```bash
+curl -ksS -c /tmp/wizarr.cookies -b /tmp/wizarr.cookies -L \
+  https://join.levangie.dev/j/<wizarr-code>
+```
+
 ## Operational pitfall
 
 n8n active workflows are loaded from the `workflow_history` row referenced by `workflow_entity.activeVersionId`. Updating only `workflow_entity.nodes` changes the draft but not the live active workflow. When repairing via SQL, update both the draft and the active history row, then restart n8n.
