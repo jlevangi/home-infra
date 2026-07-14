@@ -70,11 +70,6 @@ spec:
                 secretKeyRef:
                   name: n8n-secrets
                   key: KEYCLOAK_INVITE_GROUP_ID
-            - name: JELLYFIN_INVITE_CODES
-              valueFrom:
-                secretKeyRef:
-                  name: n8n-secrets
-                  key: JELLYFIN_INVITE_CODES
             - name: WIZARR_API_KEY
               valueFrom:
                 secretKeyRef:

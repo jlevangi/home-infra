@@ -4,18 +4,21 @@ Wizarr is the user-facing onboarding/landing page. Access control stays in Keycl
 
 ## Current flow
 
-1. Invitee creates a Keycloak account at `https://auth.levangie.org`.
-2. Invitee submits their email and invite code to the n8n webhook:
+1. Create a normal Wizarr invite.
+2. Invitee follows the Wizarr onboarding link/code.
+3. Invitee creates a Keycloak account at `https://auth.levangie.org`.
+4. Invitee submits their email and the same Wizarr invite code to the n8n webhook:
    `POST https://n8n.levangie.dev/webhook/jellyfin-invite`
-3. n8n validates the invite code from `JELLYFIN_INVITE_CODES`.
-4. n8n finds the existing Keycloak user by email.
-5. n8n adds the user to the Keycloak group `jellyfin-users`.
-6. The `jellyfin-users` group grants the realm role used by Jellyfin and Seerr/Jellyseerr access.
+5. n8n validates the code against the Wizarr API.
+6. n8n finds the existing Keycloak user by email.
+7. n8n adds the user to the Keycloak group `jellyfin-users`.
+8. The `jellyfin-users` group grants the realm role used by Jellyfin and Seerr/Jellyseerr access.
 
 ## Live components
 
 - Keycloak client: `n8n-invite-automation`
 - Keycloak target group: `jellyfin-users`
+- Wizarr API key name: `n8n-invite-validation`
 - n8n workflow: `Jellyfin Invite Code → Keycloak Access`
 - n8n workflow ID: `jellyfinInviteCodeAccess`
 - Vault path: `kv/prod/n8n`
@@ -27,7 +30,7 @@ These are sourced from Vault through `argocd/manifests/n8n/base/external-secret.
 - `KEYCLOAK_INVITE_CLIENT_ID`
 - `KEYCLOAK_INVITE_CLIENT_SECRET`
 - `KEYCLOAK_INVITE_GROUP_ID`
-- `JELLYFIN_INVITE_CODES`
+- `WIZARR_API_KEY`
 
 ## Test commands
 
@@ -44,7 +47,7 @@ Valid code but missing account should return a “create account first” messag
 ```bash
 curl -sS -X POST https://n8n.levangie.dev/webhook/jellyfin-invite \
   -H 'Content-Type: application/json' \
-  -d '{"email":"nobody@example.com","inviteCode":"<invite-code>"}'
+  -d '{"email":"nobody@example.com","inviteCode":"<wizarr-code>"}'
 ```
 
 Real test:
@@ -52,7 +55,7 @@ Real test:
 ```bash
 curl -sS -X POST https://n8n.levangie.dev/webhook/jellyfin-invite \
   -H 'Content-Type: application/json' \
-  -d '{"email":"real-user@example.com","inviteCode":"<invite-code>"}'
+  -d '{"email":"real-user@example.com","inviteCode":"<wizarr-code>"}'
 ```
 
 Then verify the user group in Keycloak or by checking the user can sign into Jellyfin/Jellyseerr with Keycloak.
