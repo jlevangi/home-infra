@@ -2,11 +2,11 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - namespace.yaml
-  - configmaps.yaml
   - external-secret.yaml
+  - external-secret-ghcr.yaml
   - pvc.yaml
-  - deployments.yaml
-  - services.yaml
-  - ingresses.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
   - resource-quota.yaml
   - limit-range.yaml

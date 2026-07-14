@@ -1,6 +1,6 @@
 # Jellyfin invite automation
 
-`join.levangie.dev` serves a small Flask app in the `yams` namespace. Invite state is stored in SQLite on the `jellyfin-invite-data-pvc` Longhorn PVC. Keycloak remains the identity and access source of truth.
+`join.levangie.dev` serves the dedicated `ghcr.io/jlevangi/jellyfin-invite:0.1.0` Flask/Gunicorn app in the `jellyfin-invite` namespace. Invite state is stored in SQLite on the `jellyfin-invite-data-pvc` Longhorn PVC. Keycloak remains the identity and access source of truth.
 
 ## Flow
 
@@ -22,10 +22,12 @@ You will sign in using Keycloak for:
 
 ## Components
 
-- Deployment: `argocd/manifests/yams/base/deployment-jellyfin-invite.yaml`
-- App ConfigMap: `argocd/manifests/yams/base/jellyfin-invite-app.yaml`
-- Service: `argocd/manifests/yams/base/service-jellyfin-invite.yaml`
-- PVC: `argocd/manifests/yams/base/pvc-jellyfin-invite.yaml`
+- Source repo: `https://github.com/jlevangi/jellyfin-invite`
+- GitOps app: `argocd/apps/prod/jellyfin-invite.yaml`
+- Deployment: `argocd/manifests/jellyfin-invite/base/deployment.yaml`
+- Service: `argocd/manifests/jellyfin-invite/base/service.yaml`
+- Ingress: `argocd/manifests/jellyfin-invite/base/ingress.yaml`
+- PVC: `argocd/manifests/jellyfin-invite/base/pvc.yaml`
 - Secret source: `kv/prod/jellyfin-invite`
 - Keycloak client: `n8n-invite-automation` can be reused for the first pass.
 - Keycloak target group: `jellyfin-users`
@@ -36,6 +38,8 @@ Expected Vault keys at `kv/prod/jellyfin-invite`:
 - `KEYCLOAK_CLIENT_ID`
 - `KEYCLOAK_CLIENT_SECRET`
 - `KEYCLOAK_GROUP_ID`
+- `GHCR_USERNAME`
+- `GHCR_TOKEN`
 
 ## Admin API
 
@@ -67,12 +71,13 @@ Invalid, expired, used, or revoked codes return HTTP 403 JSON.
 ## Verification
 
 ```bash
-kubectl kustomize argocd/manifests/yams/overlays/prod
-KUBECONFIG=/home/pierce/.kube/config kubectl --context k3s-prod -n yams rollout status deploy/jellyfin-invite
+kubectl kustomize argocd/manifests/jellyfin-invite/overlays/prod
+KUBECONFIG=/home/pierce/.kube/config kubectl --context k3s-prod -n argocd get application jellyfin-invite
+KUBECONFIG=/home/pierce/.kube/config kubectl --context k3s-prod -n jellyfin-invite rollout status deploy/jellyfin-invite
 curl -sS https://join.levangie.dev/healthz
 curl -sS https://join.levangie.dev/j/<code>
 ```
 
 ## Notes
 
-Wizarr remains reachable at `wizarr.levangie.dev` for now, but `join.levangie.dev` routes to `jellyfin-invite`. n8n is no longer in the invite-code path.
+Wizarr remains reachable at `wizarr.levangie.dev` for now, but `join.levangie.dev` routes to the standalone `jellyfin-invite` app. n8n is no longer in the invite-code path.

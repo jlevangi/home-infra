@@ -238,16 +238,6 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: join.levangie.dev
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: jellyfin-invite
-                port:
-                  number: 8080
     - host: wizarr.levangie.dev
       http:
         paths:
