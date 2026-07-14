@@ -28,8 +28,16 @@ spec:
         - name: jellyfin-invite-ghcr
       containers:
         - name: app
-          image: ghcr.io/jlevangi/jellyfin-invite:0.1.0
+          image: ghcr.io/jlevangi/jellyfin-invite:0.1.1
           imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 100
+            runAsGroup: 101
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           env:
             - name: DB_PATH
               value: /data/invites.sqlite3
