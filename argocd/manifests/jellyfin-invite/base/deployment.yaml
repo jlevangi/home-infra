@@ -26,7 +26,7 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: app
-          image: ghcr.io/jlevangi/jellyfin-invite:sha-5afbffe
+          image: ghcr.io/jlevangi/jellyfin-invite:sha-3d65b07
           imagePullPolicy: IfNotPresent
           securityContext:
             runAsNonRoot: true
