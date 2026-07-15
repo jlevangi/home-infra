@@ -61,6 +61,9 @@ spec:
             httpGet:
               path: /
               port: http
+              httpHeaders:
+                - name: Host
+                  value: healthchecks.levangie.dev
             initialDelaySeconds: 20
             periodSeconds: 10
             timeoutSeconds: 5
@@ -69,6 +72,9 @@ spec:
             httpGet:
               path: /
               port: http
+              httpHeaders:
+                - name: Host
+                  value: healthchecks.levangie.dev
             initialDelaySeconds: 60
             periodSeconds: 20
             timeoutSeconds: 5
