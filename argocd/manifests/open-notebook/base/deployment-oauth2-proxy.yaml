@@ -37,6 +37,7 @@ spec:
             - --pass-access-token=true
             - --pass-authorization-header=true
             - --skip-provider-button=true
+            - --allowed-role=open-notebook-users
           env:
             - name: OAUTH2_PROXY_CLIENT_ID
               value: open-notebook
