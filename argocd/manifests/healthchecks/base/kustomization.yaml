@@ -4,9 +4,14 @@ resources:
   - namespace.yaml
   - configmap.yaml
   - external-secret.yaml
+  - deployment-oauth2-proxy.yaml
   - pvc.yaml
   - deployment.yaml
   - service.yaml
+  - service-oauth2-proxy.yaml
   - ingress.yaml
+  - ingress-oauth2-proxy.yaml
+  - middleware-oauth2-forwardauth.yaml
+  - middleware-oauth2-errors.yaml
   - resource-quota.yaml
   - limit-range.yaml

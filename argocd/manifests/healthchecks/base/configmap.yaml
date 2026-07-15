@@ -11,6 +11,7 @@ data:
   DB_NAME: /data/hc.sqlite
   DEBUG: "False"
   REGISTRATION_OPEN: "False"
+  REMOTE_USER_HEADER: HTTP_X_AUTH_REQUEST_EMAIL
   DEFAULT_FROM_EMAIL: healthchecks@levangie.dev
   EMAIL_HOST: ""
   EMAIL_USE_VERIFICATION: "False"
