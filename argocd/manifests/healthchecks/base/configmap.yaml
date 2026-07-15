@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: healthchecks-config
+  namespace: healthchecks
+data:
+  SITE_NAME: Healthchecks
+  SITE_ROOT: https://healthchecks.levangie.dev
+  ALLOWED_HOSTS: healthchecks.levangie.dev
+  DB: sqlite
+  DB_NAME: /data/hc.sqlite
+  DEBUG: "False"
+  REGISTRATION_OPEN: "False"
+  DEFAULT_FROM_EMAIL: healthchecks@levangie.dev
+  EMAIL_HOST: ""
+  EMAIL_USE_VERIFICATION: "False"
+  WEBHOOKS_ENABLED: "True"
+  PROMETHEUS_ENABLED: "True"
+  PING_ENDPOINT: https://healthchecks.levangie.dev/ping/
+  PING_BODY_LIMIT: "10000"
+  UWSGI_PROCESSES: "2"
+  UWSGI_THREADS: "2"

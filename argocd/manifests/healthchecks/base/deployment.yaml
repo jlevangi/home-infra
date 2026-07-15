@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: healthchecks
+  namespace: healthchecks
+  labels:
+    app: healthchecks
+    app.kubernetes.io/name: healthchecks
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: healthchecks
+  template:
+    metadata:
+      labels:
+        app: healthchecks
+        app.kubernetes.io/name: healthchecks
+    spec:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      initContainers:
+        - name: init-data
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /data
+              chown -R 1000:1000 /data
+          volumeMounts:
+            - name: healthchecks-data
+              mountPath: /data
+      containers:
+        - name: healthchecks
+          image: healthchecks/healthchecks:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: healthchecks-config
+            - secretRef:
+                name: healthchecks-secrets
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          volumeMounts:
+            - name: healthchecks-data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+      volumes:
+        - name: healthchecks-data
+          persistentVolumeClaim:
+            claimName: healthchecks-data-pvc
