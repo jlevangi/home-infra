@@ -8,6 +8,7 @@ metadata:
     app.kubernetes.io/name: oauth2-proxy
 spec:
   type: ClusterIP
+  clusterIP: 10.43.210.84
   selector:
     app: oauth2-proxy
   ports:
