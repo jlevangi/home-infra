@@ -48,7 +48,7 @@ spec:
             - name: JELLYFIN_URL
               value: https://jellyfin.levangie.org
             - name: REQUESTS_URL
-              value: https://request.levangie.dev
+              value: https://seerr.levangie.org
             - name: ADMIN_TOKEN
               valueFrom:
                 secretKeyRef:
