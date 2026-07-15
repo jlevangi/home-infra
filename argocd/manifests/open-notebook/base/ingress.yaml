@@ -5,7 +5,7 @@ metadata:
   namespace: open-notebook
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-    traefik.ingress.kubernetes.io/router.middlewares: open-notebook-open-notebook-oauth2-forwardauth@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: open-notebook-open-notebook-oauth2-errors@kubernetescrd,open-notebook-open-notebook-oauth2-forwardauth@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:

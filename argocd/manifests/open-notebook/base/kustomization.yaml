@@ -16,5 +16,6 @@ resources:
   - deployment-oauth2-proxy.yaml
   - service-oauth2-proxy.yaml
   - middleware-oauth2-forwardauth.yaml
+  - middleware-oauth2-errors.yaml
   - ingress.yaml
   - ingress-oauth2-proxy.yaml
