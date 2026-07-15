@@ -1,19 +1,22 @@
 # Jellyfin invite automation
 
-`join.levangie.dev` serves the dedicated `ghcr.io/jlevangi/jellyfin-invite:sha-60af681` Flask/Gunicorn app in the `jellyfin-invite` namespace. Invite state is stored in SQLite on the `jellyfin-invite-data-pvc` Longhorn PVC. Keycloak remains the identity and access source of truth.
+`join.levangie.dev` serves the dedicated `ghcr.io/jlevangi/jellyfin-invite:sha-b804764` Flask/Gunicorn app in the `jellyfin-invite` namespace. Invite state is stored in SQLite on the `jellyfin-invite-data-pvc` Longhorn PVC. Keycloak remains the identity and access source of truth.
 
 ## Flow
 
 1. Admin opens `https://join.levangie.dev/admin`.
 2. Admin enters the shared admin token, note, and expiry days, then creates an invite.
 3. Invitee opens `https://join.levangie.dev/j/<code>`.
-4. Invitee submits email; the app validates the code in SQLite.
-5. The app creates or finds the Keycloak user, grants `jellyfin-users`, sends the Keycloak setup email, and marks the code used.
+4. Invitee clicks **Continue with Google or Keycloak**.
+5. Keycloak handles Google/existing-account login, then redirects to `/oidc/callback`.
+6. The app validates the signed invite state, grants `jellyfin-users` to the authenticated Keycloak user, and marks the code used.
+
+A password-based email activation fallback remains behind the invite page details disclosure for users who cannot sign in with Google or an existing Keycloak account.
 
 Success text shown to users:
 
 ```text
-Account has been created, and Jellyfin access granted. Please check your email to set a password.
+Jellyfin access granted.
 
 You will sign in using Keycloak for:
 - jellyfin.levangie.org
