@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: surrealdb
+  namespace: open-notebook
+  labels:
+    app: surrealdb
+    app.kubernetes.io/name: surrealdb
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: surrealdb
+  template:
+    metadata:
+      labels:
+        app: surrealdb
+        app.kubernetes.io/name: surrealdb
+    spec:
+      containers:
+        - name: surrealdb
+          image: surrealdb/surrealdb:v2
+          imagePullPolicy: IfNotPresent
+          args:
+            - start
+            - --log
+            - info
+            - --user
+            - $(SURREAL_USER)
+            - --pass
+            - $(SURREAL_PASSWORD)
+            - rocksdb:/mydata/mydatabase.db
+          env:
+            - name: SURREAL_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: open-notebook-config
+                  key: SURREAL_USER
+            - name: SURREAL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: open-notebook-secrets
+                  key: SURREAL_PASSWORD
+            - name: SURREAL_EXPERIMENTAL_GRAPHQL
+              value: "true"
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /mydata
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: surrealdb-data-pvc

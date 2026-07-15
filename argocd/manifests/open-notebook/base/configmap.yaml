@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: open-notebook-config
+  namespace: open-notebook
+data:
+  API_URL: https://notebook.levangie.dev
+  INTERNAL_API_URL: http://127.0.0.1:5055
+  CORS_ORIGINS: https://notebook.levangie.dev
+  SURREAL_URL: ws://surrealdb:8000/rpc
+  SURREAL_USER: open_notebook
+  SURREAL_NAMESPACE: open_notebook
+  SURREAL_DATABASE: open_notebook
+  OPEN_NOTEBOOK_WORKER_MAX_TASKS: "1"
+  OPEN_NOTEBOOK_MAX_UPLOAD_SIZE_MB: "100"
+  API_CLIENT_TIMEOUT: "600"
+  ESPERANTO_LLM_TIMEOUT: "180"
+  FIRECRAWL_API_URL: http://api.firecrawl.svc.cluster.local:3002
+  OPENAI_COMPATIBLE_BASE_URL: http://nine-router.9router.svc.cluster.local:20128/v1
+  OPENAI_COMPATIBLE_API_KEY: local-no-auth

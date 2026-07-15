@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: open-notebook
+  namespace: open-notebook
+  labels:
+    app: open-notebook
+    app.kubernetes.io/name: open-notebook
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: open-notebook
+  template:
+    metadata:
+      labels:
+        app: open-notebook
+        app.kubernetes.io/name: open-notebook
+    spec:
+      containers:
+        - name: open-notebook
+          image: lfnovo/open_notebook:v1-latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: open-notebook-config
+          env:
+            - name: OPEN_NOTEBOOK_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: open-notebook-secrets
+                  key: OPEN_NOTEBOOK_ENCRYPTION_KEY
+            - name: SURREAL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: open-notebook-secrets
+                  key: SURREAL_PASSWORD
+          ports:
+            - name: frontend
+              containerPort: 8502
+              protocol: TCP
+            - name: api
+              containerPort: 5055
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: frontend
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /
+              port: frontend
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 5
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: open-notebook-data-pvc

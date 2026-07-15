@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: open-notebook-api
+  namespace: open-notebook
+  labels:
+    app: open-notebook
+    app.kubernetes.io/name: open-notebook-api
+spec:
+  type: ClusterIP
+  selector:
+    app: open-notebook
+  ports:
+    - name: api
+      port: 5055
+      targetPort: 5055
+      protocol: TCP

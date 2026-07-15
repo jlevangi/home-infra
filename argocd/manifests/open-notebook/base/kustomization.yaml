@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - limit-range.yaml
+  - resource-quota.yaml
+  - external-secret.yaml
+  - configmap.yaml
+  - pvc-surrealdb.yaml
+  - pvc-notebook-data.yaml
+  - deployment-surrealdb.yaml
+  - service-surrealdb.yaml
+  - deployment-open-notebook.yaml
+  - service-open-notebook.yaml
+  - service-open-notebook-api.yaml
+  - deployment-oauth2-proxy.yaml
+  - service-oauth2-proxy.yaml
+  - middleware-oauth2-forwardauth.yaml
+  - ingress.yaml
+  - ingress-oauth2-proxy.yaml
