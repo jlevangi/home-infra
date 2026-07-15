@@ -19,6 +19,16 @@ spec:
         app: open-notebook
         app.kubernetes.io/name: open-notebook
     spec:
+      initContainers:
+        - name: init-data
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+            - chown -R 1000:1000 /app/data
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
       containers:
         - name: open-notebook
           image: lfnovo/open_notebook:v1-latest

@@ -19,6 +19,16 @@ spec:
         app: surrealdb
         app.kubernetes.io/name: surrealdb
     spec:
+      initContainers:
+        - name: init-data
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+            - chown -R 65532:65532 /mydata
+          volumeMounts:
+            - name: data
+              mountPath: /mydata
       containers:
         - name: surrealdb
           image: surrealdb/surrealdb:v2
