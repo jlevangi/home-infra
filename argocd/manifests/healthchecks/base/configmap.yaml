@@ -16,6 +16,7 @@ data:
   EMAIL_HOST: ""
   EMAIL_USE_VERIFICATION: "False"
   WEBHOOKS_ENABLED: "True"
+  INTEGRATIONS_ALLOW_PRIVATE_IPS: "True"
   PROMETHEUS_ENABLED: "True"
   PING_ENDPOINT: https://healthchecks.levangie.dev/ping/
   PING_BODY_LIMIT: "10000"

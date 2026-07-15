@@ -11,6 +11,7 @@ resources:
   - service-oauth2-proxy.yaml
   - ingress.yaml
   - ingress-oauth2-proxy.yaml
+  - ingress-ping.yaml
   - middleware-oauth2-forwardauth.yaml
   - middleware-oauth2-errors.yaml
   - resource-quota.yaml
