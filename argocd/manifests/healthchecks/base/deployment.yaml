@@ -17,6 +17,7 @@ spec:
     metadata:
       annotations:
         healthchecks.levangie.dev/auth-config-version: keycloak-v1
+        healthchecks.levangie.dev/config-version: ntfy-private-ips-v1
       labels:
         app: healthchecks
         app.kubernetes.io/name: healthchecks
