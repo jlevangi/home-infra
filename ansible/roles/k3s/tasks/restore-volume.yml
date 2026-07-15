@@ -267,11 +267,15 @@
       register: backup_volume_cr_name
       changed_when: false
 
-    - name: Set backup-volume label on Volume CR
+    - name: Set backup metadata and recurring job labels on Volume CR
       shell: |
         KUBECONFIG={{ kubeconfig }} kubectl -n longhorn-system label \
           volume {{ restored_volume_name }} \
-          backup-volume={{ backup_volume_cr_name.stdout }} --overwrite
+          backup-volume={{ backup_volume_cr_name.stdout }} \
+          recurring-job-group.longhorn.io/daily=enabled \
+          recurring-job-group.longhorn.io/weekly=enabled \
+          recurring-job-group.longhorn.io/default- \
+          --overwrite
       when: backup_volume_cr_name.stdout | length > 0
 
     - name: Wait for engine to exist
