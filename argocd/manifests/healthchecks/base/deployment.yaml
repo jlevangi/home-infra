@@ -15,6 +15,8 @@ spec:
       app: healthchecks
   template:
     metadata:
+      annotations:
+        healthchecks.levangie.dev/auth-config-version: keycloak-v1
       labels:
         app: healthchecks
         app.kubernetes.io/name: healthchecks
