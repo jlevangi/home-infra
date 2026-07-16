@@ -1,0 +1,76 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: healthchecks-scheduled-job-checks
+  namespace: healthchecks
+  labels:
+    app.kubernetes.io/name: healthchecks
+    app.kubernetes.io/component: scheduled-job-checks
+spec:
+  schedule: "15 5 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: healthchecks
+            app.kubernetes.io/component: scheduled-job-checks
+        spec:
+          serviceAccountName: healthchecks-cron-checker
+          restartPolicy: Never
+          containers:
+            - name: check
+              image: bitnami/kubectl:latest
+              imagePullPolicy: IfNotPresent
+              command:
+                - /bin/sh
+                - -ceu
+                - |
+                  now="$(date -u +%s)"
+
+                  ping() {
+                    curl -fsS --max-time 20 --retry 3 "$1$2" >/dev/null || true
+                  }
+
+                  check_cronjob() {
+                    namespace="$1"
+                    cronjob="$2"
+                    max_age_seconds="$3"
+                    url="$4"
+
+                    last_success="$(kubectl -n "${namespace}" get cronjob "${cronjob}" -o jsonpath='{.status.lastSuccessfulTime}')"
+                    if [ -z "${last_success}" ]; then
+                      echo "${namespace}/${cronjob}: missing lastSuccessfulTime"
+                      ping "${url}" "/fail"
+                      return 1
+                    fi
+
+                    last_success_epoch="$(date -u -d "${last_success}" +%s)"
+                    age_seconds="$(( now - last_success_epoch ))"
+                    echo "${namespace}/${cronjob}: last success ${last_success}, age ${age_seconds}s"
+
+                    if [ "${age_seconds}" -gt "${max_age_seconds}" ]; then
+                      ping "${url}" "/fail"
+                      return 1
+                    fi
+
+                    ping "${url}" ""
+                  }
+
+                  failed=0
+                  check_cronjob sparkyfitness sparkyfitness-database-backup 108000 https://healthchecks.levangie.dev/ping/af6b8402-7456-442c-8dea-8819e5aa167d || failed=1
+                  check_cronjob longhorn-system backup-daily 108000 https://healthchecks.levangie.dev/ping/b400922e-0147-465d-a651-540df358fd3e || failed=1
+                  check_cronjob longhorn-system backup-weekly 691200 https://healthchecks.levangie.dev/ping/a1f802a0-16b6-4364-8fc5-b5ee6886f4e3 || failed=1
+
+                  exit "${failed}"
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 64Mi
+                limits:
+                  cpu: 250m
+                  memory: 256Mi

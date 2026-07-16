@@ -2,6 +2,9 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - namespace.yaml
+  - serviceaccount-cron-checker.yaml
+  - clusterrole-cron-checker.yaml
+  - clusterrolebinding-cron-checker.yaml
   - configmap.yaml
   - external-secret.yaml
   - deployment-oauth2-proxy.yaml
@@ -14,5 +17,6 @@ resources:
   - ingress-ping.yaml
   - middleware-oauth2-forwardauth.yaml
   - middleware-oauth2-errors.yaml
+  - cronjob-scheduled-job-checks.yaml
   - resource-quota.yaml
   - limit-range.yaml

@@ -1,0 +1,12 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: healthchecks-cron-checker
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: healthchecks-cron-checker
+subjects:
+  - kind: ServiceAccount
+    name: healthchecks-cron-checker
+    namespace: healthchecks
