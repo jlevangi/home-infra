@@ -23,7 +23,7 @@ spec:
         image:
           registry: ghcr.io
           repository: danny-avila/librechat
-          tag: latest
+          tag: v0.8.7
           pullPolicy: IfNotPresent
 
         updateStrategy:
@@ -49,7 +49,7 @@ spec:
             OPENID_SCOPE: "openid profile email"
             OPENID_BUTTON_LABEL: "Sign in with Keycloak"
           configYamlContent: |
-            version: 1.2.1
+            version: 1.3.13
             cache: true
             interface:
               endpointsMenu: true
@@ -63,7 +63,8 @@ spec:
                   apiKey: "${NINE_ROUTER_API_KEY}"
                   baseURL: "http://nine-router.9router.svc.cluster.local:20128/v1"
                   models:
-                    default: []
+                    default:
+                      - "agent-default"
                     fetch: true
                   titleConvo: true
                   modelDisplayLabel: "9Router"
