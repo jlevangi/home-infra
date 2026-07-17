@@ -59,37 +59,14 @@ spec:
               presets: true
             endpoints:
               custom:
-                - name: "llama-server"
-                  apiKey: "not-needed"
-                  baseURL: "http://llama-cpp.llama-cpp.svc.cluster.local:8080/v1"
+                - name: "9router"
+                  apiKey: "${NINE_ROUTER_API_KEY}"
+                  baseURL: "http://nine-router.9router.svc.cluster.local:20128/v1"
                   models:
-                    default:
-                      - "MiniMax-M2.7-UD-Q4_K_M"
-                      - "Qwen3-Coder-Next-UD-Q4_K_M"
-                      - "Qwen3-Coder-Next-UD-Q4_K_M-hermes"
-                      - "Qwen3-Coder-Next-UD-Q4_K_M-hermes-fast"
-                      - "Qwen3.6-35B-A3B-UD-Q4_K_M-worker"
-                      - "Qwen3.6-35B-A3B-UD-Q4_K_M-worker-hermes"
-                      - "Qwen3.6-35B-A3B-UD-Q4_K_M-planner"
-                      - "Qwen3.6-35B-A3B-UD-Q4_K_M"
-                      - "Gemma4-26B-A4B"
-                      - "Gemma4-31B"
-                      - "Qwen3.6-27B-Q5_K_S-MTP"
-                      - "Qwen3.6-27B-UD-Q8_K_XL"
-                      - "Qwopus3.5-9B-Coder-MTP"
+                    default: []
                     fetch: true
                   titleConvo: true
-                  titleModel: "MiniMax-M2.7-UD-Q4_K_M"
-                  modelDisplayLabel: "llama.cpp Server"
-                - name: "lemonade-pc"
-                  apiKey: "not-needed"
-                  baseURL: "http://pierce-pc.levangie.org:13305/v1"
-                  models:
-                    default:
-                      - "Qwen3.6-27B-MTP-GGUF"
-                    fetch: true
-                  titleConvo: true
-                  modelDisplayLabel: "Lemonade PC"
+                  modelDisplayLabel: "9Router"
                 - name: "hermes-agent"
                   apiKey: "${HERMES_API_KEY}"
                   baseURL: "http://172.20.23.94:8642/v1"
