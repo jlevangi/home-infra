@@ -90,6 +90,15 @@ spec:
                     fetch: true
                   titleConvo: true
                   modelDisplayLabel: "Lemonade PC"
+                - name: "hermes-agent"
+                  apiKey: "${HERMES_API_KEY}"
+                  baseURL: "http://172.20.23.94:8642/v1"
+                  models:
+                    default:
+                      - "hermes-agent"
+                    fetch: true
+                  titleConvo: true
+                  modelDisplayLabel: "Hermes Agent"
           resources:
             requests:
               cpu: 100m
