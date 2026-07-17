@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: glance
+  namespace: glance
+  labels:
+    app: glance
+    app.kubernetes.io/name: glance
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: glance
+  template:
+    metadata:
+      labels:
+        app: glance
+        app.kubernetes.io/name: glance
+    spec:
+      containers:
+        - name: glance
+          image: glanceapp/glance:v0.8.5
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: TZ
+              value: America/New_York
+          volumeMounts:
+            - name: config
+              mountPath: /app/config/glance.yml
+              subPath: glance.yml
+              readOnly: true
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+      volumes:
+        - name: config
+          configMap:
+            name: glance-config

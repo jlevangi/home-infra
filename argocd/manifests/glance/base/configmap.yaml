@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: glance-config
+  namespace: glance
+data:
+  glance.yml: |
+    server:
+      port: 8080
+    theme:
+      background-color: 240 8 9
+      primary-color: 43 50 70
+      positive-color: 61 66 44
+      negative-color: 6 96 59
+    pages:
+      - name: Home
+        hide-desktop-navigation: true
+        columns:
+          - size: small
+            widgets:
+              - type: calendar
+                first-day-of-week: sunday
+              - type: weather
+                location: Orlando, Florida, United States
+                units: imperial
+                hour-format: 12h
+          - size: full
+            widgets:
+              - type: search
+                search-engine: google
+                autofocus: true
+              - type: bookmarks
+                groups:
+                  - title: Homelab
+                    links:
+                      - title: ArgoCD
+                        url: https://argocd.levangie.dev
+                      - title: Grafana
+                        url: https://grafana.levangie.dev
+                      - title: Longhorn
+                        url: https://longhorn.levangie.dev
+                      - title: Vault
+                        url: https://vault.levangie.dev
+                  - title: Services
+                    links:
+                      - title: BookStack
+                        url: https://bookstack.levangie.dev
+                      - title: Healthchecks
+                        url: https://healthchecks.levangie.dev
+                      - title: IT Tools
+                        url: https://ittools.levangie.dev
+                      - title: Semaphore
+                        url: https://semaphore.levangie.dev
+              - type: releases
+                cache: 1d
+                repositories:
+                  - glanceapp/glance
+                  - k3s-io/k3s
+                  - argoproj/argo-cd
+                  - longhorn/longhorn
+          - size: small
+            widgets:
+              - type: clock
+                hour-format: 12h
+                timezones:
+                  - timezone: America/New_York
+                    label: Home
+              - type: repository
+                repository: jlevangi/home-infra
+                pull-requests-limit: 5
+                issues-limit: 5
