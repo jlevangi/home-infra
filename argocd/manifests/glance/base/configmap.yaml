@@ -32,25 +32,152 @@ data:
               - type: bookmarks
                 groups:
                   - title: Homelab
+                    color: 200 50 50
                     links:
                       - title: ArgoCD
                         url: https://argocd.levangie.dev
+                        icon: si:argo
                       - title: Grafana
                         url: https://grafana.levangie.dev
+                        icon: si:grafana
                       - title: Longhorn
                         url: https://longhorn.levangie.dev
+                        icon: sh:longhorn
                       - title: Vault
                         url: https://vault.levangie.dev
+                        icon: si:vault
+                      - title: Semaphore
+                        url: https://semaphore.levangie.dev
+                        icon: si:ansible
+                      - title: Healthchecks
+                        url: https://healthchecks.levangie.dev
+                        icon: sh:healthchecks
+                      - title: Gatus
+                        url: https://status.levangie.dev
+                        icon: sh:gatus
+                      - title: Ntfy
+                        url: https://ntfy.levangie.dev
+                        icon: sh:ntfy
+                      - title: MeshCentral
+                        url: https://mesh.levangie.dev
+                        icon: sh:meshcentral
+                      - title: Netboot.xyz
+                        url: https://netboot.levangie.dev
+                        icon: sh:netboot-xyz
                   - title: Services
+                    color: 120 50 50
                     links:
                       - title: BookStack
                         url: https://bookstack.levangie.dev
-                      - title: Healthchecks
-                        url: https://healthchecks.levangie.dev
+                        icon: sh:bookstack
+                      - title: Paperless
+                        url: https://paperless.levangie.dev
+                        icon: sh:paperless-ngx
+                      - title: Memos
+                        url: https://memos.levangie.org
+                        icon: sh:memos
+                      - title: Linkding
+                        url: https://linkding.levangie.dev
+                        icon: sh:linkding
+                      - title: Notemark
+                        url: https://notemark.levangie.dev
+                        icon: mdi:notebook
+                      - title: Open Notebook
+                        url: https://notebook.levangie.dev
+                        icon: mdi:notebook-edit
+                      - title: Tasks.md
+                        url: https://tasks.levangie.dev
+                        icon: mdi:checkbox-marked-outline
+                      - title: Wallos
+                        url: https://wallos.levangie.dev
+                        icon: sh:wallos
+                      - title: Vaultwarden
+                        url: https://vw.levangie.dev
+                        icon: sh:vaultwarden
+                      - title: Immich
+                        url: https://photos.levangie.org
+                        icon: sh:immich
+                  - title: Media
+                    color: 280 50 50
+                    links:
+                      - title: Jellyfin
+                        url: https://jellyfin.levangie.org
+                        icon: sh:jellyfin
+                      - title: Jellyseerr
+                        url: https://jellyseerr.levangie.dev
+                        icon: sh:jellyseerr
+                      - title: Sonarr
+                        url: https://sonarr.levangie.dev
+                        icon: sh:sonarr
+                      - title: Radarr
+                        url: https://radarr.levangie.dev
+                        icon: sh:radarr
+                      - title: Radarr 4K
+                        url: https://radarr4k.levangie.dev
+                        icon: sh:radarr
+                      - title: Prowlarr
+                        url: https://prowlarr.levangie.dev
+                        icon: sh:prowlarr
+                      - title: Bazarr
+                        url: https://bazarr.levangie.dev
+                        icon: sh:bazarr
+                      - title: qBittorrent
+                        url: https://qbittorrent.levangie.dev
+                        icon: sh:qbittorrent
+                      - title: NZBGet
+                        url: https://nzbget.levangie.dev
+                        icon: sh:nzbget
+                      - title: Tautulli
+                        url: https://tautulli.levangie.dev
+                        icon: sh:tautulli
+                  - title: AI & Automation
+                    color: 40 60 50
+                    links:
+                      - title: LibreChat
+                        url: https://librechat.levangie.dev
+                        icon: sh:librechat
+                      - title: 9Router
+                        url: https://9router.levangie.dev
+                        icon: mdi:router-wireless
+                      - title: n8n
+                        url: https://n8n.levangie.dev
+                        icon: sh:n8n
+                      - title: Changedetection
+                        url: https://changedetection.levangie.dev
+                        icon: sh:changedetection
+                      - title: Firefox
+                        url: https://firefox.levangie.dev
+                        icon: si:firefoxbrowser
+                      - title: SearXNG
+                        url: https://search.levangie.dev
+                        icon: sh:searxng
+                  - title: Tools
+                    color: 0 50 50
+                    links:
                       - title: IT Tools
                         url: https://ittools.levangie.dev
-                      - title: Semaphore
-                        url: https://semaphore.levangie.dev
+                        icon: sh:it-tools
+                      - title: PairDrop
+                        url: https://pairdrop.levangie.dev
+                        icon: sh:pairdrop
+                      - title: MicroBin
+                        url: https://bin.levangie.dev
+                        icon: sh:microbin
+                      - title: Snippet Box
+                        url: https://snippets.levangie.dev
+                        icon: mdi:code-tags
+                      - title: Termix
+                        url: https://termix.levangie.dev
+                        icon: mdi:console
+                      - title: Affine
+                        url: https://affine.levangie.dev
+                        icon: sh:affine
+                      - title: GeoPulse
+                        url: https://geopulse.levangie.dev
+                        icon: mdi:map-marker-radius
+                      - title: SparkyFitness
+                        url: https://fitness.levangie.dev
+                        icon: mdi:weight-lifter
               - type: releases
                 cache: 1d
                 repositories:
