@@ -17,22 +17,39 @@ data:
         head-widgets:
           - type: split-column
             widgets:
-              - type: reddit
-                title: r/selfhosted
-                subreddit: selfhosted
-                show-thumbnails: true
-                show-flairs: true
-                sort-by: hot
-                limit: 15
-                collapse-after: 8
-              - type: reddit
-                title: r/LocalLLaMA
-                subreddit: LocalLLaMA
-                show-thumbnails: true
-                show-flairs: true
-                sort-by: hot
-                limit: 15
-                collapse-after: 8
+              - type: search
+                search-engine: google
+                autofocus: true
+              - type: custom-api
+                title: Cluster Overview
+                title-url: https://grafana.levangie.dev
+                cache: 1m
+                url: http://prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/query
+                parameters:
+                  query: count(kube_node_info)
+                subrequests:
+                  running-pods:
+                    url: http://prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/query
+                    parameters:
+                      query: sum(kube_pod_status_phase{phase="Running"})
+                  unavailable-deployments:
+                    url: http://prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/query
+                    parameters:
+                      query: sum(kube_deployment_status_replicas_unavailable)
+                  firing-alerts:
+                    url: http://prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/query
+                    parameters:
+                      query: count(ALERTS{alertstate="firing"})
+                template: |
+                  {{ $pods := .Subrequest "running-pods" }}
+                  {{ $unavailable := .Subrequest "unavailable-deployments" }}
+                  {{ $alerts := .Subrequest "firing-alerts" }}
+                  <div class="flex justify-between text-center">
+                    <div><div class="color-highlight size-h3">{{ .JSON.String "data.result.0.value.1" }}</div><div class="size-h6">NODES</div></div>
+                    <div><div class="color-highlight size-h3">{{ $pods.JSON.String "data.result.0.value.1" }}</div><div class="size-h6">PODS</div></div>
+                    <div><div class="color-highlight size-h3">{{ $unavailable.JSON.String "data.result.0.value.1" }}</div><div class="size-h6">DOWN</div></div>
+                    <div><div class="color-highlight size-h3">{{ $alerts.JSON.String "data.result.0.value.1" }}</div><div class="size-h6">ALERTS</div></div>
+                  </div>
         columns:
           - size: small
             widgets:
@@ -49,9 +66,6 @@ data:
                 hour-format: 12h
           - size: full
             widgets:
-              - type: search
-                search-engine: google
-                autofocus: true
               - type: bookmarks
                 groups:
                   - title: Homelab
@@ -201,6 +215,24 @@ data:
                       - title: SparkyFitness
                         url: https://fitness.levangie.dev
                         icon: mdi:weight-lifter
+              - type: split-column
+                widgets:
+                  - type: reddit
+                    title: r/selfhosted
+                    subreddit: selfhosted
+                    show-thumbnails: true
+                    show-flairs: true
+                    sort-by: hot
+                    limit: 15
+                    collapse-after: 8
+                  - type: reddit
+                    title: r/LocalLLaMA
+                    subreddit: LocalLLaMA
+                    show-thumbnails: true
+                    show-flairs: true
+                    sort-by: hot
+                    limit: 15
+                    collapse-after: 8
               - type: releases
                 cache: 1d
                 repositories:
@@ -210,36 +242,6 @@ data:
                   - longhorn/longhorn
           - size: small
             widgets:
-              - type: custom-api
-                title: Cluster Overview
-                title-url: https://grafana.levangie.dev
-                cache: 1m
-                url: http://prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/query
-                parameters:
-                  query: count(kube_node_info)
-                subrequests:
-                  running-pods:
-                    url: http://prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/query
-                    parameters:
-                      query: sum(kube_pod_status_phase{phase="Running"})
-                  unavailable-deployments:
-                    url: http://prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/query
-                    parameters:
-                      query: sum(kube_deployment_status_replicas_unavailable)
-                  firing-alerts:
-                    url: http://prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/query
-                    parameters:
-                      query: count(ALERTS{alertstate="firing"})
-                template: |
-                  {{ $pods := .Subrequest "running-pods" }}
-                  {{ $unavailable := .Subrequest "unavailable-deployments" }}
-                  {{ $alerts := .Subrequest "firing-alerts" }}
-                  <div class="flex justify-between text-center">
-                    <div><div class="color-highlight size-h3">{{ .JSON.String "data.result.0.value.1" }}</div><div class="size-h6">NODES</div></div>
-                    <div><div class="color-highlight size-h3">{{ $pods.JSON.String "data.result.0.value.1" }}</div><div class="size-h6">PODS</div></div>
-                    <div><div class="color-highlight size-h3">{{ $unavailable.JSON.String "data.result.0.value.1" }}</div><div class="size-h6">DOWN</div></div>
-                    <div><div class="color-highlight size-h3">{{ $alerts.JSON.String "data.result.0.value.1" }}</div><div class="size-h6">ALERTS</div></div>
-                  </div>
               - type: change-detection
                 title: Watched Sites
                 instance-url: http://changedetection.changedetection.svc.cluster.local:5000
