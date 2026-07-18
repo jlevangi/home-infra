@@ -41,7 +41,10 @@ resource "proxmox_vm_qemu" "this" {
   }
 
   disk {
+    discard   = true
+    emulatessd = true
     format    = "raw"
+    iothread  = true
     replicate = false
     slot      = "scsi0"
     size      = var.os_disk_size
