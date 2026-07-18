@@ -28,6 +28,11 @@ spec:
           env:
             - name: TZ
               value: America/New_York
+            - name: CHANGEDETECTION_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: glance-secrets
+                  key: CHANGEDETECTION_TOKEN
           volumeMounts:
             - name: config
               mountPath: /app/config
