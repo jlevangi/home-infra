@@ -41,15 +41,15 @@ resource "proxmox_vm_qemu" "this" {
   }
 
   disk {
-    discard   = true
+    discard    = true
     emulatessd = true
-    format    = "raw"
-    iothread  = true
-    replicate = false
-    slot      = "scsi0"
-    size      = var.os_disk_size
-    type      = "disk"
-    storage   = var.vm_storage
+    format     = "raw"
+    iothread   = true
+    replicate  = false
+    slot       = "scsi0"
+    size       = var.os_disk_size
+    type       = "disk"
+    storage    = var.vm_storage
   }
 
   dynamic "disk" {

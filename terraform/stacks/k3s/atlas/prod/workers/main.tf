@@ -198,17 +198,17 @@ variable "search_domain" {
 module "nodes" {
   source = "../../../../../modules/proxmox-cloudinit-nodes"
 
-  vm_name_prefix     = var.vm_name_prefix
-  vm_count           = var.vm_count
-  vm_ids             = var.vm_ids
-  target_nodes       = var.proxmox_hosts
-  template_name      = var.template_name
-  proxmox_tags       = var.proxmox_tags
-  cpu_cores          = var.cpu_cores
-  memory             = var.memory
-  balloon            = var.balloon
-  vm_storage         = var.vm_storage
-  os_disk_size       = var.os_disk_size
+  vm_name_prefix = var.vm_name_prefix
+  vm_count       = var.vm_count
+  vm_ids         = var.vm_ids
+  target_nodes   = var.proxmox_hosts
+  template_name  = var.template_name
+  proxmox_tags   = var.proxmox_tags
+  cpu_cores      = var.cpu_cores
+  memory         = var.memory
+  balloon        = var.balloon
+  vm_storage     = var.vm_storage
+  os_disk_size   = var.os_disk_size
   # Tank-backed Longhorn disk (scsi2). Pairs with the longhorn-tank disk-mount
   # task and longhorn-tank StorageClass — see plans/i-need-some-serious-ancient-adleman.md.
   # Note: existing VMs (101/103/105) had this added live via `qm set`; the
