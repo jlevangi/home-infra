@@ -14,9 +14,33 @@ data:
       negative-color: 6 96 59
     pages:
       - name: Home
+        head-widgets:
+          - type: split-column
+            widgets:
+              - type: reddit
+                title: r/selfhosted
+                subreddit: selfhosted
+                show-thumbnails: true
+                show-flairs: true
+                sort-by: hot
+                limit: 15
+                collapse-after: 8
+              - type: reddit
+                title: r/LocalLLaMA
+                subreddit: LocalLLaMA
+                show-thumbnails: true
+                show-flairs: true
+                sort-by: hot
+                limit: 15
+                collapse-after: 8
         columns:
           - size: small
             widgets:
+              - type: clock
+                hour-format: 12h
+                timezones:
+                  - timezone: America/New_York
+                    label: Home
               - type: calendar
                 first-day-of-week: sunday
               - type: weather
@@ -186,45 +210,6 @@ data:
                   - longhorn/longhorn
           - size: small
             widgets:
-              - type: clock
-                hour-format: 12h
-                timezones:
-                  - timezone: America/New_York
-                    label: Home
-              - type: repository
-                repository: jlevangi/home-infra
-                pull-requests-limit: 5
-                issues-limit: 5
-
-      - name: Community
-        width: wide
-        columns:
-          - size: full
-            widgets:
-              - type: split-column
-                widgets:
-                  - type: reddit
-                    title: r/selfhosted
-                    subreddit: selfhosted
-                    show-thumbnails: true
-                    show-flairs: true
-                    sort-by: hot
-                    limit: 15
-                    collapse-after: 8
-                  - type: reddit
-                    title: r/LocalLLaMA
-                    subreddit: LocalLLaMA
-                    show-thumbnails: true
-                    show-flairs: true
-                    sort-by: hot
-                    limit: 15
-                    collapse-after: 8
-
-      - name: Status
-        width: wide
-        columns:
-          - size: full
-            widgets:
               - type: custom-api
                 title: Cluster Overview
                 title-url: https://grafana.levangie.dev
@@ -251,17 +236,16 @@ data:
                   {{ $alerts := .Subrequest "firing-alerts" }}
                   <div class="flex justify-between text-center">
                     <div><div class="color-highlight size-h3">{{ .JSON.String "data.result.0.value.1" }}</div><div class="size-h6">NODES</div></div>
-                    <div><div class="color-highlight size-h3">{{ $pods.JSON.String "data.result.0.value.1" }}</div><div class="size-h6">RUNNING PODS</div></div>
-                    <div><div class="color-highlight size-h3">{{ $unavailable.JSON.String "data.result.0.value.1" }}</div><div class="size-h6">UNAVAILABLE</div></div>
-                    <div><div class="color-highlight size-h3">{{ $alerts.JSON.String "data.result.0.value.1" }}</div><div class="size-h6">FIRING ALERTS</div></div>
+                    <div><div class="color-highlight size-h3">{{ $pods.JSON.String "data.result.0.value.1" }}</div><div class="size-h6">PODS</div></div>
+                    <div><div class="color-highlight size-h3">{{ $unavailable.JSON.String "data.result.0.value.1" }}</div><div class="size-h6">DOWN</div></div>
+                    <div><div class="color-highlight size-h3">{{ $alerts.JSON.String "data.result.0.value.1" }}</div><div class="size-h6">ALERTS</div></div>
                   </div>
-              - type: iframe
-                title: Service Health
-                title-url: https://status.levangie.dev
-                source: https://status.levangie.dev
-                height: 700
-          - size: small
-            widgets:
+              - type: change-detection
+                title: Watched Sites
+                instance-url: http://changedetection.changedetection.svc.cluster.local:5000
+                token: ${CHANGEDETECTION_TOKEN}
+                limit: 10
+                collapse-after: 5
               - type: markets
                 markets:
                   - symbol: GME
@@ -272,9 +256,18 @@ data:
                     name: NVIDIA
                   - symbol: SPY
                     name: S&P 500
-              - type: change-detection
-                title: Watched Sites
-                instance-url: http://changedetection.changedetection.svc.cluster.local:5000
-                token: ${CHANGEDETECTION_TOKEN}
-                limit: 10
-                collapse-after: 5
+              - type: repository
+                repository: jlevangi/home-infra
+                pull-requests-limit: 5
+                issues-limit: 5
+
+      - name: Status
+        width: wide
+        columns:
+          - size: full
+            widgets:
+              - type: iframe
+                title: Service Health
+                title-url: https://status.levangie.dev
+                source: https://status.levangie.dev
+                height: 900
