@@ -68,7 +68,7 @@ data:
             widgets:
               - type: bookmarks
                 groups:
-                  - title: Homelab
+                  - title: Infrastructure & Monitoring
                     color: 200 50 50
                     links:
                       - title: ArgoCD
@@ -79,7 +79,7 @@ data:
                         icon: si:grafana
                       - title: Longhorn
                         url: https://longhorn.levangie.dev
-                        icon: sh:longhorn
+                        icon: di:longhorn
                       - title: Vault
                         url: https://vault.levangie.dev
                         icon: si:vault
@@ -97,11 +97,11 @@ data:
                         icon: sh:ntfy
                       - title: MeshCentral
                         url: https://mesh.levangie.dev
-                        icon: sh:meshcentral
+                        icon: di:meshcentral
                       - title: Netboot.xyz
                         url: https://netboot.levangie.dev
                         icon: sh:netboot-xyz
-                  - title: Services
+                  - title: Productivity & Data
                     color: 120 50 50
                     links:
                       - title: BookStack
@@ -112,7 +112,7 @@ data:
                         icon: sh:paperless-ngx
                       - title: Memos
                         url: https://memos.levangie.org
-                        icon: sh:memos
+                        icon: di:memos
                       - title: Linkding
                         url: https://linkding.levangie.dev
                         icon: sh:linkding
@@ -188,7 +188,7 @@ data:
                       - title: SearXNG
                         url: https://search.levangie.dev
                         icon: sh:searxng
-                  - title: Tools
+                  - title: Utilities & Remote Access
                     color: 0 50 50
                     links:
                       - title: IT Tools
