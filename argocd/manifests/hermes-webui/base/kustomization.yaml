@@ -4,6 +4,7 @@ resources:
   - namespace.yaml
   - external-secret.yaml
   - pvc.yaml
+  - agent-source-pvc.yaml
   - deployment.yaml
   - service.yaml
   - ingress.yaml
