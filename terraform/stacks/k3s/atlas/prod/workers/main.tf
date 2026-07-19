@@ -148,9 +148,9 @@ variable "os_disk_size" {
 }
 
 variable "data_disk_size" {
-  description = "Longhorn data disk size."
+  description = "Longhorn tank disk size."
   type        = string
-  default     = "300G"
+  default     = "500G"
 }
 
 variable "flash_disk_storage" {
@@ -215,7 +215,7 @@ module "nodes" {
   # proxmox module's lifecycle.ignore_changes prevents Terraform from touching
   # disks on existing VMs, so this block only takes effect on fresh deploys.
   data_disk_enabled  = true
-  data_disk_size     = "250G"
+  data_disk_size     = var.data_disk_size
   data_disk_storage  = var.data_disk_storage
   data_disk_slot     = "scsi2"
   flash_disk_enabled = true
