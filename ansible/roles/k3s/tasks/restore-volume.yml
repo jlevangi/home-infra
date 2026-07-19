@@ -349,15 +349,17 @@
         - engine_name.stdout | length > 0
         - backup_volume_cr_name.stdout | length > 0
 
-    - name: Wait for Longhorn volume to be ready
+    - name: Wait for Longhorn restore to complete
       shell: |
         KUBECONFIG={{ kubeconfig }} kubectl get volume {{ restored_volume_name }} -n longhorn-system \
-          -o jsonpath='{.status.state} {.status.robustness}' 2>/dev/null
+          -o jsonpath='{.status.state} {.status.robustness} {.status.actualSize} {.status.restoreRequired}' 2>/dev/null
       register: volume_state
       until:
-        - volume_state.stdout.split() | first in ['attached', 'detached']
-        - volume_state.stdout.split() | last != 'faulted'
-      retries: 60
+        - volume_state.stdout.split() | length == 4
+        - volume_state.stdout.split()[1] != 'faulted'
+        - volume_state.stdout.split()[2] | int > 0
+        - volume_state.stdout.split()[3] == 'false'
+      retries: 180
       delay: 5
 
     # Robustness only becomes 'healthy' after the volume is attached and replicas
