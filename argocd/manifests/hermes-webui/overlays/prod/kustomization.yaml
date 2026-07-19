@@ -13,4 +13,3 @@ patches:
 labels:
   - pairs:
       environment: prod
-    includeSelectors: true
