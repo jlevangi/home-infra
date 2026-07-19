@@ -80,6 +80,7 @@ providers:
 
 additionalArguments:
   - "--providers.kubernetesingress.ingressclass=traefik"
+  - "--providers.kubernetesingress.allowExternalNameServices=true"
   - "--metrics.prometheus=true"
 {% if traefik_tls_enabled | default(false) %}
   - "--entrypoints.websecure.http.tls=true"
