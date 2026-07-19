@@ -146,6 +146,33 @@ spec:
           annotations:
             summary: Node has been saturated for 30 minutes
             description: Load per core on {{ $labels.instance }} has exceeded 4 for 30 minutes (currently {{ printf "%.2f" $value }}). Replaces the upstream NodeSystemSaturation alert with a homelab-tolerant threshold.
+        - alert: ContainerCPUThrottlingMaterial
+          expr: |-
+            (
+              sum by (cluster, namespace, pod, container) (
+                rate(container_cpu_cfs_throttled_periods_total{container!="", job="kubelet", metrics_path="/metrics/cadvisor"}[5m])
+              )
+              /
+              sum by (cluster, namespace, pod, container) (
+                rate(container_cpu_cfs_periods_total{container!="", job="kubelet", metrics_path="/metrics/cadvisor"}[5m])
+              )
+            ) > 0.25
+            and on (cluster, namespace, pod, container)
+            (
+              sum by (cluster, namespace, pod, container) (
+                rate(container_cpu_usage_seconds_total{container!="", job="kubelet", metrics_path="/metrics/cadvisor"}[5m])
+              )
+              /
+              max by (cluster, namespace, pod, container) (
+                kube_pod_container_resource_limits{resource="cpu"} > 0
+              )
+            ) > 0.8
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: CPU throttling is materially constraining a container
+            description: Container {{ $labels.container }} in {{ $labels.namespace }}/{{ $labels.pod }} has spent over 25% of CPU periods throttled while using over 80% of its CPU limit for 15 minutes.
         - alert: ProxmoxThinPoolDataHigh
           expr: node_lvm_thin_pool_data_percent{vg="pve", thin_pool="data"} > 90
           for: 15m

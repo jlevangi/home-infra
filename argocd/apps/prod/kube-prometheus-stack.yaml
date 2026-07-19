@@ -17,6 +17,13 @@ spec:
 
         defaultRules:
           disabled:
+            # Storage quotas intentionally match each app's steady-state PVC
+            # count. The upstream rule treats that expected state as an alert.
+            KubeQuotaFullyUsed: true
+            # The upstream rule alerts on throttled CFS periods even for idle
+            # containers. ContainerCPUThrottlingMaterial replaces it with a
+            # utilization-aware signal.
+            CPUThrottlingHigh: true
             # llama-cpp is intentionally non-HA: only the GPU worker can run it,
             # and its large memory request would otherwise make the upstream
             # cluster-wide HA overcommit alert permanently noisy.
