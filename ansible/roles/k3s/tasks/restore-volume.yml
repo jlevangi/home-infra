@@ -26,6 +26,18 @@
           Target PVC: {{ restore_pvc_name }}
           Size: {{ pvc_size }} ({{ pvc_size_bytes }} bytes)
 
+    - name: Read target StorageClass parameters
+      shell: |
+        KUBECONFIG={{ kubeconfig }} kubectl get storageclass {{ restore_storage_class | default('longhorn') }} -o json
+      register: restored_storage_class_raw
+      changed_when: false
+
+    - name: Select target StorageClass placement
+      set_fact:
+        restored_storage_class: "{{ restore_storage_class | default('longhorn') }}"
+        restored_replica_count: "{{ ((restored_storage_class_raw.stdout | from_json).parameters.numberOfReplicas | default(2)) | int }}"
+        restored_disk_selector: "{{ (restored_storage_class_raw.stdout | from_json).parameters.diskSelector | default('') }}"
+
     - name: Find workload controllers referencing this PVC
       shell: |
         KUBECONFIG={{ kubeconfig }} kubectl get deployment,statefulset -n {{ restore_namespace }} -o json 2>/dev/null | python3 -c "
@@ -253,8 +265,12 @@
         spec:
           frontend: blockdev
           size: "{{ pvc_size_bytes }}"
-          numberOfReplicas: {{ longhorn_replica_count | default(2) }}
+          numberOfReplicas: {{ restored_replica_count }}
           backupTargetName: default
+        {% if restored_disk_selector | length > 0 %}
+          diskSelector:
+            - {{ restored_disk_selector }}
+        {% endif %}
         EOF
       register: volume_created
 
@@ -366,7 +382,7 @@
           accessModes:
             - ReadWriteOnce
           persistentVolumeReclaimPolicy: Delete
-          storageClassName: longhorn
+          storageClassName: {{ restored_storage_class }}
           csi:
             driver: driver.longhorn.io
             fsType: ext4
@@ -403,7 +419,7 @@
           resources:
             requests:
               storage: {{ pvc_size }}
-          storageClassName: longhorn
+          storageClassName: {{ restored_storage_class }}
           volumeName: {{ restored_pv_name }}
         EOF
       register: pvc_created

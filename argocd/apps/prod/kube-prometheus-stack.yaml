@@ -99,11 +99,11 @@ spec:
             retentionSize: 20GiB
             resources:
               requests:
-                cpu: 250m
-                memory: 512Mi
-              limits:
-                cpu: 1000m
+                cpu: 500m
                 memory: 2Gi
+              limits:
+                cpu: 2000m
+                memory: 4Gi
             storageSpec:
               volumeClaimTemplate:
                 metadata:
@@ -112,16 +112,12 @@ spec:
                     recurring-job-group.longhorn.io/daily: "enabled"
                     recurring-job-group.longhorn.io/weekly: "enabled"
                 spec:
-                  # The Prometheus PVC has diskSelector=["tank"] patched at
-                  # runtime (2026-05-31 incident — heavy TSDB writes were
-                  # starving shared Atlas flash IOPS). The "right" value
-                  # below is longhorn-tank, but StatefulSet
-                  # volumeClaimTemplates is immutable post-creation and
-                  # ArgoCD can't apply the change to the live object. The
-                  # chart value stayed longhorn until the PVC was recreated
-                  # under home-infra-wdy; the runtime patch carries the
-                  # actual placement.
-                  storageClassName: longhorn-tank
+                  # Prometheus is a measured exception to the normal heavy-writer
+                  # tank policy. Tank latency caused TSDB compactions to take up
+                  # to 41 minutes and made rule evaluations time out. Keep it
+                  # explicitly flash-pinned; changing this immutable template
+                  # requires controlled PVC backup/recreation/restore.
+                  storageClassName: longhorn-fast
                   accessModes: ["ReadWriteOnce"]
                   resources:
                     requests:

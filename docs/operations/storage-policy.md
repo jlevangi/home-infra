@@ -42,7 +42,7 @@ healthy PVC just to switch between those two names.
 | App class | Use when | StorageClass | Replicas | Backup labels | Notes |
 | --- | --- | --- | --- | --- | --- |
 | Vault raft member | A pod is already part of an app-level consensus set | `longhorn-vault-raft` | 1 | hourly + daily + weekly | Vault gets HA from raft, not from Longhorn replicas. Keep the PVC single-replica. |
-| Heavy continuous writer | The workload is a database, TSDB, or log store, or normal load shows sustained write pressure above about 200 write IOPS or 5 MiB/s at the 95th percentile | `longhorn-tank` | 2 | hourly + daily + weekly | Use for PostgreSQL, MongoDB, Prometheus, and similar steady writers. Loki may skip hourly if log-history loss is acceptable. |
+| Heavy continuous writer | The workload is a database, TSDB, or log store, or normal load shows sustained write pressure above about 200 write IOPS or 5 MiB/s at the 95th percentile | `longhorn-tank` | 2 | hourly + daily + weekly | Use for PostgreSQL, MongoDB, and similar steady writers. Loki may skip hourly if log-history loss is acceptable. Prometheus is a measured exception documented below. |
 | Read-fast, write-rarely | The workload benefits from low latency but does not append continuously | `longhorn-fast` | 2 | daily + weekly | `memos` still belongs here. This class is not for heavy writers. |
 | Single-pod, no app-layer HA | One pod owns the state and would fail hard on a single-replica fault | `longhorn-redundant` | 3 | daily + weekly | Use for singleton config or SQLite-style state such as Grafana, Jellyfin config, or Plex config. |
 | Catch-all | The app has no special storage requirement | `longhorn` | 3 | daily + weekly | Default choice. Soft cross-pool placement is the general-purpose path. Keep healthy default-class PVCs where they are unless there is another reason to migrate them. |
@@ -99,6 +99,11 @@ Current policy expectations:
 
 ## Known Exceptions
 
+- Prometheus uses `longhorn-fast` despite being a TSDB. On `longhorn-tank`, its
+  disk reached 97% I/O busy, write latency reached 852 ms, and a two-hour TSDB
+  block write took 41 minutes. This caused repeated rule-query timeouts and
+  `PrometheusMissingRuleEvaluations`. Keep its PVC flash-pinned unless later
+  measurements prove the tank tier can sustain compaction latency.
 - Memos remains governed by its dedicated workaround issue until that issue is
   closed.
 - Some apps are sourced from private manifests outside this repo. When their PVC
