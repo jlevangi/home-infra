@@ -5,6 +5,7 @@ defaultSettings:
   taintToleration: '{{ longhorn_taint_toleration_value }}'
   defaultReplicaCount: {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}
   storageReservedPercentageForDefaultDisk: {{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }}
+  storageOverProvisioningPercentage: {{ longhorn_storage_over_provisioning_percentage | default(200) }}
   defaultDataPath: "{{ longhorn_default_data_path | regex_replace('/$','') }}/"
   # Engine/rebuild tuning — see k3s_cluster.yml for rationale.
   autoSalvage: {{ longhorn_auto_salvage | default(true) | bool | string | lower }}

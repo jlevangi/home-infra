@@ -351,9 +351,12 @@
 
     - name: Wait for Longhorn volume to be ready
       shell: |
-        KUBECONFIG={{ kubeconfig }} kubectl get volume {{ restored_volume_name }} -n longhorn-system -o jsonpath='{.status.state}' 2>/dev/null
+        KUBECONFIG={{ kubeconfig }} kubectl get volume {{ restored_volume_name }} -n longhorn-system \
+          -o jsonpath='{.status.state} {.status.robustness}' 2>/dev/null
       register: volume_state
-      until: volume_state.stdout in ['attached', 'detached']
+      until:
+        - volume_state.stdout.split() | first in ['attached', 'detached']
+        - volume_state.stdout.split() | last != 'faulted'
       retries: 60
       delay: 5
 

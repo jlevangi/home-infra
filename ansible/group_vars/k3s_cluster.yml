@@ -241,6 +241,10 @@ longhorn_replica_count: 2
 longhorn_replica_auto_balance: "best-effort"
 longhorn_exclude_master_from_storage: false
 longhorn_storage_reserved_percentage_for_default_disk: 5
+# Flash disks currently have 180-195 GiB logically scheduled against 97 GiB
+# physical capacity. 225% permits the 25 GiB Prometheus migration while each
+# disk still has more than 80 GiB physically available.
+longhorn_storage_over_provisioning_percentage: 225
 longhorn_default_node_selector: ""
 longhorn_media_node_selector: ""
 longhorn_media_storage_class_name: "longhorn-media"
