@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hermes-webui
+  labels:
+    app.kubernetes.io/managed-by: argocd
+    app.kubernetes.io/name: hermes-webui

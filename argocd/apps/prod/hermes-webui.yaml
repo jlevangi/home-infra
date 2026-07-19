@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hermes-webui
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: git@github.com:jlevangi/home-infra.git
+    targetRevision: main
+    path: argocd/manifests/hermes-webui/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: hermes-webui
+  ignoreDifferences:
+    - group: ""
+      kind: PersistentVolumeClaim
+      name: hermes-webui-home
+      jsonPointers:
+        - /spec/volumeName
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true

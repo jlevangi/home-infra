@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hermes-webui-home
+  namespace: hermes-webui
+  labels:
+    recurring-job-group.longhorn.io/hourly: "enabled"
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn-general
+  resources:
+    requests:
+      storage: 5Gi
