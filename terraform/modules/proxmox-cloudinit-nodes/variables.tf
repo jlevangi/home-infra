@@ -91,6 +91,12 @@ variable "vm_storage" {
   type        = string
 }
 
+variable "cloudinit_storage" {
+  description = "Optional storage pool for the cloud-init drive. Defaults to vm_storage."
+  type        = string
+  default     = null
+}
+
 variable "os_disk_size" {
   description = "OS disk size."
   type        = string
@@ -112,6 +118,18 @@ variable "data_disk_storage" {
   description = "Storage pool for the second data disk when enabled."
   type        = string
   default     = null
+}
+
+variable "data_disk_discard" {
+  description = "Enable discard/TRIM for the optional data disk."
+  type        = bool
+  default     = false
+}
+
+variable "data_disk_iothread" {
+  description = "Enable an I/O thread for the optional data disk."
+  type        = bool
+  default     = false
 }
 
 variable "data_disk_slot" {

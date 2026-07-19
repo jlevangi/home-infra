@@ -34,6 +34,12 @@ variable "gpu_worker_data_disk_size" {
   default     = "200G"
 }
 
+variable "gpu_worker_vm_storage" {
+  description = "Storage pool for the GPU worker OS, EFI, and cloud-init disks."
+  type        = string
+  default     = "local-lvm"
+}
+
 variable "gpu_worker_pci_address" {
   description = "Atlas PCI address for the working live GPU passthrough mapping."
   type        = string
@@ -59,15 +65,15 @@ variable "gpu_worker_memory" {
 }
 
 variable "gpu_worker_balloon" {
-  description = "Balloon target (MiB) for the GPU worker (matches memory; ballooning is effectively disabled because hostpci0 requires pinned memory)."
+  description = "Balloon target (MiB) for the GPU worker. Disabled because hostpci0 requires pinned memory."
   type        = number
-  default     = 122880
+  default     = 0
 }
 
 variable "gpu_worker_llm_disk_size" {
   description = "Dedicated LLM model storage disk size on the GPU worker."
   type        = string
-  default     = "600G"
+  default     = "800G"
 }
 
 variable "gpu_worker_llm_disk_storage" {
@@ -105,7 +111,7 @@ resource "proxmox_vm_qemu" "gpu_worker" {
   bootdisk = "scsi0"
 
   efidisk {
-    storage = var.vm_storage
+    storage = var.gpu_worker_vm_storage
     efitype = "4m"
   }
 
@@ -113,7 +119,7 @@ resource "proxmox_vm_qemu" "gpu_worker" {
     format  = "raw"
     slot    = "ide2"
     type    = "cloudinit"
-    storage = var.vm_storage
+    storage = var.gpu_worker_vm_storage
   }
 
   disk {
@@ -124,7 +130,7 @@ resource "proxmox_vm_qemu" "gpu_worker" {
     slot       = "scsi0"
     size       = var.os_disk_size
     type       = "disk"
-    storage    = var.vm_storage
+    storage    = var.gpu_worker_vm_storage
   }
 
   disk {
@@ -182,6 +188,7 @@ resource "proxmox_vm_qemu" "gpu_worker" {
 
   lifecycle {
     ignore_changes = [
+      balloon,
       bootdisk,
       disk,
       network,

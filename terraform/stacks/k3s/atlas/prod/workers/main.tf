@@ -112,9 +112,15 @@ variable "nic_name" {
 }
 
 variable "vm_storage" {
-  description = "Storage pool for the OS disk and cloud-init drive."
+  description = "Storage pool for the OS disk."
   type        = string
   default     = "flash"
+}
+
+variable "cloudinit_storage" {
+  description = "Storage pool for the cloud-init drive."
+  type        = string
+  default     = "local-lvm"
 }
 
 variable "data_disk_storage" {
@@ -162,7 +168,7 @@ variable "flash_disk_storage" {
 variable "flash_disk_size" {
   description = "Current flash-backed Longhorn disk size."
   type        = string
-  default     = "250G"
+  default     = "100G"
 }
 
 variable "ip_base" {
@@ -198,23 +204,26 @@ variable "search_domain" {
 module "nodes" {
   source = "../../../../../modules/proxmox-cloudinit-nodes"
 
-  vm_name_prefix = var.vm_name_prefix
-  vm_count       = var.vm_count
-  vm_ids         = var.vm_ids
-  target_nodes   = var.proxmox_hosts
-  template_name  = var.template_name
-  proxmox_tags   = var.proxmox_tags
-  cpu_cores      = var.cpu_cores
-  memory         = var.memory
-  balloon        = var.balloon
-  vm_storage     = var.vm_storage
-  os_disk_size   = var.os_disk_size
+  vm_name_prefix    = var.vm_name_prefix
+  vm_count          = var.vm_count
+  vm_ids            = var.vm_ids
+  target_nodes      = var.proxmox_hosts
+  template_name     = var.template_name
+  proxmox_tags      = var.proxmox_tags
+  cpu_cores         = var.cpu_cores
+  memory            = var.memory
+  balloon           = var.balloon
+  vm_storage        = var.vm_storage
+  cloudinit_storage = var.cloudinit_storage
+  os_disk_size      = var.os_disk_size
   # Tank-backed Longhorn disk (scsi2). Pairs with the longhorn-tank disk-mount
   # task and longhorn-tank StorageClass — see plans/i-need-some-serious-ancient-adleman.md.
   # Note: existing VMs (101/103/105) had this added live via `qm set`; the
   # proxmox module's lifecycle.ignore_changes prevents Terraform from touching
   # disks on existing VMs, so this block only takes effect on fresh deploys.
   data_disk_enabled  = true
+  data_disk_discard  = true
+  data_disk_iothread = true
   data_disk_size     = var.data_disk_size
   data_disk_storage  = var.data_disk_storage
   data_disk_slot     = "scsi2"

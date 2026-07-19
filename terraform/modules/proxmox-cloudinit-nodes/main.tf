@@ -37,7 +37,7 @@ resource "proxmox_vm_qemu" "this" {
     format  = "raw"
     slot    = "ide2"
     type    = "cloudinit"
-    storage = var.vm_storage
+    storage = coalesce(var.cloudinit_storage, var.vm_storage)
   }
 
   disk {
@@ -55,7 +55,9 @@ resource "proxmox_vm_qemu" "this" {
   dynamic "disk" {
     for_each = var.data_disk_enabled ? [1] : []
     content {
+      discard   = var.data_disk_discard
       format    = "raw"
+      iothread  = var.data_disk_iothread
       replicate = false
       slot      = var.data_disk_slot
       size      = var.data_disk_size
