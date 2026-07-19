@@ -14,16 +14,9 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: hermes-webui
-  ignoreDifferences:
-    - group: ""
-      kind: PersistentVolumeClaim
-      name: hermes-webui-home
-      jsonPointers:
-        - /spec/volumeName
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      - RespectIgnoreDifferences=true
