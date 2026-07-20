@@ -6,7 +6,6 @@ resources:
   - lapi-config.yaml
   - lapi-deployment.yaml
   - lapi-service.yaml
-  - agent-config.yaml
   - agent-serviceaccount.yaml
   - agent-daemonset.yaml
   - agent-service.yaml

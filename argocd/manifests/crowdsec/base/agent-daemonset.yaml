@@ -16,21 +16,6 @@ spec:
         app: crowdsec-agent
     spec:
       serviceAccountName: crowdsec-agent
-      initContainers:
-        - name: init-config
-          image: busybox:1.36
-          command:
-            - /bin/sh
-            - -c
-            - |
-              cp /tmp/config/config.yaml /etc/crowdsec/config.yaml
-              cp /tmp/config/acquis.yaml /etc/crowdsec/acquis.yaml
-              chmod 644 /etc/crowdsec/config.yaml /etc/crowdsec/acquis.yaml
-          volumeMounts:
-            - name: configmap
-              mountPath: /tmp/config
-            - name: config
-              mountPath: /etc/crowdsec
       containers:
         - name: crowdsec
           image: crowdsecurity/crowdsec:latest
@@ -41,12 +26,24 @@ spec:
             - -type
             - agent
           env:
+            - name: COLLECTIONS
+              value: "crowdsecurity/traefik"
             - name: CONFIG_PATH
               value: /etc/crowdsec/config.yaml
             - name: DATA_PATH
               value: /var/lib/crowdsec/data
-            - name: COLLECTIONS
-              value: crowdsecurity/traefik
+            - name: AGENT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: crowdsec-agent-enrollment
+                  key: username
+                  optional: true
+            - name: AGENT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crowdsec-agent-enrollment
+                  key: password
+                  optional: true
             - name: LOCAL_API_URL
               value: "http://crowdsec-lapi.crowdsec.svc.cluster.local:8080"
             - name: CUSTOM_HOSTNAME
@@ -54,14 +51,12 @@ spec:
                 fieldRef:
                   fieldPath: spec.nodeName
           volumeMounts:
-            - name: config
-              mountPath: /etc/crowdsec
             - name: data
               mountPath: /var/lib/crowdsec/data
           livenessProbe:
             httpGet:
               path: /health
-              port: 6060
+              port: 8080
             initialDelaySeconds: 30
             periodSeconds: 30
           resources:
@@ -72,10 +67,5 @@ spec:
               memory: 512Mi
               cpu: 500m
       volumes:
-        - name: configmap
-          configMap:
-            name: crowdsec-agent-config
-        - name: config
-          emptyDir: {}
         - name: data
           emptyDir: {}

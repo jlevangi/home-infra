@@ -16,21 +16,7 @@ spec:
       labels:
         app: crowdsec-lapi
     spec:
-      serviceAccountName: crowdsec-agent
-      initContainers:
-        - name: init-config
-          image: busybox:1.36
-          command:
-            - /bin/sh
-            - -c
-            - |
-              cp /tmp/config/config.yaml /etc/crowdsec/config.yaml
-              chmod 644 /etc/crowdsec/config.yaml
-          volumeMounts:
-            - name: configmap
-              mountPath: /tmp/config
-            - name: config
-              mountPath: /etc/crowdsec
+      serviceAccountName: crowdsec-lapi
       containers:
         - name: crowdsec-lapi
           image: crowdsecurity/crowdsec:latest
@@ -50,9 +36,13 @@ spec:
               protocol: TCP
           volumeMounts:
             - name: config
-              mountPath: /etc/crowdsec
+              mountPath: /etc/crowdsec/config.yaml
+              subPath: config.yaml
             - name: data
               mountPath: /var/lib/crowdsec/data
+            - name: local-api-credentials
+              mountPath: /etc/crowdsec/local_api_credentials.yaml
+              subPath: local_api_credentials.yaml
           livenessProbe:
             httpGet:
               path: /health
@@ -73,11 +63,11 @@ spec:
               memory: 512Mi
               cpu: 500m
       volumes:
-        - name: configmap
+        - name: config
           configMap:
             name: crowdsec-lapi-config
-        - name: config
-          emptyDir: {}
         - name: data
           persistentVolumeClaim:
             claimName: crowdsec-lapi-data
+        - name: local-api-credentials
+          emptyDir: {}
