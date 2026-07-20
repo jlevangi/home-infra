@@ -29,6 +29,14 @@ spec:
           env:
             - name: LOCAL_API_URL
               value: "http://crowdsec-lapi.crowdsec.svc.cluster.local:8080"
+            - name: DISABLE_LOCAL_API
+              value: "true"
+            - name: AGENT_USERNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: AGENT_PASSWORD
+              value: "crowdsec"
             - name: DISABLE_ONLINE_API
               value: "true"
             - name: CUSTOM_HOSTNAME
@@ -43,7 +51,7 @@ spec:
               mountPath: /var/lib/crowdsec/data
           livenessProbe:
             httpGet:
-              path: /health
+              path: /metrics
               port: 6060
             initialDelaySeconds: 30
             periodSeconds: 30
