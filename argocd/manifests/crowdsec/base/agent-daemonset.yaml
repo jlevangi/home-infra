@@ -34,6 +34,8 @@ spec:
         - name: crowdsec
           image: crowdsecurity/crowdsec:latest
           imagePullPolicy: IfNotPresent
+          command:
+            - crowdsec
           args:
             - -c
             - /etc/crowdsec/config.yaml
