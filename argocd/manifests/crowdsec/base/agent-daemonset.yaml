@@ -23,6 +23,8 @@ spec:
           command:
             - cscli
           args:
+            - -c
+            - /custom/crowdsec/config.yaml
             - hub
             - update
           volumeMounts:
