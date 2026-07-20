@@ -29,6 +29,12 @@ spec:
           env:
             - name: LOCAL_API_URL
               value: "http://crowdsec-lapi.crowdsec.svc.cluster.local:8080"
+            - name: AGENT_USERNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: AGENT_PASSWORD
+              value: "crowdsec"
             - name: CUSTOM_HOSTNAME
               valueFrom:
                 fieldRef:
