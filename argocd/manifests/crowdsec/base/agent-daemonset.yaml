@@ -16,12 +16,40 @@ spec:
         app: crowdsec-agent
     spec:
       serviceAccountName: crowdsec-agent
+      initContainers:
+        - name: init-hub
+          image: crowdsecurity/crowdsec:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - cscli
+          args:
+            - hub
+            - update
+          volumeMounts:
+            - name: hub
+              mountPath: /var/lib/crowdsec/data
+            - name: config
+              mountPath: /custom/crowdsec/config.yaml
+              subPath: config.yaml
+        - name: init-creds
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "url: http://crowdsec-lapi.crowdsec.svc.cluster.local:8080" > /etc/crowdsec/local_api_credentials.yaml
+              echo "login: k3s-agent" >> /etc/crowdsec/local_api_credentials.yaml
+              echo "password: auto-register" >> /etc/crowdsec/local_api_credentials.yaml
+          volumeMounts:
+            - name: creds
+              mountPath: /etc/crowdsec
       containers:
         - name: crowdsec
           image: crowdsecurity/crowdsec:latest
           imagePullPolicy: IfNotPresent
-          args:
+          command:
             - crowdsec
+          args:
             - -c
             - /custom/crowdsec/config.yaml
             - -type
@@ -30,15 +58,15 @@ spec:
             - name: LOCAL_API_URL
               value: "http://crowdsec-lapi.crowdsec.svc.cluster.local:8080"
             - name: CUSTOM_HOSTNAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
+              value: "k3s-agent"
           volumeMounts:
             - name: config
               mountPath: /custom/crowdsec/config.yaml
               subPath: config.yaml
             - name: data
               mountPath: /var/lib/crowdsec/data
+            - name: creds
+              mountPath: /etc/crowdsec
           livenessProbe:
             httpGet:
               path: /health
@@ -57,4 +85,8 @@ spec:
           configMap:
             name: crowdsec-agent-config
         - name: data
+          emptyDir: {}
+        - name: creds
+          emptyDir: {}
+        - name: hub
           emptyDir: {}
