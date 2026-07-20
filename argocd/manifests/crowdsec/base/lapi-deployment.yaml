@@ -16,6 +16,7 @@ spec:
       labels:
         app: crowdsec-lapi
     spec:
+      serviceAccountName: crowdsec-lapi
       containers:
         - name: crowdsec-lapi
           image: crowdsecurity/crowdsec:latest

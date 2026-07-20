@@ -5,21 +5,34 @@ metadata:
   namespace: crowdsec
 data:
   config.yaml: |
-    common:
-      daemonize: false
-      log_media: stdout
-      log_level: info
-    agent:
-      acquisition_path: /etc/crowdsec/acquis.yaml
-      listen_uri: 0.0.0.0:6060
+    db_config:
+      type: sqlite
+      db_path: /var/lib/crowdsec/data/crowdsec.db
     api:
       client:
         insecure_skip_verify: false
         credentials_path: /etc/crowdsec/local_api_credentials.yaml
         url: http://crowdsec-lapi.crowdsec.svc.cluster.local:8080
-    db_config:
-      type: sqlite
-      db_path: /var/lib/crowdsec/data/crowdsec.db
+    agent:
+      acquisition_path: /etc/crowdsec/acquis.yaml
+      listen_uri: 0.0.0.0:6060
+    scenarios:
+      - crowdsecurity/http-brute-force
+      - crowdsecurity/http-path-traversal
+      - crowdsecurity/http-sensitive-files
+      - crowdsecurity/http-crawl-non_statics
+      - crowdsecurity/http-unauth-url
+      - crowdsecurity/http-xss-probing
+    parsers:
+      - crowdsecurity/traefik-logs
+    collections:
+      - crowdsecurity/traefik
+    whitelist:
+      reason: "internal IPs"
+      ip:
+        - "192.168.0.0/16"
+        - "172.16.0.0/12"
+        - "10.0.0.0/8"
   acquis.yaml: |
     source: k8s-audit
     labels:

@@ -16,6 +16,21 @@ spec:
         app: crowdsec-agent
     spec:
       serviceAccountName: crowdsec-agent
+      initContainers:
+        - name: init-credentials
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+            - |
+              cat > /etc/crowdsec/local_api_credentials.yaml <<'EOF'
+              url: http://crowdsec-lapi.crowdsec.svc.cluster.local:8080
+              login: agent-auto
+              password: agent-auto
+              EOF
+          volumeMounts:
+            - name: config
+              mountPath: /etc/crowdsec
       containers:
         - name: crowdsec
           image: crowdsecurity/crowdsec:latest
@@ -36,14 +51,13 @@ spec:
                   fieldPath: spec.nodeName
           volumeMounts:
             - name: config
-              mountPath: /etc/crowdsec/config.yaml
-              subPath: config.yaml
+              mountPath: /etc/crowdsec
             - name: data
               mountPath: /var/lib/crowdsec/data
           livenessProbe:
             httpGet:
               path: /health
-              port: 8080
+              port: 6060
             initialDelaySeconds: 30
             periodSeconds: 30
           resources:
@@ -56,6 +70,6 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: crowdsec-lapi-config
+            name: crowdsec-agent-config
         - name: data
           emptyDir: {}

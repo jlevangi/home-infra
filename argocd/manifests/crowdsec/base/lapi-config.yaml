@@ -12,20 +12,3 @@ data:
       server:
         listen_uri: 0.0.0.0:8080
         online_client: null
-    scenarios:
-      - crowdsecurity/http-brute-force
-      - crowdsecurity/http-path-traversal
-      - crowdsecurity/http-sensitive-files
-      - crowdsecurity/http-crawl-non_statics
-      - crowdsecurity/http-unauth-url
-      - crowdsecurity/http-xss-probing
-    parsers:
-      - crowdsecurity/traefik-logs
-    collections:
-      - crowdsecurity/traefik
-    whitelist:
-      reason: "internal IPs"
-      ip:
-        - "192.168.0.0/16"
-        - "172.16.0.0/12"
-        - "10.0.0.0/8"
