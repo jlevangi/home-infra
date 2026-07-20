@@ -9,3 +9,6 @@ resources:
   - agent-serviceaccount.yaml
   - agent-daemonset.yaml
   - agent-service.yaml
+  - bouncer-deployment.yaml
+  - bouncer-service.yaml
+  - bouncer-middleware.yaml

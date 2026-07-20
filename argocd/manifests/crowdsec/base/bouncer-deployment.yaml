@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crowdsec-bouncer
+  namespace: crowdsec
+  labels:
+    app: crowdsec-bouncer
+    app.kubernetes.io/name: crowdsec-bouncer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: crowdsec-bouncer
+  template:
+    metadata:
+      labels:
+        app: crowdsec-bouncer
+    spec:
+      containers:
+        - name: crowdsec-bouncer
+          image: crowdsecurity/http-middleware-bouncer:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: BOUNDARY_API_URL
+              value: http://crowdsec-lapi.crowdsec.svc.cluster.local:8080
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /api/v1/forwardAuth
+              port: 8080
+          readinessProbe:
+            httpGet:
+              path: /api/v1/forwardAuth
+              port: 8080
+          resources:
+            requests:
+              memory: 64Mi
+              cpu: 50m
+            limits:
+              memory: 256Mi
+              cpu: 200m
