@@ -17,23 +17,32 @@ spec:
         app: crowdsec-lapi
     spec:
       serviceAccountName: crowdsec-lapi
+      initContainers:
+        - name: init-config
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /etc/crowdsec
+              cp /cfgdir/config.yaml /etc/crowdsec/config.yaml
+              chmod 644 /etc/crowdsec/config.yaml
+          volumeMounts:
+            - name: cfgdir
+              mountPath: /cfgdir
+            - name: config
+              mountPath: /etc/crowdsec
       containers:
         - name: crowdsec-lapi
           image: crowdsecurity/crowdsec:latest
           imagePullPolicy: IfNotPresent
-          command:
-            - crowdsec
-          args:
-            - -c
-            - /etc/crowdsec/config.yaml
           ports:
             - name: lapi
               containerPort: 8080
               protocol: TCP
           volumeMounts:
             - name: config
-              mountPath: /etc/crowdsec/config.yaml
-              subPath: config.yaml
+              mountPath: /etc/crowdsec
             - name: data
               mountPath: /var/lib/crowdsec/data
           livenessProbe:
@@ -56,9 +65,11 @@ spec:
               memory: 512Mi
               cpu: 500m
       volumes:
-        - name: config
+        - name: cfgdir
           configMap:
             name: crowdsec-lapi-config
+        - name: config
+          emptyDir: {}
         - name: data
           persistentVolumeClaim:
             claimName: crowdsec-lapi-data
