@@ -12,3 +12,4 @@ data:
       server:
         listen_uri: 0.0.0.0:8080
         online_client: null
+        enable_auth: false
