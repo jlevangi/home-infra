@@ -16,20 +16,13 @@ spec:
       labels:
         app: crowdsec-lapi
     spec:
-      serviceAccountName: crowdsec-lapi
       containers:
         - name: crowdsec-lapi
           image: crowdsecurity/crowdsec:latest
           imagePullPolicy: IfNotPresent
-          env:
-            - name: CONFIG_PATH
-              value: /etc/crowdsec/config.yaml
-            - name: DATA_PATH
-              value: /var/lib/crowdsec/data
-            - name: GID
-              value: "1000"
-            - name: UID
-              value: "1000"
+          args:
+            - -c
+            - /etc/crowdsec/config.yaml
           ports:
             - name: lapi
               containerPort: 8080
@@ -40,9 +33,6 @@ spec:
               subPath: config.yaml
             - name: data
               mountPath: /var/lib/crowdsec/data
-            - name: local-api-credentials
-              mountPath: /etc/crowdsec/local_api_credentials.yaml
-              subPath: local_api_credentials.yaml
           livenessProbe:
             httpGet:
               path: /health
@@ -69,5 +59,3 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: crowdsec-lapi-data
-        - name: local-api-credentials
-          emptyDir: {}

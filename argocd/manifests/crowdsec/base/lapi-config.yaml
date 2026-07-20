@@ -12,9 +12,6 @@ data:
       server:
         listen_uri: 0.0.0.0:8080
         online_client: null
-      client:
-        insecure_skip_verify: false
-        credentials_path: /etc/crowdsec/local_api_credentials.yaml
     scenarios:
       - crowdsecurity/http-brute-force
       - crowdsecurity/http-path-traversal

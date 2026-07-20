@@ -20,30 +20,14 @@ spec:
         - name: crowdsec
           image: crowdsecurity/crowdsec:latest
           imagePullPolicy: IfNotPresent
-          command:
-            - crowdsec
           args:
+            - -c
+            - /etc/crowdsec/config.yaml
             - -type
             - agent
           env:
             - name: COLLECTIONS
               value: "crowdsecurity/traefik"
-            - name: CONFIG_PATH
-              value: /etc/crowdsec/config.yaml
-            - name: DATA_PATH
-              value: /var/lib/crowdsec/data
-            - name: AGENT_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: crowdsec-agent-enrollment
-                  key: username
-                  optional: true
-            - name: AGENT_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: crowdsec-agent-enrollment
-                  key: password
-                  optional: true
             - name: LOCAL_API_URL
               value: "http://crowdsec-lapi.crowdsec.svc.cluster.local:8080"
             - name: CUSTOM_HOSTNAME
@@ -51,6 +35,9 @@ spec:
                 fieldRef:
                   fieldPath: spec.nodeName
           volumeMounts:
+            - name: config
+              mountPath: /etc/crowdsec/config.yaml
+              subPath: config.yaml
             - name: data
               mountPath: /var/lib/crowdsec/data
           livenessProbe:
@@ -67,5 +54,8 @@ spec:
               memory: 512Mi
               cpu: 500m
       volumes:
+        - name: config
+          configMap:
+            name: crowdsec-lapi-config
         - name: data
           emptyDir: {}
