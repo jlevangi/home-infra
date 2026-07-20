@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: crowdsec-lapi-config
+  name: crowdsec-agent-config
   namespace: crowdsec
 data:
   config.yaml: |
@@ -9,13 +9,18 @@ data:
       daemonize: false
       log_media: stdout
       log_level: info
+    agent:
+      acquisition_path: /etc/crowdsec/acquis.yaml
+      listen_uri: 0.0.0.0:6060
     api:
-      server:
-        listen_uri: 0.0.0.0:8080
-        online_client: null
       client:
         insecure_skip_verify: false
         credentials_path: /etc/crowdsec/local_api_credentials.yaml
+        url: http://crowdsec-lapi.crowdsec.svc.cluster.local:8080
     db_config:
       type: sqlite
       db_path: /var/lib/crowdsec/data/crowdsec.db
+  acquis.yaml: |
+    source: k8s-audit
+    labels:
+      type: traefik
