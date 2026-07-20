@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crowdsec-lapi
+  namespace: crowdsec
+  labels:
+    app: crowdsec-lapi
+    app.kubernetes.io/name: crowdsec-lapi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: crowdsec-lapi
+  template:
+    metadata:
+      labels:
+        app: crowdsec-lapi
+    spec:
+      serviceAccountName: crowdsec-lapi
+      containers:
+        - name: crowdsec-lapi
+          image: crowdsecurity/crowdsec:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: CONFIG_PATH
+              value: /etc/crowdsec/config.yaml
+            - name: DATA_PATH
+              value: /var/lib/crowdsec/data
+            - name: GID
+              value: "1000"
+            - name: UID
+              value: "1000"
+          ports:
+            - name: lapi
+              containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/crowdsec/config.yaml
+              subPath: config.yaml
+            - name: data
+              mountPath: /var/lib/crowdsec/data
+            - name: local-api-credentials
+              mountPath: /etc/crowdsec/local_api_credentials.yaml
+              subPath: local_api_credentials.yaml
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: lapi
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: lapi
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+      volumes:
+        - name: config
+          configMap:
+            name: crowdsec-lapi-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: crowdsec-lapi-data
+        - name: local-api-credentials
+          emptyDir: {}

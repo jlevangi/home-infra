@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: crowdsec-agent
+  namespace: crowdsec
+  labels:
+    app: crowdsec-agent
+    app.kubernetes.io/name: crowdsec-agent
+spec:
+  selector:
+    matchLabels:
+      app: crowdsec-agent
+  template:
+    metadata:
+      labels:
+        app: crowdsec-agent
+    spec:
+      serviceAccountName: crowdsec-agent
+      containers:
+        - name: crowdsec
+          image: crowdsecurity/crowdsec:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - crowdsec
+          args:
+            - -type
+            - agent
+          env:
+            - name: COLLECTIONS
+              value: "crowdsecurity/traefik"
+            - name: CONFIG_PATH
+              value: /etc/crowdsec/config.yaml
+            - name: DATA_PATH
+              value: /var/lib/crowdsec/data
+            - name: AGENT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: crowdsec-agent-enrollment
+                  key: username
+                  optional: true
+            - name: AGENT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crowdsec-agent-enrollment
+                  key: password
+                  optional: true
+            - name: LOCAL_API_URL
+              value: "http://crowdsec-lapi.crowdsec.svc.cluster.local:8080"
+            - name: CUSTOM_HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/crowdsec/data
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+      volumes:
+        - name: data
+          emptyDir: {}

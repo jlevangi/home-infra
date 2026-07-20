@@ -1,0 +1,34 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crowdsec-lapi-config
+  namespace: crowdsec
+data:
+  config.yaml: |
+    db_config:
+      type: sqlite
+      db_path: /var/lib/crowdsec/data/crowdsec.db
+    api:
+      server:
+        listen_uri: 0.0.0.0:8080
+        online_client: null
+      client:
+        insecure_skip_verify: false
+        credentials_path: /etc/crowdsec/local_api_credentials.yaml
+    scenarios:
+      - crowdsecurity/http-brute-force
+      - crowdsecurity/http-path-traversal
+      - crowdsecurity/http-sensitive-files
+      - crowdsecurity/http-crawl-non_statics
+      - crowdsecurity/http-unauth-url
+      - crowdsecurity/http-xss-probing
+    parsers:
+      - crowdsecurity/traefik-logs
+    collections:
+      - crowdsecurity/traefik
+    whitelist:
+      reason: "internal IPs"
+      ip:
+        - "192.168.0.0/16"
+        - "172.16.0.0/12"
+        - "10.0.0.0/8"
