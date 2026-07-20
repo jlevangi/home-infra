@@ -35,6 +35,8 @@ spec:
                   fieldPath: spec.nodeName
             - name: AGENT_PASSWORD
               value: "crowdsec"
+            - name: DISABLE_ONLINE_API
+              value: "true"
             - name: CUSTOM_HOSTNAME
               valueFrom:
                 fieldRef:
