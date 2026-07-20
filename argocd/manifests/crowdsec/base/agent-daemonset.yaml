@@ -16,20 +16,6 @@ spec:
         app: crowdsec-agent
     spec:
       serviceAccountName: crowdsec-agent
-      initContainers:
-        - name: init-config
-          image: busybox:1.36
-          command:
-            - /bin/sh
-            - -c
-            - |
-              cp /etc/crowdsec-config/config.yaml /etc/crowdsec/config.yaml
-              cp /etc/crowdsec-config/acquis.yaml /etc/crowdsec/acquis.yaml
-          volumeMounts:
-            - name: config-source
-              mountPath: /etc/crowdsec-config
-            - name: config
-              mountPath: /etc/crowdsec
       containers:
         - name: crowdsec
           image: crowdsecurity/crowdsec:latest
@@ -38,7 +24,7 @@ spec:
             - crowdsec
           args:
             - -c
-            - /etc/crowdsec/config.yaml
+            - /custom-config/config.yaml
             - -type
             - agent
           env:
@@ -50,7 +36,8 @@ spec:
                   fieldPath: spec.nodeName
           volumeMounts:
             - name: config
-              mountPath: /etc/crowdsec
+              mountPath: /custom-config/config.yaml
+              subPath: config.yaml
             - name: data
               mountPath: /var/lib/crowdsec/data
           livenessProbe:
@@ -67,10 +54,8 @@ spec:
               memory: 512Mi
               cpu: 500m
       volumes:
-        - name: config-source
+        - name: config
           configMap:
             name: crowdsec-agent-config
-        - name: config
-          emptyDir: {}
         - name: data
           emptyDir: {}
