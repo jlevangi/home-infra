@@ -80,6 +80,10 @@ spec:
               mountPath: /etc/clickhouse-server/config.d/low-resources.xml
               subPath: clickhouse-low-resources.xml
               readOnly: true
+            - name: clickhouse-config
+              mountPath: /etc/clickhouse-server/config.d/log-retention.xml
+              subPath: clickhouse-log-retention.xml
+              readOnly: true
       volumes:
         - name: event-data
           persistentVolumeClaim:

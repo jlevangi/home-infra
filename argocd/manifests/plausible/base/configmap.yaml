@@ -22,3 +22,23 @@ data:
       <max_server_memory_usage>2147483648</max_server_memory_usage>
       <max_concurrent_queries>20</max_concurrent_queries>
     </clickhouse>
+  clickhouse-log-retention.xml: |
+    <clickhouse>
+      <text_log>
+        <database>system</database>
+        <table>text_log</table>
+        <partition_by>toYYYYMM(event_date)</partition_by>
+        <ttl>event_date + INTERVAL 7 DAY DELETE</ttl>
+        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+      </text_log>
+      <metric_log>
+        <database>system</database>
+        <table>metric_log</table>
+        <engine>Engine = MergeTree PARTITION BY toYYYYMM(event_date) ORDER BY (event_date, event_time) TTL event_date + INTERVAL 7 DAY DELETE</engine>
+      </metric_log>
+      <asynchronous_metric_log>
+        <database>system</database>
+        <table>asynchronous_metric_log</table>
+        <engine>Engine = MergeTree PARTITION BY toYYYYMM(event_date) ORDER BY (event_date, event_time) TTL event_date + INTERVAL 7 DAY DELETE</engine>
+      </asynchronous_metric_log>
+    </clickhouse>
