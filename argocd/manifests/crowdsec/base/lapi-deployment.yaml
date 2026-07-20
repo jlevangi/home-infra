@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crowdsec-lapi
+  namespace: crowdsec
+  labels:
+    app: crowdsec-lapi
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: crowdsec-lapi
+  template:
+    metadata:
+      labels:
+        app: crowdsec-lapi
+    spec:
+      containers:
+        - name: crowdsec-lapi
+          image: crowdsecurity/crowdsec:v1.7.8@sha256:2f527c9bb8b367120eb08b82890aa912ce96bfa1ada93dda0721700e4b4e0dde
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DISABLE_AGENT
+              value: "true"
+            - name: DISABLE_ONLINE_API
+              value: "true"
+            - name: LOCAL_API_URL
+              value: http://127.0.0.1:8080
+            - name: CUSTOM_HOSTNAME
+              value: crowdsec-lapi
+            - name: REGISTRATION_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: crowdsec-agent-credentials
+                  key: registration-token
+          ports:
+            - name: lapi
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: lapi
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: lapi
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: lapi
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: crowdsec-db
+              mountPath: /var/lib/crowdsec/data
+            - name: crowdsec-config
+              mountPath: /etc/crowdsec/config.yaml.local
+              subPath: lapi-config.yaml
+              readOnly: true
+      volumes:
+        - name: crowdsec-db
+          persistentVolumeClaim:
+            claimName: crowdsec-lapi-data
+        - name: crowdsec-config
+          configMap:
+            name: crowdsec-config

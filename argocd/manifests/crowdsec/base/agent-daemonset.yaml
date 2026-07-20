@@ -1,0 +1,143 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: crowdsec-agent
+  namespace: crowdsec
+  labels:
+    app: crowdsec-agent
+spec:
+  selector:
+    matchLabels:
+      app: crowdsec-agent
+  template:
+    metadata:
+      labels:
+        app: crowdsec-agent
+    spec:
+      serviceAccountName: crowdsec-agent
+      initContainers:
+        - name: register-agent
+          image: crowdsecurity/crowdsec:v1.7.8@sha256:2f527c9bb8b367120eb08b82890aa912ce96bfa1ada93dda0721700e4b4e0dde
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              until nc -z crowdsec-lapi 8080; do sleep 5; done
+              cscli lapi register \
+                --machine "${AGENT_USERNAME}" \
+                --url http://crowdsec-lapi:8080 \
+                --token "${REGISTRATION_TOKEN}"
+              cp /etc/crowdsec/local_api_credentials.yaml /agent-config/local_api_credentials.yaml
+          env:
+            - name: AGENT_USERNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: REGISTRATION_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: crowdsec-agent-credentials
+                  key: registration-token
+          volumeMounts:
+            - name: agent-config
+              mountPath: /agent-config
+      containers:
+        - name: crowdsec-agent
+          image: crowdsecurity/crowdsec:v1.7.8@sha256:2f527c9bb8b367120eb08b82890aa912ce96bfa1ada93dda0721700e4b4e0dde
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              cp /agent-config/local_api_credentials.yaml /etc/crowdsec/local_api_credentials.yaml
+              exec /docker_start.sh
+          env:
+            - name: DISABLE_LOCAL_API
+              value: "true"
+            - name: DISABLE_ONLINE_API
+              value: "true"
+            - name: LOCAL_API_URL
+              value: http://crowdsec-lapi:8080
+            - name: COLLECTIONS
+              value: crowdsecurity/traefik
+            - name: CROWDSEC_BYPASS_DB_VOLUME_CHECK
+              value: "true"
+          resources:
+            requests:
+              cpu: 25m
+              memory: 96Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: agent-config
+              mountPath: /agent-config
+              readOnly: true
+            - name: traefik-logs
+              mountPath: /var/log/traefik
+              readOnly: true
+            - name: crowdsec-config
+              mountPath: /etc/crowdsec/acquis.yaml
+              subPath: acquis.yaml
+              readOnly: true
+            - name: crowdsec-config
+              mountPath: /etc/crowdsec/parsers/s02-enrich/whitelist-rfc1918.yaml
+              subPath: whitelist.yaml
+              readOnly: true
+            - name: crowdsec-config
+              mountPath: /etc/crowdsec/scenarios/local-http.yaml
+              subPath: scenarios.yaml
+              readOnly: true
+        - name: traefik-log-reader
+          image: alpine/k8s:1.28.15@sha256:032f5e537f27fa02d9e2e0f27478e18cc1a29eba922c4891e1e51b53e46851f0
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              touch /var/log/traefik/access.log
+              while true; do
+                pods="$(kubectl get pods -n traefik-system \
+                  -l app.kubernetes.io/name=traefik \
+                  --field-selector "spec.nodeName=${NODE_NAME}" \
+                  -o jsonpath='{range .items[*]}{.metadata.name}{" "}{end}')"
+                for pod in ${pods}; do
+                  kubectl logs -n traefik-system -f "${pod}" -c traefik \
+                    >> /var/log/traefik/access.log 2>&1 &
+                done
+                wait || true
+                sleep 5
+              done
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            requests:
+              cpu: 5m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: traefik-logs
+              mountPath: /var/log/traefik
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: agent-config
+          emptyDir: {}
+        - name: traefik-logs
+          emptyDir: {}
+        - name: crowdsec-config
+          configMap:
+            name: crowdsec-config

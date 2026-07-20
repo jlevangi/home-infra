@@ -1,0 +1,128 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crowdsec-config
+  namespace: crowdsec
+data:
+  lapi-config.yaml: |
+    api:
+      server:
+        listen_uri: 0.0.0.0:8080
+        auto_registration:
+          enabled: true
+          token: ${REGISTRATION_TOKEN}
+          allowed_ranges:
+            - 10.0.0.0/8
+            - 172.16.0.0/12
+            - 192.168.0.0/16
+  acquis.yaml: |
+    filenames:
+      - /var/log/traefik/access.log
+    force_inotify: true
+    labels:
+      type: containerd
+      program: traefik
+  whitelist.yaml: |
+    name: local/whitelist-rfc1918
+    description: Whitelist private IPv4 source addresses
+    whitelist:
+      reason: private IPv4 range
+      cidr:
+        - 10.0.0.0/8
+        - 172.16.0.0/12
+        - 192.168.0.0/16
+  scenarios.yaml: |
+    type: leaky
+    name: local/http-brute-force
+    description: Detect repeated HTTP authentication failures
+    filter: "evt.Meta.service == 'http' && (evt.Meta.sub_type == 'auth_fail' || (evt.Parsed.verb == 'POST' && evt.Meta.http_status in ['401', '403']))"
+    groupby: evt.Meta.source_ip
+    capacity: 5
+    leakspeed: 10s
+    blackhole: 1m
+    labels:
+      remediation: true
+      service: http
+      behavior: http:bruteforce
+    ---
+    type: leaky
+    format: 2.0
+    name: local/http-path-traversal
+    description: Detect path traversal probes
+    filter: "evt.Meta.log_type in ['http_access-log', 'http_error-log'] && any(File('http_path_traversal.txt'), {evt.Meta.http_path contains #})"
+    data:
+      - source_url: https://hub-data.crowdsec.net/web/path_traversal.txt
+        dest_file: http_path_traversal.txt
+        type: string
+    groupby: evt.Meta.source_ip
+    capacity: 1
+    leakspeed: 10s
+    blackhole: 5m
+    labels:
+      remediation: true
+      service: http
+      behavior: http:exploit
+    ---
+    type: leaky
+    format: 2.0
+    name: local/http-sensitive-files
+    description: Detect sensitive file probes
+    filter: "evt.Meta.log_type in ['http_access-log', 'http_error-log'] && any(File('sensitive_data.txt'), {evt.Parsed.request endsWith #})"
+    data:
+      - source_url: https://hub-data.crowdsec.net/web/sensitive_data.txt
+        dest_file: sensitive_data.txt
+        type: string
+    groupby: evt.Meta.source_ip
+    capacity: 1
+    leakspeed: 10s
+    blackhole: 5m
+    labels:
+      remediation: true
+      service: http
+      behavior: http:exploit
+    ---
+    type: leaky
+    name: local/http-crawl-non_statics
+    description: Detect aggressive crawling of non-static paths
+    filter: "evt.Meta.service == 'http' && evt.Parsed.static_ressource == 'false'"
+    groupby: evt.Meta.source_ip
+    distinct: evt.Meta.http_path
+    capacity: 40
+    leakspeed: 1s
+    blackhole: 5m
+    labels:
+      remediation: true
+      service: http
+      behavior: http:crawl
+    ---
+    type: leaky
+    name: local/http-unauth-url
+    description: Detect repeated unauthorized URL requests
+    filter: "evt.Meta.log_type == 'http_access-log' && evt.Meta.http_status in ['401', '403']"
+    groupby: evt.Meta.source_ip
+    distinct: evt.Meta.http_path
+    capacity: 10
+    leakspeed: 10s
+    blackhole: 5m
+    labels:
+      remediation: true
+      service: http
+      behavior: http:scan
+    ---
+    type: leaky
+    format: 2.0
+    name: local/http-xss-probing
+    description: Detect XSS probes
+    filter: "evt.Meta.log_type in ['http_access-log', 'http_error-log'] && any(File('xss_probe_patterns.txt'), {Upper(evt.Parsed.http_args) contains Upper(#)})"
+    data:
+      - source_url: https://hub-data.crowdsec.net/web/xss_probe_patterns.txt
+        dest_file: xss_probe_patterns.txt
+        type: string
+    groupby: evt.Meta.source_ip
+    capacity: 1
+    leakspeed: 10s
+    blackhole: 5m
+    labels:
+      remediation: true
+      service: http
+      behavior: http:exploit

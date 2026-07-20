@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - lapi-config.yaml
+  - pvc.yaml
+  - lapi-deployment.yaml
+  - lapi-service.yaml
+  - agent-serviceaccount.yaml
+  - agent-clusterrole.yaml
+  - agent-clusterrolebinding.yaml
+  - agent-daemonset.yaml
