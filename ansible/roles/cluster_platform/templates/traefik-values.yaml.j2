@@ -68,6 +68,18 @@ ports:
       default: false
     exposedPort: 9000
 
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      middlewares:
+        - crowdsec-crowdsec-bouncer@kubernetescrd
+  websecure:
+    address: ":443"
+    http:
+      middlewares:
+        - crowdsec-crowdsec-bouncer@kubernetescrd
+
 api:
   dashboard: true
   insecure: {{ traefik_dashboard_insecure | default(true) | lower }}
