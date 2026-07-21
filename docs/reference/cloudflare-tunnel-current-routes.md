@@ -4,7 +4,7 @@ Inventory captured: **2026-07-21** via read-only Cloudflare API.
 
 - Account ID: `e0e043685655b3d2d63201a6c84fc409`
 - Tunnel: `Maurice` (`e163e2bb-e184-41aa-a96b-eb1dbdb99418`), remotely managed
-- Ordered rules: **28 total**: 27 hostname rules and one final catch-all
+- Ordered rules: **29 total**: 28 hostname rules and one final catch-all
 - Path matchers: **none**
 - Non-HTTP services: **none**
 
@@ -39,9 +39,10 @@ Inventory captured: **2026-07-21** via read-only Cloudflare API.
 | 24 | `kayleewatkins.com` | `none` | `https://k3s-prod.levangie.dev` | none |
 | 25 | `join.levangie.dev` | `none` | `https://k3s-prod.levangie.dev` | `noTLSVerify=true`; `httpHostHeader=join.levangie.dev`; `originServerName=join.levangie.dev` |
 | 26 | `seerr.levangie.org` | `none` | `https://k3s-prod.levangie.dev` | `noTLSVerify=true`; `httpHostHeader=seerr.levangie.org`; `originServerName=seerr.levangie.org` |
-| 27 | `<catch-all>` | `none` | `http_status:404` | none |
+| 27 | `cloud.levangie.dev` | `none` | `https://k3s-prod.levangie.dev` | `noTLSVerify=true`; `httpHostHeader=cloud.levangie.dev`; `originServerName=cloud.levangie.dev` |
+| 28 | `<catch-all>` | `none` | `http_status:404` | none |
 
-The final rule is `http_status:404`; order must be preserved. No secret-bearing fields were present in the returned ingress configuration.
+The final rule is `http_status:404`; order must be preserved. `cloud.levangie.dev` was added after the initial inventory for FileBrowser Quantum. No secret-bearing fields were present in the returned ingress configuration.
 
 ## Relevant public DNS inventory
 
@@ -50,6 +51,7 @@ The final rule is `http_status:404`; order must be preserved. No secret-bearing 
 | `kayleewatkins.com` | `39ee0a0a603ced148623c30a24c55eba` | `6ba12cf9e5a6dc42789be39e17a0741a` | `CNAME` | `kayleewatkins.com` | `e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com` | `true` | `1` |
 | `lazydj.xyz` | `9e6341a3f1dfd5ec70da3fe303212e89` | `323003a091391414f61df8cc536212be` | `CNAME` | `lazydj.xyz` | `e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com` | `true` | `1` |
 | `levangie.dev` | `2a78e16b4af72edb6058ea4127aee9cd` | `8b8cc38d59631365e3c50d2b10462d99` | `CNAME` | `bin.levangie.dev` | `e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com` | `true` | `1` |
+| `levangie.dev` | `2a78e16b4af72edb6058ea4127aee9cd` | `6c9385ac24c394bece9ae78c38bdac01` | `CNAME` | `cloud.levangie.dev` | `e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com` | `true` | `1` |
 | `levangie.dev` | `2a78e16b4af72edb6058ea4127aee9cd` | `9e34692eeee3ed2a223d180357ec37f7` | `CNAME` | `join.levangie.dev` | `e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com` | `true` | `1` |
 | `levangie.dev` | `2a78e16b4af72edb6058ea4127aee9cd` | `f10b4cf734a4e7879591e78ec9e432e0` | `CNAME` | `library.levangie.dev` | `e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com` | `true` | `1` |
 | `levangie.dev` | `2a78e16b4af72edb6058ea4127aee9cd` | `4e32d133688a037b9a8292b257743a86` | `CNAME` | `ntfy.levangie.dev` | `e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com` | `true` | `1` |
@@ -75,4 +77,4 @@ The final rule is `http_status:404`; order must be preserved. No secret-bearing 
 | `levangie.org` | `620ef49385ca465ce84f6f70c4ec37ca` | `1c5a3adda4c0110ca6cc869898c0a2d8` | `CNAME` | `seerr.levangie.org` | `e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com` | `true` | `1` |
 | `levangie.org` | `620ef49385ca465ce84f6f70c4ec37ca` | `109dcbb203381eac97fcc888ecc1f8d4` | `A` | `vw.levangie.org` | `172.20.20.200` | `false` | `1` |
 
-All 27 route hostnames have an exact-name DNS record. IDs are operational identifiers, not credentials.
+All 28 route hostnames have an exact-name DNS record. IDs are operational identifiers, not credentials.
