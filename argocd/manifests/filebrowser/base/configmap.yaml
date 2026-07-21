@@ -23,7 +23,7 @@ data:
         oidc:
           enabled: true
           issuerUrl: https://auth.levangie.org/realms/master
-          scopes: "openid email profile groups"
+          scopes: "openid email profile"
           userIdentifier: preferred_username
           adminGroup: filebrowser-admins
           userGroups:
