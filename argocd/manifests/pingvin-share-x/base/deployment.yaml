@@ -17,11 +17,33 @@ spec:
       labels:
         app.kubernetes.io/name: pingvin-share-x
       annotations:
-        pingvin-share-x.levangie.dev/config-revision: "4"
+        pingvin-share-x.levangie.dev/config-revision: "5"
     spec:
       securityContext:
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
+      initContainers:
+        - name: wait-for-clamav
+          image: busybox:1.36.1@sha256:b7f3d86d6e84fc17718c48bcde1450807faa2d56704205c697b4bd5df7b9e29f
+          command:
+            - sh
+            - -c
+            - until nc -z clamav 3310; do sleep 5; done
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 5m
+              memory: 8Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
       containers:
         - name: pingvin-share-x
           image: smp46/pingvin-share-x@sha256:9ed795a1f3970704a115ea7bafdcbbcfdbf6b18c37607fbdf399da5cc2d64d07
@@ -48,6 +70,10 @@ spec:
               value: /opt/app/backend/data
             - name: DATABASE_URL
               value: file:/opt/app/backend/data/pingvin-share.db?connection_limit=1
+            - name: CLAMAV_HOST
+              value: clamav
+            - name: CLAMAV_PORT
+              value: "3310"
           ports:
             - name: http
               containerPort: 3000

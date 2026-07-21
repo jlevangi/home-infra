@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clamav
+  namespace: pingvin-share-x
+  labels:
+    app.kubernetes.io/name: clamav
+    app.kubernetes.io/part-of: pingvin-share-x
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: clamav
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: clamav
+        app.kubernetes.io/part-of: pingvin-share-x
+    spec:
+      containers:
+        - name: clamav
+          image: clamav/clamav@sha256:75fb5fd95fcbe1d7e6d240c369c1572b686ee2c95949d1042b5148de8eddebb4
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - CHOWN
+                - SETGID
+                - SETUID
+          env:
+            - name: CLAMD_CONF_MaxFileSize
+              value: "50G"
+            - name: CLAMD_CONF_MaxScanSize
+              value: "50G"
+            - name: CLAMD_CONF_StreamMaxLength
+              value: "50G"
+            - name: FRESHCLAM_CHECKS
+              value: "12"
+          ports:
+            - name: clamd
+              containerPort: 3310
+              protocol: TCP
+          volumeMounts:
+            - name: database
+              mountPath: /var/lib/clamav
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 3Gi
+          startupProbe:
+            exec:
+              command:
+                - /usr/local/bin/clamdcheck.sh
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 80
+          readinessProbe:
+            exec:
+              command:
+                - /usr/local/bin/clamdcheck.sh
+            periodSeconds: 20
+            timeoutSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command:
+                - /usr/local/bin/clamdcheck.sh
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 5
+      volumes:
+        - name: database
+          emptyDir:
+            sizeLimit: 2Gi

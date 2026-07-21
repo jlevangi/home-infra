@@ -6,6 +6,8 @@ resources:
   - persistent-volume.yaml
   - persistent-volume-claim-files.yaml
   - persistent-volume-claim-data.yaml
+  - clamav-deployment.yaml
+  - clamav-service.yaml
   - deployment.yaml
   - service.yaml
   - ingress.yaml
