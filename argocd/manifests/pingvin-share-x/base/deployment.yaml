@@ -29,6 +29,10 @@ spec:
             capabilities:
               drop:
                 - ALL
+              add:
+                - CHOWN
+                - SETGID
+                - SETUID
           env:
             - name: TRUST_PROXY
               value: "true"
