@@ -453,14 +453,6 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
-            - name: AlertManager Ntfy Bridge
-              group: Monitoring
-              url: https://alerts.levangie.dev
-              interval: 2m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
-
             - name: Firecrawl
               group: Applications
               url: https://firecrawl.levangie.dev
