@@ -32,10 +32,14 @@ spec:
 
                   apk add --no-cache curl jq >/dev/null 2>&1
 
-                  # Single-zone DDNS update for levangie.org
-                  ZONE_ID="620ef49385ca465ce84f6f70c4ec37ca"
-                  RECORD_ID="3fdca5fa1a2dc46c0665813a539ca810"
-                  RECORD_NAME="levangie.org"
+                  : "${CF_API_TOKEN:?CF_API_TOKEN is required}"
+                  : "${ZONE_LEVANGIE_ORG:?ZONE_LEVANGIE_ORG is required}"
+                  : "${RECORD_LEVANGIE_ORG:?RECORD_LEVANGIE_ORG is required}"
+                  : "${LEVANGIE_ORG_RECORD_NAME:?LEVANGIE_ORG_RECORD_NAME is required}"
+
+                  ZONE_ID="$ZONE_LEVANGIE_ORG"
+                  RECORD_ID="$RECORD_LEVANGIE_ORG"
+                  RECORD_NAME="$LEVANGIE_ORG_RECORD_NAME"
 
                   log "Checking external IP"
                   EXTERNAL_IP=$(curl -s -f -X GET https://checkip.amazonaws.com)
@@ -76,9 +80,15 @@ spec:
                     fi
                   fi
 
-                  SUMMARY="levangie.org=status=$STATUS ip=$EXTERNAL_IP"
+                  SUMMARY="$RECORD_NAME status=$STATUS ip=$EXTERNAL_IP"
                   log "Done: $SUMMARY"
-                  [ -n "${HC_PING_URL:-}" ] && curl -sf -m 5 "${HC_PING_URL}" -d "$SUMMARY" >/dev/null 2>&1 || true
+                  if [ -n "${HC_PING_URL:-}" ]; then
+                    if [ "$STATUS" = "failed" ]; then
+                      curl -sf -m 5 "${HC_PING_URL}/fail" -d "$SUMMARY" >/dev/null 2>&1 || true
+                    else
+                      curl -sf -m 5 "$HC_PING_URL" -d "$SUMMARY" >/dev/null 2>&1 || true
+                    fi
+                  fi
 
                   [ "$STATUS" = "failed" ] && exit 1 || exit 0
               resources:
