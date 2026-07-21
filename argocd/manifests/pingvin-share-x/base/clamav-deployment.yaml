@@ -30,6 +30,8 @@ spec:
                 - ALL
               add:
                 - CHOWN
+                - DAC_OVERRIDE
+                - FOWNER
                 - SETGID
                 - SETUID
           env:
