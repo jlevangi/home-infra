@@ -48,6 +48,8 @@ spec:
               readOnly: true
             - name: data
               mountPath: /home/filebrowser/data
+            - name: cache
+              mountPath: /cache
             - name: fileserver
               mountPath: /srv
           resources:
@@ -85,6 +87,9 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: filebrowser-data
+        - name: cache
+          emptyDir:
+            sizeLimit: 20Gi
         - name: fileserver
           persistentVolumeClaim:
             claimName: filebrowser-fileserver

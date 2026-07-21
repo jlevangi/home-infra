@@ -8,7 +8,7 @@ data:
     server:
       port: 8080
       database: /home/filebrowser/data/database.db
-      cacheDir: /home/filebrowser/data/cache
+      cacheDir: /cache
       externalUrl: https://cloud.levangie.dev
       sources:
         - path: /srv
