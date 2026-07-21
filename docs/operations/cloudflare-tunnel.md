@@ -19,13 +19,14 @@ A Kubernetes Ingress does not imply public exposure. Never derive public routes 
 
 ## Authoritative current inventory
 
-Read-only API inventory on 2026-07-21 found tunnel `Maurice` (`e163e2bb-e184-41aa-a96b-eb1dbdb99418`) healthy with 28 ordered rules: 27 hostname rules and final `http_status:404`. FileBrowser Quantum deployment later that day added `cloud.levangie.dev` immediately before the catch-all, bringing the live configuration to 29 ordered rules: 28 hostname rules and the final `http_status:404`. There are no path matchers or non-HTTP services.
+Read-only API inventory on 2026-07-21 found tunnel `Maurice` (`e163e2bb-e184-41aa-a96b-eb1dbdb99418`) healthy. FileBrowser Quantum and Pingvin Share X were then added as explicit routes, bringing the live configuration to 30 ordered rules: 29 hostname rules and the final `http_status:404`. There are no path matchers or non-HTTP services.
 
 - 14 K3s-targeted routes have a matching live Ingress.
 - 10 routes preserve Caddy or other LAN origins and are deferred.
 - 3 additional K3s-targeted routes lack an exact live Ingress: `bin.levangie.org`, `pics.levangie.org`, and `cloud.levangie.org`. Treat these only as stale candidates pending owner confirmation.
 - `cloud.levangie.dev` is an approved public FileBrowser Quantum route to `https://k3s-prod.levangie.dev`; its proxied CNAME targets the `Maurice` tunnel.
-- All 28 hostnames have exact public DNS records across `levangie.org`, `levangie.dev`, `lazydj.xyz`, and `kayleewatkins.com`.
+- `files.levangie.dev` is an approved public Pingvin Share X route to `https://k3s-prod.levangie.dev`; it is immediately before the catch-all and its proxied CNAME targets the `Maurice` tunnel.
+- All 29 hostnames have exact public DNS records across `levangie.org`, `levangie.dev`, `lazydj.xyz`, and `kayleewatkins.com`.
 - Full ordered options and DNS IDs are in `docs/reference/cloudflare-tunnel-current-routes.md`; parity decisions are in `docs/reference/cloudflare-tunnel-route-matrix.md`.
 
 The current LXC connector remains active/enabled on cloudflared `2024.8.3`. `root-prod` remains `Synced Healthy`.

@@ -34,11 +34,12 @@ Every current rule is represented once. Classifications are conservative: existi
 | `join.levangie.dev` | 25 | `levangie.dev` | `CNAME e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com`; proxied=true; ID `9e34692eeee3ed2a223d180357ec37f7` | `https://k3s-prod.levangie.dev` | `jellyfin-invite/jellyfin-invite` | public and migrate | Pierce review | DNS/TLS/HTTP + app smoke |
 | `seerr.levangie.org` | 26 | `levangie.org` | `CNAME e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com`; proxied=true; ID `1c5a3adda4c0110ca6cc869898c0a2d8` | `https://k3s-prod.levangie.dev` | `yams/seerr-jellyfin-ingress` | public and migrate | Pierce review | DNS/TLS/HTTP + app smoke |
 | `cloud.levangie.dev` | 27 | `levangie.dev` | `CNAME e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com`; proxied=true; ID `6c9385ac24c394bece9ae78c38bdac01` | `https://k3s-prod.levangie.dev` | `filebrowser/filebrowser` | public FileBrowser Quantum; approved and active | active | DNS/TLS/HTTP + OIDC redirect + health |
-| `<catch-all>` | 28 | n/a | n/a | `http_status:404` | n/a | required deny fallback | n/a | unmatched URL returns 404 |
+| `files.levangie.dev` | 28 | `levangie.dev` | `CNAME e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com`; proxied=true; ID `8169276a077a8a60f18e90670578e6fd` | `https://k3s-prod.levangie.dev` | `pingvin-share-x/pingvin-share-x` | public Pingvin Share X; approved and active | active | DNS/TLS/HTTP + OIDC redirect + reverse-share upload |
+| `<catch-all>` | 29 | n/a | n/a | `http_status:404` | n/a | required deny fallback | n/a | unmatched URL returns 404 |
 
 ## Findings
 
-- 28 hostname routes plus one catch-all after adding FileBrowser Quantum at `cloud.levangie.dev`.
+- 29 hostname routes plus one catch-all after adding FileBrowser Quantum at `cloud.levangie.dev` and Pingvin Share X at `files.levangie.dev`.
 - No path-specific or non-HTTP routes.
 - 76 live K3s Ingress hosts exist; only current explicit tunnel routes are considered here.
 - 14 routes target K3s and have a matching live Ingress.
