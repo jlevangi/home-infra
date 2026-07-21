@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cloudflare-ddns
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: git@github.com:jlevangi/home-infra.git
+    targetRevision: main
+    path: argocd/manifests/cloudflare-ddns/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cloudflare-ddns
+  ignoreDifferences:
+    - group: external-secrets.io
+      kind: ExternalSecret
+      name: cloudflare-ddns-secrets
+      jsonPointers:
+        - /spec/dataFrom
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

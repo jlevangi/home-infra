@@ -1,0 +1,114 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cloudflare-ddns
+  namespace: cloudflare-ddns
+spec:
+  schedule: "0 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: ddns
+              image: alpine:3.20
+              imagePullPolicy: IfNotPresent
+              envFrom:
+                - secretRef:
+                    name: cloudflare-ddns-secrets
+              command:
+                - sh
+                - -ec
+                - |
+                  set -euo pipefail
+
+                  log() { printf '[%s] %s\n' "$(date -u +%FT%TZ)" "$*"; }
+
+                  # Install dependencies
+                  apk add --no-cache curl jq >/dev/null 2>&1
+
+                  # ------------------------------------------------------------------
+                  # Zone definitions (identifiers only — not secrets)
+                  # Format: zone_name:zone_id:record_id:record_name
+                  # ------------------------------------------------------------------
+                  ZONES=(
+                    "levangie.org:620ef49385ca465ce84f6f70c4ec37ca:3fdca5fa1a2dc46c0665813a539ca810:levangie.org"
+                  )
+
+                  # Get current external IP
+                  log "Checking external IP"
+                  EXTERNAL_IP=$(curl -s -f -X GET https://checkip.amazonaws.com)
+                  if [ -z "$EXTERNAL_IP" ]; then
+                    log "ERROR: Could not determine external IP"
+                    [ -n "${HC_PING_URL:-}" ] && curl -sf -m 5 "${HC_PING_URL}/fail" >/dev/null 2>&1 || true
+                    exit 1
+                  fi
+                  log "External IP: $EXTERNAL_IP"
+
+                  UPDATED=0
+                  SKIPPED=0
+                  FAILED=0
+
+                  for entry in "${ZONES[@]}"; do
+                    IFS=: read -r zone_name zone_id record_id record_name <<< "$entry"
+
+                    log "Checking $record_name ($zone_name)"
+
+                    # Get current record value from Cloudflare API
+                    CURRENT_CF=$(curl -s -f -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$record_id" \
+                      -H "Authorization: Bearer $CF_API_TOKEN" \
+                      -H "Content-Type: application/json" | jq -r '.result.content // empty')
+
+                    if [ -z "$CURRENT_CF" ]; then
+                      log "WARNING: Could not fetch current record for $record_name, skipping"
+                      FAILED=$((FAILED + 1))
+                      continue
+                    fi
+
+                    if [ "$CURRENT_CF" = "$EXTERNAL_IP" ]; then
+                      log "$record_name already set to $EXTERNAL_IP, no change needed"
+                      SKIPPED=$((SKIPPED + 1))
+                      continue
+                    fi
+
+                    log "Updating $record_name from $CURRENT_CF to $EXTERNAL_IP"
+                    RESPONSE=$(curl -s -f -X PUT "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$record_id" \
+                      -H "Authorization: Bearer $CF_API_TOKEN" \
+                      -H "Content-Type: application/json" \
+                      --data "$(jq -n --arg ip "$EXTERNAL_IP" --arg name "$record_name" \
+                        '{type: "A", name: $name, content: $ip, ttl: 1, proxied: false}')" 2>&1 || true)
+
+                    SUCCESS=$(echo "$RESPONSE" | jq -r '.success // false')
+                    if [ "$SUCCESS" = "true" ]; then
+                      log "$record_name updated successfully"
+                      UPDATED=$((UPDATED + 1))
+                    else
+                      ERROR_MSG=$(echo "$RESPONSE" | jq -r '.errors[0].message // "unknown error"')
+                      log "ERROR: Failed to update $record_name: $ERROR_MSG"
+                      FAILED=$((FAILED + 1))
+                    fi
+                  done
+
+                  # Healthchecks ping
+                  SUMMARY="updated=$UPDATED skipped=$SKIPPED failed=$FAILED"
+                  log "Done: $SUMMARY"
+                  [ -n "${HC_PING_URL:-}" ] && curl -sf -m 5 "${HC_PING_URL}" -d "$SUMMARY" >/dev/null 2>&1 || true
+
+                  [ "$FAILED" -gt 0 ] && exit 1 || exit 0
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+                limits:
+                  cpu: 200m
+                  memory: 64Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: false
+                runAsNonRoot: false

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cloudflare-ddns
+  labels:
+    app.kubernetes.io/name: cloudflare-ddns
+    app.kubernetes.io/managed-by: argocd
