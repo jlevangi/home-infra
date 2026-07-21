@@ -19,7 +19,7 @@ data:
         - path: /srv
           name: Fileserver
           config:
-            defaultEnabled: false
+            defaultEnabled: true
             denyByDefault: true
     auth:
       methods:
