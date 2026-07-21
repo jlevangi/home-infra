@@ -26,20 +26,15 @@ spec:
                 - sh
                 - -ec
                 - |
-                  set -euo pipefail
+                  set -eu
 
                   log() { printf '[%s] %s\n' "$(date -u +%FT%TZ)" "$*"; }
 
                   # Install dependencies
                   apk add --no-cache curl jq >/dev/null 2>&1
 
-                  # ------------------------------------------------------------------
-                  # Zone definitions (identifiers only — not secrets)
-                  # Format: zone_name:zone_id:record_id:record_name
-                  # ------------------------------------------------------------------
-                  ZONES=(
-                    "levangie.org:620ef49385ca465ce84f6f70c4ec37ca:3fdca5fa1a2dc46c0665813a539ca810:levangie.org"
-                  )
+                  # Zone definitions: tab-separated (zone_name zone_id record_id record_name)
+                  ZONES="levangie.org\t620ef49385ca465ce84f6f70c4ec37ca\t3fdca5fa1a2dc46c0665813a539ca810\tlevangie.org"
 
                   # Get current external IP
                   log "Checking external IP"
@@ -55,8 +50,8 @@ spec:
                   SKIPPED=0
                   FAILED=0
 
-                  for entry in "${ZONES[@]}"; do
-                    IFS=: read -r zone_name zone_id record_id record_name <<< "$entry"
+                  printf '%b' "$ZONES" | while IFS='\t' read -r zone_name zone_id record_id record_name; do
+                    [ -z "$record_id" ] && continue
 
                     log "Checking $record_name ($zone_name)"
 
