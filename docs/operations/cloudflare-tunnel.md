@@ -17,12 +17,24 @@ The approved target is a new locally managed tunnel named `k3s-prod-gitops`, run
 
 A Kubernetes Ingress does not imply public exposure. Never derive public routes from all cluster Ingress hosts.
 
+## Authoritative current inventory
+
+Read-only API inventory on 2026-07-21 found tunnel `Maurice` (`e163e2bb-e184-41aa-a96b-eb1dbdb99418`) healthy with 28 ordered rules: 27 hostname rules and final `http_status:404`. There are no path matchers or non-HTTP services.
+
+- 14 K3s-targeted routes have a matching live Ingress.
+- 10 routes preserve Caddy or other LAN origins and are deferred.
+- 3 additional K3s-targeted routes lack an exact live Ingress: `bin.levangie.org`, `pics.levangie.org`, and `cloud.levangie.org`. Treat these only as stale candidates pending owner confirmation.
+- All 27 hostnames have exact public DNS records across `levangie.org`, `levangie.dev`, `lazydj.xyz`, and `kayleewatkins.com`.
+- Full ordered options and DNS IDs are in `docs/reference/cloudflare-tunnel-current-routes.md`; parity decisions are in `docs/reference/cloudflare-tunnel-route-matrix.md`.
+
+The current LXC connector remains active/enabled on cloudflared `2024.8.3`. `root-prod` remains `Synced Healthy`.
+
 ## Credential prerequisites
 
-- `kv/prod/cloudflare-iac`: `CLOUDFLARE_API_TOKEN`
-- `kv/prod/cloudflare-tunnel`: `credentials.json` after creation of the new tunnel
+- `kv/prod/cloudflare-iac`: `CLOUDFLARE_API_TOKEN` exists and is active
+- `kv/prod/cloudflare-tunnel`: `credentials.json` only after approved creation of the new tunnel
 
-The automation token requires Account Cloudflare Tunnel Edit, Zone DNS Edit, and Zone Zone Read for only the account and zones in scope. Never print these values or place them in Git or committed Terraform variables.
+Never print these values or place them in Git or committed Terraform variables.
 
 ## Safe workflow
 
