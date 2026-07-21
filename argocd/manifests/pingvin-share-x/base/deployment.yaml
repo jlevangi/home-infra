@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pingvin-share-x
+  namespace: pingvin-share-x
+  labels:
+    app.kubernetes.io/name: pingvin-share-x
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pingvin-share-x
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pingvin-share-x
+    spec:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: pingvin-share-x
+          image: smp46/pingvin-share-x@sha256:9ed795a1f3970704a115ea7bafdcbbcfdbf6b18c37607fbdf399da5cc2d64d07
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: TRUST_PROXY
+              value: "true"
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: CONFIG_FILE
+              value: /opt/app/config.yaml
+            - name: DATA_DIRECTORY
+              value: /opt/app/backend/data
+            - name: DATABASE_URL
+              value: file:/opt/app/backend/data/pingvin-share.db?connection_limit=1
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /opt/app/config.yaml
+              subPath: config.yaml
+              readOnly: true
+            - name: data
+              mountPath: /opt/app/backend/data
+            - name: files
+              mountPath: /opt/app/backend/data/uploads/shares
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+      volumes:
+        - name: config
+          secret:
+            secretName: pingvin-share-x-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: pingvin-share-x-data
+        - name: files
+          persistentVolumeClaim:
+            claimName: pingvin-share-x-files

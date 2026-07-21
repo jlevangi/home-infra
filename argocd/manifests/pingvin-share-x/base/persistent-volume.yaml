@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pingvin-share-x-files
+  labels:
+    app.kubernetes.io/name: pingvin-share-x
+    storage.levangie.dev/source: fileserver-pingvin
+spec:
+  capacity:
+    storage: 1Ti
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: pingvin-share-x-nfs
+  mountOptions:
+    - nfsvers=4.1
+    - hard
+  nfs:
+    server: 172.20.20.5
+    path: /volume1/fileserver/Pingvin
