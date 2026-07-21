@@ -30,13 +30,13 @@ spec:
 
                   log() { printf '[%s] %s\n' "$(date -u +%FT%TZ)" "$*"; }
 
-                  # Install dependencies
                   apk add --no-cache curl jq >/dev/null 2>&1
 
-                  # Zone definitions: tab-separated (zone_name zone_id record_id record_name)
-                  ZONES="levangie.org\t620ef49385ca465ce84f6f70c4ec37ca\t3fdca5fa1a2dc46c0665813a539ca810\tlevangie.org"
+                  # Single-zone DDNS update for levangie.org
+                  ZONE_ID="620ef49385ca465ce84f6f70c4ec37ca"
+                  RECORD_ID="3fdca5fa1a2dc46c0665813a539ca810"
+                  RECORD_NAME="levangie.org"
 
-                  # Get current external IP
                   log "Checking external IP"
                   EXTERNAL_IP=$(curl -s -f -X GET https://checkip.amazonaws.com)
                   if [ -z "$EXTERNAL_IP" ]; then
@@ -46,56 +46,41 @@ spec:
                   fi
                   log "External IP: $EXTERNAL_IP"
 
-                  UPDATED=0
-                  SKIPPED=0
-                  FAILED=0
+                  STATUS="skipped"
 
-                  printf '%b' "$ZONES" | while IFS='\t' read -r zone_name zone_id record_id record_name; do
-                    [ -z "$record_id" ] && continue
+                  CURRENT_CF=$(curl -s -f -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID" \
+                    -H "Authorization: Bearer $CF_API_TOKEN" \
+                    -H "Content-Type: application/json" | jq -r '.result.content // empty')
 
-                    log "Checking $record_name ($zone_name)"
-
-                    # Get current record value from Cloudflare API
-                    CURRENT_CF=$(curl -s -f -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$record_id" \
-                      -H "Authorization: Bearer $CF_API_TOKEN" \
-                      -H "Content-Type: application/json" | jq -r '.result.content // empty')
-
-                    if [ -z "$CURRENT_CF" ]; then
-                      log "WARNING: Could not fetch current record for $record_name, skipping"
-                      FAILED=$((FAILED + 1))
-                      continue
-                    fi
-
-                    if [ "$CURRENT_CF" = "$EXTERNAL_IP" ]; then
-                      log "$record_name already set to $EXTERNAL_IP, no change needed"
-                      SKIPPED=$((SKIPPED + 1))
-                      continue
-                    fi
-
-                    log "Updating $record_name from $CURRENT_CF to $EXTERNAL_IP"
-                    RESPONSE=$(curl -s -f -X PUT "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$record_id" \
+                  if [ -z "$CURRENT_CF" ]; then
+                    log "WARNING: Could not fetch current record, skipping"
+                    STATUS="failed"
+                  elif [ "$CURRENT_CF" = "$EXTERNAL_IP" ]; then
+                    log "$RECORD_NAME already set to $EXTERNAL_IP, no change needed"
+                  else
+                    log "Updating $RECORD_NAME from $CURRENT_CF to $EXTERNAL_IP"
+                    RESPONSE=$(curl -s -f -X PUT "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID" \
                       -H "Authorization: Bearer $CF_API_TOKEN" \
                       -H "Content-Type: application/json" \
-                      --data "$(jq -n --arg ip "$EXTERNAL_IP" --arg name "$record_name" \
+                      --data "$(jq -n --arg ip "$EXTERNAL_IP" --arg name "$RECORD_NAME" \
                         '{type: "A", name: $name, content: $ip, ttl: 1, proxied: false}')" 2>&1 || true)
 
                     SUCCESS=$(echo "$RESPONSE" | jq -r '.success // false')
                     if [ "$SUCCESS" = "true" ]; then
-                      log "$record_name updated successfully"
-                      UPDATED=$((UPDATED + 1))
+                      log "$RECORD_NAME updated successfully"
+                      STATUS="updated"
                     else
                       ERROR_MSG=$(echo "$RESPONSE" | jq -r '.errors[0].message // "unknown error"')
-                      log "ERROR: Failed to update $record_name: $ERROR_MSG"
-                      FAILED=$((FAILED + 1))
+                      log "ERROR: Failed to update $RECORD_NAME: $ERROR_MSG"
+                      STATUS="failed"
                     fi
-                  done
+                  fi
 
-                  # Healthchecks ping
-                  SUMMARY="updated=$UPDATED skipped=$SKIPPED failed=$FAILED"
+                  SUMMARY="levangie.org=status=$STATUS ip=$EXTERNAL_IP"
                   log "Done: $SUMMARY"
                   [ -n "${HC_PING_URL:-}" ] && curl -sf -m 5 "${HC_PING_URL}" -d "$SUMMARY" >/dev/null 2>&1 || true
 
-                  [ "$FAILED" -gt 0 ] && exit 1 || exit 0
+                  [ "$STATUS" = "failed" ] && exit 1 || exit 0
               resources:
                 requests:
                   cpu: 50m
