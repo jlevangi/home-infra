@@ -437,6 +437,70 @@ spec:
                 - "[BODY].db == true"
                 - "[BODY].redis == true"
 
+            - name: 9router
+              group: Infrastructure
+              url: https://9router.levangie.dev
+              interval: 2m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Agent Browser
+              group: Applications
+              url: https://browser.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: AlertManager Ntfy Bridge
+              group: Monitoring
+              url: https://alerts.levangie.dev
+              interval: 2m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Firecrawl
+              group: Applications
+              url: https://firecrawl.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: GeoPulse
+              group: Applications
+              url: https://geopulse.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Healthchecks
+              group: Monitoring
+              url: https://healthchecks.levangie.dev
+              interval: 2m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: n8n
+              group: Applications
+              url: https://n8n.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Semaphore
+              group: Infrastructure
+              url: https://semaphore.levangie.dev
+              interval: 2m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
   destination:
     server: https://kubernetes.default.svc
     namespace: gatus
