@@ -11,11 +11,16 @@ data:
       cacheDir: /cache
       externalUrl: https://cloud.levangie.dev
       sources:
-        - path: /srv
-          name: Fileserver
+        - path: /srv/Public
+          name: Public
           config:
             defaultEnabled: true
             defaultUserScope: /
+        - path: /srv
+          name: Fileserver
+          config:
+            defaultEnabled: false
+            denyByDefault: true
     auth:
       methods:
         password:
