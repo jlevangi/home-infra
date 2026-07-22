@@ -33,6 +33,16 @@ spec:
                 secretKeyRef:
                   name: glance-secrets
                   key: CHANGEDETECTION_TOKEN
+            - name: TECHNITIUM_URL
+              valueFrom:
+                secretKeyRef:
+                  name: glance-secrets
+                  key: TECHNITIUM_URL
+            - name: TECHNITIUM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: glance-secrets
+                  key: TECHNITIUM_API_KEY
           volumeMounts:
             - name: config
               mountPath: /app/config
