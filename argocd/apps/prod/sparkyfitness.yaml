@@ -128,6 +128,15 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: sparkyfitness
+  ignoreDifferences:
+    # Kubernetes defaults status.phase inside StatefulSet PVC templates. This is
+    # generated API state, not desired chart configuration, and cannot be synced.
+    - group: apps
+      kind: StatefulSet
+      name: sparkyfitness-postgresql
+      namespace: sparkyfitness
+      jsonPointers:
+        - /spec/volumeClaimTemplates/0/status
   syncPolicy:
     automated:
       prune: true
