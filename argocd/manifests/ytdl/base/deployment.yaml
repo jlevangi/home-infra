@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ytdl
+  namespace: ytdl
+  labels:
+    app: ytdl
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ytdl
+  template:
+    metadata:
+      labels:
+        app: ytdl
+    spec:
+      containers:
+        - name: ytdl
+          image: marcobaobao/yt-dlp-webui@sha256:a8ae96007ee3f306a1079b4edb81a6b87dc685a6e8b822cd52aa0b026cf10ff3
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3033
+              name: http
+          volumeMounts:
+            - name: downloads
+              mountPath: /downloads
+            - name: config
+              mountPath: /config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3033
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3033
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: downloads
+          nfs:
+            server: 172.20.20.5
+            path: /volume1/media/downloads/youtube-dl
+        - name: config
+          persistentVolumeClaim:
+            claimName: ytdl-config-pvc
