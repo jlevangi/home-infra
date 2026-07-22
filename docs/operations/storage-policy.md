@@ -106,6 +106,11 @@ Current policy expectations:
   measurements prove the tank tier can sustain compaction latency.
 - Memos remains governed by its dedicated workaround issue until that issue is
   closed.
+- Affine splits storage by workload: `affine-postgres-pvc` remains on flash for
+  database latency, while the 50 GiB `affine-storage-pvc` uses
+  `longhorn-tank`. The general storage volume holds blobs and other file data;
+  pinning three 50 GiB replicas to flash consumed 150 GiB of scheduled flash
+  capacity for roughly 1.2 GiB of actual data.
 - Some apps are sourced from private manifests outside this repo. When their PVC
   labels cannot be fixed here, track the source-of-truth exception in bd rather
   than encoding private-app details in public docs.

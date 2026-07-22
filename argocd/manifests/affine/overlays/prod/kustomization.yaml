@@ -4,6 +4,13 @@ resources:
   - ../../base
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: affine-storage-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: affine-storage-pv
+  - target:
       kind: Ingress
       name: affine-ingress
     patch: |
