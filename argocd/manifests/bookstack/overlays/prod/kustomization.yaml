@@ -6,7 +6,7 @@ images:
   - name: linuxserver/bookstack
     newTag: "26.05.20260608"
   - name: linuxserver/mariadb
-    newTag: "11.4.12"
+    newTag: "11.8.8"
 # Prod uses base values (bookstack.levangie.dev) - no patches needed
 patches:
   - target:
