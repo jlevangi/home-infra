@@ -17,6 +17,18 @@ spec:
       labels:
         app: ytdl
     spec:
+      initContainers:
+        - name: init-cookies
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+            - ln -sf /config/cookies.txt /app/cookies.txt
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: app-data
+              mountPath: /app
       containers:
         - name: ytdl
           image: marcobaobao/yt-dlp-webui:latest
@@ -56,3 +68,5 @@ spec:
         - name: config
           persistentVolumeClaim:
             claimName: ytdl-config-pvc
+        - name: app-data
+          emptyDir: {}
