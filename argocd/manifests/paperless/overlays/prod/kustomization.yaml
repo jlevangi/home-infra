@@ -4,7 +4,7 @@ resources:
   - ../../base
 images:
   - name: ghcr.io/paperless-ngx/paperless-ngx
-    newTag: "2.20.15"
+    newTag: "3.0.0"
   - name: mariadb
     newTag: "12.3.2"
   - name: redis
