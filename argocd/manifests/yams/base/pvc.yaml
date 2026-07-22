@@ -199,7 +199,7 @@ spec:
   resources:
     requests:
       storage: 5Gi
-  storageClassName: longhorn-tank
+  storageClassName: longhorn
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
