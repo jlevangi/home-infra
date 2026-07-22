@@ -17,9 +17,6 @@ spec:
       values: |
         fullnameOverride: sparkyfitness
 
-        global:
-          storageClass: longhorn
-
         config:
           logLevel: info
           timezone: Australia/Melbourne
@@ -55,7 +52,7 @@ spec:
 
         server:
           image:
-            tag: v0.16.6.3
+            tag: v0.17.3
           secrets:
             generate: false
             existingSecret: sparkyfitness-app
@@ -64,12 +61,10 @@ spec:
           persistence:
             backup:
               size: 5Gi
-              # Tank-only: server-side backup data, write-rarely, durability over speed.
-              # First trial of the longhorn-tank StorageClass (see plans/i-need-some-serious-ancient-adleman.md).
               storageClass: longhorn-tank
             uploads:
               size: 10Gi
-              storageClass: longhorn
+              storageClass: longhorn-tank
           resources:
             requests:
               cpu: 100m
@@ -81,7 +76,7 @@ spec:
         frontend:
           port: 8080
           image:
-            tag: v0.16.6.3
+            tag: v0.17.3
           resources:
             requests:
               cpu: 50m
@@ -98,7 +93,6 @@ spec:
             database: sparkyfitness
             username: sparky_admin
             existingSecret: sparkyfitness-postgresql-auth
-          persistence:
           standalone:
             persistence:
               enabled: true
@@ -119,7 +113,6 @@ spec:
           schedule: "0 4 * * *"
           persistence:
             size: 10Gi
-            # Tank-only: nightly pg_dumps go here. Cold, append-mostly, durability over speed.
             storageClass: longhorn-tank
           retention:
             days: 7
