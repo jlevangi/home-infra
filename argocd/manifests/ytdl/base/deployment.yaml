@@ -23,12 +23,10 @@ spec:
           command:
             - /bin/sh
             - -c
-            - ln -sf /config/cookies.txt /app/cookies.txt
+            - touch /config/cookies.txt
           volumeMounts:
             - name: config
               mountPath: /config
-            - name: app-data
-              mountPath: /app
       containers:
         - name: ytdl
           image: marcobaobao/yt-dlp-webui:latest
@@ -41,6 +39,9 @@ spec:
               mountPath: /downloads
             - name: config
               mountPath: /config
+            - name: config
+              mountPath: /app/cookies.txt
+              subPath: cookies.txt
           resources:
             requests:
               cpu: 100m
@@ -68,5 +69,3 @@ spec:
         - name: config
           persistentVolumeClaim:
             claimName: ytdl-config-pvc
-        - name: app-data
-          emptyDir: {}
