@@ -4,7 +4,7 @@ resources:
   - ../../base
 images:
   - name: rustdesk/rustdesk-server
-    newTag: "1.1.15"
+    newTag: "1.1.16"
 labels:
   - pairs:
       environment: prod

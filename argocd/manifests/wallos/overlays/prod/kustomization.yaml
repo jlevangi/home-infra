@@ -4,7 +4,7 @@ resources:
   - ../../base
 images:
   - name: bellamy/wallos
-    newTag: "5.0.0"
+    newTag: "5.4.2"
 patches:
   - target:
       kind: Ingress

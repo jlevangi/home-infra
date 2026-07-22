@@ -4,7 +4,7 @@ resources:
   - ../../base
 images:
   - name: binwiederhier/ntfy
-    newTag: "v2.26.0"
+    newTag: "v2.26.3"
 patches:
   - target:
       kind: Ingress
