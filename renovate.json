@@ -4,7 +4,8 @@
   "ignorePaths": [
     "argocd/manifests/*/base/**",
     "ansible/**",
-    "scripts/**"
+    "scripts/**",
+    "terraform/archive/**"
   ],
   "kubernetes": {
     "managerFilePatterns": ["/argocd/manifests/.+/overlays/.+/kustomization\\.yaml$/"]
