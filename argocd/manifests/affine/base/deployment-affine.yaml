@@ -46,7 +46,7 @@ spec:
               mountPath: /tmp/oidc
               readOnly: true
         - name: migrate
-          image: ghcr.io/toeverything/affine:stable
+          image: ghcr.io/toeverything/affine:0.27.2
           imagePullPolicy: IfNotPresent
           command:
             - node
@@ -74,7 +74,7 @@ spec:
               mountPath: /root/.affine/config
       containers:
         - name: affine
-          image: ghcr.io/toeverything/affine:stable
+          image: ghcr.io/toeverything/affine:0.27.2
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
