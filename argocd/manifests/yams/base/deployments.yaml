@@ -778,10 +778,10 @@ spec:
               subPath: anime
           resources:
             requests:
-              cpu: 50m
+              cpu: 250m
               memory: 256Mi
             limits:
-              cpu: 500m
+              cpu: 1000m
               memory: 1Gi
       volumes:
         - name: config
