@@ -338,8 +338,9 @@ data:
                         icon: mdi:weight-lifter
               - type: dns-stats
                 title: DNS Stats
-                url: ${TECHNITIUM_URL}/api
-                api-key: ${TECHNITIUM_API_KEY}
+                service: technitium
+                url: ${TECHNITIUM_URL}
+                token: ${TECHNITIUM_API_KEY}
                 cache: 5m
               - type: releases
                 cache: 1d
