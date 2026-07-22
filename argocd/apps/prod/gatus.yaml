@@ -469,6 +469,14 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
+            - name: yt-dlp WebUI
+              group: Applications
+              url: https://ytdl.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
             - name: Healthchecks
               group: Monitoring
               url: https://healthchecks.levangie.dev
