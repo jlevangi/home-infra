@@ -198,8 +198,8 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 2Gi
-  storageClassName: longhorn
+      storage: 5Gi
+  storageClassName: longhorn-tank
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
