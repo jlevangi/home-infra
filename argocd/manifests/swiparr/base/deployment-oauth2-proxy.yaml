@@ -37,6 +37,8 @@ spec:
             - --pass-access-token=true
             - --pass-authorization-header=true
             - --skip-provider-button=true
+            # The client has a direct groups mapper; "groups" is not a Keycloak client scope.
+            - --scope=openid email profile
             - --allowed-group=/jellyfin-users
             - --oidc-groups-claim=groups
           env:
