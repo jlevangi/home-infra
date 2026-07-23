@@ -170,7 +170,7 @@ spec:
 
             - name: llama-cpp
               group: Applications
-              url: http://llama-cpp.llama-cpp.svc.cluster.local:8080/health
+              url: https://llm.levangie.dev/health
               interval: 5m
               conditions:
                 - "[STATUS] == 200"
@@ -519,7 +519,7 @@ spec:
 
             - name: Alertmanager
               group: Monitoring
-              url: https://alerts.levangie.dev
+              url: https://alerts.levangie.dev/actions
               interval: 5m
               conditions:
                 - "[STATUS] == 200"
@@ -541,33 +541,9 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
-            - name: Homepage
-              group: Infrastructure
-              url: https://homepage.levangie.dev
-              interval: 5m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
-
-            - name: Kaylee Watkins (www)
-              group: Applications
-              url: https://www.kayleewatkins.com
-              interval: 5m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
-
             - name: LazyDJ
               group: Media
-              url: https://lazydj.levangie.dev
-              interval: 5m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
-
-            - name: llama-cpp (external)
-              group: Applications
-              url: https://llm.levangie.dev
+              url: https://lazydj.levangie.org
               interval: 5m
               conditions:
                 - "[STATUS] == 200"
@@ -576,14 +552,6 @@ spec:
             - name: Open Notebook
               group: Applications
               url: https://notebook.levangie.dev
-              interval: 5m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
-
-            - name: Web Poker
-              group: Applications
-              url: https://poker.levangie.dev
               interval: 5m
               conditions:
                 - "[STATUS] == 200"
