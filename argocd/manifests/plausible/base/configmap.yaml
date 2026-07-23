@@ -19,6 +19,9 @@ data:
     </clickhouse>
   clickhouse-low-resources.xml: |
     <clickhouse>
+      <logger>
+        <level>warning</level>
+      </logger>
       <max_server_memory_usage>2147483648</max_server_memory_usage>
       <max_concurrent_queries>20</max_concurrent_queries>
     </clickhouse>
