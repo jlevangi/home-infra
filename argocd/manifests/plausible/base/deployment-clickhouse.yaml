@@ -12,8 +12,11 @@ spec:
       app: plausible-clickhouse
   template:
     metadata:
+      annotations:
+        checksum/config: 01a7e5c2d8f3b904e6
       labels:
         app: plausible-clickhouse
+        environment: prod
     spec:
       securityContext:
         fsGroup: 101
