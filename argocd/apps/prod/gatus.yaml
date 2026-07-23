@@ -517,14 +517,6 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
-            - name: Alertmanager
-              group: Monitoring
-              url: https://alerts.levangie.dev/actions
-              interval: 5m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
-
             - name: FileBrowser
               group: Applications
               url: https://cloud.levangie.dev
