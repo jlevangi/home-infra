@@ -5,7 +5,7 @@ metadata:
   namespace: swiparr
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-    traefik.ingress.kubernetes.io/router.middlewares: swiparr-swiparr-oauth2-forwardauth@kubernetescrd,swiparr-swiparr-oauth2-errors@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: swiparr-swiparr-oauth2-errors@kubernetescrd,swiparr-swiparr-oauth2-forwardauth@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
