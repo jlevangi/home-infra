@@ -501,6 +501,110 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
+            - name: Affine
+              group: Applications
+              url: https://affine.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Swiparr
+              group: Media
+              url: https://swipe.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Alertmanager
+              group: Monitoring
+              url: https://alerts.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: FileBrowser
+              group: Applications
+              url: https://cloud.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Pingvin Share
+              group: Applications
+              url: https://files.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Homepage
+              group: Infrastructure
+              url: https://homepage.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Kaylee Watkins
+              group: Applications
+              url: https://kaylee.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Kaylee Watkins (www)
+              group: Applications
+              url: https://www.kayleewatkins.com
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: LazyDJ
+              group: Media
+              url: https://lazydj.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: llama-cpp (external)
+              group: Applications
+              url: https://llm.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Open Notebook
+              group: Applications
+              url: https://notebook.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Web Poker
+              group: Applications
+              url: https://poker.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Termix
+              group: Applications
+              url: https://termix.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
   destination:
     server: https://kubernetes.default.svc
     namespace: gatus
