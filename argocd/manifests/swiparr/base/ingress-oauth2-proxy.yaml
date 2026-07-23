@@ -1,21 +1,20 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: swiparr-ingress
+  name: swiparr-oauth2-proxy-ingress
   namespace: swiparr
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-    traefik.ingress.kubernetes.io/router.middlewares: swiparr-swiparr-oauth2-forwardauth@kubernetescrd,swiparr-swiparr-oauth2-errors@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
     - host: swipe.levangie.dev
       http:
         paths:
-          - path: /
+          - path: /oauth2
             pathType: Prefix
             backend:
               service:
-                name: swiparr
+                name: oauth2-proxy
                 port:
-                  number: 4321
+                  number: 4180

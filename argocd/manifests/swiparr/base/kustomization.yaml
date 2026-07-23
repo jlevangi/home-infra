@@ -7,3 +7,8 @@ resources:
   - deployment.yaml
   - service.yaml
   - ingress.yaml
+  - deployment-oauth2-proxy.yaml
+  - service-oauth2-proxy.yaml
+  - ingress-oauth2-proxy.yaml
+  - middleware-oauth2-forwardauth.yaml
+  - middleware-oauth2-errors.yaml
