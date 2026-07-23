@@ -35,8 +35,10 @@ spec:
               value: "jellyfin"
             - name: PROVIDER_LOCK
               value: "true"
-            - name: JELLYFIN_SERVER_URL
+            - name: JELLYFIN_URL
               value: "http://jellyfin.jellyfin.svc.cluster.local:8096"
+            - name: JELLYFIN_PUBLIC_URL
+              value: "https://jellyfin.levangie.org"
             - name: JELLYFIN_API_KEY
               valueFrom:
                 secretKeyRef:
