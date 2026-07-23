@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: swiparr
+  namespace: swiparr
+  labels:
+    app: swiparr
+    app.kubernetes.io/name: swiparr
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: swiparr
+  template:
+    metadata:
+      labels:
+        app: swiparr
+        app.kubernetes.io/name: swiparr
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: swiparr
+          image: ghcr.io/m3sserstudi0s/swiparr:v1.5.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 4321
+              protocol: TCP
+          env:
+            - name: PROVIDER
+              value: "jellyfin"
+            - name: PROVIDER_LOCK
+              value: "true"
+            - name: JELLYFIN_SERVER_URL
+              value: "http://jellyfin.jellyfin.svc.cluster.local:8096"
+            - name: JELLYFIN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: swiparr-secrets
+                  key: JELLYFIN_API_KEY
+            - name: TMDB_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: swiparr-secrets
+                  key: TMDB_API_KEY
+          envFrom:
+            - secretRef:
+                name: swiparr-secrets
+                optional: true
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: swiparr-data-pvc
