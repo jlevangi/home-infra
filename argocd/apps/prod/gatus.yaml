@@ -549,7 +549,7 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
-            - name: Kaylee Watkins
+            - name: Kaylee (dev)
               group: Applications
               url: https://kaylee.levangie.dev
               interval: 5m
