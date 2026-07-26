@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: headroom
-          image: ghcr.io/chopratejas/headroom:0.32.0
+          image: ghcr.io/chopratejas/headroom:latest
           imagePullPolicy: IfNotPresent
           command:
             - headroom
