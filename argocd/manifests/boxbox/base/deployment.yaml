@@ -43,6 +43,8 @@ spec:
               value: /app/config.yaml
             - name: TMPDIR
               value: /tmp/boxbox
+            - name: BOXBOX_PORT
+              value: "80"
           envFrom:
             - secretRef:
                 name: boxbox-secrets
