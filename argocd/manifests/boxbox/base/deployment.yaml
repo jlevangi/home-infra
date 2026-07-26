@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: boxbox
+  namespace: boxbox
+  labels:
+    app.kubernetes.io/name: boxbox
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: boxbox
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: boxbox
+      annotations:
+        boxbox.levangie.dev/config-revision: "1"
+    spec:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: boxbox
+          image: ghcr.io/jr4dh3y/boxbox:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              add:
+                - DAC_READ_SEARCH
+                - CHOWN
+                - FOWNER
+              drop:
+                - ALL
+          env:
+            - name: CONFIG_PATH
+              value: /app/config.yaml
+            - name: TMPDIR
+              value: /tmp/boxbox
+          envFrom:
+            - secretRef:
+                name: boxbox-secrets
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+              readOnly: true
+            - name: fileserver
+              mountPath: /srv
+            - name: data
+              mountPath: /data
+            - name: temp
+              mountPath: /tmp/boxbox
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "2"
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+      volumes:
+        - name: config
+          configMap:
+            name: boxbox-config
+        - name: fileserver
+          persistentVolumeClaim:
+            claimName: boxbox-fileserver
+        - name: data
+          persistentVolumeClaim:
+            claimName: boxbox-data
+        - name: temp
+          emptyDir:
+            sizeLimit: 20Gi

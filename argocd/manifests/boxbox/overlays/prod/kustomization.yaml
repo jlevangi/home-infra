@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+patches:
+  - target:
+      kind: Ingress
+      name: boxbox
+    patch: |
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: "k3s-prod.levangie.dev"
+  - target:
+      kind: Ingress
+      name: boxbox-oauth2-proxy-ingress
+    patch: |
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: "k3s-prod.levangie.dev"
+labels:
+  - pairs:
+      environment: prod
+    includeSelectors: true

@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: boxbox-config
+  namespace: boxbox
+data:
+  config.yaml: |
+    # BoxBox Configuration
+    port: 80
+    host: "0.0.0.0"
+
+    # JWT secret overridden by BOXBOX_JWT_SECRET env var
+    jwt_secret: "override-by-env"
+
+    rate_limit_rps: 10
+
+    allowed_origins:
+      - "https://box.levangie.dev"
+
+    max_upload_mb: 10240
+    chunk_size_mb: 5
+
+    mount_points:
+      - name: "fileserver"
+        path: "/srv"
+        read_only: false

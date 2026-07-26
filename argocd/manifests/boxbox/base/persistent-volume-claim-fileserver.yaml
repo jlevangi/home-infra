@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: boxbox-fileserver
+  namespace: boxbox
+  labels:
+    app.kubernetes.io/name: boxbox
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Ti
+  storageClassName: boxbox-nfs
+  volumeName: boxbox-fileserver
