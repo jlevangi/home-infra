@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: headroom
-          image: ghcr.io/chopratejas/headroom:latest
+          image: ghcr.io/chopratejas/headroom:0.32.1
           imagePullPolicy: IfNotPresent
           command:
             - headroom
@@ -66,10 +66,10 @@ spec:
           resources:
             requests:
               cpu: 250m
-              memory: 768Mi
+              memory: 1Gi
             limits:
               cpu: "2"
-              memory: 3Gi
+              memory: 4Gi
           readinessProbe:
             httpGet:
               path: /readyz
