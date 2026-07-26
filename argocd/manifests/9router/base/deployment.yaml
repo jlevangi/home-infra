@@ -16,7 +16,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/9router-local-llm-seed: headroom-url-v1
+        checksum/9router-local-llm-seed: discover-local-models-v1
       labels:
         app: 9router
         app.kubernetes.io/name: 9router
