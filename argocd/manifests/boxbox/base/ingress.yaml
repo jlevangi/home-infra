@@ -5,7 +5,6 @@ metadata:
   namespace: boxbox
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-    traefik.ingress.kubernetes.io/router.middlewares: boxbox-boxbox-oauth2-errors@kubernetescrd,boxbox-boxbox-oauth2-forwardauth@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
