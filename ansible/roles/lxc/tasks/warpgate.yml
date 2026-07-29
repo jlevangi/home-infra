@@ -1,0 +1,394 @@
+---
+- name: Create Warpgate group
+  ansible.builtin.group:
+    name: warpgate
+    system: true
+
+- name: Create Warpgate user
+  ansible.builtin.user:
+    name: warpgate
+    group: warpgate
+    home: /var/lib/warpgate
+    shell: /usr/sbin/nologin
+    system: true
+
+- name: Create Warpgate directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: warpgate
+    group: warpgate
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: /etc/warpgate, mode: '0750' }
+    - { path: /var/lib/warpgate, mode: '0750' }
+
+- name: Download pinned Warpgate binary
+  ansible.builtin.get_url:
+    url: "https://github.com/warp-tech/warpgate/releases/download/v{{ container.warpgate_version }}/warpgate-v{{ container.warpgate_version }}-x86_64-linux"
+    dest: /usr/local/bin/warpgate
+    checksum: "sha256:{{ container.warpgate_sha256 }}"
+    owner: root
+    group: root
+    mode: '0755'
+  notify: Restart Warpgate
+
+- name: Install Warpgate systemd service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/warpgate.service
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      [Unit]
+      Description=Warpgate access gateway
+      Wants=network-online.target
+      After=network-online.target
+
+      [Service]
+      Type=notify
+      User=warpgate
+      Group=warpgate
+      ExecStart=/usr/local/bin/warpgate --config /etc/warpgate/warpgate.yaml run
+      Restart=always
+      RestartSec=5
+      NoNewPrivileges=true
+      PrivateTmp=true
+      ProtectHome=true
+      ProtectSystem=strict
+      ReadWritePaths=/etc/warpgate /var/lib/warpgate
+
+      [Install]
+      WantedBy=multi-user.target
+  notify: Restart Warpgate
+
+- name: Initialize Warpgate configuration
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/warpgate
+      - --config
+      - /etc/warpgate/warpgate.yaml
+      - unattended-setup
+      - --data-path
+      - /var/lib/warpgate
+      - --http-port
+      - "{{ container.warpgate_http_port }}"
+      - --ssh-port
+      - "{{ container.warpgate_ssh_port }}"
+      - --kubernetes-port
+      - "{{ container.warpgate_kubernetes_port }}"
+      - --record-sessions
+      - --external-host
+      - "{{ container.warpgate_external_host }}"
+  environment:
+    WARPGATE_ADMIN_PASSWORD: "{{ vault_warpgate_admin_password }}"
+  args:
+    creates: /etc/warpgate/warpgate.yaml
+  become_user: warpgate
+  no_log: true
+  notify: Restart Warpgate
+
+- name: Restrict Warpgate configuration permissions
+  ansible.builtin.file:
+    path: /etc/warpgate/warpgate.yaml
+    owner: warpgate
+    group: warpgate
+    mode: '0600'
+
+- name: Configure Keycloak OIDC
+  ansible.builtin.shell: |
+    set -euo pipefail
+    python3 - <<'PY'
+    from pathlib import Path
+    import os
+    import yaml
+
+    path = Path('/etc/warpgate/warpgate.yaml')
+    config = yaml.safe_load(path.read_text())
+    config['http']['trust_x_forwarded_headers'] = True
+    config['http']['external_port'] = 443
+    config['sso_providers'] = [{
+        'name': 'keycloak',
+        'label': 'Keycloak',
+        'auto_create_users': True,
+        'default_credential_policy': {'ssh': ['web']},
+        'provider': {
+            'type': 'custom',
+            'client_id': 'warpgate',
+            'client_secret': os.environ['WARPGATE_OIDC_CLIENT_SECRET'],
+            'issuer_url': 'https://auth.levangie.org/realms/master',
+            'scopes': ['email', 'profile'],
+            'groups_claim': 'groups',
+            'role_mappings': {
+                'warpgate-users': 'warpgate-users',
+                'warpgate-admins': 'warpgate-admins',
+            },
+            'admin_role_mappings': {
+                'warpgate-admins': 'warpgate:admin',
+            },
+        },
+    }]
+    rendered = yaml.safe_dump(config, sort_keys=False)
+    if path.read_text() != rendered:
+        path.write_text(rendered)
+        print('changed')
+    PY
+  args:
+    executable: /bin/bash
+  environment:
+    WARPGATE_OIDC_CLIENT_SECRET: "{{ vault_warpgate_oidc_client_secret }}"
+  become_user: warpgate
+  register: warpgate_oidc_config
+  changed_when: "'changed' in warpgate_oidc_config.stdout"
+  no_log: true
+  notify: Restart Warpgate
+
+- name: Read Warpgate client public keys
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/warpgate
+      - --config
+      - /etc/warpgate/warpgate.yaml
+      - client-keys
+  become_user: warpgate
+  register: warpgate_client_keys
+  changed_when: false
+
+- name: Select preferred Warpgate client public key
+  ansible.builtin.set_fact:
+    warpgate_client_public_key: >-
+      {{ warpgate_client_keys.stdout_lines
+         | select('match', '^ssh-')
+         | first }}
+
+- name: Create dedicated known-hosts file for Warpgate targets
+  ansible.builtin.file:
+    path: "{{ lookup('env', 'HERMES_REAL_HOME') | default(lookup('env', 'HOME'), true) }}/.ssh/known_hosts_warpgate_targets"
+    state: touch
+    mode: '0600'
+    modification_time: preserve
+    access_time: preserve
+  delegate_to: localhost
+  become: false
+
+- name: Trust Warpgate client key on SSH targets
+  ansible.builtin.shell: |
+    set -euo pipefail
+    printf '%s\n' "$WARPGATE_CLIENT_KEY" |
+      ssh -i "$SSH_PRIVATE_KEY" \
+        -o BatchMode=yes \
+        -o StrictHostKeyChecking=accept-new \
+        -o UserKnownHostsFile="$SSH_KNOWN_HOSTS_FILE" \
+        "{{ item.username }}@{{ item.host }}" \
+        'set -e; umask 077; mkdir -p ~/.ssh; touch ~/.ssh/authorized_keys; read -r key; blob=$(printf "%s\n" "$key" | cut -d " " -f 2); managed="$key warpgate-access-gateway"; tmp=$(mktemp); awk -v blob="$blob" '\''$2 != blob && $NF != "warpgate-access-gateway"'\'' ~/.ssh/authorized_keys > "$tmp"; printf "%s\n" "$managed" >> "$tmp"; if ! cmp -s "$tmp" ~/.ssh/authorized_keys; then mv "$tmp" ~/.ssh/authorized_keys; echo changed; else rm "$tmp"; fi'
+  args:
+    executable: /bin/bash
+  environment:
+    WARPGATE_CLIENT_KEY: "{{ warpgate_client_public_key }}"
+    SSH_PRIVATE_KEY: "{{ lookup('env', 'HERMES_REAL_HOME') | default(lookup('env', 'HOME'), true) }}/.ssh/pierce"
+    SSH_KNOWN_HOSTS_FILE: "{{ lookup('env', 'HERMES_REAL_HOME') | default(lookup('env', 'HOME'), true) }}/.ssh/known_hosts_warpgate_targets"
+  delegate_to: localhost
+  become: false
+  register: warpgate_authorized_key
+  changed_when: "'changed' in warpgate_authorized_key.stdout"
+  loop: "{{ container.warpgate_ssh_targets }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Read current k3s production admin kubeconfig
+  ansible.builtin.command:
+    argv:
+      - ssh
+      - -o
+      - BatchMode=yes
+      - -o
+      - StrictHostKeyChecking=accept-new
+      - -i
+      - "{{ lookup('env', 'HERMES_REAL_HOME') | default(lookup('env', 'HOME'), true) }}/.ssh/pierce"
+      - "{{ container.warpgate_kubernetes_source_user }}@{{ container.warpgate_kubernetes_source_host }}"
+      - sudo cat /etc/rancher/k3s/k3s.yaml
+  delegate_to: localhost
+  become: false
+  register: warpgate_k3s_kubeconfig_raw
+  changed_when: false
+  no_log: true
+
+- name: Parse current k3s production admin credentials
+  ansible.builtin.set_fact:
+    warpgate_k3s_client_certificate: >-
+      {{ ((warpgate_k3s_kubeconfig_raw.stdout | from_yaml).users[0].user['client-certificate-data']) | b64decode }}
+    warpgate_k3s_client_key: >-
+      {{ ((warpgate_k3s_kubeconfig_raw.stdout | from_yaml).users[0].user['client-key-data']) | b64decode }}
+  no_log: true
+
+- name: Create local libexec directory
+  ansible.builtin.file:
+    path: /usr/local/libexec
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Install Warpgate target reconciliation script
+  ansible.builtin.copy:
+    dest: /usr/local/libexec/warpgate-reconcile.py
+    owner: root
+    group: warpgate
+    mode: '0750'
+    content: |
+      #!/usr/bin/python3
+      import json
+      import os
+      import sqlite3
+      import uuid
+
+      conn = sqlite3.connect('/var/lib/warpgate/db/db.sqlite3')
+      cursor = conn.cursor()
+      changed = False
+
+      role = cursor.execute(
+          'SELECT id FROM roles WHERE name = ?', ('warpgate-users',)
+      ).fetchone()
+      if role:
+          role_id = role[0]
+          desired_role = ('Default access role for verified Keycloak users', True)
+          current_role = cursor.execute(
+              'SELECT description, is_default FROM roles WHERE id = ?', (role_id,)
+          ).fetchone()
+          if current_role != desired_role:
+              cursor.execute(
+                  'UPDATE roles SET description = ?, is_default = ? WHERE id = ?',
+                  (*desired_role, role_id),
+              )
+              changed = True
+      else:
+          role_id = uuid.uuid5(uuid.NAMESPACE_DNS, 'warpgate-users').bytes
+          cursor.execute(
+              'INSERT INTO roles (id, name, description, is_default) VALUES (?, ?, ?, ?)',
+              (role_id, 'warpgate-users', 'Default access role for verified Keycloak users', True),
+          )
+          changed = True
+
+      targets = []
+      for target in json.loads(os.environ['WARPGATE_SSH_TARGETS']):
+          targets.append({
+              'name': target['name'],
+              'kind': 'ssh',
+              'description': target['description'],
+              'options': {'ssh': {
+                  'host': target['host'],
+                  'port': 22,
+                  'username': target['username'],
+                  'auth': {'kind': 'publickey'},
+                  'allow_insecure_algos': None,
+                  'jump_host': None,
+              }},
+          })
+
+      targets.append({
+          'name': 'k3s-prod',
+          'kind': 'kubernetes',
+          'description': 'K3s production cluster',
+          'options': {'kubernetes': {
+              'cluster_url': os.environ['WARPGATE_KUBERNETES_CLUSTER_URL'],
+              'tls': {'mode': 'preferred', 'verify': False},
+              'auth': {
+                  'kind': 'certificate',
+                  'certificate': os.environ['WARPGATE_KUBERNETES_CERTIFICATE'],
+                  'private_key': os.environ['WARPGATE_KUBERNETES_PRIVATE_KEY'],
+              },
+          }},
+      })
+
+      for target in targets:
+          options = json.dumps(target['options'], separators=(',', ':'), sort_keys=True)
+          existing = cursor.execute(
+              'SELECT id, kind, options, description FROM targets WHERE name = ?',
+              (target['name'],),
+          ).fetchone()
+          if existing:
+              target_id = existing[0]
+              existing_options = json.dumps(
+                  json.loads(existing[2]), separators=(',', ':'), sort_keys=True
+              )
+              if (existing[1], existing_options, existing[3]) != (
+                  target['kind'], options, target['description']
+              ):
+                  cursor.execute(
+                      'UPDATE targets SET kind = ?, options = ?, description = ? WHERE id = ?',
+                      (target['kind'], options, target['description'], target_id),
+                  )
+                  changed = True
+          else:
+              target_id = uuid.uuid5(uuid.NAMESPACE_DNS, f"warpgate:{target['name']}").bytes
+              cursor.execute(
+                  '''INSERT INTO targets
+                     (id, name, kind, options, description, ticket_requests_disabled,
+                      ticket_require_approval)
+                     VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                  (target_id, target['name'], target['kind'], options,
+                   target['description'], False, False),
+              )
+              changed = True
+
+          assignment = cursor.execute(
+              'SELECT id FROM target_roles WHERE target_id = ? AND role_id = ?',
+              (target_id, role_id),
+          ).fetchone()
+          if not assignment:
+              cursor.execute(
+                  'INSERT INTO target_roles (target_id, role_id) VALUES (?, ?)',
+                  (target_id, role_id),
+              )
+              changed = True
+
+      web_policy = json.dumps({'ssh': ['web']}, separators=(',', ':'))
+      keycloak_users = cursor.execute(
+          '''SELECT DISTINCT users.id, users.credential_policy
+             FROM users
+             JOIN credentials_sso ON credentials_sso.user_id = users.id
+             WHERE credentials_sso.provider = ?''',
+          ('keycloak',),
+      ).fetchall()
+      for user_id, policy in keycloak_users:
+          if policy != web_policy:
+              cursor.execute(
+                  'UPDATE users SET credential_policy = ? WHERE id = ?',
+                  (web_policy, user_id),
+              )
+              changed = True
+
+      conn.commit()
+      print('changed' if changed else 'ok')
+
+- name: Reconcile Warpgate roles, targets, and user policy
+  ansible.builtin.command:
+    argv:
+      - /usr/local/libexec/warpgate-reconcile.py
+  environment:
+    WARPGATE_SSH_TARGETS: "{{ container.warpgate_ssh_targets | to_json }}"
+    WARPGATE_KUBERNETES_CLUSTER_URL: "{{ container.warpgate_kubernetes_cluster_url }}"
+    WARPGATE_KUBERNETES_CERTIFICATE: "{{ warpgate_k3s_client_certificate }}"
+    WARPGATE_KUBERNETES_PRIVATE_KEY: "{{ warpgate_k3s_client_key }}"
+  become_user: warpgate
+  register: warpgate_reconcile
+  changed_when: "warpgate_reconcile.stdout == 'changed'"
+  no_log: true
+  notify: Restart Warpgate
+
+- name: Validate Warpgate configuration
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/warpgate
+      - --config
+      - /etc/warpgate/warpgate.yaml
+      - check
+  become_user: warpgate
+  changed_when: false
+
+- name: Enable and start Warpgate
+  ansible.builtin.systemd_service:
+    name: warpgate
+    daemon_reload: true
+    enabled: true
+    state: started

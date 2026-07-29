@@ -13,3 +13,7 @@
 - name: Deploy applications if enabled
   ansible.builtin.include_tasks: apps.yml
   when: container.applications.deploy_apps | default(false)
+
+- name: Install Warpgate if enabled
+  ansible.builtin.include_tasks: warpgate.yml
+  when: container.applications.warpgate_installed | default(false)

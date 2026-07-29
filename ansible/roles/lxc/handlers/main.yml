@@ -1,4 +1,9 @@
 ---
+- name: Restart Warpgate
+  ansible.builtin.systemd_service:
+    name: warpgate
+    daemon_reload: true
+    state: restarted
 # LXC Role Handlers
 
 - name: Restart container

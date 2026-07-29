@@ -1,0 +1,49 @@
+---
+container_name: warpgate
+container_id: 201
+description: "Identity-aware infrastructure access gateway"
+
+node: atlas
+template: ubuntu-24.04
+
+resources:
+  cores: 2
+  memory: 2048
+  swap: 512
+  disk_size: 24
+  storage: local-lvm
+
+network:
+  bridge: vmbr0
+  ip: 172.20.23.200/22
+  gateway: 172.20.20.1
+
+features:
+  unprivileged: true
+  nesting: false
+
+applications:
+  docker_installed: false
+  warpgate_installed: true
+
+warpgate_version: 0.26.1
+warpgate_sha256: a09e96f48ef0462ee7d7c2a770595211d63c3825b39a019ab3ba5e2b5f84bd54
+warpgate_external_host: access.levangie.dev
+warpgate_http_port: 8888
+warpgate_ssh_port: 2222
+warpgate_kubernetes_port: 8443
+warpgate_kubernetes_cluster_url: https://172.20.20.104:6443
+warpgate_kubernetes_source_host: 172.20.20.104
+warpgate_kubernetes_source_user: ansible
+
+warpgate_ssh_targets:
+  - { name: pierce-mint-vm, host: 172.20.23.94, username: pierce, description: "Mint VM pilot SSH target" }
+  - { name: atlas, host: 172.20.20.6, username: root, description: "Proxmox primary host" }
+  - { name: dell-ssf, host: 172.20.20.14, username: root, description: "Dell SFF Proxmox host" }
+  - { name: k3s-prod-cp-1, host: 172.20.20.104, username: ansible, description: "K3s prod control plane 1" }
+  - { name: k3s-prod-cp-2, host: 172.20.20.105, username: ansible, description: "K3s prod control plane 2" }
+  - { name: k3s-prod-cp-3, host: 172.20.20.106, username: ansible, description: "K3s prod control plane 3" }
+  - { name: k3s-prod-worker-1, host: 172.20.20.101, username: ansible, description: "K3s prod worker 1" }
+  - { name: k3s-prod-worker-2, host: 172.20.20.102, username: ansible, description: "K3s prod worker 2" }
+  - { name: k3s-prod-worker-3, host: 172.20.20.103, username: ansible, description: "K3s prod worker 3" }
+  - { name: k3s-prod-worker-gpu-1, host: 172.20.20.107, username: ansible, description: "K3s prod GPU worker 1" }

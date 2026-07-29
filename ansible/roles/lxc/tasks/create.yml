@@ -11,6 +11,8 @@
     container_disk_size: "{{ container.resources.disk_size | default(lxc_default_disk_size) }}"
     container_storage: "{{ container.resources.storage | default(lxc_default_storage) }}"
     container_bridge: "{{ container.network.bridge | default(lxc_default_bridge) }}"
+    container_ip: "{{ container.network.ip | default('dhcp') }}"
+    container_gateway: "{{ container.network.gateway | default(lxc_gateway) }}"
     container_unprivileged: "{{ container.features.unprivileged | default(lxc_default_unprivileged) }}"
     container_nesting: "{{ container.features.nesting | default(lxc_default_nesting) }}"
     container_keyctl: "{{ container.features.keyctl | default(false) }}"
@@ -49,13 +51,14 @@
     cores: "{{ container_cores }}"
     memory: "{{ container_memory }}"
     swap: "{{ container_swap }}"
-    netif: '{"net0":"name=eth0,bridge={{ container_bridge }},ip=dhcp"}'
+    netif: >-
+      {"net0":"name=eth0,bridge={{ container_bridge }},ip={{ container_ip }}{% if container_ip != 'dhcp' %},gw={{ container_gateway }}{% endif %}"}
     unprivileged: "{{ container_unprivileged }}"
     features:
       - "nesting={{ '1' if container_nesting else '0' }}"
     nameserver: "{{ lxc_nameservers | join(' ') }}"
     searchdomain: "local"
-    start_at_node_boot: true
+    onboot: true
     state: present
   register: container_created
   when: not container_exists
@@ -146,12 +149,33 @@
   delegate_to: localhost
   when: ssh_setup.rc == 0
 
-- name: Add host key to known_hosts
-  ansible.builtin.shell: |
-    ssh-keyscan -H {{ container_ip_address }} >> ~/.ssh/known_hosts 2>/dev/null
+- name: Ensure operator SSH directory exists
+  ansible.builtin.file:
+    path: "{{ lookup('env', 'HERMES_REAL_HOME') | default(lookup('env', 'HOME'), true) }}/.ssh"
+    state: directory
+    mode: '0700'
   delegate_to: localhost
   when: ssh_setup.rc == 0
-  changed_when: true
+
+- name: Read container SSH host key
+  ansible.builtin.command:
+    argv:
+      - ssh-keyscan
+      - -H
+      - "{{ container_ip_address }}"
+  delegate_to: localhost
+  register: container_host_key
+  changed_when: false
+  when: ssh_setup.rc == 0
+
+- name: Add container SSH host key to known_hosts
+  ansible.builtin.known_hosts:
+    path: "{{ lookup('env', 'HERMES_REAL_HOME') | default(lookup('env', 'HOME'), true) }}/.ssh/known_hosts"
+    name: "{{ container_ip_address }}"
+    key: "{{ container_host_key.stdout }}"
+    state: present
+  delegate_to: localhost
+  when: ssh_setup.rc == 0
 
 - name: Add container to in-memory inventory
   ansible.builtin.add_host:
@@ -159,6 +183,7 @@
     ansible_host: "{{ container_ip_address }}"
     ansible_user: root
     ansible_python_interpreter: /usr/bin/python3
+    ansible_ssh_private_key_file: "{{ lookup('env', 'HERMES_REAL_HOME') | default(lookup('env', 'HOME'), true) }}/.ssh/pierce"
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
     groups:
       - lxc_containers

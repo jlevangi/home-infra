@@ -12,6 +12,7 @@
   vars_files:
     - ../group_vars/proxmox.yml
     - ../group_vars/lxc.yml
+    - ../group_vars/lxc_vault.yml
 
   tasks:
     - name: Load shared Proxmox vault vars
@@ -58,6 +59,7 @@
   vars_files:
     - ../group_vars/proxmox.yml
     - ../group_vars/lxc.yml
+    - ../group_vars/lxc_vault.yml
 
   tasks:
     - name: Load shared Proxmox vault vars
@@ -86,6 +88,7 @@
   vars_files:
     - ../group_vars/proxmox.yml
     - ../group_vars/lxc.yml
+    - ../group_vars/lxc_vault.yml
 
   tasks:
     - name: Load shared Proxmox vault vars
@@ -114,6 +117,7 @@
   vars_files:
     - ../group_vars/proxmox.yml
     - ../group_vars/lxc.yml
+    - ../group_vars/lxc_vault.yml
 
   pre_tasks:
     - name: Load shared Proxmox vault vars
