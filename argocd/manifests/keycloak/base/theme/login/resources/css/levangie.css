@@ -179,7 +179,13 @@ input:disabled {
 #authenticateWebAuthnPasswordlessButton:active,
 #kc-passkey-login-form .pf-v5-c-button:active { background: #8e321f; }
 #authenticateWebAuthnButton,
-#authenticateWebAuthnPasswordlessButton { margin-top: .7rem !important; }
+#authenticateWebAuthnPasswordlessButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: .7rem !important;
+  text-align: center;
+}
 
 .pf-v5-c-login__main-footer-band { margin-top: 1.2rem; }
 #kc-social-providers { margin-top: .7rem; }
