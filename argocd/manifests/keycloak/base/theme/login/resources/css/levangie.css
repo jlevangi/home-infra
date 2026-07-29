@@ -31,9 +31,11 @@ a:hover { color: var(--lv-accent-hover); }
   grid-template-areas: "header main";
   grid-template-columns: minmax(15rem, .72fr) minmax(20rem, 1.28fr);
   grid-template-rows: 1fr;
+  gap: 0;
   width: min(100%, 64rem);
   min-height: min(44rem, calc(100vh - 6rem));
   margin: auto;
+  padding: 0;
   overflow: hidden;
   border: 1px solid #c9c4ba;
   border-radius: .625rem;
@@ -45,7 +47,8 @@ a:hover { color: var(--lv-accent-hover); }
   grid-area: header;
   align-self: stretch;
   min-width: 0;
-  padding: clamp(2rem, 5vw, 3.5rem);
+  margin: 0;
+  padding: 2.25rem 1.8rem;
   background: var(--lv-ink);
 }
 
@@ -53,8 +56,9 @@ a:hover { color: var(--lv-accent-hover); }
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: .75rem;
-  min-height: 100%;
+  gap: .8rem;
+  min-height: 0;
+  margin: 0;
   color: transparent;
   font-size: 0;
 }
@@ -62,19 +66,17 @@ a:hover { color: var(--lv-accent-hover); }
 #kc-header-wrapper::before {
   content: "";
   display: block;
-  width: 5rem;
-  height: 4rem;
+  width: 4rem;
+  height: 3.1rem;
   background: url("../img/levangie-dev.png") left center / contain no-repeat;
 }
 
 #kc-header-wrapper::after {
-  content: "LeVangie\A\A LEVANGIE.DEV";
-  margin-top: .25rem;
+  content: "LeVangie.dev";
   color: #fff;
-  white-space: pre;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 1.8rem;
-  line-height: 1.05;
+  font-size: 1.55rem;
+  line-height: 1.1;
   letter-spacing: -.025em;
 }
 
@@ -84,14 +86,20 @@ a:hover { color: var(--lv-accent-hover); }
   width: 100%;
   max-width: none;
   min-width: 0;
-  padding: clamp(2rem, 7vw, 5rem);
+  margin: 0;
+  padding: 3rem clamp(2rem, 5vw, 4rem);
   border: 0;
   border-radius: 0;
   background: var(--lv-surface);
   box-shadow: none;
 }
 
-.pf-v5-c-login__main-header { padding-block-end: 1.5rem; }
+.pf-v5-c-login__main-header {
+  padding: 0 0 1.5rem;
+}
+.pf-v5-c-login__main-body,
+.pf-v5-c-login__main-footer { padding: 0; }
+.pf-v5-c-login__main-footer-band { padding-inline: 0; }
 .pf-v5-c-title,
 #kc-page-title {
   color: var(--lv-ink);
@@ -170,8 +178,11 @@ input:disabled {
 #authenticateWebAuthnButton:active,
 #authenticateWebAuthnPasswordlessButton:active,
 #kc-passkey-login-form .pf-v5-c-button:active { background: #8e321f; }
+#authenticateWebAuthnButton,
+#authenticateWebAuthnPasswordlessButton { margin-top: .7rem !important; }
 
-#kc-social-providers { margin-top: 1.5rem; }
+.pf-v5-c-login__main-footer-band { margin-top: 1.2rem; }
+#kc-social-providers { margin-top: .7rem; }
 #kc-social-providers li { min-width: 0; }
 #kc-social-providers a {
   min-height: 3rem;
@@ -218,14 +229,13 @@ input[type="radio"] { min-width: 1.5rem; min-height: 1.5rem; }
   }
   .pf-v5-c-login__header { padding: 1rem 1.25rem; }
   #kc-header-wrapper {
-    display: grid;
-    grid-template-columns: 3.25rem minmax(0, 1fr);
+    flex-direction: row;
     align-items: center;
-    min-height: 4rem;
+    min-height: 3rem;
   }
-  #kc-header-wrapper::before { width: 3.25rem; height: 3rem; }
-  #kc-header-wrapper::after { margin: 0; font-size: 1.3rem; }
-  .pf-v5-c-login__main { padding: clamp(1.5rem, 7vw, 3rem); }
+  #kc-header-wrapper::before { width: 3rem; height: 2.35rem; }
+  #kc-header-wrapper::after { font-size: 1.3rem; }
+  .pf-v5-c-login__main { padding: 2rem clamp(1.4rem, 7vw, 3rem) 2.5rem; }
 }
 
 @media (max-width: 22rem) {
