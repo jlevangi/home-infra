@@ -96,6 +96,7 @@ a:hover { color: var(--lv-accent-hover); }
 
 .pf-v5-c-login__main-header {
   padding: 0 0 1.5rem;
+  border-block-start: 0;
 }
 .pf-v5-c-login__main-body,
 .pf-v5-c-login__main-footer { padding: 0; }
