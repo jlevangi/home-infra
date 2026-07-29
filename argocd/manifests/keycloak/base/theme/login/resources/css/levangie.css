@@ -187,6 +187,8 @@ input:disabled {
   margin-top: .7rem !important;
   text-align: center;
 }
+#authenticateWebAuthnButton::after,
+#authenticateWebAuthnPasswordlessButton::after { border: 0; }
 
 .pf-v5-c-login__main-footer-band { margin-top: 1.2rem; }
 #kc-social-providers { margin-top: .7rem; }
