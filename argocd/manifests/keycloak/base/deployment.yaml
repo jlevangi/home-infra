@@ -62,3 +62,20 @@ spec:
             limits:
               cpu: "1500m"
               memory: "1536Mi"
+          volumeMounts:
+            - name: levangie-theme
+              mountPath: /opt/keycloak/themes/levangie
+              readOnly: true
+      volumes:
+        - name: levangie-theme
+          configMap:
+            name: keycloak-theme-levangie
+            items:
+              - key: theme.properties
+                path: login/theme.properties
+              - key: levangie.css
+                path: login/resources/css/levangie.css
+              - key: levangie-dev.png
+                path: login/resources/img/levangie-dev.png
+              - key: messages_en.properties
+                path: login/messages/messages_en.properties

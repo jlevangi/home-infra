@@ -12,3 +12,12 @@ resources:
   - ingress.yaml
   - resource-quota.yaml
   - limit-range.yaml
+
+configMapGenerator:
+  - name: keycloak-theme-levangie
+    namespace: keycloak
+    files:
+      - theme.properties=theme/login/theme.properties
+      - levangie.css=theme/login/resources/css/levangie.css
+      - levangie-dev.png=theme/login/resources/img/levangie-dev.png
+      - messages_en.properties=theme/login/messages/messages_en.properties

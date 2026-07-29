@@ -120,6 +120,25 @@ The app needs to read the `groups` claim and map names to its own roles. The exa
 | Role naming | `<app>-admin` / `<app>-user` (or admin/editor/viewer) | App-prefixed so realm-wide assignment makes sense |
 | Token claim for roles | `groups` (multivalued string) | Matches Bookstack/Grafana/MeshCentral defaults; nothing else competes for the name |
 
+## Login theme
+
+The CSS-first `levangie` login theme lives under
+`argocd/manifests/keycloak/base/theme/login/`. Kustomize packages those files in
+a hashed ConfigMap and the Keycloak Deployment mounts it read-only at
+`/opt/keycloak/themes/levangie`; `scripts/validate-keycloak-theme.py` enforces
+the theme contract. The vendored logo is an optimized copy of
+`jlevangi/levangie.dev:static/levangie-dev.png`. The original source SHA-256 is
+`d2c969f98d974403887db1ad3938ce26b067b2a84ced2b960c9c9f09bbd1823b`;
+the optimized vendored PNG SHA-256 is
+`2566115dc5eafef6f811d3e823fba58f2939d24d3220d88f1a9c7d0cbb5c2907`.
+
+Keep the theme inheriting `keycloak.v2` and CSS-only: do not add FreeMarker
+`.ftl` overrides unless a future requirement justifies the upgrade burden.
+After the mounted files have been deployed and verified, activate it in Realm
+Settings → Themes by selecting `levangie` as the Login theme. Roll back without
+a deployment by selecting `keycloak.v2` (or the blank/default login theme).
+Theme selection remains realm-owned and is not performed by these manifests.
+
 ## Gotchas we hit
 
 - **Custom-scheme redirect URIs crash Keycloak 22.** A mobile redirect like `app.immich:/` (or `app.immich:///oauth-callback`) blows up Keycloak's URI builder with `empty host name`, and the whole login fails — even for unrelated web flows on the same client. Don't register them on 22.x; revisit when we upgrade to 23+.
