@@ -13,7 +13,76 @@ data:
       positive-color: 61 66 44
       negative-color: 6 96 59
     pages:
-    - $include: server.yml
+    - name: Server
+      columns:
+      - size: full
+        widgets:
+        - type: monitor
+          title: 🖥 Infrastructure & Monitoring
+          cache: 2m
+          sites:
+          - title: ArgoCD
+            url: https://argocd.levangie.dev
+            icon: si:argo
+          - title: Grafana
+            url: https://grafana.levangie.dev
+            icon: si:grafana
+          - title: Longhorn
+            url: https://longhorn.levangie.dev
+            icon: di:longhorn
+          - title: Vault
+            url: https://vault.levangie.dev
+            icon: si:vault
+          - title: Semaphore
+            url: https://semaphore.levangie.dev
+            icon: si:ansible
+          - title: Healthchecks
+            url: https://healthchecks.levangie.dev
+            icon: sh:healthchecks
+          - title: Gatus
+            url: https://status.levangie.dev
+            icon: sh:gatus
+          - title: Ntfy
+            url: https://ntfy.levangie.dev
+            icon: sh:ntfy
+          - title: MeshCentral
+            url: https://mesh.levangie.dev
+            icon: di:meshcentral
+          - title: Netboot.xyz
+            url: https://netboot.levangie.dev
+            icon: sh:netboot-xyz
+          - title: 9Router
+            url: https://9router.levangie.dev
+            icon: mdi:router-wireless
+          - title: GeoPulse
+            url: https://geopulse.levangie.dev
+          - title: Plausible
+            url: https://plausible.levangie.dev
+            icon: si:plausible
+        - type: dns-stats
+          title: DNS Stats
+          service: technitium
+          url: ${TECHNITIUM_URL}
+          token: ${TECHNITIUM_API_KEY}
+          cache: 5m
+        - type: releases
+          cache: 1d
+          repositories:
+          - glanceapp/glance
+          - k3s-io/k3s
+          - argoproj/argo-cd
+          - longhorn/longhorn
+          - grafana/grafana
+          - immich-app/immich
+          - hashicorp/vault
+          - jellyfin/jellyfin
+          - decolua/9router
+      - size: small
+        widgets:
+        - type: repository
+          repository: jlevangi/home-infra
+          pull-requests-limit: 5
+          issues-limit: 5
     - name: Home
       head-widgets:
       - type: split-column
@@ -263,74 +332,3 @@ data:
           sort-by: hot
           limit: 15
           collapse-after: 8
-  server.yml: |
-    name: Server
-    columns:
-      - size: full
-        widgets:
-          - type: monitor
-            title: 🖥 Infrastructure & Monitoring
-            cache: 2m
-            sites:
-              - title: ArgoCD
-                url: https://argocd.levangie.dev
-                icon: si:argo
-              - title: Grafana
-                url: https://grafana.levangie.dev
-                icon: si:grafana
-              - title: Longhorn
-                url: https://longhorn.levangie.dev
-                icon: di:longhorn
-              - title: Vault
-                url: https://vault.levangie.dev
-                icon: si:vault
-              - title: Semaphore
-                url: https://semaphore.levangie.dev
-                icon: si:ansible
-              - title: Healthchecks
-                url: https://healthchecks.levangie.dev
-                icon: sh:healthchecks
-              - title: Gatus
-                url: https://status.levangie.dev
-                icon: sh:gatus
-              - title: Ntfy
-                url: https://ntfy.levangie.dev
-                icon: sh:ntfy
-              - title: MeshCentral
-                url: https://mesh.levangie.dev
-                icon: di:meshcentral
-              - title: Netboot.xyz
-                url: https://netboot.levangie.dev
-                icon: sh:netboot-xyz
-              - title: 9Router
-                url: https://9router.levangie.dev
-                icon: mdi:router-wireless
-              - title: GeoPulse
-                url: https://geopulse.levangie.dev
-              - title: Plausible
-                url: https://plausible.levangie.dev
-                icon: si:plausible
-          - type: dns-stats
-            title: DNS Stats
-            service: technitium
-            url: ${TECHNITIUM_URL}
-            token: ${TECHNITIUM_API_KEY}
-            cache: 5m
-          - type: releases
-            cache: 1d
-            repositories:
-              - glanceapp/glance
-              - k3s-io/k3s
-              - argoproj/argo-cd
-              - longhorn/longhorn
-              - grafana/grafana
-              - immich-app/immich
-              - hashicorp/vault
-              - jellyfin/jellyfin
-              - decolua/9router
-      - size: small
-        widgets:
-          - type: repository
-            repository: jlevangi/home-infra
-            pull-requests-limit: 5
-            issues-limit: 5
