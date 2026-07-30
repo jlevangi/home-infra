@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: actual-budget-config
+  namespace: actual-budget
+data:
+  TZ: "America/New_York"
+  ACTUAL_USER_CREATION_MODE: "login"
