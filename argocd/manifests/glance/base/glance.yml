@@ -1,0 +1,258 @@
+server:
+  port: 8080
+theme:
+  background-color: 240 8 9
+  primary-color: 43 50 70
+  positive-color: 61 66 44
+  negative-color: 6 96 59
+pages:
+- $include: server.yml
+- name: Home
+  head-widgets:
+  - type: split-column
+    widgets:
+    - type: search
+      search-engine: google
+      autofocus: true
+    - type: custom-api
+      title: Cluster Overview
+      title-url: https://grafana.levangie.dev
+      cache: 1m
+      url: http://prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/query
+      parameters:
+        query: count(kube_node_info)
+      subrequests:
+        running-pods:
+          url: http://prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/query
+          parameters:
+            query: sum(kube_pod_status_phase{phase="Running"})
+        unavailable-deployments:
+          url: http://prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/query
+          parameters:
+            query: sum(kube_deployment_status_replicas_unavailable)
+        firing-alerts:
+          url: http://prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/query
+          parameters:
+            query: count(ALERTS{alertstate="firing"})
+        total-deployments:
+          url: http://prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/query
+          parameters:
+            query: count(count(kube_deployment_status_replicas) by (namespace))
+        cpu-requests:
+          url: http://prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/query
+          parameters:
+            query: sum(kube_pod_container_resource_requests{resource="cpu"})
+        memory-requests-gb:
+          url: http://prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/query
+          parameters:
+            query: sum(kube_pod_container_resource_requests{resource="memory"}) / (1024*1024*1024)
+        pv-count:
+          url: http://prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/query
+          parameters:
+            query: count(kube_persistentvolume_status_phase{phase="Bound"})
+        cpu-committed:
+          url: http://prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/query
+          parameters:
+            query: sum(kube_pod_container_resource_requests{resource="cpu"}) / sum(kube_node_status_capacity{resource="cpu"})
+              * 100
+        mem-committed:
+          url: http://prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/query
+          parameters:
+            query: sum(kube_pod_container_resource_requests{resource="memory"}) / sum(kube_node_status_capacity{resource="memory"})
+              * 100
+      template: "{{ $nodes := .JSON.String \"data.result.0.value.1\" }}\n{{ $pods := (.Subrequest \"running-pods\").JSON.String\
+        \ \"data.result.0.value.1\" }}\n{{ $unavailable := (.Subrequest \"unavailable-deployments\").JSON.String \"data.result.0.value.1\"\
+        \ }}\n{{ $alerts := (.Subrequest \"firing-alerts\").JSON.String \"data.result.0.value.1\" }}\n{{ $deployments := (.Subrequest\
+        \ \"total-deployments\").JSON.String \"data.result.0.value.1\" }}\n{{ $cpu := (.Subrequest \"cpu-requests\").JSON.String\
+        \ \"data.result.0.value.1\" }}\n{{ $memory := (.Subrequest \"memory-requests-gb\").JSON.Float \"data.result.0.value.1\"\
+        \ | printf \"%.1f\" }}\n{{ $pv := (.Subrequest \"pv-count\").JSON.String \"data.result.0.value.1\" }}\n{{ $cpuPct\
+        \ := (.Subrequest \"cpu-committed\").JSON.Float \"data.result.0.value.1\" | printf \"%.0f\" }}\n{{ $memPct := (.Subrequest\
+        \ \"mem-committed\").JSON.Float \"data.result.0.value.1\" | printf \"%.0f\" }}\n<div>\n  <div class=\"flex justify-between\
+        \ text-center\">\n    <div><div class=\"color-highlight size-h3\">{{ $nodes }}</div><div class=\"size-h6\">NODES</div></div>\n\
+        \    <div><div class=\"color-highlight size-h3\">{{ $pods }}</div><div class=\"size-h6\">PODS</div></div>\n    <div><div\
+        \ class=\"color-highlight size-h3\">{{ $deployments }}</div><div class=\"size-h6\">APPS</div></div>\n    <div><div\
+        \ class=\"color-highlight size-h3\">{{ $pv }}</div><div class=\"size-h6\">VOLUMES</div></div>\n    <div><div class=\"\
+        color-highlight size-h3\">{{ $cpu }}</div><div class=\"size-h6\">CPU</div></div>\n    <div><div class=\"color-highlight\
+        \ size-h3\">{{ $memory }}</div><div class=\"size-h6\">RAM GB</div></div>\n  </div>\n  <div class=\"flex justify-between\
+        \ margin-top-15\">\n    <div style=\"flex:1;margin-right:10px;\">\n      <div class=\"flex justify-between\"><span\
+        \ class=\"size-h6\">CPU COMMITTED</span><span class=\"color-highlight size-h6\">{{ $cpuPct }}%</span></div>\n    \
+        \  <div class=\"margin-top-5\" style=\"background:hsl(240 8 20);height:6px;border-radius:3px;\" title=\"CPU Committed:\
+        \ {{ $cpuPct }}% of cluster\">\n        <div style=\"background:hsl(43 50 70);height:6px;width:{{ $cpuPct }}%;border-radius:3px;\"\
+        \ title=\"CPU Committed: {{ $cpuPct }}%\"></div>\n      </div>\n    </div>\n    <div style=\"flex:1;margin-left:10px;\"\
+        >\n      <div class=\"flex justify-between\"><span class=\"size-h6\">MEM COMMITTED</span><span class=\"color-highlight\
+        \ size-h6\">{{ $memPct }}%</span></div>\n      <div class=\"margin-top-5\" style=\"background:hsl(240 8 20);height:6px;border-radius:3px;\"\
+        \ title=\"Memory Committed: {{ $memPct }}% of cluster\">\n        <div style=\"background:hsl(120 50 50);height:6px;width:{{\
+        \ $memPct }}%;border-radius:3px;\" title=\"Memory Committed: {{ $memPct }}%\"></div>\n      </div>\n    </div>\n \
+        \ </div>\n  <div class=\"flex justify-between text-center margin-top-15\">\n    <div><div class=\"color-highlight\
+        \ size-h3\">{{ $unavailable }}</div><div class=\"size-h6\">DOWN</div></div>\n    <div><div class=\"color-highlight\
+        \ size-h3\">{{ $alerts }}</div><div class=\"size-h6\">ALERTS</div></div>\n  </div>\n</div>\n"
+  columns:
+  - size: small
+    widgets:
+    - type: clock
+      hour-format: 12h
+      timezones:
+      - timezone: America/New_York
+        label: Home
+    - type: calendar
+      first-day-of-week: sunday
+    - type: weather
+      location: Orlando, Florida, United States
+      units: imperial
+      hour-format: 12h
+  - size: full
+    widgets:
+    - type: monitor
+      title: 💾 Productivity & Data
+      cache: 2m
+      sites:
+      - title: BookStack
+        url: https://bookstack.levangie.dev
+        icon: sh:bookstack
+      - title: Paperless
+        url: https://paperless.levangie.dev
+        icon: sh:paperless-ngx
+      - title: Memos
+        url: https://memos.levangie.org
+        icon: di:memos
+      - title: Linkding
+        url: https://linkding.levangie.dev
+        icon: sh:linkding
+      - title: Wallos
+        url: https://wallos.levangie.dev
+        icon: sh:wallos
+      - title: Vaultwarden
+        url: https://vw.levangie.dev
+        icon: sh:vaultwarden
+      - title: Immich
+        url: https://photos.levangie.org
+        icon: sh:immich
+      - title: Affine
+        url: https://affine.levangie.dev
+        icon: si:affine
+    - type: monitor
+      title: 🎬 Media
+      cache: 2m
+      sites:
+      - title: Jellyfin
+        url: https://jellyfin.levangie.org
+        icon: sh:jellyfin
+      - title: Jellyseerr
+        url: https://jellyseerr.levangie.dev
+        icon: sh:jellyseerr
+      - title: Sonarr
+        url: https://sonarr.levangie.dev
+        icon: sh:sonarr
+      - title: Radarr
+        url: https://radarr.levangie.dev
+        icon: sh:radarr
+      - title: Prowlarr
+        url: https://prowlarr.levangie.dev
+        icon: sh:prowlarr
+      - title: Bazarr
+        url: https://bazarr.levangie.dev
+        icon: sh:bazarr
+      - title: qBittorrent
+        url: https://qbittorrent.levangie.dev
+        icon: sh:qbittorrent
+      - title: NZBGet
+        url: https://nzbget.levangie.dev
+        icon: sh:nzbget
+      - title: Tautulli
+        url: https://tautulli.levangie.dev
+        icon: sh:tautulli
+      - title: Swiparr
+        url: https://swipe.levangie.dev
+    - type: monitor
+      title: 🤖 AI & Automation
+      cache: 2m
+      sites:
+      - title: LibreChat
+        url: https://librechat.levangie.dev
+        icon: sh:librechat
+      - title: n8n
+        url: https://n8n.levangie.dev
+        icon: sh:n8n
+      - title: Changedetection
+        url: https://changedetection.levangie.dev
+        icon: sh:changedetection
+      - title: 9Router
+        url: https://9router.levangie.dev
+        icon: mdi:router-wireless
+    - type: monitor
+      title: 🔧 Utilities & Remote Access
+      cache: 2m
+      sites:
+      - title: IT Tools
+        url: https://ittools.levangie.dev
+        icon: sh:it-tools
+      - title: PairDrop
+        url: https://pairdrop.levangie.dev
+        icon: sh:pairdrop
+      - title: Termix
+        url: https://termix.levangie.dev
+        icon: mdi:console
+      - title: SparkyFitness
+        url: https://fitness.levangie.dev
+        icon: mdi:weight-lifter
+      - title: Firefox
+        url: https://firefox.levangie.dev
+        icon: si:firefoxbrowser
+      - title: SearXNG
+        url: https://search.levangie.dev
+        icon: sh:searxng
+  - size: small
+    widgets:
+    - type: change-detection
+      title: Watched Sites
+      instance-url: http://changedetection.changedetection.svc.cluster.local:5000
+      token: ${CHANGEDETECTION_TOKEN}
+      limit: 10
+      collapse-after: 5
+    - type: markets
+      markets:
+      - symbol: GME
+        name: GameStop
+      - symbol: BTC-USD
+        name: Bitcoin
+      - symbol: NVDA
+        name: NVIDIA
+      - symbol: SPY
+        name: S&P 500
+    - type: bookmarks
+      groups:
+      - title: Dashboards
+        color: 200 50 50
+        links:
+        - title: Cloudflare
+          url: https://dash.cloudflare.com
+          icon: si:cloudflare
+        - title: ArgoCD
+          url: https://argocd.levangie.dev
+          icon: si:argo
+        - title: Grafana
+          url: https://grafana.levangie.dev
+          icon: si:grafana
+        - title: Vault
+          url: https://vault.levangie.dev
+          icon: si:vault
+- name: Social
+  columns:
+  - size: full
+    widgets:
+    - type: reddit
+      title: r/selfhosted
+      subreddit: selfhosted
+      show-thumbnails: true
+      show-flairs: true
+      sort-by: hot
+      limit: 15
+      collapse-after: 8
+    - type: reddit
+      title: r/LocalLLaMA
+      subreddit: LocalLLaMA
+      show-thumbnails: true
+      show-flairs: true
+      sort-by: hot
+      limit: 15
+      collapse-after: 8
