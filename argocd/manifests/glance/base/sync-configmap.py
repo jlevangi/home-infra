@@ -21,13 +21,13 @@ def main():
     glance = yaml.safe_load((BASE / 'glance.yml').read_text())
     server_page = yaml.safe_load((BASE / 'server.yml').read_text())
 
-    # Build full config: Server page first, then Home and Social from glance.yml
+    # Build full config: Home, Server, Social
     full_config = {
         'server': glance['server'],
         'theme': glance['theme'],
         'pages': [
-            server_page,          # Server page
             glance['pages'][0],   # Home page
+            server_page,          # Server page
             glance['pages'][1],   # Social page
         ],
     }
@@ -38,8 +38,8 @@ def main():
     # Validate round-trip
     verified = yaml.safe_load(inner_yaml)
     assert len(verified['pages']) == 3, f"Expected 3 pages, got {len(verified['pages'])}"
-    assert verified['pages'][0]['name'] == 'Server'
-    assert verified['pages'][1]['name'] == 'Home'
+    assert verified['pages'][0]['name'] == 'Home'
+    assert verified['pages'][1]['name'] == 'Server'
     assert verified['pages'][2]['name'] == 'Social'
 
     # Build ConfigMap with block scalars for readability
