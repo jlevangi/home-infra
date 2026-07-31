@@ -4,7 +4,7 @@ resources:
   - ../../base
 images:
   - name: vaultwarden/server
-    newTag: "1.36.0"
+    newTag: "1.37.1"
 patches:
   - target:
       kind: PersistentVolumeClaim

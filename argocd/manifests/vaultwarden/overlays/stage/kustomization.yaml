@@ -4,7 +4,7 @@ resources:
   - ../../base
 images:
   - name: vaultwarden/server
-    newTag: "1.35.7"
+    newTag: "1.37.1"
 patches:
   # Patch ConfigMap DOMAIN for stage environment
   - target:
