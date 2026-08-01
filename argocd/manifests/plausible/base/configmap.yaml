@@ -31,32 +31,17 @@ data:
         <database>system</database>
         <table>text_log</table>
         <partition_by>toYYYYMM(event_date)</partition_by>
-        <ttl>event_date + INTERVAL 1 DAY DELETE</ttl>
+        <ttl>event_date + INTERVAL 7 DAY DELETE</ttl>
         <flush_interval_milliseconds>7500</flush_interval_milliseconds>
       </text_log>
       <metric_log>
         <database>system</database>
         <table>metric_log</table>
-        <engine>Engine = MergeTree PARTITION BY toYYYYMM(event_date) ORDER BY (event_date, event_time) TTL event_date + INTERVAL 1 DAY DELETE</engine>
+        <engine>Engine = MergeTree PARTITION BY toYYYYMM(event_date) ORDER BY (event_date, event_time) TTL event_date + INTERVAL 7 DAY DELETE</engine>
       </metric_log>
       <asynchronous_metric_log>
         <database>system</database>
         <table>asynchronous_metric_log</table>
-        <engine>Engine = MergeTree PARTITION BY toYYYYMM(event_date) ORDER BY (event_date, event_time) TTL event_date + INTERVAL 1 DAY DELETE</engine>
+        <engine>Engine = MergeTree PARTITION BY toYYYYMM(event_date) ORDER BY (event_date, event_time) TTL event_date + INTERVAL 7 DAY DELETE</engine>
       </asynchronous_metric_log>
-      <query_log>
-        <database>system</database>
-        <table>query_log</table>
-        <engine>Engine = MergeTree PARTITION BY toYYYYMM(event_date) ORDER BY (event_date, event_time) TTL event_date + INTERVAL 1 DAY DELETE</engine>
-      </query_log>
-      <processors_profile_log>
-        <database>system</database>
-        <table>processors_profile_log</table>
-        <engine>Engine = MergeTree PARTITION BY toYYYYMM(event_date) ORDER BY (event_date, event_time) TTL event_date + INTERVAL 1 DAY DELETE</engine>
-      </processors_profile_log>
-      <trace_log>
-        <database>system</database>
-        <table>trace_log</table>
-        <engine>Engine = MergeTree PARTITION BY toYYYYMM(event_date) ORDER BY (event_date, event_time) TTL event_date + INTERVAL 1 DAY DELETE</engine>
-      </trace_log>
     </clickhouse>
