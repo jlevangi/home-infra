@@ -13,7 +13,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 01a7e5c2d8f3b904e6
+        checksum/config: disable-noisy-logs-20260801
       labels:
         app: plausible-clickhouse
         environment: prod
@@ -84,8 +84,8 @@ spec:
               subPath: clickhouse-low-resources.xml
               readOnly: true
             - name: clickhouse-config
-              mountPath: /etc/clickhouse-server/config.d/log-retention.xml
-              subPath: clickhouse-log-retention.xml
+              mountPath: /etc/clickhouse-server/config.d/z-clickhouse-disable-noisy-logs.xml
+              subPath: z-clickhouse-disable-noisy-logs.xml
               readOnly: true
       volumes:
         - name: event-data
@@ -96,3 +96,10 @@ spec:
         - name: clickhouse-config
           configMap:
             name: plausible-config
+            items:
+              - key: clickhouse-ipv4-only.xml
+                path: clickhouse-ipv4-only.xml
+              - key: clickhouse-low-resources.xml
+                path: clickhouse-low-resources.xml
+              - key: z-clickhouse-disable-noisy-logs.xml
+                path: z-clickhouse-disable-noisy-logs.xml
