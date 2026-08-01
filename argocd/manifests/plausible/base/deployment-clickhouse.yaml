@@ -13,7 +13,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 01a7e5c2d8f3b904e6
+        checksum/config: b2c621db
       labels:
         app: plausible-clickhouse
         environment: prod
