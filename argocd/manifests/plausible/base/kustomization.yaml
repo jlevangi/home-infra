@@ -10,6 +10,7 @@ resources:
   - service-postgres.yaml
   - deployment-clickhouse.yaml
   - service-clickhouse.yaml
+  - cronjob-clickhouse-log-retention.yaml
   - deployment-plausible.yaml
   - service-plausible.yaml
   - ingress.yaml
