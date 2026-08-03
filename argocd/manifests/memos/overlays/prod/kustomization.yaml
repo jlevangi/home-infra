@@ -4,7 +4,7 @@ resources:
   - ../../base
 images:
   - name: neosmemo/memos
-    newTag: "0.29.1"
+    newTag: "0.30.0"
 patches:
   - target:
       kind: PersistentVolumeClaim
