@@ -14,7 +14,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: dns-create
-          image: curlimages/curl:8.5.0
+          image: curlimages/curl:8.21.0
           env:
             - name: TECHNITIUM_SERVER
               valueFrom:
