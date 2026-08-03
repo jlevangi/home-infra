@@ -12,7 +12,13 @@ patches:
     patch: |
       - op: add
         path: /spec/volumeName
-        value: memos-data-v3
+        value: memos-data-v3-pvc-migrated
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-one-replica-tank
+      - op: add
+        path: /metadata/labels/recurring-job-group.longhorn.io~1hourly
+        value: "enabled"
   - target:
       kind: Ingress
       name: memos-ingress

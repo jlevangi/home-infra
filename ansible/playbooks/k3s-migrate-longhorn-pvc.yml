@@ -442,7 +442,7 @@
     - name: Verify state source matches this migration's PVC identity
       ansible.builtin.assert:
         that:
-          - migration_state_source.pvcName is defined
+          - migration_state_source.pvcName == restore_pvc_name
           - migration_state_source.pvcNamespace == restore_namespace
           - migration_state_source.longhornVolumeName | length > 0
         fail_msg: State file source identity does not match this migration's PVC namespace.
@@ -464,14 +464,15 @@
     - name: Generate migration target resources from state contract
       ansible.builtin.shell:
         cmd: >-
-          printf '%s' {{ {'state': migration_state} | to_json | quote }} |
           python3 {{ migration_contract_helper | quote }} migration-resources
           --target-pv {{ migration_target_pv | quote }}
           --target-volume {{ migration_target_volume | quote }}
           --target-storage-class {{ migration_target_storage_class | quote }}
           --target-disk-selector {{ migration_target_disk_selector | quote }}
           --target-replicas {{ migration_target_replicas | int }}
-      args: {executable: /bin/bash}
+      args:
+        executable: /bin/bash
+        stdin: "{{ {'state': migration_state} | to_json }}"
       register: migration_resources_raw
       changed_when: false
     - name: Parse migration target resources
@@ -479,6 +480,10 @@
         migration_target_resources: "{{ migration_resources_raw.stdout | from_json }}"
 
     - block: &cutover_destructive
+        - name: Preserve source PV under Retain before deleting PVC
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", patch, pv, "{{ migration_state_source.pvName }}", --type=merge, -p, '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}']
+
         - name: Fetch source PV to verify Retain
           ansible.builtin.command:
             argv: ["{{ migration_kubectl }}", get, pv, "{{ migration_state_source.pvName }}", -o, 'jsonpath={.spec.persistentVolumeReclaimPolicy}']
@@ -566,9 +571,6 @@
         - name: Verify target binding through contract helper
           ansible.builtin.shell:
             cmd: >-
-              printf '%s' {{ {'pvc': migration_target_pvc_raw.stdout | from_json,
-              'pv': migration_target_pv_raw.stdout | from_json,
-              'volume': migration_target_volume_raw.stdout | from_json} | to_json | quote }} |
               python3 {{ migration_contract_helper | quote }} verify-target-binding
               --namespace {{ restore_namespace | quote }}
               --pvc {{ restore_pvc_name | quote }}
@@ -577,7 +579,12 @@
               --replicas {{ migration_target_replicas | int }}
               --disk-selector {{ migration_target_disk_selector | quote }}
               --backup-volume {{ migration_state_backup_volume.metadata.name | quote }}
-          args: {executable: /bin/bash}
+          args:
+            executable: /bin/bash
+            stdin: >-
+              {{ {'pvc': migration_target_pvc_raw.stdout | from_json,
+              'pv': migration_target_pv_raw.stdout | from_json,
+              'volume': migration_target_volume_raw.stdout | from_json} | to_json }}
           changed_when: false
 
         - name: Forced-failure test gate after restore
