@@ -21,7 +21,7 @@ spec:
         fsGroup: 845
       containers:
         - name: factorio
-          image: factoriotools/factorio:2.0.76
+          image: factoriotools/factorio:2.1.12
           ports:
             - containerPort: 34197
               hostPort: 34197
