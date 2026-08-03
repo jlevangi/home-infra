@@ -346,6 +346,8 @@ def migration_resources(data, args):
     labels = volume_meta.setdefault("labels", {})
     require(isinstance(labels, dict), "replay Volume labels must be an object")
     labels["backup-volume"] = backup_volume_name
+    if target_storage_class == "longhorn-one-replica-tank":
+        labels["recurring-job-group.longhorn.io/hourly"] = "enabled"
     volume_spec["numberOfReplicas"] = args.target_replicas
     volume_spec["diskSelector"] = [target_selector]
     volume_spec["fromBackup"] = backup_url

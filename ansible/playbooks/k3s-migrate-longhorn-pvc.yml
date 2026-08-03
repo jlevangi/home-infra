@@ -496,7 +496,7 @@
 
         - name: Delete source PVC
           ansible.builtin.command:
-            argv: ["{{ migration_kubectl }}", -n, "{{ restore_namespace }}", delete, pvc, "{{ restore_pvc_name }}", "--wait=true"]
+            argv: ["{{ migration_kubectl }}", -n, "{{ restore_namespace }}", delete, pvc, "{{ restore_pvc_name }}", "--ignore-not-found=true", "--wait=true"]
 
         - name: Verify source PVC is gone
           ansible.builtin.command:
@@ -531,6 +531,47 @@
           retries: 60
           delay: 5
           changed_when: false
+
+        - name: Reassert exact BackupVolume and recurring-job labels after Longhorn reconciliation
+          ansible.builtin.command:
+            argv:
+              - "{{ migration_kubectl }}"
+              - -n
+              - "{{ longhorn_namespace }}"
+              - label
+              - volumes.longhorn.io
+              - "{{ migration_target_volume }}"
+              - "backup-volume={{ migration_state_backup_volume.metadata.name }}"
+              - "recurring-job-group.longhorn.io/hourly=enabled"
+              - --overwrite
+
+        - name: Fetch Engine list for exact target volume resolution
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", -n, "{{ longhorn_namespace }}", get, engines.longhorn.io, -o, json]
+          register: migration_engines_raw
+          changed_when: false
+        - name: Resolve exactly one target Engine
+          ansible.builtin.shell:
+            cmd: >-
+              python3 {{ migration_contract_helper | quote }} engine
+              --volume {{ migration_target_volume | quote }}
+          args:
+            executable: /bin/bash
+            stdin: "{{ migration_engines_raw.stdout | from_json | combine({'kind': 'EngineList'}) | to_json }}"
+          register: migration_target_engine_raw
+          changed_when: false
+        - name: Set exact BackupVolume on target Engine
+          ansible.builtin.command:
+            argv:
+              - "{{ migration_kubectl }}"
+              - -n
+              - "{{ longhorn_namespace }}"
+              - patch
+              - engines.longhorn.io
+              - "{{ (migration_target_engine_raw.stdout | from_json).metadata.name }}"
+              - --type=merge
+              - -p
+              - "{{ {'spec': {'backupVolume': migration_state_backup_volume.metadata.name}} | to_json }}"
 
         - name: Create target PV with Retain
           ansible.builtin.command:
@@ -646,14 +687,58 @@
             that: not migration_test_force_failure_after_integrity | bool
             fail_msg: Forced failure after integrity for fail-closed test.
 
+        - name: Set exact post-cutover snapshot and backup names
+          ansible.builtin.set_fact:
+            migration_post_snapshot_name: "migration-{{ lookup('pipe', 'date -u +%Y%m%d%H%M%S') }}"
+            migration_post_backup_name: "backup-migration-{{ lookup('pipe', 'date -u +%Y%m%d%H%M%S') }}"
+
+        - name: Create post-cutover snapshot
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", apply, -f, -]
+            stdin: >-
+              {{ {'apiVersion': 'longhorn.io/v1beta2', 'kind': 'Snapshot',
+              'metadata': {'name': migration_post_snapshot_name, 'namespace': longhorn_namespace,
+              'labels': {'longhornvolume': migration_target_volume}},
+              'spec': {'volume': migration_target_volume, 'createSnapshot': true}} | to_json }}
+        - name: Wait for post-cutover snapshot readiness
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", -n, "{{ longhorn_namespace }}", get, snapshots.longhorn.io, "{{ migration_post_snapshot_name }}", -o, json]
+          register: migration_post_snapshot_raw
+          until: (migration_post_snapshot_raw.stdout | from_json).status.readyToUse | default(false) | bool
+          retries: 60
+          delay: 5
+          changed_when: false
+
+        - name: Create exact post-cutover backup
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", apply, -f, -]
+            stdin: >-
+              {{ {'apiVersion': 'longhorn.io/v1beta2', 'kind': 'Backup',
+              'metadata': {'name': migration_post_backup_name, 'namespace': longhorn_namespace,
+              'labels': {'backup-target': 'default', 'backup-volume': migration_target_volume}},
+              'spec': {'snapshotName': migration_post_snapshot_name, 'backupMode': 'incremental',
+              'labels': {'backup-type': 'migration', 'cluster': target_env}}} | to_json }}
+
+        - name: Wait for exact post-cutover backup to complete
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", -n, "{{ longhorn_namespace }}", get, backups.longhorn.io, "{{ migration_post_backup_name }}", -o, json]
+          register: migration_post_backup_raw
+          until: >-
+            (migration_post_backup_raw.stdout | from_json).status.state | default('') == 'Completed'
+            and (migration_post_backup_raw.stdout | from_json).status.volumeName | default('') == migration_target_volume
+            and (migration_post_backup_raw.stdout | from_json).status.url | default('') | length > 0
+          retries: "{{ (migration_post_cutover_backup_timeout | int) // 5 }}"
+          delay: 5
+          changed_when: false
+
         - name: Wait for post-cutover backup to be created
           ansible.builtin.command:
             argv: ["{{ migration_kubectl }}", -n, "{{ longhorn_namespace }}", get, backups.longhorn.io, -o, json]
           register: migration_post_backups_raw
           until: >-
             (migration_post_backups_raw.stdout | from_json).items
-            | selectattr('spec.volumeName', 'defined')
-            | selectattr('spec.volumeName', 'equalto', migration_target_volume)
+            | selectattr('status.volumeName', 'defined')
+            | selectattr('status.volumeName', 'equalto', migration_target_volume)
             | map(attribute='status.state')
             | select('equalto', 'Completed')
             | list | length > 0
@@ -664,7 +749,7 @@
           ansible.builtin.assert:
             that: >-
               (migration_post_backups_raw.stdout | from_json).items
-              | selectattr('spec.volumeName', 'equalto', migration_target_volume)
+              | selectattr('status.volumeName', 'equalto', migration_target_volume)
               | selectattr('status.state', 'equalto', 'Completed')
               | list | length >= 1
             fail_msg: No completed post-cutover backup found for target volume.
