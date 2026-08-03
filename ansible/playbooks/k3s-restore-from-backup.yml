@@ -96,6 +96,17 @@
         fail_msg: "Invalid restore_action or environment specified"
       run_once: true
 
+    - name: Block unsafe restore workflow pending fail-closed hardening
+      ansible.builtin.assert:
+        that:
+          - restore_action == 'list'
+        fail_msg: >-
+          Restore mode is disabled because the current workflow can restart workloads,
+          re-enable ArgoCD, or remove storage finalizers after a failed restore.
+          Use restore_action=list for read-only discovery. Production restore remains blocked
+          until the fail-closed migration workflow and synthetic failure tests are complete.
+      run_once: true
+
     - name: Display operation info
       debug:
         msg: |

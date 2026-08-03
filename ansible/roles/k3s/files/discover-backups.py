@@ -257,24 +257,24 @@ def discover_from_longhorn_cr(args: argparse.Namespace) -> list[dict[str, Any]]:
             continue
 
         backup_url = status.get("url")
-        if not backup_url:
-            # Skip backups that don't have a URL yet (CR was created but
-            # backup never finished or is stuck mid-Deleting). Don't fail
-            # the whole discovery on one bad backup.
+        url_volume_name = parse_volume_name_from_url(backup_url) if backup_url else ""
+        status_volume_name = status.get("volumeName") or ""
+        volume_size = parse_size_bytes(status.get("volumeSize"))
+        # A Backup CR is restore-eligible only when Longhorn has completed it
+        # and all source identity/size/time evidence is unambiguous.
+        if (status.get("state") != "Completed" or not backup_url
+                or not url_volume_name or url_volume_name != status_volume_name
+                or volume_size <= 0):
             continue
 
-        volume_name = parse_volume_name_from_url(backup_url) or status.get("volumeName") or ""
+        volume_name = status_volume_name
         record = {
             "volume_name": volume_name,
             "namespace": namespace,
             "pvc_name": pvc_name,
-            # Longhorn `status.size` is the *incremental* backup delta, not the
-            # volume size. For restore we always need the original volume size
-            # so the destination Volume + PV/PVC are sized correctly; use
-            # `status.volumeSize` first and fall back to `status.size` only if
-            # volumeSize is missing.
-            "size_bytes": parse_size_bytes(status.get("volumeSize"))
-                          or parse_size_bytes(status.get("size")),
+            # status.size is only the incremental delta; volumeSize is the
+            # required source-volume capacity contract.
+            "size_bytes": volume_size,
             "cluster": cluster,
             "backup_id": backup_id,
             "backup_url": backup_url,
