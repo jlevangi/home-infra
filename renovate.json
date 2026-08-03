@@ -21,6 +21,70 @@
       "automerge": false
     },
     {
+      "description": "Application ownership labels for lifecycle-coupled manifests",
+      "matchFileNames": ["argocd/manifests/immich/**"],
+      "addLabels": ["app:immich"]
+    },
+    {
+      "description": "Application ownership labels for lifecycle-coupled manifests",
+      "matchFileNames": ["argocd/manifests/affine/**"],
+      "addLabels": ["app:affine"]
+    },
+    {
+      "description": "Application ownership labels for lifecycle-coupled manifests",
+      "matchFileNames": ["argocd/manifests/hoarder/**"],
+      "addLabels": ["app:hoarder"]
+    },
+    {
+      "description": "Application ownership labels for lifecycle-coupled manifests",
+      "matchFileNames": ["argocd/manifests/paperless/**"],
+      "addLabels": ["app:paperless"]
+    },
+    {
+      "description": "Application ownership labels for lifecycle-coupled manifests",
+      "matchFileNames": ["argocd/manifests/n8n/**"],
+      "addLabels": ["app:n8n"]
+    },
+    {
+      "description": "Application ownership labels for lifecycle-coupled manifests",
+      "matchFileNames": ["argocd/manifests/plausible/**"],
+      "addLabels": ["app:plausible"]
+    },
+    {
+      "description": "Application ownership labels for lifecycle-coupled manifests",
+      "matchFileNames": ["argocd/manifests/open-notebook/**"],
+      "addLabels": ["app:open-notebook"]
+    },
+    {
+      "description": "Stateful engines require application compatibility review",
+      "matchFileNames": ["argocd/manifests/**"],
+      "matchPackageNames": [
+        "postgres",
+        "postgis/postgis",
+        "mysql",
+        "mariadb",
+        "redis",
+        "docker.io/valkey/valkey",
+        "clickhouse/clickhouse-server",
+        "getmeili/meilisearch",
+        "surrealdb/surrealdb",
+        "ghcr.io/immich-app/postgres"
+      ],
+      "dependencyDashboardApproval": true,
+      "addLabels": ["component:stateful", "compatibility-review"]
+    },
+    {
+      "description": "Authentication proxies require application login verification",
+      "matchPackageNames": ["quay.io/oauth2-proxy/oauth2-proxy"],
+      "dependencyDashboardApproval": true,
+      "addLabels": ["component:auth"]
+    },
+    {
+      "description": "Shared helper images need affected-application review",
+      "matchPackageNames": ["busybox", "curlimages/curl", "python"],
+      "addLabels": ["component:helper"]
+    },
+    {
       "description": "Postgres major upgrades need manual data migration planning",
       "matchFileNames": ["argocd/manifests/**"],
       "matchPackageNames": ["postgres"],
@@ -42,7 +106,17 @@
     {
       "description": "Stateful database majors require an explicit migration plan",
       "matchFileNames": ["argocd/manifests/**"],
-      "matchPackageNames": ["mariadb", "mysql", "redis"],
+      "matchPackageNames": [
+        "postgres",
+        "postgis/postgis",
+        "mariadb",
+        "mysql",
+        "redis",
+        "docker.io/valkey/valkey",
+        "clickhouse/clickhouse-server",
+        "getmeili/meilisearch",
+        "surrealdb/surrealdb"
+      ],
       "matchUpdateTypes": ["major"],
       "enabled": false
     },
