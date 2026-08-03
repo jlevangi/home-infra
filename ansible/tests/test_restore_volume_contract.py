@@ -173,6 +173,19 @@ class ContractTests(unittest.TestCase):
                      "--target-storage-class", "longhorn-one-replica-tank", "--target-disk-selector", "tank",
                      "--target-replicas", "1", data={"state": state})
 
+    def test_migration_resources_handles_pv_without_metadata(self):
+        contract = self.ok("capture-contract", data=self.fixture())
+        # Strip metadata from the replay PV to simulate a malformed contract
+        contract["replaySafeContracts"]["pv"].pop("metadata", None)
+        state = {"storageContract": contract,
+                 "selectedBackup": {"metadata": {"name": "backup-1"}, "status": {"state": "Completed", "volumeName": "lh-1", "url": "nfs://nas/x?backup=backup-1&volume=lh-1"}},
+                 "backupVolume": {"metadata": {"name": "bv-1"}}}
+        argv = ("migration-resources", "--target-pv", "pv-target", "--target-volume", "lh-target",
+                "--target-storage-class", "longhorn-one-replica-tank", "--target-disk-selector", "tank",
+                "--target-replicas", "1")
+        out = self.ok(*argv, data={"state": state})
+        self.assertEqual(out["pv"]["metadata"]["name"], "pv-target")
+
     def test_verify_target_binding_requires_exact_retain_contract(self):
         data = self.fixture()
         data["pvc"]["spec"]["volumeName"] = "pv-target"

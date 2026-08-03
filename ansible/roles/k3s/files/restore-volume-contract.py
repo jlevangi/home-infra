@@ -337,7 +337,7 @@ def migration_resources(data, args):
             "replay PV source volume mismatch")
     pvc_spec["volumeName"] = target_pv
     pvc_spec["storageClassName"] = target_storage_class
-    pv["metadata"]["name"] = target_pv
+    pv.setdefault("metadata", {})["name"] = target_pv
     pv_spec.pop("claimRef", None)
     pv_spec["persistentVolumeReclaimPolicy"] = "Retain"
     pv_spec["storageClassName"] = target_storage_class
