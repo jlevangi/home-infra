@@ -37,7 +37,7 @@ spec:
               mountPath: /var/log/clickhouse-server
       containers:
         - name: clickhouse
-          image: clickhouse/clickhouse-server:24.12-alpine
+          image: clickhouse/clickhouse-server:26.7-alpine
           imagePullPolicy: IfNotPresent
           env:
             - name: CLICKHOUSE_SKIP_USER_SETUP
