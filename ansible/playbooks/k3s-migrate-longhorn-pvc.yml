@@ -443,7 +443,7 @@
       ansible.builtin.assert:
         that:
           - migration_state_source.pvcName == restore_pvc_name
-          - migration_state_source.pvcNamespace == restore_namespace
+          - migration_state_source.namespace == restore_namespace
           - migration_state_source.longhornVolumeName | length > 0
         fail_msg: State file source identity does not match this migration's PVC namespace.
 
