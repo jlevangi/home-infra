@@ -63,7 +63,7 @@ spec:
             periodSeconds: 30
             timeoutSeconds: 10
         - name: guacd
-          image: guacamole/guacd:1.5.5
+          image: guacamole/guacd:1.6.0
           imagePullPolicy: IfNotPresent
           ports:
             - name: guacd
