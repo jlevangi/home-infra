@@ -17,7 +17,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: sync
-              image: hashicorp/vault:1.21.2
+              image: hashicorp/vault:1.21.4
               imagePullPolicy: IfNotPresent
               env:
                 - name: PROD_VAULT_ADDR
