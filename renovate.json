@@ -14,12 +14,11 @@
   },
   "packageRules": [
     {
-      "description": "Prod container image non-major updates - weekly PRs, manual merge",
-      "matchFileNames": ["argocd/manifests/*/overlays/prod/**"],
+      "description": "Application container image non-major updates - weekly individual PRs",
+      "matchFileNames": ["argocd/manifests/**"],
       "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest"],
       "schedule": ["after 6am on Monday"],
-      "automerge": false,
-      "groupName": "prod-container-images"
+      "automerge": false
     },
     {
       "description": "Postgres major upgrades need manual data migration planning",
@@ -51,13 +50,12 @@
       "enabled": false
     },
     {
-      "description": "Prod Helm chart non-major updates - weekly PRs, manual merge",
+      "description": "Prod Helm chart non-major updates - weekly individual PRs",
       "matchFileNames": ["argocd/apps/prod/**"],
       "matchManagers": ["argocd"],
       "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest"],
       "schedule": ["after 6am on Monday"],
-      "automerge": false,
-      "groupName": "prod-helm-charts"
+      "automerge": false
     },
     {
       "description": "kube-prometheus-stack major updates - isolate CRD/operator changes",
