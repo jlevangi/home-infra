@@ -28,6 +28,11 @@
       "enabled": false
     },
     {
+      "description": "Immich PostgreSQL major upgrades require a planned data migration",
+      "matchPackageNames": ["ghcr.io/immich-app/postgres"],
+      "allowedVersions": "/^14-/"
+    },
+    {
       "description": "ClickHouse major upgrades need Plausible-specific validation and rollback planning",
       "matchFileNames": ["argocd/manifests/*/overlays/prod/**"],
       "matchPackageNames": ["clickhouse/clickhouse-server"],
