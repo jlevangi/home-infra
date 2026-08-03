@@ -1,0 +1,23 @@
+# Explicit opt-in backup-restorable state. Existing PVCs are unaffected.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn-one-replica-tank
+  annotations:
+    description: "Explicit opt-in one-replica Longhorn storage on tank. Requires approved RPO/RTO and a one-PVC migration."
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  numberOfReplicas: "1"
+  staleReplicaTimeout: "30"
+  fromBackup: ""
+  fsType: ext4
+  dataLocality: best-effort
+  unmapMarkSnapChainRemoved: ignored
+  disableRevisionCounter: "true"
+  dataEngine: v1
+  backupTargetName: default
+  diskSelector: tank
+  recurringJobSelector: '[{"name":"hourly","isGroup":true},{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'

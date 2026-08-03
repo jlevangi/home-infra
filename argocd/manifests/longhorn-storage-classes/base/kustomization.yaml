@@ -10,3 +10,5 @@ resources:
   - longhorn-redundant.yaml
   - longhorn-singleton.yaml
   - longhorn-vault-raft.yaml
+  - longhorn-one-replica-flash.yaml
+  - longhorn-one-replica-tank.yaml

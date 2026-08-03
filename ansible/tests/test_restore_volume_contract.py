@@ -145,6 +145,51 @@ class ContractTests(unittest.TestCase):
         for url in ("s3://x?backup=bad&volume=v1", "s3://x?backup=b1&volume=bad", "s3://x?backup=b1&backup=b1&volume=v1"):
             self.bad(*argv, data={"url": url})
 
+    def test_engine_requires_one_exact_volume_match(self):
+        good = {"metadata": {"name": "engine-a"}, "spec": {"volumeName": "target"}}
+        other = {"metadata": {"name": "engine-b"}, "spec": {"volumeName": "other"}}
+        self.assertEqual(self.ok("engine", "--volume", "target", data={"kind": "EngineList", "items": [other, good]}), good)
+        self.bad("engine", "--volume", "target", data={"kind": "EngineList", "items": []})
+        self.bad("engine", "--volume", "target", data={"kind": "EngineList", "items": [good, good]})
+
+    def test_migration_resources_replays_distinct_retain_target(self):
+        contract = self.ok("capture-contract", data=self.fixture())
+        state = {"storageContract": contract,
+                 "selectedBackup": {"metadata": {"name": "backup-1"}, "status": {"state": "Completed", "volumeName": "lh-1", "url": "nfs://nas/x?backup=backup-1&volume=lh-1"}},
+                 "backupVolume": {"metadata": {"name": "bv-1"}}}
+        argv = ("migration-resources", "--target-pv", "pv-target", "--target-volume", "lh-target",
+                "--target-storage-class", "longhorn-one-replica-tank", "--target-disk-selector", "tank",
+                "--target-replicas", "1")
+        out = self.ok(*argv, data={"state": state})
+        self.assertEqual(out["pvc"]["spec"]["volumeName"], "pv-target")
+        self.assertEqual(out["pv"]["spec"]["persistentVolumeReclaimPolicy"], "Retain")
+        self.assertEqual(out["pv"]["spec"]["csi"]["volumeHandle"], "lh-target")
+        self.assertNotIn("claimRef", out["pv"]["spec"])
+        self.assertEqual(out["volume"]["spec"]["numberOfReplicas"], 1)
+        self.assertEqual(out["volume"]["spec"]["diskSelector"], ["tank"])
+        self.assertEqual(out["volume"]["metadata"]["labels"]["backup-volume"], "bv-1")
+        for bad_target in (("pv-data", "lh-target"), ("pv-target", "lh-1")):
+            self.bad("migration-resources", "--target-pv", bad_target[0], "--target-volume", bad_target[1],
+                     "--target-storage-class", "longhorn-one-replica-tank", "--target-disk-selector", "tank",
+                     "--target-replicas", "1", data={"state": state})
+
+    def test_verify_target_binding_requires_exact_retain_contract(self):
+        data = self.fixture()
+        data["pvc"]["spec"]["volumeName"] = "pv-target"
+        data["pv"]["metadata"]["name"] = "pv-target"
+        data["pv"]["spec"]["claimRef"] = {"namespace": "app", "name": "data"}
+        data["pv"]["spec"]["persistentVolumeReclaimPolicy"] = "Retain"
+        data["pv"]["spec"]["csi"]["volumeHandle"] = "lh-target"
+        data["volume"]["metadata"]["name"] = "lh-target"
+        data["volume"]["metadata"]["labels"]["backup-volume"] = "bv-1"
+        data["volume"]["spec"]["numberOfReplicas"] = 1
+        data["volume"]["spec"]["diskSelector"] = ["tank"]
+        argv = ("verify-target-binding", "--namespace", "app", "--pvc", "data", "--pv", "pv-target",
+                "--volume", "lh-target", "--replicas", "1", "--disk-selector", "tank", "--backup-volume", "bv-1")
+        self.assertEqual(self.ok(*argv, data=data), data)
+        data["pv"]["spec"]["persistentVolumeReclaimPolicy"] = "Delete"
+        self.bad(*argv, data=data)
+
     def test_workloads_rejects_wrong_list_kind_and_duplicate_identity(self):
         item = {"kind": "Pod", "metadata": {"name": "p", "namespace": "app"}, "spec": {"volumes": []}}
         self.bad("workloads", "--namespace", "app", "--pvc", "data", data={"kind": "PodList", "items": [item]})

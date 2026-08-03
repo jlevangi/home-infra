@@ -15,7 +15,7 @@ class MigrationPlaybookTests(unittest.TestCase):
     def test_source_is_preflight_only_and_fail_closed(self):
         source = PLAYBOOK.read_text()
         required = (
-            "migration_phase == 'preflight-stop'", "target_env == 'prod'",
+            "migration_phase in ['preflight-stop', 'cutover', 'rollback']", "target_env == 'prod'",
             "capture-contract", "backup-volume", "argo-apps", "workloads",
             "Pause root Argo automated sync first", "Pause exact child Argo automated sync",
             "migration_state_file", "Destructive cutover is NOT AUTHORIZED",

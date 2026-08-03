@@ -291,6 +291,96 @@ def verify_backup_url(data, args):
     return data
 
 
+def engine(data, args):
+    matches = []
+    for item in items(data, "EngineList"):
+        spec = obj(item.get("spec"), "engine.spec")
+        if spec.get("volumeName") == args.volume:
+            matches.append(item)
+    require(len(matches) == 1, f"expected exactly one Engine for volume, found {len(matches)}")
+    return matches[0]
+
+
+def migration_resources(data, args):
+    state = obj(data.get("state"), "state")
+    contract = obj(state.get("storageContract"), "state.storageContract")
+    source = obj(contract.get("source"), "state.storageContract.source")
+    replay = obj(contract.get("replaySafeContracts"), "state.storageContract.replaySafeContracts")
+    backup = obj(state.get("selectedBackup"), "state.selectedBackup")
+    backup_meta = obj(backup.get("metadata"), "state.selectedBackup.metadata")
+    backup_status = obj(backup.get("status"), "state.selectedBackup.status")
+    backup_volume_obj = obj(state.get("backupVolume"), "state.backupVolume")
+    backup_volume_meta = obj(backup_volume_obj.get("metadata"), "state.backupVolume.metadata")
+    source_pv = text(source.get("pvName"), "source.pvName")
+    source_volume = text(source.get("longhornVolumeName"), "source.longhornVolumeName")
+    target_pv = text(args.target_pv, "target PV name")
+    target_volume = text(args.target_volume, "target Longhorn Volume name")
+    target_storage_class = text(args.target_storage_class, "target StorageClass")
+    target_selector = text(args.target_disk_selector, "target disk selector")
+    require(target_pv != source_pv, "target PV must differ from source PV")
+    require(target_volume != source_volume, "target Longhorn Volume must differ from source Volume")
+    require(backup_status.get("state") == "Completed", "selected backup is not Completed")
+    require(backup_status.get("volumeName") == source_volume, "selected backup source mismatch")
+    backup_url = text(backup_status.get("url"), "selected backup URL")
+    backup_name = text(backup_meta.get("name"), "selected backup name")
+    verify_backup_url({"url": backup_url}, argparse.Namespace(backup_id=backup_name, volume=source_volume))
+    backup_volume_name = text(backup_volume_meta.get("name"), "BackupVolume name")
+    pvc = copy.deepcopy(obj(replay.get("pvc"), "replay PVC"))
+    pv = copy.deepcopy(obj(replay.get("pv"), "replay PV"))
+    volume = copy.deepcopy(obj(replay.get("volume"), "replay Volume"))
+    pvc_spec = obj(pvc.get("spec"), "replay PVC.spec")
+    pv_spec = obj(pv.get("spec"), "replay PV.spec")
+    volume_meta = obj(volume.get("metadata"), "replay Volume.metadata")
+    volume_spec = obj(volume.get("spec"), "replay Volume.spec")
+    require(pvc_spec.get("volumeName") == source_pv, "replay PVC source PV mismatch")
+    require(obj(pv_spec.get("csi"), "replay PV.spec.csi").get("volumeHandle") == source_volume,
+            "replay PV source volume mismatch")
+    pvc_spec["volumeName"] = target_pv
+    pvc_spec["storageClassName"] = target_storage_class
+    pv["metadata"]["name"] = target_pv
+    pv_spec.pop("claimRef", None)
+    pv_spec["persistentVolumeReclaimPolicy"] = "Retain"
+    pv_spec["storageClassName"] = target_storage_class
+    pv_spec["csi"]["volumeHandle"] = target_volume
+    volume_meta["name"] = target_volume
+    labels = volume_meta.setdefault("labels", {})
+    require(isinstance(labels, dict), "replay Volume labels must be an object")
+    labels["backup-volume"] = backup_volume_name
+    volume_spec["numberOfReplicas"] = args.target_replicas
+    volume_spec["diskSelector"] = [target_selector]
+    volume_spec["fromBackup"] = backup_url
+    volume_spec.pop("nodeID", None)
+    volume_spec.setdefault("backupTargetName", "default")
+    volume_spec.setdefault("frontend", "blockdev")
+    return {"volume": volume, "pv": pv, "pvc": pvc}
+
+
+def verify_target_binding(data, args):
+    obj(data, "input")
+    pvc, pvc_meta, pvc_spec = resource(data, "pvc", "PersistentVolumeClaim")
+    pv, pv_meta, pv_spec = resource(data, "pv", "PersistentVolume")
+    volume, volume_meta, volume_spec = resource(data, "volume", "Volume")
+    require(pvc_meta.get("name") == args.pvc and pvc_meta.get("namespace") == args.namespace,
+            "target PVC identity mismatch")
+    require(pv_meta.get("name") == args.pv, "target PV identity mismatch")
+    require(volume_meta.get("name") == args.volume and volume_meta.get("namespace") == "longhorn-system",
+            "target Volume identity mismatch")
+    require(pvc.get("status", {}).get("phase") == "Bound", "target PVC is not Bound")
+    require(pvc_spec.get("volumeName") == args.pv, "target PVC does not bind target PV")
+    claim = obj(pv_spec.get("claimRef"), "target PV.spec.claimRef")
+    require(claim.get("name") == args.pvc and claim.get("namespace") == args.namespace,
+            "target PV claimRef mismatch")
+    csi = obj(pv_spec.get("csi"), "target PV.spec.csi")
+    require(csi.get("driver") == "driver.longhorn.io" and csi.get("volumeHandle") == args.volume,
+            "target PV CSI identity mismatch")
+    require(pv_spec.get("persistentVolumeReclaimPolicy") == "Retain", "target PV is not Retain")
+    require(volume_spec.get("numberOfReplicas") == args.replicas, "target replica count mismatch")
+    require(volume_spec.get("diskSelector") == [args.disk_selector], "target disk selector mismatch")
+    labels = obj(volume_meta.get("labels", {}), "target Volume labels")
+    require(labels.get("backup-volume") == args.backup_volume, "target backup-volume label mismatch")
+    return data
+
+
 def parser():
     result = argparse.ArgumentParser()
     commands = result.add_subparsers(dest="command", required=True)
@@ -317,6 +407,25 @@ def parser():
     verify_url.add_argument("--backup-id", required=True)
     verify_url.add_argument("--volume", required=True)
     verify_url.set_defaults(handler=verify_backup_url)
+    engine_parser = commands.add_parser("engine")
+    engine_parser.add_argument("--volume", required=True)
+    engine_parser.set_defaults(handler=engine)
+    resources = commands.add_parser("migration-resources")
+    resources.add_argument("--target-pv", required=True)
+    resources.add_argument("--target-volume", required=True)
+    resources.add_argument("--target-storage-class", required=True)
+    resources.add_argument("--target-disk-selector", required=True)
+    resources.add_argument("--target-replicas", required=True, type=int)
+    resources.set_defaults(handler=migration_resources)
+    binding = commands.add_parser("verify-target-binding")
+    binding.add_argument("--namespace", required=True)
+    binding.add_argument("--pvc", required=True)
+    binding.add_argument("--pv", required=True)
+    binding.add_argument("--volume", required=True)
+    binding.add_argument("--replicas", required=True, type=int)
+    binding.add_argument("--disk-selector", required=True)
+    binding.add_argument("--backup-volume", required=True)
+    binding.set_defaults(handler=verify_target_binding)
     return result
 
 

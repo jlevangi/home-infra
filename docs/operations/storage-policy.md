@@ -15,6 +15,8 @@ The policy recognizes these intent-based StorageClass names:
 | `longhorn-tank` | `longhorn-steady` | Heavy continuous writers pinned to tank |
 | `longhorn-redundant` | `longhorn-singleton` | Single-pod state with no app-layer HA |
 | `longhorn-vault-raft` | none | Vault raft members only |
+| `longhorn-one-replica-flash` | none | Explicit opt-in, backup-restorable state pinned to flash |
+| `longhorn-one-replica-tank` | none | Explicit opt-in, backup-restorable state pinned to tank |
 | `longhorn-media` | none | Media workloads that must follow `media-storage` nodes |
 
 During the cleanup, both names may exist in the cluster at the same time. The
@@ -63,10 +65,14 @@ it as `longhorn-tank` even if its absolute IOPS or throughput is lower.
    small.
 3. Move to `longhorn-fast` only for read-mostly, latency-sensitive state where
    the Atlas flash pool has clear headroom.
-4. Move to `longhorn-redundant` when the workload is a singleton and the app
+4. Use `longhorn-redundant` when the workload is a singleton and the app
    cannot self-heal from losing one replica.
 5. Use `longhorn-vault-raft` only for Vault raft members. Do not generalize its
    single-replica pattern to other apps without an explicit design review.
+6. `longhorn-one-replica-flash` and `longhorn-one-replica-tank` are explicit,
+   opt-in backup-restorable tiers. They require documented RPO/RTO, an
+   application-specific integrity command, a fresh exact backup, and the
+   fail-closed one-PVC migration workflow. They never change existing PVCs.
 
 ## Backup Policy
 
