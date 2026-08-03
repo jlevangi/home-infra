@@ -22,7 +22,7 @@
     },
     {
       "description": "Postgres major upgrades need manual data migration planning",
-      "matchFileNames": ["argocd/manifests/*/overlays/prod/**"],
+      "matchFileNames": ["argocd/manifests/**"],
       "matchPackageNames": ["postgres"],
       "matchUpdateTypes": ["major"],
       "enabled": false
@@ -34,10 +34,23 @@
     },
     {
       "description": "ClickHouse major upgrades need Plausible-specific validation and rollback planning",
-      "matchFileNames": ["argocd/manifests/*/overlays/prod/**"],
+      "matchFileNames": ["argocd/manifests/**"],
       "matchPackageNames": ["clickhouse/clickhouse-server"],
       "matchUpdateTypes": ["major"],
       "enabled": false
+    },
+    {
+      "description": "Stateful database majors require an explicit migration plan",
+      "matchFileNames": ["argocd/manifests/**"],
+      "matchPackageNames": ["mariadb", "mysql", "redis"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "Hoarder Meilisearch data requires dump/import or upgrade-db migration",
+      "matchFileNames": ["argocd/manifests/hoarder/**"],
+      "matchPackageNames": ["getmeili/meilisearch"],
+      "allowedVersions": "/^v1\\.6(?:\\.|$)/"
     },
     {
       "description": "netbootxyz major updates - isolate from database image upgrades",
