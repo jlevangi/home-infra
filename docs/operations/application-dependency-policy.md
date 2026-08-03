@@ -30,4 +30,4 @@ Renovate detects image and chart references, but it cannot infer application com
 5. Merge one application at a time and verify ArgoCD revision, rollout, logs, endpoint behavior, and PVC continuity.
 6. Treat database majors as maintenance projects with backups, migration, compatibility validation, and rollback plans.
 
-Mend IaC scanning complements this policy by identifying configuration risks. It starts non-blocking and without issue creation so existing homelab exceptions can be triaged before findings become a required check.
+Mend IaC scanning is unavailable on the current Mend Community account. The dependency ownership and migration controls in Renovate remain active without it.
