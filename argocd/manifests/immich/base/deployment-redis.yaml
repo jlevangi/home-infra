@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: redis
-          image: docker.io/valkey/valkey:8@sha256:81db6d39e1bba3b3ff32bd3a1b19a6d69690f94a3954ec131277b9a26b95b3aa
+          image: docker.io/valkey/valkey:8@sha256:495e4fecdc98ee48a20b207726caa5ab6451e0fac3642a9be10d9e70b3068df6
           imagePullPolicy: IfNotPresent
           command:
             - redis-server
