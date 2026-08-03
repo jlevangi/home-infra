@@ -146,7 +146,7 @@ def workload_volumes(item, kind):
         pod_spec = obj(template.get("spec"), "CronJob.spec.jobTemplate.spec.template.spec")
     else:
         pod_spec = spec
-    volumes = array(pod_spec.get("volumes"), f"{kind}.podSpec.volumes")
+    volumes = array(pod_spec.get("volumes", []), f"{kind}.podSpec.volumes")
     for volume in volumes:
         obj(volume, f"{kind}.volume")
         if "persistentVolumeClaim" in volume:
@@ -158,9 +158,22 @@ def workload_volumes(item, kind):
 def workloads(data, args):
     groups = {"scalableControllers": [], "daemonSets": [], "jobs": [], "cronJobs": [], "pods": []}
     identities = set()
-    for item in items(data, "List"):
+    workload_items = items(data, "List")
+    controllers = {}
+    replica_sets = {}
+    for item in workload_items:
         kind = item.get("kind")
-        require(kind in ("Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob", "Pod"),
+        if kind not in ("Deployment", "StatefulSet", "DaemonSet", "Job", "ReplicaSet"):
+            continue
+        metadata = obj(item.get("metadata"), f"{kind}.metadata")
+        identity = (kind, text(metadata.get("namespace"), f"{kind}.metadata.namespace"),
+                    text(metadata.get("name"), f"{kind}.metadata.name"))
+        controllers[identity] = metadata.get("uid")
+        if kind == "ReplicaSet":
+            replica_sets[identity] = metadata
+    for item in workload_items:
+        kind = item.get("kind")
+        require(kind in ("Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob", "Pod", "ReplicaSet"),
                 f"unsupported workload kind {kind!r}")
         metadata = obj(item.get("metadata"), f"{kind}.metadata")
         name = text(metadata.get("name"), f"{kind}.metadata.name")
@@ -168,6 +181,8 @@ def workloads(data, args):
         identity = (kind, namespace, name)
         require(identity not in identities, f"duplicate workload {kind}/{namespace}/{name}")
         identities.add(identity)
+        if kind == "ReplicaSet":
+            continue
         spec, volumes = workload_volumes(item, kind)
         if namespace != args.namespace:
             continue
@@ -177,6 +192,39 @@ def workloads(data, args):
             continue
         record = {"kind": kind, "name": name, "namespace": namespace}
         if kind == "Pod":
+            owners = metadata.get("ownerReferences", [])
+            array(owners, "Pod.metadata.ownerReferences")
+            controlling = [owner for owner in owners
+                           if obj(owner, "Pod.metadata.ownerReference").get("controller") is True]
+            proven = False
+            owner_chain = []
+            if len(controlling) == 1:
+                owner = controlling[0]
+                owner_kind = owner.get("kind")
+                owner_name = owner.get("name")
+                owner_uid = owner.get("uid")
+                owner_chain = [f"{owner_kind}/{owner_name}"]
+                direct_identity = (owner_kind, namespace, owner_name)
+                if owner_kind in ("StatefulSet", "DaemonSet", "Job"):
+                    proven = (isinstance(owner_uid, str) and owner_uid != ""
+                              and controllers.get(direct_identity) == owner_uid)
+                elif owner_kind == "ReplicaSet" and (owner_kind, namespace, owner_name) in replica_sets:
+                    rs_metadata = replica_sets[(owner_kind, namespace, owner_name)]
+                    rs_uid = rs_metadata.get("uid")
+                    rs_owners = rs_metadata.get("ownerReferences", [])
+                    array(rs_owners, "ReplicaSet.metadata.ownerReferences")
+                    rs_controlling = [rs_owner for rs_owner in rs_owners
+                                      if obj(rs_owner, "ReplicaSet.metadata.ownerReference").get("controller") is True]
+                    if len(rs_controlling) == 1:
+                        deployment = rs_controlling[0]
+                        owner_chain.append(f"{deployment.get('kind')}/{deployment.get('name')}")
+                        deployment_identity = (deployment.get("kind"), namespace, deployment.get("name"))
+                        proven = (deployment.get("kind") == "Deployment"
+                                  and isinstance(owner_uid, str) and owner_uid != "" and owner_uid == rs_uid
+                                  and isinstance(deployment.get("uid"), str) and deployment.get("uid") != ""
+                                  and controllers.get(deployment_identity) == deployment.get("uid"))
+            record["ownershipProven"] = proven
+            record["ownerChain"] = owner_chain
             groups["pods"].append(record)
         elif kind in ("Deployment", "StatefulSet"):
             replicas = spec.get("replicas", 1)
@@ -189,6 +237,10 @@ def workloads(data, args):
         elif kind == "Job":
             groups["jobs"].append(record)
         else:
+            record["suspendPresent"] = "suspend" in spec
+            if "suspend" in spec:
+                require(isinstance(spec["suspend"], bool), "CronJob.spec.suspend must be a boolean")
+                record["suspend"] = spec["suspend"]
             groups["cronJobs"].append(record)
     key = lambda value: (value["kind"], value["name"])
     return {name: sorted(records, key=key) for name, records in groups.items()}
@@ -227,6 +279,18 @@ def verify_backup(data, args):
     return data
 
 
+def verify_backup_url(data, args):
+    obj(data, "input")
+    url = text(data.get("url"), "url")
+    try:
+        query = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query, strict_parsing=True)
+    except ValueError as error:
+        raise ContractError("url must have a valid query") from error
+    require(query.get("backup") == [args.backup_id], "backup URL backup parameter mismatch")
+    require(query.get("volume") == [args.volume], "backup URL volume parameter mismatch")
+    return data
+
+
 def parser():
     result = argparse.ArgumentParser()
     commands = result.add_subparsers(dest="command", required=True)
@@ -249,6 +313,10 @@ def parser():
     verify.add_argument("--restored-volume", required=True)
     verify.add_argument("--cutover", required=True)
     verify.set_defaults(handler=verify_backup)
+    verify_url = commands.add_parser("verify-backup-url")
+    verify_url.add_argument("--backup-id", required=True)
+    verify_url.add_argument("--volume", required=True)
+    verify_url.set_defaults(handler=verify_backup_url)
     return result
 
 

@@ -1,0 +1,365 @@
+---
+- name: Fail-closed one-PVC Longhorn migration preflight and stop
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    migration_contract_helper: "{{ playbook_dir }}/../roles/k3s/files/restore-volume-contract.py"
+    migration_kubectl: kubectl
+    migration_max_backup_age_hours: 24
+    migration_skip_confirmation: false
+    migration_test_force_failure_after_stop: false
+    argo_namespace: argocd
+    longhorn_namespace: longhorn-system
+
+  pre_tasks:
+    - name: Validate explicit migration inputs
+      ansible.builtin.assert:
+        that:
+          - target_env is defined
+          - target_env in ['prod', 'stage', 'test']
+          - restore_namespace is defined
+          - restore_namespace is match('^[a-z0-9]([-a-z0-9]*[a-z0-9])?$')
+          - restore_pvc_name is defined
+          - restore_pvc_name is match('^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$')
+          - restore_child_app is defined
+          - restore_child_app is match('^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$')
+          - restore_root_app is defined
+          - restore_root_app == 'root-' ~ target_env
+          - migration_phase is defined
+          - migration_phase == 'preflight-stop'
+          - not (target_env == 'prod' and migration_skip_confirmation | bool)
+        fail_msg: >-
+          Refusing migration: exact environment, namespace, PVC, child/root Argo app,
+          and migration_phase=preflight-stop are mandatory; production confirmation cannot be skipped.
+
+    - name: Require explicit operator confirmation
+      ansible.builtin.pause:
+        prompt: >-
+          Type PREFLIGHT-STOP {{ target_env }}/{{ restore_namespace }}/{{ restore_pvc_name }}
+          to pause reconciliation and stop consumers (no destructive cutover)
+      register: migration_confirmation
+      when: not migration_skip_confirmation | bool
+
+    - name: Validate operator confirmation
+      ansible.builtin.assert:
+        that:
+          - migration_skip_confirmation | bool or migration_confirmation.user_input == 'PREFLIGHT-STOP ' ~ target_env ~ '/' ~ restore_namespace ~ '/' ~ restore_pvc_name
+        fail_msg: Migration confirmation did not exactly match.
+
+  tasks:
+    - name: Fetch exact PVC
+      ansible.builtin.command:
+        argv: ["{{ migration_kubectl }}", -n, "{{ restore_namespace }}", get, pvc, "{{ restore_pvc_name }}", -o, json]
+      register: migration_pvc_raw
+      changed_when: false
+
+    - name: Parse and validate bound PVC
+      ansible.builtin.set_fact:
+        migration_pvc: "{{ migration_pvc_raw.stdout | from_json }}"
+        migration_pv_name: "{{ (migration_pvc_raw.stdout | from_json).spec.volumeName | default('') }}"
+    - ansible.builtin.assert:
+        that:
+          - migration_pvc.metadata.name == restore_pvc_name
+          - migration_pvc.metadata.namespace == restore_namespace
+          - migration_pvc.status.phase == 'Bound'
+          - migration_pv_name | length > 0
+        fail_msg: Exact PVC is not coherently Bound.
+
+    - name: Fetch exact bound PV
+      ansible.builtin.command:
+        argv: ["{{ migration_kubectl }}", get, pv, "{{ migration_pv_name }}", -o, json]
+      register: migration_pv_raw
+      changed_when: false
+    - name: Parse exact CSI handle
+      ansible.builtin.set_fact:
+        migration_pv: "{{ migration_pv_raw.stdout | from_json }}"
+        migration_volume_name: "{{ (migration_pv_raw.stdout | from_json).spec.csi.volumeHandle | default('') }}"
+    - ansible.builtin.assert:
+        that:
+          - migration_pv.metadata.name == migration_pv_name
+          - migration_pv.spec.claimRef.namespace == restore_namespace
+          - migration_pv.spec.claimRef.name == restore_pvc_name
+          - migration_pv.spec.csi.driver == 'driver.longhorn.io'
+          - migration_volume_name | length > 0
+
+    - name: Fetch exact CSI Longhorn Volume
+      ansible.builtin.command:
+        argv: ["{{ migration_kubectl }}", -n, "{{ longhorn_namespace }}", get, volumes.longhorn.io, "{{ migration_volume_name }}", -o, json]
+      register: migration_volume_raw
+      changed_when: false
+
+    - name: Capture coherent storage contract
+      ansible.builtin.shell:
+        cmd: >-
+          printf '%s' {{ {'pvc': migration_pvc_raw.stdout | from_json, 'pv': migration_pv_raw.stdout | from_json,
+          'volume': migration_volume_raw.stdout | from_json} | to_json | quote }} |
+          python3 {{ migration_contract_helper | quote }} capture-contract
+      args:
+        executable: /bin/bash
+      register: migration_contract_raw
+      changed_when: false
+    - name: Parse storage contract
+      ansible.builtin.set_fact:
+        migration_contract: "{{ migration_contract_raw.stdout | from_json }}"
+
+    - name: Fetch selected completed Backup
+      ansible.builtin.command:
+        argv: ["{{ migration_kubectl }}", -n, "{{ longhorn_namespace }}", get, backups.longhorn.io, "{{ restore_backup_name }}", -o, json]
+      register: migration_backup_raw
+      changed_when: false
+    - name: Validate selected Backup identity, state, URL, source, size, and freshness
+      vars:
+        selected: "{{ migration_backup_raw.stdout | from_json }}"
+        source_size: "{{ (migration_volume_raw.stdout | from_json).spec.size | int }}"
+        backup_time: "{{ selected.status.backupCreatedAt | default(selected.metadata.creationTimestamp) | to_datetime('%Y-%m-%dT%H:%M:%SZ') }}"
+        cutoff: "{{ ('%Y-%m-%dT%H:%M:%SZ' | strftime((ansible_date_time.epoch | default(lookup('pipe', 'date +%s'))) | int - migration_max_backup_age_hours * 3600)) | to_datetime('%Y-%m-%dT%H:%M:%SZ') }}"
+      ansible.builtin.assert:
+        that:
+          - restore_backup_name is defined
+          - selected.metadata.name == restore_backup_name
+          - selected.status.state == 'Completed'
+          - selected.status.volumeName == migration_volume_name
+          - selected.status.url | default('') | length > 0
+          - selected.status.volumeSize | default(0) | int == source_size
+          - backup_time >= cutoff
+        fail_msg: Selected backup is not fresh, Completed, exact-source, URL-bearing, and full-size.
+
+    - name: Validate selected Backup URL exact query identities
+      ansible.builtin.shell:
+        cmd: >-
+          printf '%s' {{ {'url': (migration_backup_raw.stdout | from_json).status.url} | to_json | quote }} |
+          python3 {{ migration_contract_helper | quote }} verify-backup-url
+          --backup-id {{ restore_backup_name | quote }} --volume {{ migration_volume_name | quote }}
+      args: {executable: /bin/bash}
+      changed_when: false
+
+    - name: Fetch BackupVolume list
+      ansible.builtin.command:
+        argv: ["{{ migration_kubectl }}", -n, "{{ longhorn_namespace }}", get, backupvolumes.longhorn.io, -o, json]
+      register: migration_backup_volumes_raw
+      changed_when: false
+    - name: Resolve exactly one BackupVolume through approved contract helper
+      ansible.builtin.shell:
+        cmd: >-
+          printf '%s' {{ migration_backup_volumes_raw.stdout | quote }} |
+          python3 {{ migration_contract_helper | quote }} backup-volume
+          --source-volume {{ migration_volume_name | quote }} --backup-id {{ restore_backup_name | quote }}
+      args: {executable: /bin/bash}
+      register: migration_backup_volume_raw
+      changed_when: false
+
+    - name: Fetch all Argo Applications
+      ansible.builtin.command:
+        argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", get, applications.argoproj.io, -o, json]
+      register: migration_apps_raw
+      changed_when: false
+    - name: Resolve Argo applications through approved contract helper
+      ansible.builtin.shell:
+        cmd: >-
+          printf '%s' {{ migration_apps_raw.stdout | quote }} |
+          python3 {{ migration_contract_helper | quote }} argo-apps
+          --root-app {{ restore_root_app | quote }} --target-namespace {{ restore_namespace | quote }}
+      args: {executable: /bin/bash}
+      register: migration_apps_contract_raw
+      changed_when: false
+    - name: Validate exact root and one exact child with no active operation
+      vars:
+        apps_contract: "{{ migration_apps_contract_raw.stdout | from_json }}"
+        apps_by_name: "{{ dict(apps_contract.applications | map(attribute='metadata.name') | zip(apps_contract.applications)) }}"
+      ansible.builtin.assert:
+        that:
+          - apps_contract.pauseOrder == [restore_root_app, restore_child_app]
+          - apps_by_name[restore_root_app].operation | default(None) == None
+          - apps_by_name[restore_child_app].operation | default(None) == None
+          - apps_by_name[restore_root_app].status.operationState.phase | default('Succeeded') not in ['Running', 'Terminating']
+          - apps_by_name[restore_child_app].status.operationState.phase | default('Succeeded') not in ['Running', 'Terminating']
+        fail_msg: Exact root/child Argo identities or idle-operation gate failed.
+
+    - name: Fetch workload resources in exact namespace
+      ansible.builtin.command:
+        argv: ["{{ migration_kubectl }}", -n, "{{ restore_namespace }}", get, "deployment,statefulset,daemonset,job,cronjob,pod,replicaset", -o, json]
+      register: migration_workloads_raw
+      changed_when: false
+    - name: Resolve PVC consumers through approved contract helper
+      ansible.builtin.shell:
+        cmd: >-
+          printf '%s' {{ migration_workloads_raw.stdout | quote }} |
+          python3 {{ migration_contract_helper | quote }} workloads
+          --namespace {{ restore_namespace | quote }} --pvc {{ restore_pvc_name | quote }}
+      args: {executable: /bin/bash}
+      register: migration_workloads_contract_raw
+      changed_when: false
+    - name: Parse consumers and reject unsafe kinds before mutation
+      ansible.builtin.set_fact:
+        migration_workloads: "{{ migration_workloads_contract_raw.stdout | from_json }}"
+    - ansible.builtin.assert:
+        that:
+          - migration_workloads.daemonSets | length == 0
+          - migration_workloads.jobs | length == 0
+          - migration_workloads.pods | rejectattr('ownershipProven', 'equalto', true) | list | length == 0
+        fail_msg: DaemonSet, Job, or unproven Pod owner chain consumes the target PVC.
+
+    - name: Set timestamped recovery-state path
+      ansible.builtin.set_fact:
+        migration_state_dir: "/var/tmp/longhorn-migration/{{ restore_namespace }}-{{ restore_pvc_name }}"
+        migration_state_file: "/var/tmp/longhorn-migration/{{ restore_namespace }}-{{ restore_pvc_name }}/state-{{ lookup('pipe', 'date -u +%Y%m%dT%H%M%SZ') }}.json"
+    - name: Create local recovery-state directory
+      ansible.builtin.file:
+        path: "{{ migration_state_dir }}"
+        state: directory
+        mode: '0700'
+    - name: Persist exact original policies, replicas, and evidence before stopping
+      ansible.builtin.copy:
+        dest: "{{ migration_state_file }}"
+        mode: '0600'
+        content: >-
+          {{ {'createdAt': lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ'), 'targetEnv': target_env,
+          'source': migration_contract.source, 'storageContract': migration_contract,
+          'selectedBackup': migration_backup_raw.stdout | from_json,
+          'backupVolume': migration_backup_volume_raw.stdout | from_json,
+          'applications': (migration_apps_contract_raw.stdout | from_json).applications,
+          'controllerReplicas': migration_workloads.scalableControllers,
+          'cronJobs': migration_workloads.cronJobs} | to_nice_json }}
+
+    - name: Pause reconciliation and stop exact consumers
+      block:
+        - name: Pause root Argo automated sync first
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", patch, application, "{{ restore_root_app }}", --type=json, -p, '[{"op":"remove","path":"/spec/syncPolicy/automated"}]']
+        - name: Verify root automated sync absent
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", get, application, "{{ restore_root_app }}", -o, 'jsonpath={.spec.syncPolicy.automated}']
+          register: migration_root_automated
+          changed_when: false
+        - ansible.builtin.assert: {that: "migration_root_automated.stdout == ''"}
+        - name: Wait after root pause
+          ansible.builtin.pause: {seconds: 5}
+        - name: Pause exact child Argo automated sync
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", patch, application, "{{ restore_child_app }}", --type=json, -p, '[{"op":"remove","path":"/spec/syncPolicy/automated"}]']
+        - name: Verify child automated sync absent
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", get, application, "{{ restore_child_app }}", -o, 'jsonpath={.spec.syncPolicy.automated}']
+          register: migration_child_automated
+          changed_when: false
+        - ansible.builtin.assert: {that: "migration_child_automated.stdout == ''"}
+        - name: Wait after child pause
+          ansible.builtin.pause: {seconds: 5}
+        - name: Suspend matching CronJobs
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", -n, "{{ restore_namespace }}", patch, cronjob, "{{ item.name }}", --type=merge, -p, '{"spec":{"suspend":true}}']
+          loop: "{{ migration_workloads.cronJobs }}"
+        - name: Scale matching controllers to zero
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", -n, "{{ restore_namespace }}", scale, "{{ item.kind | lower }}/{{ item.name }}", --replicas=0]
+          loop: "{{ migration_workloads.scalableControllers }}"
+        - name: Intentional forced-failure test gate
+          ansible.builtin.assert:
+            that: not migration_test_force_failure_after_stop | bool
+            fail_msg: Forced failure after pause/scale for fail-closed test.
+        - name: Wait for each controller to reach zero replicas
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", -n, "{{ restore_namespace }}", get, "{{ item.kind | lower }}", "{{ item.name }}", -o, 'jsonpath={.status.replicas} {.status.readyReplicas} {.status.availableReplicas}']
+          loop: "{{ migration_workloads.scalableControllers }}"
+          register: migration_zero_controller_checks
+          until: >-
+            migration_zero_controller_checks.stdout.split()
+            | map('int') | select('ne', 0) | list | length == 0
+          retries: 60
+          delay: 5
+          changed_when: false
+        - name: Fetch first clean workload observation including ReplicaSets
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", -n, "{{ restore_namespace }}", get, "deployment,statefulset,daemonset,job,cronjob,pod,replicaset", -o, json]
+          register: migration_stopped_workloads_raw_1
+          changed_when: false
+        - name: Resolve first clean workload observation
+          ansible.builtin.shell:
+            cmd: >-
+              printf '%s' {{ migration_stopped_workloads_raw_1.stdout | quote }} |
+              python3 {{ migration_contract_helper | quote }} workloads
+              --namespace {{ restore_namespace | quote }} --pvc {{ restore_pvc_name | quote }}
+          args: {executable: /bin/bash}
+          register: migration_stopped_contract_raw_1
+          changed_when: false
+        - name: Verify first clean workload observation
+          vars:
+            stopped: "{{ migration_stopped_contract_raw_1.stdout | from_json }}"
+            selected_crons: "{{ migration_workloads.cronJobs | map(attribute='name') | sort | list }}"
+          ansible.builtin.assert:
+            that:
+              - stopped.cronJobs | map(attribute='name') | sort | list == selected_crons
+              - stopped.cronJobs | rejectattr('suspendPresent', 'equalto', true) | list | length == 0
+              - stopped.cronJobs | rejectattr('suspend', 'equalto', true) | list | length == 0
+              - stopped.daemonSets | length == 0
+              - stopped.jobs | length == 0
+              - stopped.pods | rejectattr('ownershipProven', 'equalto', true) | list | length == 0
+              - stopped.pods | length == 0
+            fail_msg: First post-stop workload observation was not clean.
+        - name: Wait between clean workload observations
+          ansible.builtin.pause: {seconds: 10}
+        - name: Fetch second clean workload observation including ReplicaSets
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", -n, "{{ restore_namespace }}", get, "deployment,statefulset,daemonset,job,cronjob,pod,replicaset", -o, json]
+          register: migration_stopped_workloads_raw_2
+          changed_when: false
+        - name: Resolve second clean workload observation
+          ansible.builtin.shell:
+            cmd: >-
+              printf '%s' {{ migration_stopped_workloads_raw_2.stdout | quote }} |
+              python3 {{ migration_contract_helper | quote }} workloads
+              --namespace {{ restore_namespace | quote }} --pvc {{ restore_pvc_name | quote }}
+          args: {executable: /bin/bash}
+          register: migration_stopped_contract_raw_2
+          changed_when: false
+        - name: Verify second clean workload observation
+          vars:
+            stopped: "{{ migration_stopped_contract_raw_2.stdout | from_json }}"
+            selected_crons: "{{ migration_workloads.cronJobs | map(attribute='name') | sort | list }}"
+          ansible.builtin.assert:
+            that:
+              - stopped.cronJobs | map(attribute='name') | sort | list == selected_crons
+              - stopped.cronJobs | rejectattr('suspendPresent', 'equalto', true) | list | length == 0
+              - stopped.cronJobs | rejectattr('suspend', 'equalto', true) | list | length == 0
+              - stopped.daemonSets | length == 0
+              - stopped.jobs | length == 0
+              - stopped.pods | rejectattr('ownershipProven', 'equalto', true) | list | length == 0
+              - stopped.pods | length == 0
+            fail_msg: Second post-stop workload observation was not clean.
+        - name: Fetch source Longhorn Volume after stop
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", -n, "{{ longhorn_namespace }}", get, volumes.longhorn.io, "{{ migration_volume_name }}", -o, json]
+          register: migration_detached_volume_raw
+          changed_when: false
+        - name: Fetch VolumeAttachments
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", get, volumeattachments.storage.k8s.io, -o, json]
+          register: migration_attachments_raw
+          changed_when: false
+        - name: Verify source detached and no exact VolumeAttachment
+          vars:
+            stopped_volume: "{{ migration_detached_volume_raw.stdout | from_json }}"
+            attachments: "{{ (migration_attachments_raw.stdout | from_json).items }}"
+          ansible.builtin.assert:
+            that:
+              - stopped_volume.metadata.name == migration_volume_name
+              - stopped_volume.status.state == 'detached'
+              - attachments | selectattr('spec.source.persistentVolumeName', 'defined') | selectattr('spec.source.persistentVolumeName', 'equalto', migration_pv_name) | list | length == 0
+            fail_msg: Source volume is not detached or an exact VolumeAttachment remains.
+      rescue:
+        - name: Print exact manual recovery state path
+          ansible.builtin.debug:
+            msg: >-
+              FAIL-CLOSED: Argo and workloads remain stopped. No automatic resume was attempted.
+              Recover only from exact state file {{ migration_state_file }}.
+        - name: Fail migration preflight after stop
+          ansible.builtin.fail:
+            msg: "Migration stop failed; recovery state: {{ migration_state_file }}"
+
+    - name: Stop before destructive cutover
+      ansible.builtin.debug:
+        msg: >-
+          PREFLIGHT-STOP SUCCEEDED. Destructive cutover is NOT AUTHORIZED.
+          No PVC, PV, Longhorn Volume, finalizer, or restore object was mutated or created.
+          Exact recovery state: {{ migration_state_file }}

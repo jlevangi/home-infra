@@ -86,7 +86,8 @@ class ContractTests(unittest.TestCase):
         sts = {"kind": "StatefulSet", "metadata": {"name": "db", "namespace": "app"}, "spec": {"template": {"spec": {"volumes": [{"persistentVolumeClaim": {"claimName": "database"}}]}}}}
         pod = {"kind": "Pod", "metadata": {"name": "raw", "namespace": "app"}, "spec": {"volumes": [{"persistentVolumeClaim": {"claimName": "data"}}]}}
         out = self.ok("workloads", "--namespace", "app", "--pvc", "data", data={"kind": "List", "items": [sts, pod, deployment]})
-        self.assertEqual(out, {"scalableControllers": [{"kind": "Deployment", "name": "web", "namespace": "app", "replicas": 0}], "daemonSets": [], "jobs": [], "cronJobs": [], "pods": [{"kind": "Pod", "name": "raw", "namespace": "app"}]})
+        self.assertFalse(out["pods"][0]["ownershipProven"])
+        self.assertEqual(out["scalableControllers"][0]["replicas"], 0)
 
     def test_workloads_covers_all_pod_template_consumers(self):
         volume = {"volumes": [{"persistentVolumeClaim": {"claimName": "data"}}]}
@@ -97,6 +98,52 @@ class ContractTests(unittest.TestCase):
         data = {"kind": "List", "items": [controller("DaemonSet", "ds"), controller("Job", "job"), controller("CronJob", "cron")]}
         out = self.ok("workloads", "--namespace", "app", "--pvc", "data", data=data)
         self.assertEqual([out[key][0]["kind"] for key in ("daemonSets", "jobs", "cronJobs")], ["DaemonSet", "Job", "CronJob"])
+
+    def test_workloads_omitted_volumes_cron_suspend_and_proven_pod_ownership(self):
+        volume = {"volumes": [{"persistentVolumeClaim": {"claimName": "data"}}]}
+        deployment = {"kind": "Deployment", "metadata": {"name": "web", "namespace": "app", "uid": "deploy-uid"}, "spec": {"template": {"spec": {}}}}
+        rs = {"kind": "ReplicaSet", "metadata": {"name": "web-rs", "namespace": "app", "uid": "rs-uid", "ownerReferences": [{"kind": "Deployment", "name": "web", "uid": "deploy-uid", "controller": True}]}, "spec": {"template": {"spec": {}}}}
+        pod = {"kind": "Pod", "metadata": {"name": "web-pod", "namespace": "app", "ownerReferences": [{"kind": "ReplicaSet", "name": "web-rs", "uid": "rs-uid", "controller": True}]}, "spec": volume}
+        cron = lambda name, suspend: {"kind": "CronJob", "metadata": {"name": name, "namespace": "app"}, "spec": {**({} if suspend is None else {"suspend": suspend}), "jobTemplate": {"spec": {"template": {"spec": volume}}}}}
+        out = self.ok("workloads", "--namespace", "app", "--pvc", "data", data={"kind": "List", "items": [deployment, rs, pod, cron("absent", None), cron("false", False), cron("true", True)]})
+        self.assertTrue(out["pods"][0]["ownershipProven"])
+        self.assertEqual(out["pods"][0]["ownerChain"], ["ReplicaSet/web-rs", "Deployment/web"])
+        self.assertEqual(out["cronJobs"], [{"kind": "CronJob", "name": "absent", "namespace": "app", "suspendPresent": False}, {"kind": "CronJob", "name": "false", "namespace": "app", "suspend": False, "suspendPresent": True}, {"kind": "CronJob", "name": "true", "namespace": "app", "suspend": True, "suspendPresent": True}])
+
+    def test_workloads_owner_uid_missing_or_mismatch_is_unproven(self):
+        volume = {"volumes": [{"persistentVolumeClaim": {"claimName": "data"}}]}
+        for missing, pod_uid, deployment_uid in (("pod", None, "deploy-uid"), ("rs", "rs-uid", "deploy-uid"),
+                                                  ("deployment", "rs-uid", None), (None, "wrong-rs", "deploy-uid"),
+                                                  (None, "rs-uid", "wrong-deploy")):
+            deployment = {"kind": "Deployment", "metadata": {"name": "web", "namespace": "app", **({} if missing == "deployment" else {"uid": "deploy-uid"})}, "spec": {"template": {"spec": {}}}}
+            rs = {"kind": "ReplicaSet", "metadata": {"name": "web-rs", "namespace": "app", **({} if missing == "rs" else {"uid": "rs-uid"}), "ownerReferences": [{"kind": "Deployment", "name": "web", **({} if deployment_uid is None else {"uid": deployment_uid}), "controller": True}]}, "spec": {"template": {"spec": {}}}}
+            pod = {"kind": "Pod", "metadata": {"name": "web-pod", "namespace": "app", "ownerReferences": [{"kind": "ReplicaSet", "name": "web-rs", **({} if pod_uid is None else {"uid": pod_uid}), "controller": True}]}, "spec": volume}
+            out = self.ok("workloads", "--namespace", "app", "--pvc", "data", data={"kind": "List", "items": [deployment, rs, pod]})
+            self.assertFalse(out["pods"][0]["ownershipProven"], missing)
+
+    def test_workloads_direct_owner_requires_matching_uid(self):
+        volume = {"volumes": [{"persistentVolumeClaim": {"claimName": "data"}}]}
+        for controller_uid, owner_uid, expected in (("job-uid", "job-uid", True), (None, "job-uid", False),
+                                                    ("job-uid", None, False), ("job-uid", "wrong", False)):
+            job = {"kind": "Job", "metadata": {"name": "worker", "namespace": "app", **({} if controller_uid is None else {"uid": controller_uid})}, "spec": {"template": {"spec": {}}}}
+            pod = {"kind": "Pod", "metadata": {"name": "worker-pod", "namespace": "app", "ownerReferences": [{"kind": "Job", "name": "worker", **({} if owner_uid is None else {"uid": owner_uid}), "controller": True}]}, "spec": volume}
+            out = self.ok("workloads", "--namespace", "app", "--pvc", "data", data={"kind": "List", "items": [job, pod]})
+            self.assertEqual(out["pods"][0]["ownershipProven"], expected)
+
+    def test_workloads_rejects_unproven_and_malformed_ownership(self):
+        volume = {"volumes": [{"persistentVolumeClaim": {"claimName": "data"}}]}
+        for owners in ([], [{"kind": "Custom", "name": "x", "controller": True}], [{"kind": "ReplicaSet", "name": "missing", "controller": True}], [{"kind": "Job", "name": "a", "controller": True}, {"kind": "Job", "name": "b", "controller": True}]):
+            pod = {"kind": "Pod", "metadata": {"name": "p", "namespace": "app", "ownerReferences": owners}, "spec": volume}
+            out = self.ok("workloads", "--namespace", "app", "--pvc", "data", data={"kind": "List", "items": [pod]})
+            self.assertFalse(out["pods"][0]["ownershipProven"])
+        malformed = {"kind": "Pod", "metadata": {"name": "p", "namespace": "app"}, "spec": {"volumes": {}}}
+        self.bad("workloads", "--namespace", "app", "--pvc", "data", data={"kind": "List", "items": [malformed]})
+
+    def test_verify_backup_url_exact_params_without_timestamp(self):
+        argv = ("verify-backup-url", "--backup-id", "b1", "--volume", "v1")
+        self.assertEqual(self.ok(*argv, data={"url": "s3://bucket/x?backup=b1&volume=v1"}), {"url": "s3://bucket/x?backup=b1&volume=v1"})
+        for url in ("s3://x?backup=bad&volume=v1", "s3://x?backup=b1&volume=bad", "s3://x?backup=b1&backup=b1&volume=v1"):
+            self.bad(*argv, data={"url": url})
 
     def test_workloads_rejects_wrong_list_kind_and_duplicate_identity(self):
         item = {"kind": "Pod", "metadata": {"name": "p", "namespace": "app"}, "spec": {"volumes": []}}
