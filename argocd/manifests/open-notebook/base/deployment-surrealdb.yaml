@@ -38,7 +38,7 @@ spec:
               memory: 64Mi
       containers:
         - name: surrealdb
-          image: surrealdb/surrealdb:v2
+          image: surrealdb/surrealdb:v3
           imagePullPolicy: IfNotPresent
           args:
             - start
