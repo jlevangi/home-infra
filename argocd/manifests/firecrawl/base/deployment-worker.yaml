@@ -16,7 +16,7 @@ spec:
       terminationGracePeriodSeconds: 60
       containers:
         - name: worker
-          image: ghcr.io/firecrawl/firecrawl:latest
+          image: ghcr.io/firecrawl/firecrawl:2.10.19
           imagePullPolicy: IfNotPresent
           command:
             - node

@@ -29,7 +29,7 @@ spec:
               mountPath: /config
       containers:
         - name: ytdl
-          image: marcobaobao/yt-dlp-webui:latest
+          image: marcobaobao/yt-dlp-webui@sha256:a8ae96007ee3f306a1079b4edb81a6b87dc685a6e8b822cd52aa0b026cf10ff3
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3033

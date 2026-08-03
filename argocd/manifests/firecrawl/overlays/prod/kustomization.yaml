@@ -4,9 +4,9 @@ resources:
   - ../../base
 images:
   - name: ghcr.io/firecrawl/firecrawl
-    newTag: latest
+    newTag: "2.10.19"
   - name: ghcr.io/firecrawl/playwright-service
-    newTag: latest
+    digest: sha256:0f462e0915631c77f9eb8117bbfa75dcce48ac999a6358ba97a262869ae9ace9
   - name: redis
     newTag: alpine
   - name: postgres

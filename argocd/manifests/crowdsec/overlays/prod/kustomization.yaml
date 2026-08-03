@@ -6,3 +6,6 @@ labels:
   - pairs:
       environment: prod
     includeSelectors: true
+images:
+  - name: crowdsecurity/crowdsec
+    newTag: v1.7.8

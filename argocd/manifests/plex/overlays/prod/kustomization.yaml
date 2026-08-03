@@ -34,6 +34,9 @@ patches:
       - op: add
         path: /spec/template/spec/containers/0/resources/limits/nvidia.com~1gpu
         value: 1
+images:
+  - name: lscr.io/linuxserver/plex
+    newTag: "1.43.3"
 labels:
   - pairs:
       environment: prod

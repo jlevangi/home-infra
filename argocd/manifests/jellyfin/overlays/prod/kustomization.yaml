@@ -48,6 +48,9 @@ patches:
       - op: add
         path: /spec/volumeName
         value: tracearr-data-pv
+images:
+  - name: lscr.io/linuxserver/jellyfin
+    newTag: "10.11.11"
 labels:
   - pairs:
       environment: prod

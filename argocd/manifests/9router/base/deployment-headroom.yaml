@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: headroom
-          image: ghcr.io/chopratejas/headroom:latest
+          image: ghcr.io/chopratejas/headroom@sha256:50b85d8e320cfcdf1b38919bb7ae067b93ff7a8de0a93f05b2c1246370200d1c
           imagePullPolicy: IfNotPresent
           command:
             - headroom

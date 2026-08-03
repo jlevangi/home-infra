@@ -24,7 +24,7 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: boxbox
-          image: ghcr.io/jr4dh3y/boxbox:latest
+          image: ghcr.io/jr4dh3y/boxbox:0.2.1
           imagePullPolicy: IfNotPresent
           securityContext:
             runAsNonRoot: true

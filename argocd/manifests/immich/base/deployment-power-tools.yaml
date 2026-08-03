@@ -29,7 +29,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: immich-power-tools
-          image: ghcr.io/immich-power-tools/immich-power-tools:latest
+          image: ghcr.io/immich-power-tools/immich-power-tools:0.21.2
           imagePullPolicy: IfNotPresent
           env:
             # Talks to the in-cluster Immich server, not the public ingress.

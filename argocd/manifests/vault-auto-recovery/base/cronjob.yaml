@@ -32,7 +32,7 @@ spec:
               # every Kubernetes patch version as a plain semver tag. `latest`
               # was smoke-tested in prod and currently provides kubectl v1.36.1
               # with /bin/sh, which this ConfigMap-mounted script requires.
-              image: bitnami/kubectl:latest
+              image: bitnami/kubectl@sha256:9e369df7ab3386b736d162348f167bcc02cb4ba3f5203e9151be854437d6e0af
               imagePullPolicy: IfNotPresent
               command:
                 - /bin/sh

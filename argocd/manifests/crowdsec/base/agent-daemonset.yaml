@@ -18,7 +18,7 @@ spec:
       serviceAccountName: crowdsec-agent
       containers:
         - name: crowdsec
-          image: crowdsecurity/crowdsec:latest
+          image: crowdsecurity/crowdsec:v1.7.8
           imagePullPolicy: IfNotPresent
           args:
             - crowdsec

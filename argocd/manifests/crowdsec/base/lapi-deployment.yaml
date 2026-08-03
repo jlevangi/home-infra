@@ -19,7 +19,7 @@ spec:
       serviceAccountName: crowdsec-lapi
       containers:
         - name: crowdsec-lapi
-          image: crowdsecurity/crowdsec:latest
+          image: crowdsecurity/crowdsec:v1.7.8
           imagePullPolicy: IfNotPresent
           args:
             - crowdsec

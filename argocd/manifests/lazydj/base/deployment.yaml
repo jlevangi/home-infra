@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: lazydj
-          image: jlevangie/lazydj:latest
+          image: jlevangie/lazydj:v2.0.17
           imagePullPolicy: IfNotPresent
           env:
             - name: FLASK_ENV

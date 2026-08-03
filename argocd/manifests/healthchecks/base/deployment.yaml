@@ -39,7 +39,7 @@ spec:
               mountPath: /data
       containers:
         - name: healthchecks
-          image: healthchecks/healthchecks:latest
+          image: healthchecks/healthchecks:v4.3
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:

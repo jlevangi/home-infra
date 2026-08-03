@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: snippetbox
-          image: pawelmalak/snippet-box:latest
+          image: pawelmalak/snippet-box@sha256:4aac6fe8818dbb78a60e09d1556949e28f85cff8d50bdc6356b898806ea5f4f7
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

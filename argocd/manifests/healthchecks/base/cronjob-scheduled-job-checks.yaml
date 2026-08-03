@@ -24,7 +24,7 @@ spec:
           restartPolicy: Never
           containers:
             - name: check
-              image: bitnami/kubectl:latest
+              image: bitnami/kubectl@sha256:9e369df7ab3386b736d162348f167bcc02cb4ba3f5203e9151be854437d6e0af
               imagePullPolicy: IfNotPresent
               command:
                 - /bin/sh
