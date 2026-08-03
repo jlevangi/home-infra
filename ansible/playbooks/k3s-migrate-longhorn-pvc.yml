@@ -148,7 +148,7 @@
           --source-volume {{ migration_volume_name | quote }} --backup-id {{ restore_backup_name | quote }}
       args:
         executable: /bin/bash
-        stdin: "{{ migration_backup_volumes_raw.stdout | from_json | to_json }}"
+        stdin: "{{ migration_backup_volumes_raw.stdout | from_json | combine({'kind': 'BackupVolumeList'}) | to_json }}"
       register: migration_backup_volume_raw
       changed_when: false
 
@@ -164,7 +164,7 @@
           --root-app {{ restore_root_app | quote }} --target-namespace {{ restore_namespace | quote }}
       args:
         executable: /bin/bash
-        stdin: "{{ migration_apps_raw.stdout | from_json | to_json }}"
+        stdin: "{{ migration_apps_raw.stdout | from_json | combine({'kind': 'ApplicationList'}) | to_json }}"
       register: migration_apps_contract_raw
       changed_when: false
     - name: Validate exact root and one exact child with no active operation
