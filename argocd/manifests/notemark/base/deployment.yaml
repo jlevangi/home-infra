@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: notemark
-          image: ghcr.io/enchant97/note-mark:1.0.0
+          image: ghcr.io/enchant97/note-mark:1.0.2
           imagePullPolicy: IfNotPresent
           env:
             - name: AUTH_TOKEN__SECRET
