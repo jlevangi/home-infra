@@ -2,13 +2,12 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
   "ignorePaths": [
-    "argocd/manifests/*/base/**",
     "ansible/**",
     "scripts/**",
     "terraform/archive/**"
   ],
   "kubernetes": {
-    "managerFilePatterns": ["/argocd/manifests/.+/overlays/.+/kustomization\\.yaml$/"]
+    "managerFilePatterns": ["/argocd/manifests/.+\\.ya?ml$/"]
   },
   "argocd": {
     "managerFilePatterns": ["/argocd/apps/.+\\.yaml$/"]
