@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: hbbs
-          image: rustdesk/rustdesk-server:1.1.15
+          image: rustdesk/rustdesk-server:1.1.16
           imagePullPolicy: IfNotPresent
           command:
             - hbbs
@@ -65,7 +65,7 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 5
         - name: hbbr
-          image: rustdesk/rustdesk-server:1.1.15
+          image: rustdesk/rustdesk-server:1.1.16
           imagePullPolicy: IfNotPresent
           command:
             - hbbr
