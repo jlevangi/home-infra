@@ -4,7 +4,7 @@ resources:
   - ../../base
 images:
   - name: ghcr.io/decolua/9router
-    newTag: "0.5.40"
+    newTag: "0.5.45"
 patches:
   - target:
       kind: Ingress

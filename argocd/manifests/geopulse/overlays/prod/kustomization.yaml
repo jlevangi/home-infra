@@ -4,9 +4,9 @@ resources:
   - ../../base
 images:
   - name: tess1o/geopulse-backend
-    newTag: "1.35.1-native"
+    newTag: "1.36.1-native"
   - name: tess1o/geopulse-ui
-    newTag: "1.35.1"
+    newTag: "1.36.1"
   - name: postgis/postgis
     newTag: "17-3.5"
 patches:
