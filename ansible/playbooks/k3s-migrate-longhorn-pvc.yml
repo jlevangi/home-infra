@@ -274,6 +274,12 @@
           retries: 60
           delay: 5
           changed_when: false
+        - name: Wait for each discovered consumer pod to be deleted
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", -n, "{{ restore_namespace }}", wait, "--for=delete", "pod/{{ item.name }}", "--timeout=300s"]
+          loop: "{{ migration_workloads.pods }}"
+          changed_when: false
+
         - name: Fetch first clean workload observation including ReplicaSets
           ansible.builtin.command:
             argv: ["{{ migration_kubectl }}", -n, "{{ restore_namespace }}", get, "deployment,statefulset,daemonset,job,cronjob,pod,replicaset", -o, json]
