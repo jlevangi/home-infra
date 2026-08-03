@@ -46,7 +46,7 @@ spec:
               memory: 32Mi
       containers:
         - name: pingvin-share-x
-          image: smp46/pingvin-share-x@sha256:9ed795a1f3970704a115ea7bafdcbbcfdbf6b18c37607fbdf399da5cc2d64d07
+          image: smp46/pingvin-share-x@sha256:c881b09f0f2b01120cd50dc52bbf3d9ab4def8c1cbef9aab3f6df159644ae24e
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
