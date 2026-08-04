@@ -358,7 +358,7 @@
             that:
               - stopped_volume.metadata.name == migration_volume_name
               - stopped_volume.status.state == 'detached'
-              - attachments | selectattr('spec.source.persistentVolumeName', 'defined') | selectattr('spec.source.persistentVolumeName', 'equalto', migration_pv_name) | list | length == 0
+              - attachments['items'] | selectattr('spec.source.persistentVolumeName', 'defined') | selectattr('spec.source.persistentVolumeName', 'equalto', migration_pv_name) | list | length == 0
             fail_msg: Source volume is not detached or an exact VolumeAttachment remains.
       rescue:
         - name: Print exact manual recovery state path
