@@ -52,9 +52,11 @@ class MigrationPlaybookTests(unittest.TestCase):
     def test_cutover_requires_origin_pool_and_stable_production_names(self):
         source = PLAYBOOK.read_text()
         required = (
-            "migration_origin_pool in ['flash', 'tank']",
-            "migration_target_storage_class == 'longhorn-one-replica-' ~ migration_origin_pool",
-            "migration_target_disk_selector == migration_origin_pool",
+            "migration_source_pool in ['flash', 'tank', 'unselected']",
+            "migration_target_pool in ['flash', 'tank']",
+            "migration_target_pool == migration_source_pool or migration_allow_pool_change | bool",
+            "migration_target_storage_class == 'longhorn-one-replica-' ~ migration_target_pool",
+            "migration_target_disk_selector == migration_target_pool",
             "not migration_target_pv.startswith('lh-')",
             "not migration_target_volume.startswith('lh-')",
             "'-migrated' not in migration_target_pv",
