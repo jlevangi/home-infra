@@ -30,7 +30,7 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 PLAYBOOK="ansible/playbooks/k3s-migrate-longhorn-pvc.yml"
-VAULT_FILE="$HOME/.ansible_vault_pass"
+VAULT_FILE="/home/pierce/.ansible_vault_pass"
 DRY_RUN=false
 
 [ $# -ge 1 ] || { echo "Usage: $0 <group.yaml> [--dry-run]" >&2; exit 64; }
@@ -81,7 +81,7 @@ print('group validation OK')
 run() {
     echo "+ $*" >&2
     if $DRY_RUN; then return 0; fi
-    ANSIBLE_JINJA2_NATIVE=true KUBECONFIG="$HOME/.kube/config" \
+    ANSIBLE_JINJA2_NATIVE=true KUBECONFIG="/home/pierce/.kube/config" \
         ansible-playbook "$PLAYBOOK" "$@" -i localhost, \
         --vault-password-file "$VAULT_FILE"
 }
