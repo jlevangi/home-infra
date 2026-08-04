@@ -13,6 +13,7 @@ resources:
   - deployment-imgproxy.yaml
   - service-imgproxy.yaml
   - deployment-web.yaml
+  - middleware-redirect.yaml
   - service-web.yaml
   - ingress.yaml
   - resourcequota.yaml
