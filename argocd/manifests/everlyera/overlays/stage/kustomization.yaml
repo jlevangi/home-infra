@@ -32,3 +32,6 @@ patches:
       - { op: remove, path: /spec/tls/0/hosts/1 }
       - { op: replace, path: /spec/rules/0/host, value: "staging.everlyera.com" }
       - { op: remove, path: /spec/rules/1 }
+  - target: { kind: Ingress, name: everlyera-ingress }
+    patch: |
+      - { op: add, path: /metadata/annotations/traefik.ingress.kubernetes.io~1router.middlewares, value: "everlyera-stage-everlyera-redirect-https@kubernetescrd" }

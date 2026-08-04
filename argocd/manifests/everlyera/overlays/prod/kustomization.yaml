@@ -10,3 +10,7 @@ images:
 labels:
   - pairs: { environment: prod }
     includeSelectors: true
+patches:
+  - target: { kind: Ingress, name: everlyera-ingress }
+    patch: |
+      - { op: add, path: /metadata/annotations/traefik.ingress.kubernetes.io~1router.middlewares, value: "everlyera-everlyera-redirect-https@kubernetescrd" }
