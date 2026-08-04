@@ -7,6 +7,16 @@ images:
     newTag: "1.45.0"
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: linkding-data-pvc
+    patch: |
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-one-replica-tank
+      - op: add
+        path: /spec/volumeName
+        value: linkding-data-pvc-migrated
+  - target:
       kind: Ingress
       name: linkding-ingress
     patch: |
