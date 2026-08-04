@@ -72,6 +72,18 @@ class MigrationPlaybookTests(unittest.TestCase):
         self.assertIn("apps_by_name[restore_child_app].operation | default(None) == None", source)
         self.assertNotIn("status.operationState.phase | default('Succeeded') not in ['Running', 'Terminating']", source)
 
+    def test_grouped_wave_inputs_are_explicit(self):
+        source = PLAYBOOK.read_text()
+        for text in (
+            "migration_prepaused: false",
+            "migration_extra_controllers: []",
+            "migration_defer_acceptance: false",
+            "Add exact grouped-wave controllers",
+            "when: not migration_defer_acceptance | bool",
+            "GROUP MEMBER CUTOVER SUCCEEDED",
+        ):
+            self.assertIn(text, source)
+
     @staticmethod
     def run_playbook(fake, log, *extra_vars):
         env = os.environ.copy()

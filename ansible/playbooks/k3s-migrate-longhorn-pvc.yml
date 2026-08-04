@@ -9,6 +9,8 @@
     migration_kubectl: kubectl
     migration_max_backup_age_hours: 24
     migration_skip_confirmation: false
+    migration_prepaused: false
+    migration_extra_controllers: []
     migration_test_force_failure_after_stop: false
     argo_namespace: argocd
     longhorn_namespace: longhorn-system
@@ -196,6 +198,11 @@
     - name: Parse consumers and reject unsafe kinds before mutation
       ansible.builtin.set_fact:
         migration_workloads: "{{ migration_workloads_contract_raw.stdout | from_json }}"
+    - name: Add exact grouped-wave controllers
+      ansible.builtin.set_fact:
+        migration_workloads: >-
+          {{ migration_workloads | combine({'scalableControllers':
+          (migration_workloads.scalableControllers + migration_extra_controllers) | unique(attribute='name') | list}) }}
     - ansible.builtin.assert:
         that:
           - migration_workloads.daemonSets | length == 0
@@ -230,6 +237,7 @@
         - name: Pause root Argo automated sync first
           ansible.builtin.command:
             argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", patch, application, "{{ restore_root_app }}", --type=json, -p, '[{"op":"remove","path":"/spec/syncPolicy/automated"}]']
+          when: not migration_prepaused | bool
         - name: Verify root automated sync absent
           ansible.builtin.command:
             argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", get, application, "{{ restore_root_app }}", -o, 'jsonpath={.spec.syncPolicy.automated}']
@@ -241,6 +249,7 @@
         - name: Pause exact child Argo automated sync
           ansible.builtin.command:
             argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", patch, application, "{{ restore_child_app }}", --type=json, -p, '[{"op":"remove","path":"/spec/syncPolicy/automated"}]']
+          when: not migration_prepaused | bool
         - name: Verify child automated sync absent
           ansible.builtin.command:
             argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", get, application, "{{ restore_child_app }}", -o, 'jsonpath={.spec.syncPolicy.automated}']
@@ -389,6 +398,7 @@
     migration_kubectl: kubectl
     migration_skip_confirmation: false
     migration_classify_only: false
+    migration_defer_acceptance: false
     migration_test_force_failure_after_delete: false
     migration_test_force_failure_after_target_creation: false
     migration_test_force_failure_after_restore: false
@@ -898,6 +908,14 @@
         - name: Fail post-cutover validation
           ansible.builtin.fail:
             msg: "Post-cutover validation failed; recovery state: {{ migration_state_file }}"
+      when: not migration_defer_acceptance | bool
+
+    - name: Report deferred grouped-wave acceptance
+      ansible.builtin.debug:
+        msg: >-
+          GROUP MEMBER CUTOVER SUCCEEDED. PVC {{ restore_pvc_name }} is target-bound;
+          application acceptance remains deferred, workloads stay zero, and root/child Argo stay paused.
+      when: migration_defer_acceptance | bool
 
 # ============================================================
 # ROLLBACK PLAY — restore source PVC from preserved PV
