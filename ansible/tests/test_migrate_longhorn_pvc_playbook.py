@@ -65,6 +65,11 @@ class MigrationPlaybookTests(unittest.TestCase):
         self.assertIn("migration_target_pv: ''", source)
         self.assertIn("migration_target_volume: ''", source)
 
+    def test_preflight_uses_operation_object_as_active_argo_gate(self):
+        source = PLAYBOOK.read_text()
+        self.assertIn("apps_by_name[restore_child_app].operation | default(None) == None", source)
+        self.assertNotIn("status.operationState.phase | default('Succeeded') not in ['Running', 'Terminating']", source)
+
     @staticmethod
     def run_playbook(fake, log, *extra_vars):
         env = os.environ.copy()

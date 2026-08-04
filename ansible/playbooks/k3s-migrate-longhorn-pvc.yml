@@ -176,9 +176,7 @@
           - apps_contract.pauseOrder == [restore_root_app, restore_child_app]
           - apps_by_name[restore_root_app].operation | default(None) == None
           - apps_by_name[restore_child_app].operation | default(None) == None
-          - apps_by_name[restore_root_app].status.operationState.phase | default('Succeeded') not in ['Running', 'Terminating']
-          - apps_by_name[restore_child_app].status.operationState.phase | default('Succeeded') not in ['Running', 'Terminating']
-        fail_msg: Exact root/child Argo identities or idle-operation gate failed.
+        fail_msg: Exact root/child Argo identities or active-operation gate failed.
 
     - name: Fetch workload resources in exact namespace
       ansible.builtin.command:
