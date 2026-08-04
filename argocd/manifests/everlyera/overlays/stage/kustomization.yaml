@@ -11,6 +11,15 @@ labels:
   - pairs: { environment: stage }
     includeSelectors: true
 patches:
+  - target: { kind: PersistentVolumeClaim, name: everlyera-postgres-pvc }
+    patch: |
+      - { op: remove, path: /metadata/labels/recurring-job-group.longhorn.io~1hourly }
+      - { op: remove, path: /metadata/labels/recurring-job-group.longhorn.io~1daily }
+      - { op: remove, path: /metadata/labels/recurring-job-group.longhorn.io~1weekly }
+  - target: { kind: PersistentVolumeClaim, name: everlyera-minio-pvc }
+    patch: |
+      - { op: remove, path: /metadata/labels/recurring-job-group.longhorn.io~1daily }
+      - { op: remove, path: /metadata/labels/recurring-job-group.longhorn.io~1weekly }
   - target: { kind: ConfigMap, name: everlyera-config }
     patch: |
       - { op: replace, path: /data/NEXT_PUBLIC_SERVER_URL, value: "https://staging.everlyera.com" }
