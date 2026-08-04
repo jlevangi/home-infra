@@ -26,6 +26,17 @@ spec:
         runAsGroup: 1001
         fsGroup: 1001
         fsGroupChangePolicy: OnRootMismatch
+      initContainers:
+        - name: migrate
+          image: ghcr.io/jlevangi/everlyera:latest
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "npx payload migrate"]
+          env:
+            - { name: PAYLOAD_SECRET,          valueFrom: { secretKeyRef: { name: everlyera-secrets, key: PAYLOAD_SECRET } } }
+            - { name: DATABASE_URI,             valueFrom: { secretKeyRef: { name: everlyera-secrets, key: DATABASE_URI } } }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits:   { cpu: 500m, memory: 512Mi }
       containers:
         - name: web
           image: ghcr.io/jlevangi/everlyera:latest
