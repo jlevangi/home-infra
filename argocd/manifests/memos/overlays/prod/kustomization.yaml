@@ -12,10 +12,10 @@ patches:
     patch: |
       - op: add
         path: /spec/volumeName
-        value: memos-data-v3-pvc-migrated
+        value: memos-data-v3-pv
       - op: replace
         path: /spec/storageClassName
-        value: longhorn-one-replica-tank
+        value: longhorn-one-replica-flash
       - op: add
         path: /metadata/labels/recurring-job-group.longhorn.io~1hourly
         value: "enabled"
