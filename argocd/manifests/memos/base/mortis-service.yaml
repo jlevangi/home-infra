@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mortis
+  namespace: memos
+  labels:
+    app: mortis
+    app.kubernetes.io/name: mortis
+spec:
+  type: ClusterIP
+  selector:
+    app: mortis
+  ports:
+    - name: http
+      port: 5231
+      targetPort: http
+      protocol: TCP

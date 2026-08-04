@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mortis
+  namespace: memos
+  labels:
+    app: mortis
+    app.kubernetes.io/name: mortis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mortis
+  template:
+    metadata:
+      labels:
+        app: mortis
+        app.kubernetes.io/name: mortis
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mortis
+          image: ghcr.io/mudkipme/mortis:0.30.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - -grpc-addr=memos:5230
+          ports:
+            - name: http
+              containerPort: 5231
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20

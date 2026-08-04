@@ -5,6 +5,8 @@ resources:
   - pvc.yaml
   - deployment.yaml
   - service.yaml
+  - mortis-deployment.yaml
+  - mortis-service.yaml
   - ingress.yaml
   - resource-quota.yaml
   - limit-range.yaml
