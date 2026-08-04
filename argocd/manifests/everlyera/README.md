@@ -6,7 +6,7 @@ GitOps source for the Everly Era photography site.
 
 | Environment | Namespace | Host | Vault path | Image policy |
 | --- | --- | --- | --- | --- |
-| Stage | `everlyera-stage` | `staging.everlyera.com` | `stage/everlyera` | immutable `main-<sha>` candidate |
+| Stage | `everlyera-stage` | `staging.everlyera.com` | `prod/everlyera` (shared with prod for now) | immutable `main-<sha>` candidate |
 | Prod | `everlyera` | `everlyera.com`, `www.everlyera.com` | `prod/everlyera` | immutable release tag before launch |
 
 The site source and image workflow live in `jlevangi/everlyera.com`. This directory owns Kubernetes desired state.
