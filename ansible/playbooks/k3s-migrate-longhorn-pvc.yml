@@ -164,6 +164,7 @@
         cmd: >-
           python3 {{ migration_contract_helper | quote }} argo-apps
           --root-app {{ restore_root_app | quote }} --target-namespace {{ restore_namespace | quote }}
+          {{ '--paused' if migration_prepaused | bool else '' }}
       args:
         executable: /bin/bash
         stdin: "{{ migration_apps_raw.stdout | from_json | combine({'kind': 'ApplicationList'}) | to_json }}"

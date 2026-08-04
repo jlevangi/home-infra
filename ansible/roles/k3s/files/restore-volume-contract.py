@@ -62,10 +62,10 @@ def argo_apps(data, args):
         if automated_present:
             obj(sync["automated"], "application.spec.syncPolicy.automated")
         relevant = name == args.root_app or destination.get("namespace") in targets
-        if relevant and automated_present:
+        if relevant and (automated_present or args.paused):
             require(name not in selected, f"duplicate application {name}")
             selected[name] = copy.deepcopy(item)
-    require(args.root_app in selected, "root application with automated sync not found")
+    require(args.root_app in selected, "root application not found in required sync state")
     children = sorted(name for name in selected if name != args.root_app)
     order = [args.root_app, *children]
     return {"applications": [selected[name] for name in order],
@@ -447,6 +447,7 @@ def parser():
     argo = commands.add_parser("argo-apps")
     argo.add_argument("--root-app", required=True)
     argo.add_argument("--target-namespace", action="append", required=True)
+    argo.add_argument("--paused", action="store_true")
     argo.set_defaults(handler=argo_apps)
     backup = commands.add_parser("backup-volume")
     backup.add_argument("--source-volume", required=True)

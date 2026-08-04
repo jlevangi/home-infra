@@ -37,6 +37,12 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(out["resumeOrder"], ["alpha", "zed", "root"])
         self.assertEqual(out["applications"][0]["spec"]["syncPolicy"]["automated"], {})
 
+    def test_argo_apps_can_capture_exact_prepaused_group(self):
+        root = {"metadata": {"name": "root"}, "spec": {"syncPolicy": {}, "destination": {"namespace": "argocd"}}}
+        child = {"metadata": {"name": "child"}, "spec": {"syncPolicy": {}, "destination": {"namespace": "target"}}}
+        out = self.ok("argo-apps", "--root-app", "root", "--target-namespace", "target", "--paused", data={"kind": "ApplicationList", "items": [child, root]})
+        self.assertEqual(out["applications"], [root, child])
+
     def test_argo_fails_closed(self):
         self.bad("argo-apps", "--root-app", "root", "--target-namespace", "x", data={"items": {}})
         self.bad("argo-apps", "--root-app", "root", "--target-namespace", "x", data={"kind": "ApplicationList", "items": [{"metadata": {"name": "root"}, "spec": {"syncPolicy": {"automated": None}}}]})
