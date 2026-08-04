@@ -383,6 +383,64 @@ def verify_target_binding(data, args):
     return data
 
 
+def cutover_state(data, args):
+    """Classify only exact, safely resumable cutover states."""
+    obj(data, "input")
+    desired = obj(data.get("desired"), "desired")
+    pvc, source_pv = data.get("pvc"), data.get("sourcePv")
+    target_pv, target_volume = data.get("targetPv"), data.get("targetVolume")
+    target_engines = data.get("targetEngines", {"kind": "EngineList", "items": []})
+    require(source_pv is not None, "recorded source PV is missing")
+    _, source_meta, source_spec = resource({"source": source_pv}, "source", "PersistentVolume")
+    require(source_meta.get("name") == args.source_pv, "source PV identity mismatch")
+    source_csi = obj(source_spec.get("csi"), "source PV.spec.csi")
+    require(source_csi.get("driver") == "driver.longhorn.io" and source_csi.get("volumeHandle") == args.source_volume,
+            "source PV CSI identity mismatch")
+    if pvc is not None:
+        _, pvc_meta, pvc_spec = resource({"pvc": pvc}, "pvc", "PersistentVolumeClaim")
+        require((pvc_meta.get("name"), pvc_meta.get("namespace")) == (args.pvc, args.namespace), "PVC identity mismatch")
+        if pvc_spec.get("volumeName") == args.source_pv:
+            require(target_pv is None and target_volume is None, "source-bound PVC cannot coexist with target artifacts")
+            claim = obj(source_spec.get("claimRef"), "source PV.spec.claimRef")
+            require((claim.get("name"), claim.get("namespace")) == (args.pvc, args.namespace), "source PV claimRef mismatch")
+            return {"state": "fresh-source", "deleteSourcePvc": True, "createVolume": True, "createPv": True, "createPvc": True}
+        require(pvc_spec.get("volumeName") == args.pv, "PVC is bound to an unknown PV")
+        require(source_spec.get("persistentVolumeReclaimPolicy") == "Retain", "source PV is not Retain")
+        require(target_pv is not None and target_volume is not None, "target-bound PVC requires target PV and Volume")
+        verify_target_binding({"pvc": pvc, "pv": target_pv, "volume": target_volume}, args)
+        return {"state": "target-bound", "deleteSourcePvc": False, "createVolume": False, "createPv": False, "createPvc": False}
+    require(source_spec.get("persistentVolumeReclaimPolicy") == "Retain", "source PV is not Retain")
+    desired_pv, desired_volume = obj(desired.get("pv"), "desired PV"), obj(desired.get("volume"), "desired Volume")
+    if target_volume is not None:
+        _, live_meta, live_spec = resource({"volume": target_volume}, "volume", "Volume")
+        _, want_meta, want_spec = resource({"volume": desired_volume}, "volume", "Volume")
+        require((live_meta.get("name"), live_meta.get("namespace")) ==
+                (want_meta.get("name"), want_meta.get("namespace")), "target Volume identity mismatch")
+        require(obj(live_meta.get("labels", {}), "target Volume labels") ==
+                obj(want_meta.get("labels", {}), "desired Volume labels"), "target Volume labels mismatch")
+        for key in ("fromBackup", "numberOfReplicas", "diskSelector", "backupTargetName", "frontend", "size"):
+            require(live_spec.get(key) == want_spec.get(key), f"target Volume {key} mismatch")
+        target_engine = engine(target_engines, argparse.Namespace(volume=args.volume))
+        _, _, engine_spec = resource({"engine": target_engine}, "engine", "Engine")
+        require(engine_spec.get("backupVolume") == args.backup_volume, "target Engine BackupVolume mismatch")
+    else:
+        require(not items(target_engines, "EngineList"), "target Engine cannot exist before target Volume")
+    if target_pv is not None:
+        require(target_volume is not None, "target PV cannot exist before target Volume")
+        _, live_meta, live_spec = resource({"pv": target_pv}, "pv", "PersistentVolume")
+        _, want_meta, want_spec = resource({"pv": desired_pv}, "pv", "PersistentVolume")
+        require(live_meta.get("name") == want_meta.get("name"), "target PV identity mismatch")
+        require(live_spec.get("persistentVolumeReclaimPolicy") == want_spec.get("persistentVolumeReclaimPolicy"), "target PV reclaim mismatch")
+        require(live_spec.get("storageClassName") == want_spec.get("storageClassName"), "target PV StorageClass mismatch")
+        require(live_spec.get("capacity") == want_spec.get("capacity"), "target PV capacity mismatch")
+        require(live_spec.get("accessModes") == want_spec.get("accessModes"), "target PV access modes mismatch")
+        require(live_spec.get("claimRef") in (None, {}), "partial target PV already has a claimRef")
+        live_csi, want_csi = obj(live_spec.get("csi"), "target PV.spec.csi"), obj(want_spec.get("csi"), "desired PV.spec.csi")
+        require(live_csi.get("driver") == "driver.longhorn.io" and live_csi == want_csi, "target PV CSI contract mismatch")
+    return {"state": "resume-create", "deleteSourcePvc": False, "createVolume": target_volume is None,
+            "createPv": target_pv is None, "createPvc": True}
+
+
 def parser():
     result = argparse.ArgumentParser()
     commands = result.add_subparsers(dest="command", required=True)
@@ -428,6 +486,10 @@ def parser():
     binding.add_argument("--disk-selector", required=True)
     binding.add_argument("--backup-volume", required=True)
     binding.set_defaults(handler=verify_target_binding)
+    state = commands.add_parser("cutover-state", parents=[binding], add_help=False)
+    state.add_argument("--source-pv", required=True)
+    state.add_argument("--source-volume", required=True)
+    state.set_defaults(handler=cutover_state)
     return result
 
 

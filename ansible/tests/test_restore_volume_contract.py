@@ -203,6 +203,43 @@ class ContractTests(unittest.TestCase):
         data["pv"]["spec"]["persistentVolumeReclaimPolicy"] = "Delete"
         self.bad(*argv, data=data)
 
+    def test_cutover_state_accepts_only_exact_resume_states(self):
+        source = self.fixture()
+        contract = self.ok("capture-contract", data=source)
+        state = {"storageContract": contract,
+                 "selectedBackup": {"metadata": {"name": "backup-1"}, "status": {"state": "Completed", "volumeName": "lh-1", "url": "nfs://nas/x?backup=backup-1&volume=lh-1"}},
+                 "backupVolume": {"metadata": {"name": "bv-1"}}}
+        desired = self.ok("migration-resources", "--target-pv", "pv-target", "--target-volume", "lh-target",
+                          "--target-storage-class", "longhorn-one-replica-tank", "--target-disk-selector", "tank",
+                          "--target-replicas", "1", data={"state": state})
+        argv = ("cutover-state", "--namespace", "app", "--pvc", "data", "--source-pv", "pv-data",
+                "--source-volume", "lh-1", "--pv", "pv-target", "--volume", "lh-target",
+                "--replicas", "1", "--disk-selector", "tank", "--backup-volume", "bv-1")
+        fresh = self.ok(*argv, data={"desired": desired, "pvc": source["pvc"], "sourcePv": source["pv"], "targetPv": None, "targetVolume": None})
+        self.assertEqual(fresh, {"state": "fresh-source", "deleteSourcePvc": True,
+                                 "createVolume": True, "createPv": True, "createPvc": True})
+        retained = json.loads(json.dumps(source["pv"])); retained["spec"]["persistentVolumeReclaimPolicy"] = "Retain"
+        engines = {"kind": "EngineList", "items": [{"apiVersion": "longhorn.io/v1beta2", "kind": "Engine", "metadata": {"name": "engine-target", "namespace": "longhorn-system"}, "spec": {"volumeName": "lh-target", "backupVolume": "bv-1"}}]}
+        deleted = self.ok(*argv, data={"desired": desired, "pvc": None, "sourcePv": retained,
+                                      "targetPv": None, "targetVolume": None})
+        self.assertEqual(deleted, {"state": "resume-create", "deleteSourcePvc": False,
+                                   "createVolume": True, "createPv": True, "createPvc": True})
+        partial = self.ok(*argv, data={"desired": desired, "pvc": None, "sourcePv": retained, "targetPv": None,
+                                      "targetVolume": desired["volume"], "targetEngines": engines})
+        self.assertEqual(partial, {"state": "resume-create", "deleteSourcePvc": False,
+                                   "createVolume": False, "createPv": True, "createPvc": True})
+        target_pvc = json.loads(json.dumps(desired["pvc"])); target_pvc["status"] = {"phase": "Bound"}
+        target_pv = json.loads(json.dumps(desired["pv"])); target_pv["spec"]["claimRef"] = {"namespace": "app", "name": "data"}
+        self.assertEqual(self.ok(*argv, data={"desired": desired, "pvc": target_pvc, "sourcePv": retained,
+                                             "targetPv": target_pv, "targetVolume": desired["volume"],
+                                             "targetEngines": engines})["state"], "target-bound")
+        for bad in (
+            {"desired": desired, "pvc": source["pvc"], "sourcePv": source["pv"], "targetPv": desired["pv"], "targetVolume": desired["volume"]},
+            {"desired": desired, "pvc": None, "sourcePv": source["pv"], "targetPv": None, "targetVolume": None},
+            {"desired": desired, "pvc": None, "sourcePv": retained, "targetPv": desired["pv"], "targetVolume": None},
+        ):
+            self.bad(*argv, data=bad)
+
     def test_workloads_rejects_wrong_list_kind_and_duplicate_identity(self):
         item = {"kind": "Pod", "metadata": {"name": "p", "namespace": "app"}, "spec": {"volumes": []}}
         self.bad("workloads", "--namespace", "app", "--pvc", "data", data={"kind": "PodList", "items": [item]})

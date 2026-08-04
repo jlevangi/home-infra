@@ -37,9 +37,17 @@ class MigrationPlaybookTests(unittest.TestCase):
         lowered = source.lower()
         for text in forbidden:
             self.assertNotIn(text.lower(), lowered)
-        rescue = source[source.index("rescue:"):]
-        self.assertNotIn("patch application", rescue)
-        self.assertNotIn("scale", rescue)
+        preflight_rescue = source[source.index("rescue:"):source.index("# CUTOVER PLAY")]
+        self.assertNotIn("patch application", preflight_rescue)
+        self.assertNotIn("scale", preflight_rescue)
+        self.assertIn("Re-pause root then child Argo after acceptance failure", source)
+        self.assertIn("Re-suspend exact recorded CronJobs", source)
+        self.assertIn("Scale exact recorded consumers back to zero", source)
+        classifier = source.index("Report exact non-mutating cutover classification")
+        destructive = source.index("&cutover_destructive")
+        self.assertLess(classifier, destructive)
+        self.assertIn("migration_classify_only | bool", source[classifier:destructive])
+        self.assertIn("ansible.builtin.meta: end_play", source[classifier:destructive])
 
     @staticmethod
     def run_playbook(fake, log, *extra_vars):

@@ -390,7 +390,9 @@
     migration_contract_helper: "{{ playbook_dir }}/../roles/k3s/files/restore-volume-contract.py"
     migration_kubectl: kubectl
     migration_skip_confirmation: false
+    migration_classify_only: false
     migration_test_force_failure_after_delete: false
+    migration_test_force_failure_after_target_creation: false
     migration_test_force_failure_after_restore: false
     migration_test_force_failure_after_integrity: false
     argo_namespace: argocd
@@ -454,11 +456,13 @@
           to delete source PVC and restore into target identities.
           Source PV and Longhorn Volume will be preserved under Retain.
       register: migration_cutover_confirmation
-      when: not migration_skip_confirmation | bool
+      when:
+        - not migration_skip_confirmation | bool
+        - not migration_classify_only | bool
     - name: Validate cutover confirmation
       ansible.builtin.assert:
         that:
-          - migration_skip_confirmation | bool or migration_cutover_confirmation.user_input == 'CUTOVER ' ~ target_env ~ '/' ~ restore_namespace ~ '/' ~ restore_pvc_name
+          - migration_classify_only | bool or migration_skip_confirmation | bool or migration_cutover_confirmation.user_input == 'CUTOVER ' ~ target_env ~ '/' ~ restore_namespace ~ '/' ~ restore_pvc_name
         fail_msg: Cutover confirmation did not exactly match.
 
     - name: Generate migration target resources from state contract
@@ -479,10 +483,66 @@
       ansible.builtin.set_fact:
         migration_target_resources: "{{ migration_resources_raw.stdout | from_json }}"
 
+    - name: Fetch exact nullable namespaced cutover objects
+      ansible.builtin.command:
+        argv: ["{{ migration_kubectl }}", -n, "{{ item.namespace }}", get, "{{ item.kind }}", "{{ item.name }}", --ignore-not-found, -o, json]
+      loop:
+        - {kind: pvc, name: "{{ restore_pvc_name }}", namespace: "{{ restore_namespace }}"}
+        - {kind: volumes.longhorn.io, name: "{{ migration_target_volume }}", namespace: "{{ longhorn_namespace }}"}
+      register: migration_namespaced_cutover_objects_raw
+      changed_when: false
+    - name: Fetch exact nullable cluster-scoped cutover objects
+      ansible.builtin.command:
+        argv: ["{{ migration_kubectl }}", get, pv, "{{ item }}", --ignore-not-found, -o, json]
+      loop:
+        - "{{ migration_state_source.pvName }}"
+        - "{{ migration_target_pv }}"
+      register: migration_cluster_cutover_objects_raw
+      changed_when: false
+    - name: Fetch Engine list for cutover classification
+      ansible.builtin.command:
+        argv: ["{{ migration_kubectl }}", -n, "{{ longhorn_namespace }}", get, engines.longhorn.io, -o, json]
+      register: migration_cutover_engines_raw
+      changed_when: false
+    - name: Classify exact cutover resume state
+      ansible.builtin.shell:
+        cmd: >-
+          python3 {{ migration_contract_helper | quote }} cutover-state
+          --namespace {{ restore_namespace | quote }} --pvc {{ restore_pvc_name | quote }}
+          --source-pv {{ migration_state_source.pvName | quote }}
+          --source-volume {{ migration_state_source.longhornVolumeName | quote }}
+          --pv {{ migration_target_pv | quote }} --volume {{ migration_target_volume | quote }}
+          --replicas {{ migration_target_replicas | int }} --disk-selector {{ migration_target_disk_selector | quote }}
+          --backup-volume {{ migration_state_backup_volume.metadata.name | quote }}
+      args:
+        executable: /bin/bash
+        stdin: >-
+          {{ {'desired': migration_target_resources,
+          'pvc': ((migration_namespaced_cutover_objects_raw.results[0].stdout | from_json) if migration_namespaced_cutover_objects_raw.results[0].stdout | length > 0 else None),
+          'sourcePv': ((migration_cluster_cutover_objects_raw.results[0].stdout | from_json) if migration_cluster_cutover_objects_raw.results[0].stdout | length > 0 else None),
+          'targetPv': ((migration_cluster_cutover_objects_raw.results[1].stdout | from_json) if migration_cluster_cutover_objects_raw.results[1].stdout | length > 0 else None),
+          'targetVolume': ((migration_namespaced_cutover_objects_raw.results[1].stdout | from_json) if migration_namespaced_cutover_objects_raw.results[1].stdout | length > 0 else None),
+          'targetEngines': (migration_cutover_engines_raw.stdout | from_json | combine({'kind': 'EngineList'}))} | to_json }}
+      register: migration_cutover_state_raw
+      changed_when: false
+    - name: Parse exact cutover resume state
+      ansible.builtin.set_fact:
+        migration_cutover_state: "{{ migration_cutover_state_raw.stdout | from_json }}"
+
+    - name: Report exact non-mutating cutover classification
+      ansible.builtin.debug:
+        msg: "CUTOVER CLASSIFICATION: {{ migration_cutover_state | to_json }}"
+      when: migration_classify_only | bool
+
+    - name: Stop after exact non-mutating cutover classification
+      ansible.builtin.meta: end_play
+      when: migration_classify_only | bool
+
     - block: &cutover_destructive
         - name: Preserve source PV under Retain before deleting PVC
           ansible.builtin.command:
             argv: ["{{ migration_kubectl }}", patch, pv, "{{ migration_state_source.pvName }}", --type=merge, -p, '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}']
+          when: migration_cutover_state.state == 'fresh-source'
 
         - name: Fetch source PV to verify Retain
           ansible.builtin.command:
@@ -497,6 +557,7 @@
         - name: Delete source PVC
           ansible.builtin.command:
             argv: ["{{ migration_kubectl }}", -n, "{{ restore_namespace }}", delete, pvc, "{{ restore_pvc_name }}", "--ignore-not-found=true", "--wait=true"]
+          when: migration_cutover_state.deleteSourcePvc | bool
 
         - name: Verify source PVC is gone
           ansible.builtin.command:
@@ -520,9 +581,10 @@
 
         - name: Create target Longhorn Volume from backup
           ansible.builtin.command:
-            argv: ["{{ migration_kubectl }}", apply, -f, -]
+            argv: ["{{ migration_kubectl }}", create, -f, -]
             stdin: "{{ migration_target_resources.volume | to_nice_json }}"
           register: migration_volume_create
+          when: migration_cutover_state.createVolume | bool
         - name: Wait for target Longhorn Volume to be detached and ready
           ansible.builtin.command:
             argv: ["{{ migration_kubectl }}", -n, "{{ longhorn_namespace }}", get, volumes.longhorn.io, "{{ migration_target_volume }}", -o, json]
@@ -544,12 +606,14 @@
               - "backup-volume={{ migration_state_backup_volume.metadata.name }}"
               - "recurring-job-group.longhorn.io/hourly=enabled"
               - --overwrite
+          when: migration_cutover_state.createVolume | bool
 
         - name: Fetch Engine list for exact target volume resolution
           ansible.builtin.command:
             argv: ["{{ migration_kubectl }}", -n, "{{ longhorn_namespace }}", get, engines.longhorn.io, -o, json]
           register: migration_engines_raw
           changed_when: false
+          when: migration_cutover_state.createVolume | bool
         - name: Resolve exactly one target Engine
           ansible.builtin.shell:
             cmd: >-
@@ -560,6 +624,7 @@
             stdin: "{{ migration_engines_raw.stdout | from_json | combine({'kind': 'EngineList'}) | to_json }}"
           register: migration_target_engine_raw
           changed_when: false
+          when: migration_cutover_state.createVolume | bool
         - name: Set exact BackupVolume on target Engine
           ansible.builtin.command:
             argv:
@@ -572,18 +637,26 @@
               - --type=merge
               - -p
               - "{{ {'spec': {'backupVolume': migration_state_backup_volume.metadata.name}} | to_json }}"
+          when: migration_cutover_state.createVolume | bool
+
+        - name: Forced-failure test gate after target creation
+          ansible.builtin.assert:
+            that: not migration_test_force_failure_after_target_creation | bool
+            fail_msg: Forced failure after target Volume creation for fail-closed retry test.
 
         - name: Create target PV with Retain
           ansible.builtin.command:
-            argv: ["{{ migration_kubectl }}", apply, -f, -]
+            argv: ["{{ migration_kubectl }}", create, -f, -]
             stdin: "{{ migration_target_resources.pv | to_nice_json }}"
           register: migration_pv_create
+          when: migration_cutover_state.createPv | bool
 
         - name: Create target PVC bound to target PV
           ansible.builtin.command:
-            argv: ["{{ migration_kubectl }}", apply, -f, -]
+            argv: ["{{ migration_kubectl }}", create, -f, -]
             stdin: "{{ migration_target_resources.pvc | to_nice_json }}"
           register: migration_pvc_create
+          when: migration_cutover_state.createPvc | bool
 
         - name: Wait for target PVC to be Bound
           ansible.builtin.command:
@@ -632,6 +705,7 @@
           ansible.builtin.assert:
             that: not migration_test_force_failure_after_restore | bool
             fail_msg: Forced failure after restore for fail-closed test.
+      when: migration_cutover_state.state != 'target-bound'
       rescue:
         - name: Print cutover failure recovery state
           ansible.builtin.debug:
@@ -694,7 +768,7 @@
 
         - name: Create post-cutover snapshot
           ansible.builtin.command:
-            argv: ["{{ migration_kubectl }}", apply, -f, -]
+            argv: ["{{ migration_kubectl }}", create, -f, -]
             stdin: >-
               {{ {'apiVersion': 'longhorn.io/v1beta2', 'kind': 'Snapshot',
               'metadata': {'name': migration_post_snapshot_name, 'namespace': longhorn_namespace,
@@ -711,7 +785,7 @@
 
         - name: Create exact post-cutover backup
           ansible.builtin.command:
-            argv: ["{{ migration_kubectl }}", apply, -f, -]
+            argv: ["{{ migration_kubectl }}", create, -f, -]
             stdin: >-
               {{ {'apiVersion': 'longhorn.io/v1beta2', 'kind': 'Backup',
               'metadata': {'name': migration_post_backup_name, 'namespace': longhorn_namespace,
@@ -774,12 +848,38 @@
               {{ migration_state_source.longhornVolumeName }} are preserved under Retain for rollback.
               Post-cutover backup verified. Root and child Argo resumed.
       rescue:
+        - name: Read root and child automated sync before containment
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", get, application, "{{ item }}", -o, 'jsonpath={.spec.syncPolicy.automated}']
+          loop: ["{{ restore_root_app }}", "{{ restore_child_app }}"]
+          register: migration_acceptance_argo_automated
+          changed_when: false
+        - name: Re-pause root then child Argo after acceptance failure
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", patch, application, "{{ item.item }}", --type=json, -p, '[{"op":"remove","path":"/spec/syncPolicy/automated"}]']
+          loop: "{{ migration_acceptance_argo_automated.results }}"
+          when: item.stdout | length > 0
+        - name: Re-suspend exact recorded CronJobs
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", -n, "{{ restore_namespace }}", patch, cronjob, "{{ item.name }}", --type=merge, -p, '{"spec":{"suspend":true}}']
+          loop: "{{ migration_state.cronJobs }}"
+        - name: Scale exact recorded consumers back to zero
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", -n, "{{ restore_namespace }}", scale, "{{ item.kind | lower }}/{{ item.name }}", --replicas=0]
+          loop: "{{ migration_state.controllerReplicas }}"
+        - name: Verify root and child automated sync absent after containment
+          ansible.builtin.command:
+            argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", get, application, "{{ item }}", -o, 'jsonpath={.spec.syncPolicy.automated}']
+          loop: ["{{ restore_root_app }}", "{{ restore_child_app }}"]
+          register: migration_acceptance_argo_paused
+          changed_when: false
+          failed_when: migration_acceptance_argo_paused.stdout != ''
         - name: Print post-cutover failure recovery state
           ansible.builtin.debug:
             msg: >-
-              FAIL-CLOSED: Post-cutover validation failed. Workload may be running
-              on target data. Root Argo is NOT resumed. Investigate integrity
-              and backup before resuming root. State file: {{ migration_state_file }}
+              FAIL-CLOSED: Post-cutover validation failed. Workloads were returned
+              to zero and child/root Argo remain paused. Investigate integrity
+              and backup before resuming. State file: {{ migration_state_file }}
         - name: Fail post-cutover validation
           ansible.builtin.fail:
             msg: "Post-cutover validation failed; recovery state: {{ migration_state_file }}"
@@ -853,7 +953,7 @@
 
         - name: Recreate source PVC bound to source PV
           ansible.builtin.command:
-            argv: ["{{ migration_kubectl }}", apply, -f, -]
+            argv: ["{{ migration_kubectl }}", create, -f, -]
             stdin: "{{ migration_state.storageContract.replaySafeContracts.pvc | combine({'spec': {'volumeName': migration_state.source.pvName}}) | to_nice_json }}"
           register: migration_rollback_pvc_create
 
