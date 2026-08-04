@@ -12,7 +12,7 @@ patches:
         value: longhorn-one-replica-tank
       - op: replace
         path: /spec/volumeName
-        value: hoarder-data-pv
+        value: hoarder-data-prod-pv
   - target:
       kind: PersistentVolumeClaim
       name: hoarder-meilisearch-pvc
@@ -32,7 +32,7 @@ patches:
         value: longhorn-one-replica-tank
       - op: replace
         path: /spec/volumeName
-        value: hoarder-redis-pv
+        value: hoarder-redis-prod-pv
   - target:
       kind: Ingress
       name: hoarder-ingress
