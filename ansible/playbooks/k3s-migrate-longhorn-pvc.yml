@@ -735,7 +735,7 @@
             argv: ["{{ migration_kubectl }}", -n, "{{ restore_namespace }}", get, pods, -o, json]
           register: migration_all_pods
           until: >-
-            (migration_all_pods.stdout | from_json).items
+            (migration_all_pods.stdout | from_json)['items']
             | map(attribute='status.phase')
             | select('equalto', 'Running')
             | list | length > 0
