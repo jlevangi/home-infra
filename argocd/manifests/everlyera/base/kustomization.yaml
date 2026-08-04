@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - configmap.yaml
+  - pvc-postgres.yaml
+  - pvc-minio.yaml
+  - deployment-postgres.yaml
+  - service-postgres.yaml
+  - deployment-minio.yaml
+  - service-minio.yaml
+  - configmap-minio-policy.yaml
+  - job-minio-bootstrap.yaml
+  - deployment-imgproxy.yaml
+  - service-imgproxy.yaml
+  - deployment-web.yaml
+  - service-web.yaml
+  - ingress.yaml
+  - resourcequota.yaml
+  - limitrange.yaml

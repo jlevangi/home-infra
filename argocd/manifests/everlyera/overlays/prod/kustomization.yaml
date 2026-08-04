@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: everlyera
+resources:
+  - ../../base
+  - external-secrets.yaml
+images:
+  - name: ghcr.io/jlevangi/everlyera
+    newTag: "main-02cd9e9"
+labels:
+  - pairs: { environment: prod }
+    includeSelectors: true
