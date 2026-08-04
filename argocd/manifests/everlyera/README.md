@@ -9,6 +9,12 @@ GitOps source for the Everly Era photography site.
 | Stage | `everlyera-stage` | `staging.everlyera.com` | `prod/everlyera` (shared with prod for now) | immutable `main-<sha>` candidate |
 | Prod | `everlyera` | `everlyera.com`, `www.everlyera.com` | `prod/everlyera` | immutable release tag before launch |
 
+> **2026-08-04 status**: the stage cluster (172.20.21.111-114) is offline. Until it returns, both the
+> staging site (`everlyera-stage` ns) and the primary site (`everlyera` ns) run **on k3s-prod** from the
+> `main` branch, deployed via `argocd/apps/prod/everlyera-stage.yaml` and `argocd/apps/prod/everlyera.yaml`.
+> They share Vault `prod/everlyera`. The `stage` branch / `argocd/apps/stage` flow resumes when the stage
+> cluster is back online.
+
 ## DNS (split-horizon)
 
 - `everlyera.com` is authoritative in the site's own Cloudflare account (separate from homelab Technitium/DYNU). Public records are managed there; the homelab external-dns (Technitium webhook) does NOT manage this zone.
