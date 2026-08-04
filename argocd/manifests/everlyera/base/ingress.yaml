@@ -5,8 +5,13 @@ metadata:
   namespace: everlyera
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
 spec:
   ingressClassName: traefik
+  tls:
+    - hosts:
+        - everlyera.com
+        - www.everlyera.com
   rules:
     - host: everlyera.com
       http:

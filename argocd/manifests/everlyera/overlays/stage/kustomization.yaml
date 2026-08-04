@@ -26,5 +26,7 @@ patches:
       - { op: replace, path: /data/PAYLOAD_PUBLIC_SERVER_URL, value: "https://staging.everlyera.com" }
   - target: { kind: Ingress, name: everlyera-ingress }
     patch: |
+      - { op: replace, path: /spec/tls/0/hosts/0, value: "staging.everlyera.com" }
+      - { op: remove, path: /spec/tls/0/hosts/1 }
       - { op: replace, path: /spec/rules/0/host, value: "staging.everlyera.com" }
       - { op: remove, path: /spec/rules/1 }
