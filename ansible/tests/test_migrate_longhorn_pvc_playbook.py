@@ -79,6 +79,7 @@ class MigrationPlaybookTests(unittest.TestCase):
             "migration_extra_controllers: []",
             "migration_defer_acceptance: false",
             "Add exact grouped-wave controllers",
+            "migration_extra_controllers | from_yaml",
             "when: not migration_defer_acceptance | bool",
             "GROUP MEMBER CUTOVER SUCCEEDED",
         ):

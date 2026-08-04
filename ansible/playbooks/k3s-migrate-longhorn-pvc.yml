@@ -199,10 +199,14 @@
       ansible.builtin.set_fact:
         migration_workloads: "{{ migration_workloads_contract_raw.stdout | from_json }}"
     - name: Add exact grouped-wave controllers
+      vars:
+        grouped_controllers: >-
+          {{ migration_extra_controllers | from_yaml
+          if migration_extra_controllers is string else migration_extra_controllers }}
       ansible.builtin.set_fact:
         migration_workloads: >-
           {{ migration_workloads | combine({'scalableControllers':
-          (migration_workloads.scalableControllers + migration_extra_controllers) | unique(attribute='name') | list}) }}
+          (migration_workloads.scalableControllers + grouped_controllers) | unique(attribute='name') | list}) }}
     - ansible.builtin.assert:
         that:
           - migration_workloads.daemonSets | length == 0
