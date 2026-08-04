@@ -6,7 +6,7 @@ resources:
   - external-secrets.yaml
 images:
   - name: ghcr.io/jlevangi/everlyera
-    newTag: "main-02cd9e9"
+    newTag: "main-94366bf"
 labels:
   - pairs: { environment: prod }
     includeSelectors: true
