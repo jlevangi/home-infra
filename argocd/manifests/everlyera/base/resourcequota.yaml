@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: everlyera-quota
+  namespace: everlyera
+spec:
+  hard:
+    requests.cpu: "3"
+    requests.memory: 4Gi
+    limits.cpu: "8"
+    limits.memory: 8Gi
+    persistentvolumeclaims: "6"
+    requests.storage: 80Gi

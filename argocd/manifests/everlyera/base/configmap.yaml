@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: everlyera-config
+  namespace: everlyera
+data:
+  # Server-side URL used by Next for canonical/OG/sitemap and by Payload as the site origin.
+  NEXT_PUBLIC_SERVER_URL: "https://everlyera.com"
+  PAYLOAD_PUBLIC_SERVER_URL: "https://everlyera.com"
+
+  # In-cluster service names.
+  POSTGRES_HOST: "everlyera-postgres"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "everlyera"
+  POSTGRES_USER: "everlyera"
+
+  S3_ENDPOINT: "http://everlyera-minio:9000"
+  S3_BUCKET: "everlyera-media"
+  S3_REGION: "us-east-1"
+  S3_FORCE_PATH_STYLE: "true"
+
+  # Server-only upstream. Browser media stays same-origin under /img/*.
+  IMGPROXY_URL: "http://everlyera-imgproxy:8080"
+
+  # Node runtime.
+  NODE_ENV: "production"
+  NEXT_TELEMETRY_DISABLED: "1"

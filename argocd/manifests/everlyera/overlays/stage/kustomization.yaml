@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: everlyera-stage
+resources:
+  - ../../base
+  - external-secrets.yaml
+images:
+  - name: ghcr.io/jlevangi/everlyera
+    newTag: "main-02cd9e9"
+labels:
+  - pairs: { environment: stage }
+    includeSelectors: true
+patches:
+  - target: { kind: ConfigMap, name: everlyera-config }
+    patch: |
+      - { op: replace, path: /data/NEXT_PUBLIC_SERVER_URL, value: "https://staging.everlyera.com" }
+      - { op: replace, path: /data/PAYLOAD_PUBLIC_SERVER_URL, value: "https://staging.everlyera.com" }
+  - target: { kind: Ingress, name: everlyera-ingress }
+    patch: |
+      - { op: replace, path: /spec/rules/0/host, value: "staging.everlyera.com" }
+      - { op: remove, path: /spec/rules/1 }
+      - { op: add, path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target, value: "k3s-stage.stage.levangie.dev" }
