@@ -353,7 +353,7 @@
         - name: Verify source detached and no exact VolumeAttachment
           vars:
             stopped_volume: "{{ migration_detached_volume_raw.stdout | from_json }}"
-            attachments: "{{ (migration_attachments_raw.stdout | from_json).items }}"
+            attachments: "{{ (migration_attachments_raw.stdout | from_json)['items'] }}"
           ansible.builtin.assert:
             that:
               - stopped_volume.metadata.name == migration_volume_name
@@ -810,7 +810,7 @@
             argv: ["{{ migration_kubectl }}", -n, "{{ longhorn_namespace }}", get, backups.longhorn.io, -o, json]
           register: migration_post_backups_raw
           until: >-
-            (migration_post_backups_raw.stdout | from_json).items
+            (migration_post_backups_raw.stdout | from_json)['items']
             | selectattr('status.volumeName', 'defined')
             | selectattr('status.volumeName', 'equalto', migration_target_volume)
             | map(attribute='status.state')
@@ -822,7 +822,7 @@
         - name: Verify exact post-cutover backup exists
           ansible.builtin.assert:
             that: >-
-              (migration_post_backups_raw.stdout | from_json).items
+              (migration_post_backups_raw.stdout | from_json)['items']
               | selectattr('status.volumeName', 'equalto', migration_target_volume)
               | selectattr('status.state', 'equalto', 'Completed')
               | list | length >= 1
