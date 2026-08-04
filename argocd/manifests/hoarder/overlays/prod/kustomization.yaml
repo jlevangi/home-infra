@@ -8,12 +8,28 @@ patches:
       name: hoarder-data-pvc
     patch: |
       - op: replace
+        path: /spec/storageClassName
+        value: longhorn-one-replica-tank
+      - op: replace
         path: /spec/volumeName
         value: hoarder-data-pv
   - target:
       kind: PersistentVolumeClaim
+      name: hoarder-meilisearch-pvc
+    patch: |
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-one-replica-tank
+      - op: add
+        path: /spec/volumeName
+        value: hoarder-meilisearch-pv
+  - target:
+      kind: PersistentVolumeClaim
       name: hoarder-redis-pvc
     patch: |
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-one-replica-tank
       - op: replace
         path: /spec/volumeName
         value: hoarder-redis-pv
