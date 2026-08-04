@@ -50,7 +50,7 @@ CHILD=$(echo "$GROUP" | python3 -c "import json,sys; print(json.load(sys.stdin)[
 ROOT=$(echo "$GROUP" | python3 -c "import json,sys; print(json.load(sys.stdin)['root_app'])")
 INTEGRITY=$(echo "$GROUP" | python3 -c "import json,sys; print(json.load(sys.stdin)['integrity_command'])")
 PVC_COUNT=$(echo "$GROUP" | python3 -c "import json,sys; print(len(json.load(sys.stdin)['pvcs']))")
-CONTROLLERS_JSON=$(echo "$GROUP" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin).get('controllers',[])))")
+CONTROLLERS_JSON=$(echo "$GROUP" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin).get('controllers',[]),separators=(',',':')))")
 
 [ "$ROOT" = "root-$ENV" ] || { echo "root_app must be root-$ENV" >&2; exit 64; }
 [ "$PVC_COUNT" -ge 2 ] || { echo "group needs at least 2 PVCs" >&2; exit 64; }
