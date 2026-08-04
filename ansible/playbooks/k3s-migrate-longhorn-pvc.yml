@@ -397,10 +397,11 @@
     migration_test_force_failure_after_integrity: false
     argo_namespace: argocd
     longhorn_namespace: longhorn-system
-    migration_target_pv: "{{ restore_pvc_name }}-migrated"
-    migration_target_volume: "lh-{{ restore_pvc_name | regex_replace('^pvc-', '') }}-migrated"
-    migration_target_storage_class: longhorn-one-replica-tank
-    migration_target_disk_selector: tank
+    migration_target_pv: ''
+    migration_target_volume: ''
+    migration_origin_pool: ''
+    migration_target_storage_class: "{{ 'longhorn-one-replica-' ~ migration_origin_pool }}"
+    migration_target_disk_selector: "{{ migration_origin_pool }}"
     migration_target_replicas: 1
     migration_state_file: ''
     migration_integrity_command: ''
@@ -418,11 +419,22 @@
           - restore_root_app == 'root-' ~ target_env
           - migration_state_file | length > 0
           - migration_integrity_command | length > 0
+          - migration_origin_pool in ['flash', 'tank']
+          - migration_target_pv | length > 0
+          - migration_target_volume | length > 0
+          - not migration_target_pv.startswith('lh-')
+          - not migration_target_volume.startswith('lh-')
+          - "'-migrated' not in migration_target_pv"
+          - "'-migrated' not in migration_target_volume"
+          - migration_target_storage_class == 'longhorn-one-replica-' ~ migration_origin_pool
+          - migration_target_disk_selector == migration_origin_pool
           - migration_target_storage_class in ['longhorn-one-replica-flash', 'longhorn-one-replica-tank']
           - migration_target_replicas | int == 1
         fail_msg: >-
           Cutover requires exact env, namespace, PVC, child/root app, state file path,
-          integrity command, one-replica target class, and target_replicas=1.
+          integrity command, explicit stable production identities, origin-pool-matched
+          one-replica target class/selector, and target_replicas=1. Temporary-looking
+          lh-* and *-migrated target identities are forbidden.
 
   tasks:
     - name: Load recovery state file

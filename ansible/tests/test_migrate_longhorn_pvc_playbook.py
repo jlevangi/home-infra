@@ -49,6 +49,22 @@ class MigrationPlaybookTests(unittest.TestCase):
         self.assertIn("migration_classify_only | bool", source[classifier:destructive])
         self.assertIn("ansible.builtin.meta: end_play", source[classifier:destructive])
 
+    def test_cutover_requires_origin_pool_and_stable_production_names(self):
+        source = PLAYBOOK.read_text()
+        required = (
+            "migration_origin_pool in ['flash', 'tank']",
+            "migration_target_storage_class == 'longhorn-one-replica-' ~ migration_origin_pool",
+            "migration_target_disk_selector == migration_origin_pool",
+            "not migration_target_pv.startswith('lh-')",
+            "not migration_target_volume.startswith('lh-')",
+            "'-migrated' not in migration_target_pv",
+            "'-migrated' not in migration_target_volume",
+        )
+        for text in required:
+            self.assertIn(text, source)
+        self.assertIn("migration_target_pv: ''", source)
+        self.assertIn("migration_target_volume: ''", source)
+
     @staticmethod
     def run_playbook(fake, log, *extra_vars):
         env = os.environ.copy()
