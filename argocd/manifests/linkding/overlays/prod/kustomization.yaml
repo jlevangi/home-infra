@@ -12,10 +12,10 @@ patches:
     patch: |
       - op: replace
         path: /spec/storageClassName
-        value: longhorn-one-replica-tank
+        value: longhorn-one-replica-flash
       - op: add
         path: /spec/volumeName
-        value: linkding-data-pvc-migrated
+        value: linkding-data-pv
   - target:
       kind: Ingress
       name: linkding-ingress
