@@ -28,4 +28,3 @@ patches:
     patch: |
       - { op: replace, path: /spec/rules/0/host, value: "staging.everlyera.com" }
       - { op: remove, path: /spec/rules/1 }
-      - { op: add, path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target, value: "k3s-stage.stage.levangie.dev" }

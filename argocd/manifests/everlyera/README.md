@@ -9,6 +9,13 @@ GitOps source for the Everly Era photography site.
 | Stage | `everlyera-stage` | `staging.everlyera.com` | `prod/everlyera` (shared with prod for now) | immutable `main-<sha>` candidate |
 | Prod | `everlyera` | `everlyera.com`, `www.everlyera.com` | `prod/everlyera` | immutable release tag before launch |
 
+## DNS (split-horizon)
+
+- `everlyera.com` is authoritative in the site's own Cloudflare account (separate from homelab Technitium/DYNU). Public records are managed there; the homelab external-dns (Technitium webhook) does NOT manage this zone.
+- Internal resolution uses a `everlyera.com` Primary zone in Technitium, member of the `cluster-catalog.levangie.org` catalog, created 2026-08-04.
+- `staging.everlyera.com` → `172.20.20.200` (k3s-prod Traefik LB), internal-only. No public record.
+- The `everlyera.com` zone is unsigned; unknown records fall through to public resolvers (Cloudflare).
+
 The site source and image workflow live in `jlevangi/everlyera.com`. This directory owns Kubernetes desired state.
 
 ## Required Vault keys
