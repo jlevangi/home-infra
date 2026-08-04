@@ -1,0 +1,16 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: everlyera-redirect-http
+  namespace: everlyera
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`everlyera.com`) || Host(`www.everlyera.com`)
+      kind: Rule
+      middlewares:
+        - name: everlyera-redirect-https
+      services:
+        - name: everlyera-web
+          port: 80

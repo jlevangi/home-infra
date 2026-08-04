@@ -4,6 +4,7 @@ namespace: everlyera
 resources:
   - ../../base
   - external-secrets.yaml
+  - ingressroute-redirect.yaml
 images:
   - name: ghcr.io/jlevangi/everlyera
     newTag: "main-94366bf"
