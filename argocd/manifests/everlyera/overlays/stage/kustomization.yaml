@@ -7,7 +7,7 @@ resources:
   - ingressroute-redirect.yaml
 images:
   - name: ghcr.io/jlevangi/everlyera
-    newTag: "main-94366bf"
+    newTag: "0.1.0-stage"
 labels:
   - pairs: { environment: stage }
     includeSelectors: true
