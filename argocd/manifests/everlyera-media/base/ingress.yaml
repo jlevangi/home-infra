@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: everlyera-filebrowser
+  namespace: everlyera-media
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+    traefik.ingress.kubernetes.io/router.tls.domains.0.main: files.everlyera.com
+    # Password auth over cleartext HTTP would expose Mariah's credentials, so the
+    # `web` entrypoint is redirected rather than served.
+    traefik.ingress.kubernetes.io/router.middlewares: everlyera-media-everlyera-media-redirect-https@kubernetescrd
+    # No external-dns annotation on purpose: external-dns domainFilters are
+    # levangie.dev and levangie.org only. everlyera.com is authoritative in the
+    # site's own Cloudflare account, so files.everlyera.com must be created by hand
+    # there (or in the internal Technitium everlyera.com zone). Same as the
+    # everlyera / everlyera-stage ingresses.
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - files.everlyera.com
+  rules:
+    - host: files.everlyera.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: everlyera-filebrowser
+                port: { number: 8080 }

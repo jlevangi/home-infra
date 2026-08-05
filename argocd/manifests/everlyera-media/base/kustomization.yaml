@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - external-secret.yaml
+  - configmap.yaml
+  - configmap-minio-policy.yaml
+  - pvc-minio.yaml
+  - deployment-minio.yaml
+  - service-minio.yaml
+  - job-minio-bootstrap.yaml
+  - deployment-imgproxy.yaml
+  - service-imgproxy.yaml
+  - pvc-filebrowser.yaml
+  - deployment-filebrowser.yaml
+  - service-filebrowser.yaml
+  - middleware-redirect.yaml
+  - ingress.yaml

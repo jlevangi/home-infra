@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: everlyera-filebrowser
+  namespace: everlyera-media
+  labels:
+    app: everlyera-filebrowser
+    component: file-browser
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: everlyera-filebrowser
+  template:
+    metadata:
+      labels:
+        app: everlyera-filebrowser
+        component: file-browser
+      annotations:
+        filebrowser.levangie.dev/config-revision: "1"
+    spec:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: filebrowser
+          # Same digest the cloud.levangie.dev instance runs (v1.5.0-stable).
+          image: gtstef/filebrowser@sha256:fc213590ebc090cb8205125cd3ecdfa9066b9ed4a0b53fe2570972d6a3379e73
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: FILEBROWSER_CONFIG
+              value: /config/config.yaml
+          envFrom:
+            # FILEBROWSER_ADMIN_PASSWORD, FILEBROWSER_JWT_TOKEN_SECRET
+            - secretRef:
+                name: everlyera-filebrowser-secrets
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            # One PVC, two subPaths: `srv` is Mariah's browse root, `db` holds the
+            # FileBrowser SQLite database out of her view. Avoids a second PVC while
+            # keeping the database from showing up as a file in the UI.
+            - name: media
+              mountPath: /srv
+              subPath: srv
+            - name: media
+              mountPath: /home/filebrowser/data
+              subPath: db
+            - name: cache
+              mountPath: /cache
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+      volumes:
+        - name: config
+          configMap:
+            name: everlyera-filebrowser-config
+        - name: media
+          persistentVolumeClaim:
+            claimName: everlyera-filebrowser-pvc
+        - name: cache
+          emptyDir:
+            sizeLimit: 20Gi

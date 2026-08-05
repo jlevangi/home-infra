@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: everlyera-minio-policy
+  namespace: everlyera-media
+data:
+  # One S3 identity, two buckets. Isolation between stage and prod comes from each
+  # environment's S3_BUCKET config, not from separate credentials: Payload's s3Storage
+  # plugin deletes the object when a media doc is deleted, so stage and prod must never
+  # share a bucket.
+  policy.json: |
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": ["s3:GetBucketLocation", "s3:ListBucket"],
+          "Resource": [
+            "arn:aws:s3:::everlyera-media",
+            "arn:aws:s3:::everlyera-media-stage"
+          ]
+        },
+        {
+          "Effect": "Allow",
+          "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+          "Resource": [
+            "arn:aws:s3:::everlyera-media/*",
+            "arn:aws:s3:::everlyera-media-stage/*"
+          ]
+        }
+      ]
+    }

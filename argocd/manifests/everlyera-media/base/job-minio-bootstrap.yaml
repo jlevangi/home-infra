@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: everlyera-minio-bootstrap
+  namespace: everlyera-media
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  backoffLimit: 6
+  template:
+    metadata:
+      labels: { app: everlyera-minio-bootstrap }
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: minio/mc:RELEASE.2025-01-17T23-25-50Z
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              until mc alias set local http://everlyera-minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"; do sleep 5; done
+              mc mb --ignore-existing local/everlyera-media
+              mc mb --ignore-existing local/everlyera-media-stage
+              mc admin user info local "$S3_ACCESS_KEY_ID" >/dev/null 2>&1 || mc admin user add local "$S3_ACCESS_KEY_ID" "$S3_SECRET_ACCESS_KEY"
+              mc admin policy info local everlyera-media >/dev/null 2>&1 || mc admin policy create local everlyera-media /policy/policy.json
+              mc admin policy attach local everlyera-media --user "$S3_ACCESS_KEY_ID"
+          env:
+            - { name: HOME, value: /tmp }
+            - { name: MINIO_ROOT_USER, valueFrom: { secretKeyRef: { name: everlyera-media-secrets, key: MINIO_ROOT_USER } } }
+            - { name: MINIO_ROOT_PASSWORD, valueFrom: { secretKeyRef: { name: everlyera-media-secrets, key: MINIO_ROOT_PASSWORD } } }
+            - { name: S3_ACCESS_KEY_ID, valueFrom: { secretKeyRef: { name: everlyera-media-secrets, key: S3_ACCESS_KEY_ID } } }
+            - { name: S3_SECRET_ACCESS_KEY, valueFrom: { secretKeyRef: { name: everlyera-media-secrets, key: S3_SECRET_ACCESS_KEY } } }
+          volumeMounts:
+            - { name: policy, mountPath: /policy, readOnly: true }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+      volumes:
+        - name: policy
+          configMap: { name: everlyera-minio-policy }

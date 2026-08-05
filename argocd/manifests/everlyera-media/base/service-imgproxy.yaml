@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: everlyera-imgproxy
+  namespace: everlyera-media
+spec:
+  selector: { app: everlyera-imgproxy }
+  ports:
+    - { name: http, port: 8080, targetPort: 8080 }
