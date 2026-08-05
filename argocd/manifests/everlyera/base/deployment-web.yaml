@@ -52,6 +52,27 @@ spec:
             - { name: S3_ACCESS_KEY_ID,        valueFrom: { secretKeyRef: { name: everlyera-secrets, key: S3_ACCESS_KEY_ID } } }
             - { name: S3_SECRET_ACCESS_KEY,    valueFrom: { secretKeyRef: { name: everlyera-secrets, key: S3_SECRET_ACCESS_KEY } } }
             - { name: DATABASE_URI,             valueFrom: { secretKeyRef: { name: everlyera-secrets, key: DATABASE_URI } } }
+            # Outbound mail for inquiry notifications. Every one of these is
+            # `optional: true` on purpose: the keys do not exist in Vault yet, and
+            # a non-optional secretKeyRef for a missing key blocks the pod from
+            # starting at all. The app is built to match — with SMTP_HOST unset
+            # Payload keeps its console adapter, and with INQUIRY_NOTIFY_TO unset
+            # the notification hook logs a warning instead of sending.
+            #
+            # `everlyera-secrets` is a `dataFrom: extract` of the whole
+            # `prod/everlyera` Vault path, so adding these keys there is enough —
+            # no ExternalSecret change is needed. Use `vault kv patch`, never
+            # `vault kv put`, or the existing keys at that path are replaced.
+            #
+            # After populating Vault: wait for the refresh (or force one), then
+            # `kubectl -n <ns> rollout restart deploy/everlyera-web`. Env is read
+            # at pod start, so nothing takes effect until the pods cycle.
+            - { name: SMTP_HOST,               valueFrom: { secretKeyRef: { name: everlyera-secrets, key: SMTP_HOST,          optional: true } } }
+            - { name: SMTP_PORT,               valueFrom: { secretKeyRef: { name: everlyera-secrets, key: SMTP_PORT,          optional: true } } }
+            - { name: SMTP_USER,               valueFrom: { secretKeyRef: { name: everlyera-secrets, key: SMTP_USER,          optional: true } } }
+            - { name: SMTP_PASS,               valueFrom: { secretKeyRef: { name: everlyera-secrets, key: SMTP_PASS,          optional: true } } }
+            - { name: EMAIL_FROM,              valueFrom: { secretKeyRef: { name: everlyera-secrets, key: EMAIL_FROM,         optional: true } } }
+            - { name: INQUIRY_NOTIFY_TO,       valueFrom: { secretKeyRef: { name: everlyera-secrets, key: INQUIRY_NOTIFY_TO,  optional: true } } }
           readinessProbe:
             httpGet: { path: /, port: 3000 }
             initialDelaySeconds: 10
