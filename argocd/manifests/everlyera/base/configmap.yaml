@@ -32,6 +32,20 @@ data:
   # Server-only upstream. Browser media stays same-origin under /img/*.
   IMGPROXY_URL: "http://everlyera-imgproxy.everlyera-media:8080"
 
+  # Search engine visibility. Default is "true" (hidden) for BOTH environments,
+  # so a new environment is never accidentally indexable.
+  #
+  # Staging must stay "true" permanently. Production stays "true" until Mariah's
+  # real photography replaces the placeholder content — publishing an empty
+  # photography site is worse than publishing nothing. Lift it by patching this
+  # to "false" in overlays/prod, not by editing this file.
+  #
+  # The app reads it per request, so flipping it needs a pod restart but not a
+  # rebuild. Note the deployment uses `envFrom: configMapRef` with no checksum
+  # annotation, so a ConfigMap edit alone will NOT roll the pods — pair it with
+  # `kubectl -n everlyera rollout restart deploy/everlyera-web`.
+  SITE_NOINDEX: "true"
+
   # Node runtime.
   NODE_ENV: "production"
   NEXT_TELEMETRY_DISABLED: "1"
