@@ -1,17 +1,14 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+# MinIO and imgproxy used to live here, once per namespace. They now live once in
+# the shared `everlyera-media` namespace and are consumed cross-namespace via
+# S3_ENDPOINT / IMGPROXY_URL in configmap.yaml. Postgres stays per-namespace on
+# purpose: separate databases per environment is the design.
 resources:
   - configmap.yaml
   - pvc-postgres.yaml
-  - pvc-minio.yaml
   - deployment-postgres.yaml
   - service-postgres.yaml
-  - deployment-minio.yaml
-  - service-minio.yaml
-  - configmap-minio-policy.yaml
-  - job-minio-bootstrap.yaml
-  - deployment-imgproxy.yaml
-  - service-imgproxy.yaml
   - deployment-web.yaml
   - middleware-redirect.yaml
   - service-web.yaml

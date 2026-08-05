@@ -17,14 +17,15 @@ patches:
       - { op: remove, path: /metadata/labels/recurring-job-group.longhorn.io~1hourly }
       - { op: remove, path: /metadata/labels/recurring-job-group.longhorn.io~1daily }
       - { op: remove, path: /metadata/labels/recurring-job-group.longhorn.io~1weekly }
-  - target: { kind: PersistentVolumeClaim, name: everlyera-minio-pvc }
-    patch: |
-      - { op: remove, path: /metadata/labels/recurring-job-group.longhorn.io~1daily }
-      - { op: remove, path: /metadata/labels/recurring-job-group.longhorn.io~1weekly }
   - target: { kind: ConfigMap, name: everlyera-config }
     patch: |
       - { op: replace, path: /data/NEXT_PUBLIC_SERVER_URL, value: "https://staging.everlyera.com" }
       - { op: replace, path: /data/PAYLOAD_PUBLIC_SERVER_URL, value: "https://staging.everlyera.com" }
+      # Stage and prod share one MinIO but MUST NOT share a bucket: Payload's
+      # s3Storage plugin deletes the S3 object when a media doc is deleted, and the
+      # two environments have separate Postgres databases. This one line is what
+      # stops a staging cleanup from destroying a live production image.
+      - { op: replace, path: /data/S3_BUCKET, value: "everlyera-media-stage" }
   - target: { kind: Ingress, name: everlyera-ingress }
     patch: |
       - { op: replace, path: /metadata/annotations/traefik.ingress.kubernetes.io~1router.tls.domains.0.main, value: "staging.everlyera.com" }

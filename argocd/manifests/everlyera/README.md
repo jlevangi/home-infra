@@ -37,7 +37,21 @@ The site source and image workflow live in `jlevangi/everlyera.com`. This direct
 - `IMGPROXY_SALT`
 - `GHCR_DOCKER_CONFIG_JSON` — Docker config JSON for private `ghcr.io/jlevangi/everlyera` pulls
 
-The MinIO bootstrap hook creates the `everlyera-media` bucket and grants the S3 application identity bucket-scoped object access. MinIO root credentials are not used by the web or imgproxy Deployments.
+`MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` are no longer consumed in these two namespaces — they are read by the shared MinIO in `everlyera-media`. They stay in `prod/everlyera` because both namespaces use `dataFrom: extract` on the whole path and because the shared namespace's ExternalSecret sources them from here.
+
+## Object storage and image proxy
+
+MinIO and imgproxy are **not** deployed per namespace. Both environments consume the shared stack in the `everlyera-media` namespace (`argocd/manifests/everlyera-media/`) over cluster DNS:
+
+| Key | Stage | Prod |
+| --- | --- | --- |
+| `S3_ENDPOINT` | `http://everlyera-minio.everlyera-media:9000` | same |
+| `IMGPROXY_URL` | `http://everlyera-imgproxy.everlyera-media:8080` | same |
+| `S3_BUCKET` | `everlyera-media-stage` | `everlyera-media` |
+
+**The differing `S3_BUCKET` is load-bearing.** Payload's `s3Storage` plugin deletes the S3 object when a media document is deleted, and the two environments have separate Postgres databases, so a shared bucket would let a staging cleanup silently destroy a live production image. The stage value is set by a patch in `overlays/stage/kustomization.yaml`; the base default is the production bucket, so any new overlay must override it explicitly.
+
+Postgres remains per-namespace by design — separate databases per environment.
 
 ## Validation
 

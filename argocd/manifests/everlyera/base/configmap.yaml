@@ -14,13 +14,23 @@ data:
   POSTGRES_DB: "everlyera"
   POSTGRES_USER: "everlyera"
 
-  S3_ENDPOINT: "http://everlyera-minio:9000"
+  # Object storage and image proxy live in the shared `everlyera-media` namespace,
+  # not here. One MinIO and one imgproxy serve both environments; see
+  # argocd/manifests/everlyera-media/README.md.
+  S3_ENDPOINT: "http://everlyera-minio.everlyera-media:9000"
+
+  # PER-ENVIRONMENT. This is the PRODUCTION bucket. The stage overlay MUST override
+  # it to `everlyera-media-stage`, and that override is the only thing keeping the
+  # two environments apart: Payload's s3Storage plugin deletes the S3 object when a
+  # media document is deleted, and stage and prod have separate Postgres databases,
+  # so a shared bucket would let a stage cleanup silently destroy a live production
+  # image. Any new overlay must set this explicitly.
   S3_BUCKET: "everlyera-media"
   S3_REGION: "us-east-1"
   S3_FORCE_PATH_STYLE: "true"
 
   # Server-only upstream. Browser media stays same-origin under /img/*.
-  IMGPROXY_URL: "http://everlyera-imgproxy:8080"
+  IMGPROXY_URL: "http://everlyera-imgproxy.everlyera-media:8080"
 
   # Node runtime.
   NODE_ENV: "production"
