@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: alist
+  labels:
+    app.kubernetes.io/name: alist
+    app.kubernetes.io/managed-by: argocd

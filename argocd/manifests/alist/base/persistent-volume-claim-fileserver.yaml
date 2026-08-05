@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: alist-fileserver
+  namespace: alist
+  labels:
+    app.kubernetes.io/name: alist
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Ti
+  storageClassName: alist-nfs
+  volumeName: alist-fileserver
