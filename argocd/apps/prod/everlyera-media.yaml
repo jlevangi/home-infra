@@ -1,0 +1,32 @@
+# Shared media namespace for both Everly Era environments: one MinIO (two buckets)
+# plus one imgproxy, consumed by `everlyera` and `everlyera-stage`.
+#
+# FileBrowser is PARTIALLY ROLLED OUT: its manifests exist but are commented out of
+# `argocd/manifests/everlyera-media/base/kustomization.yaml` behind a
+# TODO(home-infra-c20) block, pending Vault path `kv/prod/everlyera-media`, public DNS
+# for `files.everlyera.com`, and the Keycloak OIDC rework. The Ingress in particular
+# must stay out until that DNS record exists — Traefik would otherwise burn Let's
+# Encrypt HTTP-01 attempts (5 failures/hostname/hour) on a name it cannot prove.
+# See argocd/manifests/everlyera-media/README.md.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: everlyera-media
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: git@github.com:jlevangi/home-infra.git
+    targetRevision: main
+    path: argocd/manifests/everlyera-media/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: everlyera-media
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

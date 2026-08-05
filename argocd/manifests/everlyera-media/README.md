@@ -16,10 +16,27 @@ one MinIO keep every operational benefit (one PVC, one imgproxy, one signing key
 that hazard. Isolation comes from each environment's `S3_BUCKET`; a single S3 identity is
 granted access to both.
 
-## Status: not yet deployed
+## Status: deployed, FileBrowser held back
 
-`argocd-application.yaml` in this directory is **inert** — `root-prod` syncs
-`argocd/apps/prod` only. Two prerequisites must clear first.
+The rollout was **split**. MinIO + imgproxy + both buckets are live; the Application is
+active at `argocd/apps/prod/everlyera-media.yaml`. Everything FileBrowser-related is
+commented out of `base/kustomization.yaml` behind a `TODO(home-infra-c20)` block —
+re-enabling is uncommenting seven lines, and no manifest was deleted.
+
+| Component | State |
+| --- | --- |
+| MinIO + both buckets + bootstrap Job | live |
+| imgproxy | live |
+| `everlyera-media-secrets` ExternalSecret | live (reads `kv/prod/everlyera`) |
+| FileBrowser Deployment/Service/PVC/ExternalSecret/ConfigMap | commented out |
+| `ingress.yaml`, `middleware-redirect.yaml` | commented out — **must stay out** until DNS resolves |
+
+The Ingress is the load-bearing exclusion. `files.everlyera.com` does not resolve, so a
+live Ingress makes Traefik retry HTTP-01 against Let's Encrypt, which rate-limits failed
+validations at 5 per hostname per hour. Protecting that budget is why the rollout was
+split.
+
+Three things must clear before uncommenting.
 
 ### 1. Vault path `kv/prod/everlyera-media`
 
@@ -57,19 +74,24 @@ resolves publicly and port 80 reaches `172.20.20.200`. Unlike `staging.everlyera
 reachable from outside the house, so it needs a real public record plus a WAN
 80/443 path to the Traefik LB.
 
-### Activate
+### 3. Keycloak OIDC rework
 
-```bash
-git mv argocd/manifests/everlyera-media/argocd-application.yaml \
-       argocd/apps/prod/everlyera-media.yaml
-git commit -m "feat(everlyera): activate shared everlyera-media namespace" && git push
-```
+Pierce decided FileBrowser authenticates via Keycloak OIDC, matching
+`cloud.levangie.dev`, not the local `adminUsername: mariah` / password auth currently in
+`base/configmap.yaml`. That config must be reworked before the pod is worth starting —
+which also means `FILEBROWSER_ADMIN_PASSWORD` above may become unnecessary.
+
+### Re-enable FileBrowser
+
+Once all three clear, uncomment the seven resource lines in the
+`TODO(home-infra-c20)` block of `base/kustomization.yaml`, render to confirm the
+Ingress and Middleware reappear, and let ArgoCD sync. Nothing else changes.
 
 ## Not covered here
 
-Repointing `everlyera` / `everlyera-stage` at this MinIO and imgproxy, and removing the
-per-namespace stacks, is a separate change. Nothing in this directory modifies
-`argocd/manifests/everlyera/`.
+Nothing in this directory modifies `argocd/manifests/everlyera/`. Repointing
+`everlyera` / `everlyera-stage` at this MinIO and imgproxy, and removing their
+per-namespace MinIO/imgproxy stacks, was done separately in those overlays.
 
 ## Validation
 

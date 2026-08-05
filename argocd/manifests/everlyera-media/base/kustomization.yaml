@@ -3,7 +3,6 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - external-secret.yaml
-  - configmap.yaml
   - configmap-minio-policy.yaml
   - pvc-minio.yaml
   - deployment-minio.yaml
@@ -11,8 +10,37 @@ resources:
   - job-minio-bootstrap.yaml
   - deployment-imgproxy.yaml
   - service-imgproxy.yaml
-  - pvc-filebrowser.yaml
-  - deployment-filebrowser.yaml
-  - service-filebrowser.yaml
-  - middleware-redirect.yaml
-  - ingress.yaml
+
+  # ---------------------------------------------------------------------------
+  # TODO(home-infra-c20): FileBrowser is TEMPORARILY DISABLED. To re-enable,
+  # delete the leading "# " from the seven resource lines at the bottom of this
+  # block — nothing else. The manifests are unmodified and still live in this
+  # directory; none of them were deleted.
+  #
+  # Why it is off: the rollout was deliberately split so MinIO + imgproxy could
+  # go live for the website's critical path while FileBrowser waits on two
+  # blockers.
+  #
+  #   1. Vault path `kv/prod/everlyera-media` does not exist yet, so
+  #      external-secret-filebrowser.yaml would sit permanently unsynced and the
+  #      FileBrowser pod would never start.
+  #   2. `files.everlyera.com` does not resolve publicly. A live Ingress makes
+  #      Traefik retry HTTP-01 against Let's Encrypt, which rate-limits FAILED
+  #      validations at 5 per hostname per hour. Keeping the Ingress out of the
+  #      cluster is the entire point of the split — do NOT uncomment
+  #      ingress.yaml or middleware-redirect.yaml before that DNS record exists.
+  #
+  # Also pending before re-enable: Pierce decided FileBrowser will authenticate
+  # via Keycloak OIDC (matching cloud.levangie.dev) rather than the local
+  # password auth currently configured in configmap.yaml. That rework is part of
+  # the same follow-up.
+  #
+  # See ./README.md ("Status") and `bd show home-infra-c20`.
+  # ---------------------------------------------------------------------------
+  # - external-secret-filebrowser.yaml
+  # - configmap.yaml
+  # - pvc-filebrowser.yaml
+  # - deployment-filebrowser.yaml
+  # - service-filebrowser.yaml
+  # - middleware-redirect.yaml
+  # - ingress.yaml
