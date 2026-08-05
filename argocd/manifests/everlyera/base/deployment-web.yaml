@@ -73,6 +73,18 @@ spec:
             - { name: SMTP_PASS,               valueFrom: { secretKeyRef: { name: everlyera-secrets, key: SMTP_PASS,          optional: true } } }
             - { name: EMAIL_FROM,              valueFrom: { secretKeyRef: { name: everlyera-secrets, key: EMAIL_FROM,         optional: true } } }
             - { name: INQUIRY_NOTIFY_TO,       valueFrom: { secretKeyRef: { name: everlyera-secrets, key: INQUIRY_NOTIFY_TO,  optional: true } } }
+            # Keycloak SSO for the admin panel. Optional for the same reason as
+            # the mail settings: with these unset the app hides the SSO button,
+            # /auth/keycloak/* returns 503, and the local email/password login
+            # continues to work. Local login is never disabled — it is the
+            # break-glass path if Keycloak or its ingress is unavailable.
+            #
+            # Authorisation is enforced by the everlyera-admin realm role, not
+            # by the client alone: the Keycloak client lives in the shared
+            # `master` realm alongside unrelated personal accounts.
+            - { name: KEYCLOAK_ISSUER,         valueFrom: { secretKeyRef: { name: everlyera-secrets, key: KEYCLOAK_ISSUER,        optional: true } } }
+            - { name: KEYCLOAK_CLIENT_ID,      valueFrom: { secretKeyRef: { name: everlyera-secrets, key: KEYCLOAK_CLIENT_ID,     optional: true } } }
+            - { name: KEYCLOAK_CLIENT_SECRET,  valueFrom: { secretKeyRef: { name: everlyera-secrets, key: KEYCLOAK_CLIENT_SECRET, optional: true } } }
           readinessProbe:
             httpGet: { path: /, port: 3000 }
             initialDelaySeconds: 10
