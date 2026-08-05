@@ -130,9 +130,21 @@ MIG="$(kubectl -n "$NS" get pod "$POD" \
 echo "  migrate init exit code : ${MIG:-n/a}"
 [ "${MIG:-0}" = "0" ] || die "migrations failed"
 
-CODE="$(curl -s -o /dev/null -w '%{http_code}' "https://$HOST/" || true)"
+# `kubectl rollout status` returns when the Deployment is complete, but Traefik
+# needs a moment more to drop the terminating pod and register the new endpoint.
+# Checking immediately races that and yields a transient 504, so retry before
+# calling it a failure.
+CODE=""
+for attempt in $(seq 1 12); do
+  CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "https://$HOST/" || true)"
+  [ "$CODE" = "200" ] && break
+  [ "$attempt" = "1" ] && printf '  waiting for ingress'
+  printf '.'
+  sleep 5
+done
+[ "$CODE" = "200" ] && [ -n "${attempt:-}" ] && [ "$attempt" != "1" ] && echo
 echo "  https://$HOST -> $CODE"
-[ "$CODE" = "200" ] || die "site did not return 200 after rollout"
+[ "$CODE" = "200" ] || die "site did not return 200 after rollout (waited 60s)"
 
 printf '\n'
 grn "$ENVIRONMENT is now on $TAG."
