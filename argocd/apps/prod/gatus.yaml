@@ -247,21 +247,7 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
-            - name: Tasks.md
-              group: Applications
-              url: https://tasks.levangie.dev
-              interval: 5m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
 
-            - name: Snippet Box
-              group: Applications
-              url: https://snippets.levangie.dev
-              interval: 5m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
 
             - name: Netboot.xyz
               group: Applications
@@ -287,9 +273,9 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
-            - name: Hoarder
+            - name: Karakeep
               group: Applications
-              url: https://hoarder.levangie.org
+              url: https://karakeep.levangie.org
               interval: 5m
               conditions:
                 - "[STATUS] == 200"
@@ -517,15 +503,7 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
-            - name: FileBrowser
-              group: Applications
-              url: https://cloud.levangie.dev
-              interval: 5m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
 
-            - name: Pingvin Share
               group: Applications
               url: https://files.levangie.dev
               interval: 5m
