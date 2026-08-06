@@ -7,4 +7,6 @@ resources:
   - persistent-volume-claim-data.yaml
   - deployment.yaml
   - service.yaml
+  - middleware-logout.yaml
+  - ingress-logout.yaml
   - ingress.yaml
