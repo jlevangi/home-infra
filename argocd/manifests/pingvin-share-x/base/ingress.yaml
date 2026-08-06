@@ -18,3 +18,13 @@ spec:
                 name: pingvin-share-x
                 port:
                   number: 3000
+    - host: share.levangie.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pingvin-share-x
+                port:
+                  number: 3000
