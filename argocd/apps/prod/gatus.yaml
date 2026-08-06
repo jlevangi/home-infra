@@ -88,14 +88,6 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
-            - name: Alertmanager
-              group: Infrastructure
-              url: https://alerts.levangie.dev
-              interval: 2m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
-
             - name: CrowdSec LAPI
               group: Infrastructure
               url: http://crowdsec-lapi.crowdsec.svc.cluster.local:8080/health
@@ -124,14 +116,6 @@ spec:
             - name: Everly Era
               group: Business
               url: https://everlyera.com
-              interval: 5m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
-
-            - name: Everly Era Media
-              group: Business
-              url: https://files.everlyera.com
               interval: 5m
               conditions:
                 - "[STATUS] == 200"
