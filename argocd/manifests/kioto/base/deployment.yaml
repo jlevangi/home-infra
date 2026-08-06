@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kioto
+  namespace: kioto
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: kioto
+  template:
+    metadata:
+      labels:
+        app: kioto
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: kioto
+          image: gabehf/koito:v0.3.2
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: KOITO_SQLITE_ENABLED
+              value: "true"
+            - name: KOITO_ALLOWED_HOSTS
+              valueFrom:
+                configMapKeyRef:
+                  name: kioto-config
+                  key: KOITO_ALLOWED_HOSTS
+          ports:
+            - containerPort: 4110
+              name: http
+          volumeMounts:
+            - name: data
+              mountPath: /etc/koito
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: kioto-app-data-pvc
