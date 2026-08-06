@@ -88,6 +88,14 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
+            - name: Alertmanager
+              group: Infrastructure
+              url: https://alerts.levangie.dev
+              interval: 2m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
             - name: CrowdSec LAPI
               group: Infrastructure
               url: http://crowdsec-lapi.crowdsec.svc.cluster.local:8080/health
@@ -108,6 +116,22 @@ spec:
             - name: Kaylee Watkins
               group: Applications
               url: https://kayleewatkins.com
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Everly Era
+              group: Business
+              url: https://everlyera.com
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Everly Era Media
+              group: Business
+              url: https://files.everlyera.com
               interval: 5m
               conditions:
                 - "[STATUS] == 200"
@@ -136,6 +160,14 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
+            - name: Alist
+              group: Applications
+              url: https://alist.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
             - name: Vaultwarden
               group: Applications
               url: https://vw.levangie.dev
@@ -147,6 +179,22 @@ spec:
             - name: PocketID
               group: Applications
               url: https://pocketid.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: BoxBox
+              group: Applications
+              url: https://box.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Actual Budget
+              group: Applications
+              url: https://budget.levangie.dev
               interval: 5m
               conditions:
                 - "[STATUS] == 200"
