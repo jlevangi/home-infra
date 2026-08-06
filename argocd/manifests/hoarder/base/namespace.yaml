@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: hoarder
-  labels:
-    app.kubernetes.io/name: hoarder
-    app.kubernetes.io/managed-by: argocd

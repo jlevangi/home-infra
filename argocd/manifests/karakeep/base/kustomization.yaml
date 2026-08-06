@@ -4,8 +4,6 @@ resources:
   - namespace.yaml
   - external-secret.yaml
   - pvc.yaml
-  - deployments.yaml
   - services.yaml
+  - deployments.yaml
   - ingress.yaml
-  - resource-quota.yaml
-  - limit-range.yaml
