@@ -1,0 +1,508 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {"type": "datasource", "uid": "grafana"},
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Personal health metrics from Health Sync / Apple Health / Samsung Health / Health Connect",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {"type": "postgres", "uid": "health-archive"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {"type": "linear"},
+            "showPoints": "never",
+            "spanNulls": 3600000,
+            "stacking": {"group": "A", "mode": "none"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null}
+            ]
+          },
+          "unit": "steps"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 10, "w": 12, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"legend": {"calcs": ["sum","mean","max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "health-archive"},
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": false,
+          "rawSql": "SELECT\n  date_trunc('day', start_time::timestamptz) AS \"time\",\n  SUM(value_numeric) AS \"steps\"\nFROM health_observations_raw\nWHERE metric_type = 'steps'\n  AND $__timeFilter(start_time::timestamptz)\nGROUP BY 1\nORDER BY 1",
+          "refId": "A",
+          "select": [[{"params": ["value_numeric"], "type": "column"}]],
+          "table": "health_observations_raw",
+          "timeColumn": "start_time",
+          "timeColumnType": "timestamptz",
+          "where": [{"name": "metric_type", "params": ["steps"], "type": "macro"}]
+        }
+      ],
+      "title": "Steps (daily total)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "health-archive"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {"type": "linear"},
+            "showPoints": "never",
+            "spanNulls": 3600000,
+            "stacking": {"group": "A", "mode": "none"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{"color": "green", "value": null}]
+          },
+          "unit": "bpm"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 10, "w": 12, "x": 12, "y": 0},
+      "id": 2,
+      "options": {"legend": {"calcs": ["mean","min","max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "health-archive"},
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": false,
+          "rawSql": "SELECT\n  start_time::timestamptz AS \"time\",\n  AVG(value_numeric) AS \"heart_rate\"\nFROM health_observations_raw\nWHERE metric_type = 'heart_rate'\n  AND start_time::timestamptz >= now() - interval '30 days'\n  AND unit = 'bpm'\nGROUP BY 1\nORDER BY 1",
+          "refId": "A",
+          "select": [[{"params": ["value_numeric"], "type": "column"}]],
+          "table": "health_observations_raw",
+          "timeColumn": "start_time",
+          "timeColumnType": "timestamptz",
+          "where": [{"name": "metric_type", "params": ["heart_rate"], "type": "macro"}]
+        }
+      ],
+      "title": "Heart Rate (avg)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "health-archive"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {"type": "linear"},
+            "showPoints": "never",
+            "spanNulls": 3600000,
+            "stacking": {"group": "A", "mode": "none"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{"color": "green", "value": null}]
+          },
+          "unit": "Cal"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 10, "w": 12, "x": 0, "y": 10},
+      "id": 3,
+      "options": {"legend": {"calcs": ["sum","mean"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "health-archive"},
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": false,
+          "rawSql": "SELECT\n  date_trunc('day', start_time::timestamptz) AS \"time\",\n  SUM(value_numeric) AS \"active_energy\"\nFROM health_observations_raw\nWHERE metric_type = 'active_energy'\n  AND $__timeFilter(start_time::timestamptz)\n  AND unit = 'Cal'\nGROUP BY 1\nORDER BY 1",
+          "refId": "A",
+          "select": [[{"params": ["value_numeric"], "type": "column"}]],
+          "table": "health_observations_raw",
+          "timeColumn": "start_time",
+          "timeColumnType": "timestamptz",
+          "where": [{"name": "metric_type", "params": ["active_energy"], "type": "macro"}]
+        }
+      ],
+      "title": "Active Energy (daily kcal)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "health-archive"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {"type": "linear"},
+            "showPoints": "never",
+            "spanNulls": 3600000,
+            "stacking": {"group": "A", "mode": "none"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{"color": "green", "value": null}]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 10, "w": 12, "x": 12, "y": 10},
+      "id": 4,
+      "options": {"legend": {"calcs": ["mean","min","max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "health-archive"},
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": false,
+          "rawSql": "SELECT\n  start_time::timestamptz AS \"time\",\n  AVG(value_numeric) AS \"spo2\"\nFROM health_observations_raw\nWHERE metric_type = 'oxygen_saturation'\n  AND start_time::timestamptz >= now() - interval '30 days'\n  AND unit = '%'\nGROUP BY 1\nORDER BY 1",
+          "refId": "A",
+          "select": [[{"params": ["value_numeric"], "type": "column"}]],
+          "table": "health_observations_raw",
+          "timeColumn": "start_time",
+          "timeColumnType": "timestamptz",
+          "where": [{"name": "metric_type", "params": ["oxygen_saturation"], "type": "macro"}]
+        }
+      ],
+      "title": "Blood Oxygen (SpO₂)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "health-archive"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 6,
+            "scaleDistribution": {"type": "linear"},
+            "showPoints": "auto",
+            "spanNulls": true,
+            "stacking": {"group": "A", "mode": "none"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{"color": "green", "value": null}]
+          },
+          "unit": "kg"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 10, "w": 12, "x": 0, "y": 20},
+      "id": 5,
+      "options": {"legend": {"calcs": ["last"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single"}},
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "health-archive"},
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": false,
+          "rawSql": "SELECT\n  start_time::timestamptz AS \"time\",\n  value_numeric AS \"weight\"\nFROM health_observations_raw\nWHERE metric_type = 'weight'\n  AND unit = 'kg'\n  AND start_time::timestamptz >= now() - interval '180 days'\nORDER BY 1",
+          "refId": "A",
+          "select": [[{"params": ["value_numeric"], "type": "column"}]],
+          "table": "health_observations_raw",
+          "timeColumn": "start_time",
+          "timeColumnType": "timestamptz",
+          "where": [{"name": "metric_type", "params": ["weight"], "type": "macro"}]
+        }
+      ],
+      "title": "Weight (kg)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "health-archive"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {"type": "linear"},
+            "showPoints": "never",
+            "spanNulls": 3600000,
+            "stacking": {"group": "A", "mode": "none"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{"color": "green", "value": null}]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 10, "w": 12, "x": 12, "y": 20},
+      "id": 6,
+      "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "health-archive"},
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": false,
+          "rawSql": "SELECT\n  date_trunc('day', start_time::timestamptz) AS \"time\",\n  SUM(value_numeric) AS \"distance_m\"\nFROM health_observations_raw\nWHERE metric_type = 'distance'\n  AND unit = 'm'\n  AND $__timeFilter(start_time::timestamptz)\nGROUP BY 1\nORDER BY 1",
+          "refId": "A",
+          "select": [[{"params": ["value_numeric"], "type": "column"}]],
+          "table": "health_observations_raw",
+          "timeColumn": "start_time",
+          "timeColumnType": "timestamptz",
+          "where": [{"name": "metric_type", "params": ["distance"], "type": "macro"}]
+        }
+      ],
+      "title": "Distance (daily total, meters)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "health-archive"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {"type": "linear"},
+            "showPoints": "never",
+            "spanNulls": 3600000,
+            "stacking": {"group": "A", "mode": "none"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{"color": "green", "value": null}]
+          },
+          "unit": "h"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 10, "w": 12, "x": 0, "y": 30},
+      "id": 7,
+      "options": {"legend": {"calcs": ["mean","min","max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "health-archive"},
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": false,
+          "rawSql": "SELECT\n  date_trunc('day', r.start_time::timestamptz - interval '12 hours') + interval '12 hours' AS \"time\",\n  SUM(EXTRACT(EPOCH FROM (r.end_time::timestamptz - r.start_time::timestamptz))) / 3600.0 AS \"sleep_hours\"\nFROM health_observations_raw r\nJOIN health_sources s ON s.id = r.source_id\nWHERE r.metric_type = 'sleep_segment'\n  AND s.source_system = 'health_sync'\n  AND COALESCE(r.value_text, '') <> 'awake'\n  AND $__timeFilter(r.start_time::timestamptz)\nGROUP BY 1\nORDER BY 1",
+          "refId": "A",
+          "select": [[{"params": ["value_numeric"], "type": "column"}]],
+          "table": "health_observations_raw",
+          "timeColumn": "start_time",
+          "timeColumnType": "timestamptz",
+          "where": [{"name": "metric_type", "params": ["sleep_segment"], "type": "macro"}]
+        }
+      ],
+      "title": "Sleep Duration (hours)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "health-archive"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {"type": "linear"},
+            "showPoints": "never",
+            "spanNulls": 3600000,
+            "stacking": {"group": "A", "mode": "none"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{"color": "green", "value": null}]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 12, "w": 24, "x": 0, "y": 40},
+      "id": 8,
+      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "health-archive"},
+          "editorMode": "code",
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": false,
+          "rawSql": "SELECT\n  start_time::date AS \"time\",\n  metric_type,\n  COUNT(*)::int AS \"count\"\nFROM health_observations_raw\nWHERE metric_type IN ('steps','heart_rate','active_energy','distance','weight','resting_heart_rate','oxygen_saturation','sleep_segment','calories')\n  AND start_time::timestamptz >= now() - interval '30 days'\nGROUP BY 1, 2\nORDER BY 1 DESC, 2",
+          "refId": "A",
+          "select": [[{"params": ["value_numeric"], "type": "column"}]],
+          "table": "health_observations_raw",
+          "timeColumn": "start_time",
+          "timeColumnType": "timestamptz"
+        }
+      ],
+      "title": "Daily Data Freshness (observations per metric)",
+      "type": "table"
+    }
+  ],
+  "refresh": "5m",
+  "schemaVersion": 39,
+  "tags": ["health", "personal", "self-hosted"],
+  "templating": {
+    "list": [
+      {
+        "current": {"selected": false, "text": "30d", "value": "30d"},
+        "hide": 0,
+        "includeAll": false,
+        "label": "Range",
+        "name": "range",
+        "options": [
+          {"selected": true, "text": "7d", "value": "7d"},
+          {"selected": false, "text": "30d", "value": "30d"},
+          {"selected": false, "text": "90d", "value": "90d"},
+          {"selected": false, "text": "180d", "value": "180d"},
+          {"selected": false, "text": "365d", "value": "365d"}
+        ],
+        "query": "7d,30d,90d,180d,365d",
+        "type": "custom"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": ["5s","10s","30s","1m","5m","15m","30m","1h","2h","1d"]
+  },
+  "timezone": "browser",
+  "title": "Personal Health Dashboard",
+  "uid": "personal-health",
+  "version": 0,
+  "weekStart": ""
+}

@@ -16,6 +16,13 @@ configMapGenerator:
     options:
       labels:
         grafana_dashboard: "1"
+  - name: grafana-dashboard-personal-health
+    namespace: monitoring
+    files:
+      - personal-health.json=personal-health-dashboard.json
+    options:
+      labels:
+        grafana_dashboard: "1"
 generatorOptions:
   disableNameSuffixHash: true
 labels:
