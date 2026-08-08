@@ -225,7 +225,7 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT value_numeric AS \"Latest Heart Rate\"\nFROM health_observations_raw\nWHERE metric_type = 'heart_rate' AND unit = 'bpm'\nORDER BY text_to_timestamptz_immutable(start_time) DESC\nLIMIT 1",
+          "rawSql": "SELECT value_numeric AS \"Latest Heart Rate\"\nFROM health_observations_raw\nWHERE metric_type = 'heart_rate' AND unit IN ('bpm', 'count/min')\nORDER BY text_to_timestamptz_immutable(start_time) DESC\nLIMIT 1",
           "refId": "A",
           "editorMode": "code"
         }
@@ -397,7 +397,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  date_trunc('day', text_to_timestamptz_immutable(start_time)) AS \"time\",\n  MIN(value_numeric) AS \"min\",\n  AVG(value_numeric) AS \"avg\",\n  MAX(value_numeric) AS \"max\"\nFROM health_observations_raw\nWHERE metric_type = 'heart_rate'\n  AND unit = 'bpm'\n  AND text_to_timestamptz_immutable(start_time) >= $__timeFrom() AND text_to_timestamptz_immutable(start_time) <= $__timeTo()\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  date_trunc('day', text_to_timestamptz_immutable(start_time)) AS \"time\",\n  MIN(value_numeric) AS \"min\",\n  AVG(value_numeric) AS \"avg\",\n  MAX(value_numeric) AS \"max\"\nFROM health_observations_raw\nWHERE metric_type = 'heart_rate'\n  AND unit IN ('bpm', 'count/min')\n  AND text_to_timestamptz_immutable(start_time) >= $__timeFrom() AND text_to_timestamptz_immutable(start_time) <= $__timeTo()\nGROUP BY 1\nORDER BY 1",
           "refId": "A",
           "editorMode": "code"
         }
