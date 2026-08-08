@@ -397,7 +397,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  date_trunc('day', text_to_timestamptz_immutable(start_time)) AS \"time\",\n  MIN(value_numeric) AS \"min\",\n  AVG(value_numeric) AS \"avg\",\n  MAX(value_numeric) AS \"max\"\nFROM health_observations_raw\nWHERE metric_type = 'heart_rate'\n  AND unit = 'bpm'\n  AND $__timeFilter(text_to_timestamptz_immutable(start_time))\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  date_trunc('day', text_to_timestamptz_immutable(start_time)) AS \"time\",\n  MIN(value_numeric) AS \"min\",\n  AVG(value_numeric) AS \"avg\",\n  MAX(value_numeric) AS \"max\"\nFROM health_observations_raw\nWHERE metric_type = 'heart_rate'\n  AND unit = 'bpm'\n  AND text_to_timestamptz_immutable(start_time) >= $__timeFrom() AND text_to_timestamptz_immutable(start_time) <= $__timeTo()\nGROUP BY 1\nORDER BY 1",
           "refId": "A",
           "editorMode": "code"
         }
@@ -491,7 +491,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  text_to_timestamptz_immutable(start_time) AS \"time\",\n  value_numeric AS \"resting_hr\"\nFROM health_observations_raw\nWHERE metric_type = 'resting_heart_rate'\n  AND $__timeFilter(text_to_timestamptz_immutable(start_time))\nORDER BY 1",
+          "rawSql": "SELECT\n  text_to_timestamptz_immutable(start_time) AS \"time\",\n  value_numeric AS \"resting_hr\"\nFROM health_observations_raw\nWHERE metric_type = 'resting_heart_rate'\n  AND text_to_timestamptz_immutable(start_time) >= $__timeFrom() AND text_to_timestamptz_immutable(start_time) <= $__timeTo()\nORDER BY 1",
           "refId": "A",
           "editorMode": "code"
         }
@@ -585,7 +585,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  date_trunc('day', text_to_timestamptz_immutable(start_time)) AS \"time\",\n  AVG(CASE WHEN metric_type = 'heart_rate_variability_rmssd' THEN value_numeric END) AS \"rmssd_ms\",\n  AVG(CASE WHEN metric_type = 'heart_rate_variability_sdnn' THEN value_numeric END) AS \"sdnn_ms\"\nFROM health_observations_raw\nWHERE metric_type IN ('heart_rate_variability_rmssd', 'heart_rate_variability_sdnn')\n  AND $__timeFilter(text_to_timestamptz_immutable(start_time))\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  date_trunc('day', text_to_timestamptz_immutable(start_time)) AS \"time\",\n  AVG(CASE WHEN metric_type = 'heart_rate_variability_rmssd' THEN value_numeric END) AS \"rmssd_ms\",\n  AVG(CASE WHEN metric_type = 'heart_rate_variability_sdnn' THEN value_numeric END) AS \"sdnn_ms\"\nFROM health_observations_raw\nWHERE metric_type IN ('heart_rate_variability_rmssd', 'heart_rate_variability_sdnn')\n  AND text_to_timestamptz_immutable(start_time) >= $__timeFrom() AND text_to_timestamptz_immutable(start_time) <= $__timeTo()\nGROUP BY 1\nORDER BY 1",
           "refId": "A",
           "editorMode": "code"
         }
@@ -687,7 +687,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  date_trunc('day', text_to_timestamptz_immutable(r.start_time) - interval '12 hours') + interval '12 hours' AS \"time\",\n  SUM(CASE WHEN r.value_text = 'light' THEN EXTRACT(EPOCH FROM (text_to_timestamptz_immutable(r.end_time) - text_to_timestamptz_immutable(r.start_time))) / 3600.0 ELSE 0 END) AS \"Light\",\n  SUM(CASE WHEN r.value_text = 'deep' THEN EXTRACT(EPOCH FROM (text_to_timestamptz_immutable(r.end_time) - text_to_timestamptz_immutable(r.start_time))) / 3600.0 ELSE 0 END) AS \"Deep\",\n  SUM(CASE WHEN r.value_text = 'rem' THEN EXTRACT(EPOCH FROM (text_to_timestamptz_immutable(r.end_time) - text_to_timestamptz_immutable(r.start_time))) / 3600.0 ELSE 0 END) AS \"REM\",\n  SUM(CASE WHEN r.value_text = 'awake' THEN EXTRACT(EPOCH FROM (text_to_timestamptz_immutable(r.end_time) - text_to_timestamptz_immutable(r.start_time))) / 3600.0 ELSE 0 END) AS \"Awake\"\nFROM health_observations_raw r\nJOIN health_sources s ON s.id = r.source_id\nWHERE r.metric_type = 'sleep_segment'\n  AND s.source_system = 'health_sync'\n  AND $__timeFilter(text_to_timestamptz_immutable(r.start_time))\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  date_trunc('day', text_to_timestamptz_immutable(r.start_time) - interval '12 hours') + interval '12 hours' AS \"time\",\n  SUM(CASE WHEN r.value_text = 'light' THEN EXTRACT(EPOCH FROM (text_to_timestamptz_immutable(r.end_time) - text_to_timestamptz_immutable(r.start_time))) / 3600.0 ELSE 0 END) AS \"Light\",\n  SUM(CASE WHEN r.value_text = 'deep' THEN EXTRACT(EPOCH FROM (text_to_timestamptz_immutable(r.end_time) - text_to_timestamptz_immutable(r.start_time))) / 3600.0 ELSE 0 END) AS \"Deep\",\n  SUM(CASE WHEN r.value_text = 'rem' THEN EXTRACT(EPOCH FROM (text_to_timestamptz_immutable(r.end_time) - text_to_timestamptz_immutable(r.start_time))) / 3600.0 ELSE 0 END) AS \"REM\",\n  SUM(CASE WHEN r.value_text = 'awake' THEN EXTRACT(EPOCH FROM (text_to_timestamptz_immutable(r.end_time) - text_to_timestamptz_immutable(r.start_time))) / 3600.0 ELSE 0 END) AS \"Awake\"\nFROM health_observations_raw r\nJOIN health_sources s ON s.id = r.source_id\nWHERE r.metric_type = 'sleep_segment'\n  AND s.source_system = 'health_sync'\n  AND text_to_timestamptz_immutable(r.start_time) >= $__timeFrom() AND text_to_timestamptz_immutable(r.start_time) <= $__timeTo()\nGROUP BY 1\nORDER BY 1",
           "refId": "A",
           "editorMode": "code"
         }
@@ -758,7 +758,7 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  r.value_text AS \"metric\",\n  SUM(EXTRACT(EPOCH FROM (text_to_timestamptz_immutable(r.end_time) - text_to_timestamptz_immutable(r.start_time)))) / 3600.0 AS \"hours\"\nFROM health_observations_raw r\nJOIN health_sources s ON s.id = r.source_id\nWHERE r.metric_type = 'sleep_segment'\n  AND s.source_system = 'health_sync'\n  AND r.value_text IN ('light', 'deep', 'rem', 'awake')\n  AND $__timeFilter(text_to_timestamptz_immutable(r.start_time))\nGROUP BY 1\nORDER BY 2 DESC",
+          "rawSql": "SELECT\n  r.value_text AS \"metric\",\n  SUM(EXTRACT(EPOCH FROM (text_to_timestamptz_immutable(r.end_time) - text_to_timestamptz_immutable(r.start_time)))) / 3600.0 AS \"hours\"\nFROM health_observations_raw r\nJOIN health_sources s ON s.id = r.source_id\nWHERE r.metric_type = 'sleep_segment'\n  AND s.source_system = 'health_sync'\n  AND r.value_text IN ('light', 'deep', 'rem', 'awake')\n  AND text_to_timestamptz_immutable(r.start_time) >= $__timeFrom() AND text_to_timestamptz_immutable(r.start_time) <= $__timeTo()\nGROUP BY 1\nORDER BY 2 DESC",
           "refId": "A",
           "editorMode": "code"
         }
@@ -909,7 +909,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  time,\n  steps AS \"Steps\",\n  AVG(steps) OVER (ORDER BY time ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS \"7d Avg\"\nFROM (\n  SELECT\n    date_trunc('day', text_to_timestamptz_immutable(start_time)) AS \"time\",\n    SUM(value_numeric) AS steps\n  FROM health_observations_raw\n  WHERE metric_type = 'steps'\n    AND $__timeFilter(text_to_timestamptz_immutable(start_time))\n  GROUP BY 1\n) daily\nORDER BY 1",
+          "rawSql": "SELECT\n  time,\n  steps AS \"Steps\",\n  AVG(steps) OVER (ORDER BY time ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS \"7d Avg\"\nFROM (\n  SELECT\n    date_trunc('day', text_to_timestamptz_immutable(start_time)) AS \"time\",\n    SUM(value_numeric) AS steps\n  FROM health_observations_raw\n  WHERE metric_type = 'steps'\n    AND text_to_timestamptz_immutable(start_time) >= $__timeFrom() AND text_to_timestamptz_immutable(start_time) <= $__timeTo()\n  GROUP BY 1\n) daily\nORDER BY 1",
           "refId": "A",
           "editorMode": "code"
         }
@@ -998,7 +998,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  date_trunc('week', text_to_timestamptz_immutable(start_time)) AS \"time\",\n  SUM(value_numeric) AS \"Steps\"\nFROM health_observations_raw\nWHERE metric_type = 'steps'\n  AND $__timeFilter(text_to_timestamptz_immutable(start_time))\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  date_trunc('week', text_to_timestamptz_immutable(start_time)) AS \"time\",\n  SUM(value_numeric) AS \"Steps\"\nFROM health_observations_raw\nWHERE metric_type = 'steps'\n  AND text_to_timestamptz_immutable(start_time) >= $__timeFrom() AND text_to_timestamptz_immutable(start_time) <= $__timeTo()\nGROUP BY 1\nORDER BY 1",
           "refId": "A",
           "editorMode": "code"
         }
@@ -1092,7 +1092,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  date_trunc('day', text_to_timestamptz_immutable(start_time)) AS \"time\",\n  SUM(value_numeric) AS \"active_energy\"\nFROM health_observations_raw\nWHERE metric_type = 'active_energy'\n  AND $__timeFilter(text_to_timestamptz_immutable(start_time))\n  AND unit IN ('Cal', 'kcal')\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  date_trunc('day', text_to_timestamptz_immutable(start_time)) AS \"time\",\n  SUM(value_numeric) AS \"active_energy\"\nFROM health_observations_raw\nWHERE metric_type = 'active_energy'\n  AND text_to_timestamptz_immutable(start_time) >= $__timeFrom() AND text_to_timestamptz_immutable(start_time) <= $__timeTo()\n  AND unit IN ('Cal', 'kcal')\nGROUP BY 1\nORDER BY 1",
           "refId": "A",
           "editorMode": "code"
         }
@@ -1185,7 +1185,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  date_trunc('day', text_to_timestamptz_immutable(start_time)) AS \"time\",\n  SUM(value_numeric) AS \"distance_m\"\nFROM health_observations_raw\nWHERE metric_type = 'distance'\n  AND unit = 'm'\n  AND $__timeFilter(text_to_timestamptz_immutable(start_time))\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  date_trunc('day', text_to_timestamptz_immutable(start_time)) AS \"time\",\n  SUM(value_numeric) AS \"distance_m\"\nFROM health_observations_raw\nWHERE metric_type = 'distance'\n  AND unit = 'm'\n  AND text_to_timestamptz_immutable(start_time) >= $__timeFrom() AND text_to_timestamptz_immutable(start_time) <= $__timeTo()\nGROUP BY 1\nORDER BY 1",
           "refId": "A",
           "editorMode": "code"
         }
@@ -1293,7 +1293,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  text_to_timestamptz_immutable(start_time) AS \"time\",\n  AVG(value_numeric) AS \"spo2\"\nFROM health_observations_raw\nWHERE metric_type = 'oxygen_saturation'\n  AND $__timeFilter(text_to_timestamptz_immutable(start_time))\n  AND unit = '%'\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  text_to_timestamptz_immutable(start_time) AS \"time\",\n  AVG(value_numeric) AS \"spo2\"\nFROM health_observations_raw\nWHERE metric_type = 'oxygen_saturation'\n  AND text_to_timestamptz_immutable(start_time) >= $__timeFrom() AND text_to_timestamptz_immutable(start_time) <= $__timeTo()\n  AND unit = '%'\nGROUP BY 1\nORDER BY 1",
           "refId": "A",
           "editorMode": "code"
         }
@@ -1386,7 +1386,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  text_to_timestamptz_immutable(start_time) AS \"time\",\n  value_numeric AS \"weight\"\nFROM health_observations_raw\nWHERE metric_type = 'weight'\n  AND unit = 'kg'\n  AND $__timeFilter(text_to_timestamptz_immutable(start_time))\nORDER BY 1",
+          "rawSql": "SELECT\n  text_to_timestamptz_immutable(start_time) AS \"time\",\n  value_numeric AS \"weight\"\nFROM health_observations_raw\nWHERE metric_type = 'weight'\n  AND unit = 'kg'\n  AND text_to_timestamptz_immutable(start_time) >= $__timeFrom() AND text_to_timestamptz_immutable(start_time) <= $__timeTo()\nORDER BY 1",
           "refId": "A",
           "editorMode": "code"
         }
@@ -1472,7 +1472,7 @@
     "list": []
   },
   "time": {
-    "from": "now-30d",
+    "from": "now-7d",
     "to": "now"
   },
   "timepicker": {
