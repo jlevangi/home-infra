@@ -111,6 +111,7 @@ spec:
               database: health_archive
               user: health_archive
               jsonData:
+                database: health_archive
                 sslmode: disable
                 postgresVersion: 1600
               secureJsonData:
