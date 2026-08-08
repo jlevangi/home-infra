@@ -10,7 +10,7 @@ images:
   - name: ghcr.io/linuxserver/qbittorrent
     newTag: "5.2.3"
   - name: ghcr.io/flaresolverr/flaresolverr
-    newTag: v1.2.4
+    newTag: v1.2.9
 patches:
   - target:
       kind: PersistentVolumeClaim
