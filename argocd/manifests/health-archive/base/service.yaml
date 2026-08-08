@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: health-postgres
+  namespace: health-archive
+spec:
+  type: ClusterIP
+  selector:
+    app: health-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+      protocol: TCP

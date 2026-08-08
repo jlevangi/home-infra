@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - ../../base
   - external-secret-home-assistant.yaml
+  - external-secret-health-archive.yaml
   - service-home-assistant.yaml
   - endpoints-home-assistant.yaml
   - servicemonitor-home-assistant.yaml

@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: health-archive
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: git@github.com:jlevangi/home-infra.git
+    targetRevision: main
+    path: argocd/manifests/health-archive/base
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: health-archive
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
