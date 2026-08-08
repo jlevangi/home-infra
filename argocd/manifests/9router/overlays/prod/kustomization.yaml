@@ -4,7 +4,7 @@ resources:
   - ../../base
 images:
   - name: ghcr.io/decolua/9router
-    newTag: "0.5.45"
+    newTag: "0.5.50"
   - name: ghcr.io/chopratejas/headroom
     digest: sha256:50b85d8e320cfcdf1b38919bb7ae067b93ff7a8de0a93f05b2c1246370200d1c
 patches:
