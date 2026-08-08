@@ -36,7 +36,7 @@ spec:
               mountPath: /var/lib/semaphore
       containers:
         - name: semaphore
-          image: semaphoreui/semaphore:v2.18.29-ansible2.16.5
+          image: semaphoreui/semaphore:v2.19.7-ansible2.16.5
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
