@@ -13,5 +13,6 @@ spec:
   resources:
     requests:
       storage: 10Gi
-  storageClassName: longhorn
+  storageClassName: longhorn-one-replica-flash
   volumeMode: Filesystem
+  volumeName: health-postgres-pv
