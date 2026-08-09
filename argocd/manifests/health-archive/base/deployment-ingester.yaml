@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: health-ingester
+  namespace: health-archive
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: health-ingester
+  template:
+    metadata:
+      labels:
+        app: health-ingester
+    spec:
+      containers:
+        - name: ingester
+          image: ghcr.io/jlevangi/health-ingester:0.1.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PGHOST
+              value: health-postgres
+            - name: PGDATABASE
+              value: health_archive
+            - name: PGUSER
+              value: health_archive
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: health-postgres-secret
+                  key: postgres-password
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]

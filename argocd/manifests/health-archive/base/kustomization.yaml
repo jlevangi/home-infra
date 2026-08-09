@@ -6,3 +6,5 @@ resources:
   - pvc.yaml
   - deployment-postgres.yaml
   - service.yaml
+  - deployment-ingester.yaml
+  - service-ingester.yaml

@@ -1,0 +1,56 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: health-archive
+  namespace: monitoring
+spec:
+  groups:
+    - name: health-archive.freshness
+      rules:
+        # Thresholds are set per metric because collection cadence differs:
+        # steps/heart rate stream continuously, sleep lands once a night.
+        # These exist because heart rate silently stopped for two days and the
+        # only signal was an empty Grafana panel.
+        - alert: HealthArchiveStepsStale
+          expr: time() - health_archive_last_observation_timestamp_seconds{metric_type="steps"} > 86400
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: No new step data for over 24h
+            description: >-
+              health_observations_raw has received no 'steps' rows for more than 24 hours.
+              Check the Health Sync export on the phone and the n8n Health Sync Daily Import workflow.
+
+        - alert: HealthArchiveHeartRateStale
+          expr: time() - health_archive_last_observation_timestamp_seconds{metric_type="heart_rate"} > 86400
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: No new heart rate data for over 24h
+            description: >-
+              health_observations_raw has received no 'heart_rate' rows for more than 24 hours.
+              Verify Health Connect still grants heart rate access to Health Sync.
+
+        - alert: HealthArchiveSleepStale
+          expr: time() - health_archive_last_observation_timestamp_seconds{metric_type="sleep_segment"} > 172800
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: No new sleep data for over 48h
+            description: >-
+              health_observations_raw has received no 'sleep_segment' rows for more than 48 hours.
+              Sleep syncs nightly, so two missed nights indicates a broken export.
+
+        - alert: HealthIngesterDown
+          expr: sum(up{namespace="health-archive", service="health-ingester"}) < 1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Health ingester is not being scraped
+            description: >-
+              Prometheus cannot scrape the health-ingester service, so ingestion
+              may have stopped and freshness alerts above will not fire.

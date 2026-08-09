@@ -9,6 +9,8 @@ resources:
   - servicemonitor-home-assistant.yaml
   - scrapeconfig-proxmox-node-exporter.yaml
   - scrapeconfig-llama-cpp-pc.yaml
+  - prometheusrule-health-archive.yaml
+  - servicemonitor-health-ingester.yaml
 configMapGenerator:
   - name: grafana-dashboard-home-assistant
     namespace: monitoring

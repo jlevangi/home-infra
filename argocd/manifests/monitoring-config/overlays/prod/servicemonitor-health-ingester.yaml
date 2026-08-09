@@ -1,0 +1,16 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: health-ingester
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - health-archive
+  selector:
+    matchLabels:
+      app: health-ingester
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 60s
