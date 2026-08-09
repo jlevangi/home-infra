@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kan-config
+  namespace: kan
+data:
+  NODE_ENV: "production"
+  NEXT_PUBLIC_BASE_URL: "https://kan.levangie.dev"
+  BETTER_AUTH_TRUSTED_ORIGINS: "https://kan.levangie.dev"
+  NEXT_PUBLIC_ALLOW_CREDENTIALS: "false"
+  NEXT_PUBLIC_DISABLE_SIGN_UP: "false"
+  NEXT_PUBLIC_DISABLE_EMAIL: "true"
+  NEXT_PUBLIC_WHITE_LABEL_HIDE_POWERED_BY: "false"
+  OIDC_CLIENT_ID: "kan"
+  OIDC_DISCOVERY_URL: "https://auth.levangie.org/realms/master/.well-known/openid-configuration"
+  LOG_LEVEL: "info"
+  TZ: "America/New_York"

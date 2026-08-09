@@ -527,6 +527,14 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
+            - name: Kan
+              group: Applications
+              url: https://kan.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
             - name: Swiparr
               group: Media
               url: https://swipe.levangie.dev
