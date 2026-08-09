@@ -34,6 +34,37 @@ spec:
               value: localhost
             - name: GUACD_PORT
               value: "4822"
+            - name: OIDC_CLIENT_ID
+              value: termix
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: termix-secrets
+                  key: OIDC_CLIENT_SECRET
+            - name: OIDC_ISSUER_URL
+              value: https://auth.levangie.org/realms/master
+            - name: OIDC_AUTHORIZATION_URL
+              value: https://auth.levangie.org/realms/master/protocol/openid-connect/auth
+            - name: OIDC_TOKEN_URL
+              value: https://auth.levangie.org/realms/master/protocol/openid-connect/token
+            - name: OIDC_USERINFO_URL
+              value: https://auth.levangie.org/realms/master/protocol/openid-connect/userinfo
+            - name: OIDC_IDENTIFIER_PATH
+              value: sub
+            - name: OIDC_NAME_PATH
+              value: preferred_username
+            - name: OIDC_SCOPES
+              value: openid email profile groups
+            - name: OIDC_GROUP_CLAIM
+              value: groups
+            - name: OIDC_ADMIN_GROUP
+              value: termix-admins
+            - name: OIDC_ALLOWED_USERS
+              value: pierce@levangie.org
+            - name: OIDC_ALLOW_REGISTRATION
+              value: "true"
+            - name: OIDC_FORCE_HTTPS
+              value: "true"
           ports:
             - name: http
               containerPort: 8080

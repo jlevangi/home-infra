@@ -52,6 +52,21 @@ Termix uses a Longhorn-backed `ReadWriteOnce` PVC:
 - StorageClass: `longhorn-redundant`
 - Size: `2Gi`
 
+## Keycloak SSO
+
+Termix uses native OIDC against the Keycloak `master` realm.
+
+- Client ID: `termix`
+- Callback: `https://termix.levangie.dev/users/oidc/callback`
+- Client secret: Vault `kv/prod/termix` → `ExternalSecret/termix-secrets`
+- Allowed identity: `pierce@levangie.org`
+- Admin mapping: Keycloak group `termix-admins` → Termix built-in `admin` role
+- Username display claim: `preferred_username`
+
+The Keycloak user `pierce` is a member of `termix-admins`. Termix auto-provisions the account on first SSO login and synchronizes administrator status from that group on every login. Password login remains enabled as recovery; do not enable silent/default OIDC login until the normal login path has been proven stable.
+
+To revoke Pierce's Termix admin access without disabling SSO, remove `pierce` from the Keycloak `termix-admins` group. Termix applies the downgrade on the next login.
+
 ## Deployment notes
 
 This app is GitOps-managed. Make changes in Git under `argocd/manifests/termix/`, then verify ArgoCD and the live workload:
