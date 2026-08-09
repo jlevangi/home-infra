@@ -104,29 +104,38 @@ for (let depth = 0; out.length < MAX_FILES_PER_RUN; depth++) {{
 return out.map(c => ({{ json: c }}));
 """
 
-SEND_JS = f"""// One POST per file. Failures are returned rather than thrown so a single
-// unreadable export cannot abort the whole run.
+SEND_JS = f"""// One POST per file. Runs over all items with an explicit index: in
+// per-item mode getBinaryDataBuffer(0, ...) does not reliably resolve to the
+// current item's download, which silently paired every file's metadata with
+// another file's contents.
 const INGESTER = '{INGESTER}';
-const meta = $json;
+const items = $input.all();
+const out = [];
 
-let buffer;
-try {{
-  buffer = await this.helpers.getBinaryDataBuffer(0, 'data');
-}} catch (error) {{
-  return {{ json: {{ ...meta, status: 'no-binary', error: String(error) }} }};
+for (let i = 0; i < items.length; i++) {{
+  const meta = items[i].json;
+  let buffer;
+  try {{
+    buffer = await this.helpers.getBinaryDataBuffer(i, 'data');
+  }} catch (error) {{
+    out.push({{ json: {{ ...meta, status: 'no-binary', error: String(error).slice(0, 200) }} }});
+    continue;
+  }}
+
+  try {{
+    const result = await this.helpers.httpRequest({{
+      method: 'POST',
+      url: INGESTER + '/ingest',
+      body: {{ ...meta, content_base64: buffer.toString('base64') }},
+      json: true,
+    }});
+    out.push({{ json: {{ ...meta, status: 'ok', ...result }} }});
+  }} catch (error) {{
+    out.push({{ json: {{ ...meta, status: 'error', error: String(error).slice(0, 300) }} }});
+  }}
 }}
 
-try {{
-  const result = await this.helpers.httpRequest({{
-    method: 'POST',
-    url: INGESTER + '/ingest',
-    body: {{ ...meta, content_base64: buffer.toString('base64') }},
-    json: true,
-  }});
-  return {{ json: {{ ...meta, status: 'ok', ...result }} }};
-}} catch (error) {{
-  return {{ json: {{ ...meta, status: 'error', error: String(error).slice(0, 300) }} }};
-}}
+return out;
 """
 
 
@@ -191,7 +200,7 @@ workflow = {
             "credentials": DRIVE_CREDS,
             "onError": "continueRegularOutput",
         },
-        code_node("Send To Ingester", SEND_JS, [1060, 0], mode="runOnceForEachItem"),
+        code_node("Send To Ingester", SEND_JS, [1060, 0]),
     ],
     "connections": {
         "Every 15 Minutes": {"main": [[{"node": "Load Folders", "type": "main", "index": 0}]]},
