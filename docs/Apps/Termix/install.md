@@ -62,6 +62,7 @@ Termix uses native OIDC against the Keycloak `master` realm.
 - Allowed identity: `pierce@levangie.org`
 - Admin mapping: Keycloak group `termix-admins` → Termix built-in `admin` role
 - Username display claim: `preferred_username`
+- Requested scopes: `openid email profile` (`groups` is emitted by a dedicated Keycloak client mapper)
 
 The Keycloak user `pierce` is a member of `termix-admins`. Termix auto-provisions the account on first SSO login and synchronizes administrator status from that group on every login. Password login remains enabled as recovery; do not enable silent/default OIDC login until the normal login path has been proven stable.
 
