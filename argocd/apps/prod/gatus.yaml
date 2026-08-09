@@ -529,7 +529,7 @@ spec:
 
             - name: Kan
               group: Applications
-              url: https://kan.levangie.dev
+              url: https://kan.levangie.dev/auth/login
               interval: 5m
               conditions:
                 - "[STATUS] == 200"
