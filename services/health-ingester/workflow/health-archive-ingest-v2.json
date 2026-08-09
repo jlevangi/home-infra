@@ -1,0 +1,215 @@
+[
+  {
+    "id": "healthArchIngV2a",
+    "name": "Health Archive Ingest v2",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "cronExpression",
+                "expression": "*/15 * * * *"
+              }
+            ]
+          }
+        },
+        "id": "every-15-minutes",
+        "name": "Every 15 Minutes",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          -260,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "// Folder ids are stable Health Sync export destinations.\nconst folders = {\n  \"Health Sync Steps\": \"113y4ZIRKmbBm96Uo_lPVpTjkVu7zXulY\",\n  \"Health Sync Heart rate\": \"10IkFt7tAl_m0CZpp7d3ienTQrJrdH3uq\",\n  \"Health Sync Sleep\": \"1VVACpLXTpR1ilnpnnzQf7TYcAqyaiGx0\",\n  \"Health Sync Energy burned\": \"1iWCZXxnMKqDep0gnmZgIVozMJGZZ9bun\",\n  \"Health Sync Activities\": \"1CMrcyqBCvGR8a0niDh2IZMo4MrmNWFXl\",\n  \"Health Sync Weight\": \"10TadE9PkwqJ3av9jc7ghzv8Bkvx5axGF\",\n  \"Health Sync Oxygen saturation\": \"19vi1YNxIc13e8lEVO3vIfok6bfOJCs2e\"\n};\nreturn [{ json: { folders } }];\n"
+        },
+        "id": "load-folders",
+        "name": "Load Folders",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -40,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const folders = Object.entries($input.first().json.folders);\nreturn folders.map(([folderName, folderId]) => ({ json: { folderName, folderId } }));\n"
+        },
+        "id": "split-folders",
+        "name": "Split Folders",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          180,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "resource": "fileFolder",
+          "searchMethod": "query",
+          "queryString": "mimeType != 'application/vnd.google-apps.folder'",
+          "returnAll": true,
+          "filter": {
+            "folderId": {
+              "__rl": true,
+              "mode": "id",
+              "value": "={{ $json.folderId }}"
+            },
+            "whatToSearch": "files",
+            "includeTrashed": false
+          },
+          "options": {
+            "fields": [
+              "id",
+              "name",
+              "version",
+              "modifiedTime",
+              "md5Checksum",
+              "parents"
+            ]
+          }
+        },
+        "id": "list-files",
+        "name": "List Files",
+        "type": "n8n-nodes-base.googleDrive",
+        "typeVersion": 3,
+        "position": [
+          400,
+          0
+        ],
+        "credentials": {
+          "googleDriveOAuth2Api": {
+            "id": "cX1eVebTaIrIk4b6",
+            "name": "Google Drive account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Ask the ingester which files it still needs. It answers from its own\n// ledger, so a file that previously parsed to zero observations is retried --\n// that is exactly the backlog this rewrite exists to recover.\nconst INGESTER = 'http://health-ingester.health-archive.svc.cluster.local';\n\nconst folders = $('Load Folders').first().json.folders;\nconst nameByFolderId = new Map(Object.entries(folders).map(([name, id]) => [id, name]));\n\nconst candidates = $input.all().map(item => {\n  const file = item.json;\n  const folderId = (file.parents || [])[0] || '';\n  return {\n    file_id: file.id,\n    version_key: String(file.version ?? ''),\n    file_name: file.name || '',\n    folder_id: folderId,\n    folder_name: nameByFolderId.get(folderId) || '',\n    modified_time: file.modifiedTime || '',\n    md5_checksum: file.md5Checksum || '',\n  };\n}).filter(c => c.file_id);\n\nif (candidates.length === 0) return [];\n\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: INGESTER + '/files/filter',\n  body: { files: candidates },\n  json: true,\n});\n\nconst wanted = new Set((response.needed || []).map(n => `${n.file_id}\\u0000${n.version_key}`));\nconst selected = candidates.filter(c => wanted.has(`${c.file_id}\\u0000${c.version_key}`));\n\n// Cap each run. The initial backlog is thousands of files that previously\n// parsed to nothing; draining it in one execution would blow n8n's timeout\n// and hammer the Drive API. At 15-minute intervals this still clears in hours,\n// and steady-state runs are far below the cap.\nconst MAX_FILES_PER_RUN = 250;\nreturn selected.slice(0, MAX_FILES_PER_RUN).map(c => ({ json: c }));\n"
+        },
+        "id": "select-needed-files",
+        "name": "Select Needed Files",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          620,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "download",
+          "fileId": "={{ $json.file_id }}",
+          "options": {}
+        },
+        "id": "download-file",
+        "name": "Download File",
+        "type": "n8n-nodes-base.googleDrive",
+        "typeVersion": 2,
+        "position": [
+          840,
+          0
+        ],
+        "credentials": {
+          "googleDriveOAuth2Api": {
+            "id": "cX1eVebTaIrIk4b6",
+            "name": "Google Drive account"
+          }
+        },
+        "onError": "continueRegularOutput"
+      },
+      {
+        "parameters": {
+          "jsCode": "// One POST per file. Failures are returned rather than thrown so a single\n// unreadable export cannot abort the whole run.\nconst INGESTER = 'http://health-ingester.health-archive.svc.cluster.local';\nconst meta = $json;\n\nlet buffer;\ntry {\n  buffer = await this.helpers.getBinaryDataBuffer(0, 'data');\n} catch (error) {\n  return { json: { ...meta, status: 'no-binary', error: String(error) } };\n}\n\ntry {\n  const result = await this.helpers.httpRequest({\n    method: 'POST',\n    url: INGESTER + '/ingest',\n    body: { ...meta, content_base64: buffer.toString('base64') },\n    json: true,\n  });\n  return { json: { ...meta, status: 'ok', ...result } };\n} catch (error) {\n  return { json: { ...meta, status: 'error', error: String(error).slice(0, 300) } };\n}\n",
+          "mode": "runOnceForEachItem"
+        },
+        "id": "send-to-ingester",
+        "name": "Send To Ingester",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1060,
+          0
+        ]
+      }
+    ],
+    "connections": {
+      "Every 15 Minutes": {
+        "main": [
+          [
+            {
+              "node": "Load Folders",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Load Folders": {
+        "main": [
+          [
+            {
+              "node": "Split Folders",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Split Folders": {
+        "main": [
+          [
+            {
+              "node": "List Files",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "List Files": {
+        "main": [
+          [
+            {
+              "node": "Select Needed Files",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Select Needed Files": {
+        "main": [
+          [
+            {
+              "node": "Download File",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Download File": {
+        "main": [
+          [
+            {
+              "node": "Send To Ingester",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1"
+    }
+  }
+]

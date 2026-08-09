@@ -58,3 +58,14 @@ spec:
             readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
+          volumeMounts:
+            # waitress spills large request bodies to a temp file; with a
+            # read-only root filesystem it has nowhere to write and drops the
+            # connection mid-upload. Uploads here are whole export files, so
+            # this path is hit by ordinary traffic, not just edge cases.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
