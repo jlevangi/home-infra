@@ -66,10 +66,40 @@ SELECT observation_count, inserted_count FROM ledger
 """
 
 _FRESHNESS_SQL = """
-SELECT metric_type,
-       EXTRACT(EPOCH FROM max(text_to_timestamptz_immutable(start_time))) AS last_seen
-FROM health_observations_raw
-GROUP BY metric_type
+WITH RECURSIVE metric_types(metric_type) AS (
+  (
+    SELECT metric_type
+    FROM health_observations_raw
+    WHERE metric_type IS NOT NULL
+    ORDER BY metric_type
+    LIMIT 1
+  )
+  UNION ALL
+  SELECT (
+    SELECT candidate.metric_type
+    FROM health_observations_raw candidate
+    WHERE candidate.metric_type > metric_types.metric_type
+    ORDER BY candidate.metric_type
+    LIMIT 1
+  )
+  FROM metric_types
+  WHERE metric_type IS NOT NULL
+), known_metrics AS (
+  SELECT metric_type
+  FROM metric_types
+  WHERE metric_type IS NOT NULL
+)
+SELECT known_metrics.metric_type,
+       EXTRACT(EPOCH FROM latest.observed_at) AS last_seen
+FROM known_metrics
+CROSS JOIN LATERAL (
+  SELECT text_to_timestamptz_immutable(observation.start_time) AS observed_at
+  FROM health_observations_raw observation
+  WHERE observation.metric_type = known_metrics.metric_type
+  ORDER BY text_to_timestamptz_immutable(observation.start_time) DESC
+  LIMIT 1
+) latest
+ORDER BY known_metrics.metric_type
 """
 
 
