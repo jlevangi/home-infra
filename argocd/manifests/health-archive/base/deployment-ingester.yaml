@@ -13,6 +13,8 @@ spec:
       labels:
         app: health-ingester
     spec:
+      imagePullSecrets:
+        - name: health-archive-ghcr
       containers:
         - name: ingester
           image: ghcr.io/jlevangi/health-ingester:0.1.0
