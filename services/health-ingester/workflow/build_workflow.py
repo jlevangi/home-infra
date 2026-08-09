@@ -69,6 +69,11 @@ const response = await this.helpers.httpRequest({{
 const wanted = new Set((response.needed || []).map(n => `${{n.file_id}}\\u0000${{n.version_key}}`));
 const selected = candidates.filter(c => wanted.has(`${{c.file_id}}\\u0000${{c.version_key}}`));
 
+// Newest first. Drive returns files in arbitrary order, and during a large
+// backfill that buries today's sleep and heart rate behind years of history.
+// Recent data is what the dashboard shows, so it must land on the first run.
+selected.sort((a, b) => String(b.modified_time).localeCompare(String(a.modified_time)));
+
 // Cap each run. The initial backlog is thousands of files that previously
 // parsed to nothing; draining it in one execution would blow n8n's timeout
 // and hammer the Drive API. At 15-minute intervals this still clears in hours,
