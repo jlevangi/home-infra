@@ -69,17 +69,39 @@ const response = await this.helpers.httpRequest({{
 const wanted = new Set((response.needed || []).map(n => `${{n.file_id}}\\u0000${{n.version_key}}`));
 const selected = candidates.filter(c => wanted.has(`${{c.file_id}}\\u0000${{c.version_key}}`));
 
-// Newest first. Drive returns files in arbitrary order, and during a large
-// backfill that buries today's sleep and heart rate behind years of history.
-// Recent data is what the dashboard shows, so it must land on the first run.
-selected.sort((a, b) => String(b.modified_time).localeCompare(String(a.modified_time)));
-
 // Cap each run. The initial backlog is thousands of files that previously
 // parsed to nothing; draining it in one execution would blow n8n's timeout
-// and hammer the Drive API. At 15-minute intervals this still clears in hours,
-// and steady-state runs are far below the cap.
+// and hammer the Drive API.
 const MAX_FILES_PER_RUN = 250;
-return selected.slice(0, MAX_FILES_PER_RUN).map(c => ({{ json: c }}));
+
+// Round-robin across folders, newest first within each. Health Sync rewrites
+// the Energy burned exports constantly, so a purely time-ordered queue let
+// that one folder consume the entire per-run cap and starve sleep, weight and
+// heart rate for hours. Interleaving guarantees every metric advances on
+// every run.
+const byFolder = new Map();
+for (const candidate of selected) {{
+  const key = candidate.folder_name || candidate.folder_id || '';
+  if (!byFolder.has(key)) byFolder.set(key, []);
+  byFolder.get(key).push(candidate);
+}}
+for (const queue of byFolder.values()) {{
+  queue.sort((a, b) => String(b.modified_time).localeCompare(String(a.modified_time)));
+}}
+
+const queues = [...byFolder.values()];
+const out = [];
+for (let depth = 0; out.length < MAX_FILES_PER_RUN; depth++) {{
+  let progressed = false;
+  for (const queue of queues) {{
+    if (depth >= queue.length) continue;
+    out.push(queue[depth]);
+    progressed = true;
+    if (out.length >= MAX_FILES_PER_RUN) break;
+  }}
+  if (!progressed) break;
+}}
+return out.map(c => ({{ json: c }}));
 """
 
 SEND_JS = f"""// One POST per file. Failures are returned rather than thrown so a single

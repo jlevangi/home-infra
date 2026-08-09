@@ -85,17 +85,20 @@ def connect() -> psycopg.Connection:
     )
 
 
-def processed_index() -> dict[tuple[str, str], int]:
-    """Map (file_id, version_key) -> observation_count for processed files."""
+def processed_index() -> dict[tuple[str, str], tuple[int, bool]]:
+    """Map processed files to their row count and handled-empty marker."""
     with connect() as conn, conn.cursor() as cur:
         cur.execute(
-            "SELECT external_file_id, version_key, observation_count"
+            "SELECT external_file_id, version_key, observation_count,"
+            " error_text = 'handled-empty:health-ingester-v2' AS handled_empty"
             " FROM health_ingested_files"
             " WHERE source_system = %s AND status = 'processed'",
             (SOURCE_SYSTEM,),
         )
         return {
-            (row["external_file_id"], row["version_key"]): row["observation_count"]
+            (row["external_file_id"], row["version_key"]): (
+                row["observation_count"], row["handled_empty"]
+            )
             for row in cur.fetchall()
         }
 

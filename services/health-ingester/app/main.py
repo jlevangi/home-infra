@@ -63,7 +63,7 @@ def filter_files():
         if not file_id:
             continue
         prior = index.get((file_id, version_key))
-        if prior is None or prior == 0:
+        if prior is None or (prior[0] == 0 and not prior[1]):
             needed.append({"file_id": file_id, "version_key": version_key})
 
     log.info("filter: %d candidates -> %d needed", len(candidates), len(needed))
@@ -103,7 +103,12 @@ def ingest():
         FILES_TOTAL.labels(format="unknown", outcome="failed").inc()
         return jsonify(error="parse failed", detail=str(exc)[:500]), 422
 
-    result = db.ingest(meta, observations)
+    # Legacy ingestion recorded unsupported files as processed with zero rows.
+    # Mark files that this service has deliberately handled so the filter can
+    # retry legacy zero-yield rows once without retrying known-empty files
+    # forever.
+    handled_empty = "handled-empty:health-ingester-v2" if not observations else None
+    result = db.ingest(meta, observations, error_text=handled_empty)
     FILES_TOTAL.labels(format=fmt, outcome="processed").inc()
     OBSERVATIONS_TOTAL.labels(format=fmt).inc(result["inserted_count"])
     log.info(
