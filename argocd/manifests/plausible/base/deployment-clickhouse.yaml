@@ -13,7 +13,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: disable-noisy-logs-20260801
+        checksum/config: disable-metric-log-20260809
       labels:
         app: plausible-clickhouse
         environment: prod
