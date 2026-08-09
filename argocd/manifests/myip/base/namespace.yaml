@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: myip
+  labels:
+    app.kubernetes.io/name: myip
+    app.kubernetes.io/managed-by: argocd
