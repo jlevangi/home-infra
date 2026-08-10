@@ -200,14 +200,6 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
-            - name: llama-cpp
-              group: Applications
-              url: https://llm.levangie.dev/health
-              interval: 5m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
-
             - name: Factorio
               group: Applications
               url: tcp://factorio.levangie.dev:27015
