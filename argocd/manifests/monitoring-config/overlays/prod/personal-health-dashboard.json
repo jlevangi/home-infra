@@ -461,7 +461,7 @@
       "title": "Sleep Stages Timeline",
       "type": "state-timeline",
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 24,
         "x": 0,
         "y": 18
@@ -539,8 +539,8 @@
       "options": {
         "alignValue": "left",
         "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
+          "displayMode": "table",
+          "placement": "right",
           "showLegend": true
         },
         "mergeValues": true,
@@ -563,7 +563,9 @@
           "refId": "A",
           "rawSql": "SELECT\n  text_to_timestamptz_immutable(r.start_time) AS \"Start\",\n  text_to_timestamptz_immutable(r.end_time) AS \"End\",\n  initcap(lower(r.value_text)) AS \"Sleep Stage\"\nFROM health_observations_raw r\nJOIN health_sources s ON s.id = r.source_id\nWHERE r.metric_type = 'sleep_segment'\n  AND s.source_system = 'health_sync'\n  AND lower(r.value_text) IN ('light', 'deep', 'rem', 'awake')\n  AND text_to_timestamptz_immutable(r.start_time) >= $__timeFrom()\n  AND text_to_timestamptz_immutable(r.start_time) <= $__timeTo()\nORDER BY 1"
         }
-      ]
+      ],
+      "timeFrom": "now-12h",
+      "timeTo": "now"
     },
     {
       "id": 103,
@@ -595,7 +597,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Hourly Avg"
+              "options": "Rolling Avg (3h)"
             },
             "properties": [
               {
@@ -693,7 +695,7 @@
           "format": "time_series",
           "rawQuery": true,
           "refId": "B",
-          "rawSql": "WITH recent AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS observed_at, r.value_numeric, r.original_type, s.source_name\n  FROM health_observations_raw r JOIN health_sources s ON s.id=r.source_id\n  WHERE r.metric_type='steps'\n    AND text_to_timestamptz_immutable(r.start_time) >= $__timeFrom()\n    AND text_to_timestamptz_immutable(r.start_time) <= $__timeTo()\n), chosen AS (\n  SELECT CASE WHEN EXISTS (SELECT 1 FROM recent WHERE original_type='health_sync_steps' AND source_name='Health Sync / Health Connect') THEN 'Health Sync / Health Connect' ELSE 'Health Sync / Samsung Health' END AS source_name\n)\nSELECT (date_trunc('hour', observed_at AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York') AS \"time\",\n       AVG(SUM(value_numeric)) OVER () AS \"Hourly Avg\"\nFROM recent CROSS JOIN chosen WHERE original_type='health_sync_steps' AND recent.source_name=chosen.source_name\nGROUP BY 1 ORDER BY 1"
+          "rawSql": "WITH recent AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS observed_at, r.value_numeric, r.original_type, s.source_name\n  FROM health_observations_raw r JOIN health_sources s ON s.id=r.source_id\n  WHERE r.metric_type='steps'\n    AND text_to_timestamptz_immutable(r.start_time) >= $__timeFrom()\n    AND text_to_timestamptz_immutable(r.start_time) <= $__timeTo()\n), chosen AS (\n  SELECT CASE WHEN EXISTS (SELECT 1 FROM recent WHERE original_type='health_sync_steps' AND source_name='Health Sync / Health Connect') THEN 'Health Sync / Health Connect' ELSE 'Health Sync / Samsung Health' END AS source_name\n)\nSELECT (date_trunc('hour', observed_at AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York') AS \"time\",\n       AVG(SUM(value_numeric)) OVER (ORDER BY date_trunc('hour', observed_at AT TIME ZONE 'America/New_York') ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING) AS \"Rolling Avg (3h)\"\nFROM recent CROSS JOIN chosen WHERE original_type='health_sync_steps' AND recent.source_name=chosen.source_name\nGROUP BY 1 ORDER BY 1"
         }
       ]
     },
@@ -714,39 +716,19 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "fixed",
+            "fixedColor": "orange"
           },
           "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "opacity",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
             "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": 3600000,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "gradientMode": "opacity",
+            "showPoints": "always",
+            "pointSize": 6,
+            "spanNulls": true,
+            "insertNulls": false
           },
           "mappings": [],
           "thresholds": {
@@ -758,15 +740,16 @@
               }
             ]
           },
-          "unit": "Cal"
+          "unit": "kcal"
         },
         "overrides": []
       },
       "options": {
         "legend": {
           "calcs": [
-            "sum",
-            "mean"
+            "mean",
+            "max",
+            "sum"
           ],
           "displayMode": "table",
           "placement": "bottom",
@@ -787,7 +770,7 @@
           "format": "time_series",
           "rawQuery": true,
           "refId": "A",
-          "rawSql": "SELECT\n  (date_trunc('hour', text_to_timestamptz_immutable(start_time) AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York') AS \"time\",\n  SUM(value_numeric) AS \"Active Energy\"\nFROM health_observations_raw\nWHERE metric_type = 'active_energy'\n  AND unit IN ('Cal', 'kcal')\n  AND text_to_timestamptz_immutable(start_time) >= $__timeFrom()\n  AND text_to_timestamptz_immutable(start_time) <= $__timeTo()\nGROUP BY 1 ORDER BY 1"
+          "rawSql": "SELECT\n  text_to_timestamptz_immutable(start_time) AS \"time\",\n  value_numeric AS \"Active Energy\"\nFROM health_observations_raw\nWHERE metric_type IN ('active_energy', 'calories')\n  AND unit = 'kcal'\n  AND original_type LIKE 'health_sync%'\n  AND text_to_timestamptz_immutable(start_time) >= $__timeFrom()\n  AND text_to_timestamptz_immutable(start_time) <= $__timeTo()\nORDER BY 1"
         }
       ]
     },
