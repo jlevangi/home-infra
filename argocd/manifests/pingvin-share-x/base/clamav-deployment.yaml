@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: clamav
-          image: clamav/clamav@sha256:d06c1d6a451d616e1dd79b42f44c8c8c291bba9cf4e75ebc4d0e43c1c6dd87bb
+          image: clamav/clamav@sha256:78810772a92b4a9168115bc6b2e0ffd702640893b9577f8c3d0432762d2655c4
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
