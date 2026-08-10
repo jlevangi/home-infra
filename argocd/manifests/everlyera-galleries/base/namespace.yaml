@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: everlyera-media
+  name: everlyera-galleries
   labels:
-    app.kubernetes.io/name: everlyera-media
+    app.kubernetes.io/name: everlyera-galleries
     app.kubernetes.io/part-of: everlyera
     app.kubernetes.io/managed-by: argocd
     environment: prod

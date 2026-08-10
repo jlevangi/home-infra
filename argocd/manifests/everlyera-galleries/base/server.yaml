@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: everlyera-gallery-server
+  namespace: everlyera-galleries
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: everlyera-gallery-server
+  template:
+    metadata:
+      labels:
+        app: everlyera-gallery-server
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: server
+          image: ghcr.io/immich-app/immich-server:v3.1.0
+          envFrom:
+            - configMapRef:
+                name: everlyera-gallery-config
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: everlyera-gallery-secrets
+                  key: DB_PASSWORD
+          ports:
+            - { name: http, containerPort: 2283 }
+          readinessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 250m, memory: 1Gi }
+            limits: { cpu: "2", memory: 4Gi }
+          volumeMounts:
+            - name: immich-data
+              mountPath: /data
+            - name: client-library
+              mountPath: /mnt/client-library
+              readOnly: true
+      volumes:
+        - name: immich-data
+          nfs:
+            server: 172.20.20.5
+            path: /volume1/everlyera/Client_Galleries/Immich_Data
+        - name: client-library
+          nfs:
+            server: 172.20.20.5
+            path: /volume1/everlyera/Client_Galleries/Library
+            readOnly: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: everlyera-gallery-server
+  namespace: everlyera-galleries
+spec:
+  selector:
+    app: everlyera-gallery-server
+  ports:
+    - { name: http, port: 2283, targetPort: 2283 }

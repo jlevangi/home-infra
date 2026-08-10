@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: everlyera-gallery-db-pvc
+  namespace: everlyera-galleries
+  labels:
+    recurring-job-group.longhorn.io/hourly: "enabled"
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
+    recurring-job.longhorn.io/source: "enabled"
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: longhorn-tank
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: everlyera-gallery-model-cache-pvc
+  namespace: everlyera-galleries
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: longhorn-flash

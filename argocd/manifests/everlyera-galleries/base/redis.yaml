@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: everlyera-gallery-redis
+  namespace: everlyera-galleries
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: everlyera-gallery-redis
+  template:
+    metadata:
+      labels:
+        app: everlyera-gallery-redis
+    spec:
+      containers:
+        - name: redis
+          image: docker.io/valkey/valkey:8@sha256:495e4fecdc98ee48a20b207726caa5ab6451e0fac3642a9be10d9e70b3068df6
+          command: [redis-server, --save, "", --appendonly, "no"]
+          ports:
+            - { name: redis, containerPort: 6379 }
+          readinessProbe:
+            tcpSocket: { port: redis }
+            initialDelaySeconds: 5
+          livenessProbe:
+            tcpSocket: { port: redis }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: everlyera-gallery-redis
+  namespace: everlyera-galleries
+spec:
+  selector:
+    app: everlyera-gallery-redis
+  ports:
+    - { name: redis, port: 6379, targetPort: 6379 }

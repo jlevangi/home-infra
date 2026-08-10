@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: everlyera-gallery-machine-learning
+  namespace: everlyera-galleries
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: everlyera-gallery-machine-learning
+  template:
+    metadata:
+      labels:
+        app: everlyera-gallery-machine-learning
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: machine-learning
+          image: ghcr.io/immich-app/immich-machine-learning:v3.1.0
+          envFrom:
+            - configMapRef:
+                name: everlyera-gallery-config
+          ports:
+            - { name: http, containerPort: 3003 }
+          readinessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          livenessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 250m, memory: 1Gi }
+            limits: { cpu: "2", memory: 4Gi }
+          volumeMounts:
+            - name: model-cache
+              mountPath: /cache
+      volumes:
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: everlyera-gallery-model-cache-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: everlyera-gallery-machine-learning
+  namespace: everlyera-galleries
+spec:
+  selector:
+    app: everlyera-gallery-machine-learning
+  ports:
+    - { name: http, port: 3003, targetPort: 3003 }
