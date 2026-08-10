@@ -25,6 +25,29 @@ The instance shares no database, Redis, cache, credentials, library, or admin us
 
 Pierce (`pierce@levangie.org`) and Mariah (`random2mariah@gmail.com`) were pre-provisioned as Immich administrators. On their first Keycloak login, Immich links the existing account by matching email.
 
+## Branding
+
+Immich's supported custom CSS setting carries the Everly Era palette and typography without patching the container image or relying on version-specific DOM replacement:
+
+- cream `#F6EFE4` and forest `#3C4A31` light theme
+- forest-deep `#2C3724` dark ground
+- warm ink `#2B2118` and taupe `#564B36` text
+- Cormorant/Georgia headings and Inter/system interface text
+
+Keep Immich controls and layout recognizable. Reapply or review the custom CSS after an Immich upgrade if its documented theme variables change.
+
+## Pilot gallery
+
+The first non-destructive pilot is `Liv — Graduation`:
+
+- four byte-identical JPEG copies under `Client_Galleries/Library/Liv-Graduation-Test/`
+- Mariah-owned external library at `/mnt/client-library/Liv-Graduation-Test`
+- 30-day password-protected shared link
+- downloads enabled, uploads disabled, and metadata hidden
+- link and password stored only at `kv/prod/everlyera-gallery-liv-test`
+
+Immich v3 forces downloads off when a link is initially created with metadata hidden. Create the link, then enable downloads through the supported shared-link update action and verify both flags afterward.
+
 ## First boot
 
 1. Confirm `prod/everlyera-galleries` exists in Vault with a random `DB_PASSWORD`.
