@@ -17,7 +17,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, generate_late
 from waitress import serve
 
 from . import db, parsers
-from .health_connect import require_collector_token, validate_batch
+from .health_connect import require_collector_token, validate_batch, validate_envelope
 
 logging.basicConfig(
     level=os.environ.get("LOG_LEVEL", "INFO"),
@@ -57,15 +57,17 @@ def health_connect_batch():
     body = request.get_json(silent=True)
     if body is None:
         return jsonify(error="malformed JSON"), 400
+    if error := validate_envelope(body):
+        return jsonify(error=error), 400
     valid, rejected = validate_batch(body)
-    result = db.ingest_health_connect(valid) if valid else {"accepted": [], "duplicate": []}
-    accepted, duplicate = result.get("accepted", []), result.get("duplicate", [])
+    result = db.ingest_health_connect(valid) if valid else {"accepted": [], "duplicates": []}
+    accepted, duplicates = result.get("accepted", []), result.get("duplicates", [])
     for record in valid:
         outcome = "accepted" if record["key"] in accepted else "duplicate"
-        COLLECTOR_RECORDS.labels(record_type=record["type"], origin=record["originPackage"], outcome=outcome).inc()
+        COLLECTOR_RECORDS.labels(record_type=record["recordType"], origin=record["originPackage"], outcome=outcome).inc()
     for _ in rejected:
         COLLECTOR_RECORDS.labels(record_type="unknown", origin="unknown", outcome="rejected").inc()
-    return jsonify(accepted=accepted, duplicate=duplicate, rejected=rejected)
+    return jsonify(accepted=accepted, duplicates=duplicates, rejected=rejected)
 
 
 @app.get("/healthz")

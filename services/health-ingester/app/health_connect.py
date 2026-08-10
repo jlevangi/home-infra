@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hmac
 import json
+import os
 from datetime import datetime
 from typing import Any
 
@@ -26,18 +27,19 @@ def _time(value: Any) -> datetime:
 
 
 def _reject(record: Any, code: str, message: str) -> dict:
-    return {"key": record.get("key") if isinstance(record, dict) else None, "code": code, "message": message}
+    key = record.get("key", "") if isinstance(record, dict) else ""
+    return {"key": key if isinstance(key, str) else "", "code": code, "message": message}
 
 
 def _validate(record: Any) -> None:
     if not isinstance(record, dict):
         raise ValueError("invalid_record")
-    required = {"key", "keyVersion", "type", "originPackage", "startTime", "endTime", "collectedAt", "payload"}
+    required = {"key", "keyVersion", "recordType", "originPackage", "startTime", "endTime", "collectedAt", "payload"}
     if not required <= record.keys():
         raise ValueError("missing_field")
-    if not isinstance(record["key"], str) or not isinstance(record["keyVersion"], int):
+    if not isinstance(record["key"], str) or not isinstance(record["keyVersion"], int) or isinstance(record["keyVersion"], bool):
         raise ValueError("invalid_identity")
-    if record["type"] not in TYPES:
+    if record["recordType"] not in TYPES:
         raise ValueError("unknown_record_type")
     start, end = _time(record["startTime"]), _time(record["endTime"])
     _time(record["collectedAt"])
@@ -46,18 +48,18 @@ def _validate(record: Any) -> None:
     payload = record["payload"]
     if not isinstance(payload, dict):
         raise ValueError("invalid_payload")
-    if record["type"] == "heart_rate":
+    if record["recordType"] == "heart_rate":
         samples = payload.get("samples")
         if not isinstance(samples, list):
             raise ValueError("invalid_samples")
         for sample in samples:
-            if not isinstance(sample, dict) or not 1 <= sample.get("bpm", 0) <= 300:
+            if not isinstance(sample, dict) or not isinstance(sample.get("beatsPerMinute"), int) or isinstance(sample["beatsPerMinute"], bool) or not 1 <= sample["beatsPerMinute"] <= 300:
                 raise ValueError("invalid_bpm")
             sample_time = _time(sample.get("time"))
             if not start <= sample_time <= end:
                 raise ValueError("sample_outside_record")
-    elif record["type"] == "steps":
-        if not isinstance(payload.get("count"), (int, float)) or isinstance(payload["count"], bool) or payload["count"] < 0:
+    elif record["recordType"] == "steps":
+        if not isinstance(payload.get("count"), int) or isinstance(payload["count"], bool) or payload["count"] < 0:
             raise ValueError("invalid_steps")
     else:
         stages = payload.get("stages", [])
@@ -103,7 +105,25 @@ def validate_batch(body: object) -> tuple[list[dict], list[dict]]:
     return valid, rejected
 
 
+def validate_envelope(body: object) -> str | None:
+    if not isinstance(body, dict):
+        return "batch must be an object"
+    if body.get("schemaVersion", 1) != 1:
+        return "schemaVersion must be 1"
+    collector_id = body.get("collectorId")
+    if not isinstance(collector_id, str) or not collector_id.strip():
+        return "collectorId must be a non-empty string"
+    records = body.get("records")
+    if not isinstance(records, list):
+        return "records must be an array"
+    if not records:
+        return "records must not be empty"
+    if len(records) > MAX_RECORDS:
+        return "at most 500 records"
+    return None
+
+
 def require_collector_token(request) -> bool:
-    expected = __import__("os").environ.get("HEALTH_COLLECTOR_TOKEN")
+    expected = os.environ.get("HEALTH_COLLECTOR_TOKEN")
     supplied = request.headers.get("Authorization", "")
     return bool(expected) and supplied.startswith("Bearer ") and hmac.compare_digest(supplied[7:], expected)
