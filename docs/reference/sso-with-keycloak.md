@@ -120,6 +120,12 @@ The app needs to read the `groups` claim and map names to its own roles. The exa
 | Role naming | `<app>-admin` / `<app>-user` (or admin/editor/viewer) | App-prefixed so realm-wide assignment makes sense |
 | Token claim for roles | `groups` (multivalued string) | Matches Bookstack/Grafana/MeshCentral defaults; nothing else competes for the name |
 
+### Immich role-claim exception
+
+Immich expects a scalar role claim whose value is `admin` or `user`. The dedicated Everly Era gallery therefore uses a client role named `admin` and a client-role mapper that emits `immich_role=admin`; it does not use the shared multivalued `groups` claim for authorization. The existing realm role `everlyera-admin` remains the human-facing source of access, and its current members are assigned the gallery client role.
+
+Because the shared `master` realm contains unrelated users, `gallery.everlyera.com` has Immich auto-registration disabled. Administrators must pre-create a matching Immich account before granting Keycloak access. Keep password login enabled as break-glass and store generated local passwords with the OIDC client secret at `kv/prod/everlyera-gallery-oidc`.
+
 ## Login theme
 
 The CSS-first `levangie` login theme lives under
