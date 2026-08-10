@@ -19,7 +19,7 @@ A Kubernetes Ingress does not imply public exposure. Never derive public routes 
 
 ## Authoritative current inventory
 
-Read-only API inventory on 2026-07-21 found tunnel `Maurice` (`e163e2bb-e184-41aa-a96b-eb1dbdb99418`) healthy. FileBrowser Quantum and Pingvin Share X were then added as explicit routes, bringing the live configuration to 30 ordered rules: 29 hostname rules and the final `http_status:404`. There are no path matchers or non-HTTP services.
+Read-only API inventory on 2026-07-21 found tunnel `Maurice` (`e163e2bb-e184-41aa-a96b-eb1dbdb99418`) healthy. The live configuration has continued to grow through reviewed additions. On 2026-08-10, `gallery.everlyera.com` was added as an explicit route to `https://k3s-prod.levangie.dev`, immediately before the final `http_status:404`, with a proxied CNAME to the Maurice tunnel. It serves the isolated Everly Era Immich deployment in `everlyera-galleries`; it does not share the personal Immich instance.
 
 - 14 K3s-targeted routes have a matching live Ingress.
 - 10 routes preserve Caddy or other LAN origins and are deferred.
