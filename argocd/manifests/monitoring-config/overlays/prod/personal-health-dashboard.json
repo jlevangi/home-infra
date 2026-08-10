@@ -695,13 +695,13 @@
           "format": "time_series",
           "rawQuery": true,
           "refId": "B",
-          "rawSql": "WITH recent AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS observed_at, r.value_numeric, r.original_type, s.source_name\n  FROM health_observations_raw r JOIN health_sources s ON s.id=r.source_id\n  WHERE r.metric_type='steps'\n    AND text_to_timestamptz_immutable(r.start_time) >= $__timeFrom()\n    AND text_to_timestamptz_immutable(r.start_time) <= $__timeTo()\n), chosen AS (\n  SELECT CASE WHEN EXISTS (SELECT 1 FROM recent WHERE original_type='health_sync_steps' AND source_name='Health Sync / Health Connect') THEN 'Health Sync / Health Connect' ELSE 'Health Sync / Samsung Health' END AS source_name\n)\nSELECT (date_trunc('hour', observed_at AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York') AS \"time\",\n       AVG(SUM(value_numeric)) OVER (ORDER BY date_trunc('hour', observed_at AT TIME ZONE 'America/New_York') ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING) AS \"Rolling Avg (3h)\"\nFROM recent CROSS JOIN chosen WHERE original_type='health_sync_steps' AND recent.source_name=chosen.source_name\nGROUP BY 1 ORDER BY 1"
+          "rawSql": "WITH recent AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS observed_at, r.value_numeric, r.original_type, s.source_name\n  FROM health_observations_raw r JOIN health_sources s ON s.id=r.source_id\n  WHERE r.metric_type='steps'\n    AND text_to_timestamptz_immutable(r.start_time) >= $__timeFrom()\n    AND text_to_timestamptz_immutable(r.start_time) <= $__timeTo()\n), chosen AS (\n  SELECT CASE WHEN EXISTS (SELECT 1 FROM recent WHERE original_type='health_sync_steps' AND source_name='Health Sync / Health Connect') THEN 'Health Sync / Health Connect' ELSE 'Health Sync / Samsung Health' END AS source_name\n), hourly AS (\n  SELECT (date_trunc('hour', observed_at AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York') AS hour,\n         SUM(value_numeric) AS steps\n  FROM recent CROSS JOIN chosen\n  WHERE original_type='health_sync_steps' AND recent.source_name=chosen.source_name\n  GROUP BY 1\n)\nSELECT hour AS \"time\",\n       AVG(steps) OVER (ORDER BY hour ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS \"Rolling Avg (3h)\"\nFROM hourly ORDER BY 1"
         }
       ]
     },
     {
       "id": 104,
-      "title": "Active Energy by Hour",
+      "title": "Calories Burned by Hour",
       "type": "timeseries",
       "gridPos": {
         "h": 8,
@@ -720,13 +720,13 @@
             "fixedColor": "orange"
           },
           "custom": {
-            "drawStyle": "line",
+            "drawStyle": "bars",
             "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "fillOpacity": 15,
+            "lineWidth": 1,
+            "fillOpacity": 35,
             "gradientMode": "opacity",
-            "showPoints": "always",
-            "pointSize": 6,
+            "showPoints": "never",
+            "pointSize": 5,
             "spanNulls": true,
             "insertNulls": false
           },
@@ -747,9 +747,9 @@
       "options": {
         "legend": {
           "calcs": [
+            "sum",
             "mean",
-            "max",
-            "sum"
+            "max"
           ],
           "displayMode": "table",
           "placement": "bottom",
@@ -770,7 +770,7 @@
           "format": "time_series",
           "rawQuery": true,
           "refId": "A",
-          "rawSql": "SELECT\n  text_to_timestamptz_immutable(start_time) AS \"time\",\n  value_numeric AS \"Active Energy\"\nFROM health_observations_raw\nWHERE metric_type IN ('active_energy', 'calories')\n  AND unit = 'kcal'\n  AND original_type LIKE 'health_sync%'\n  AND text_to_timestamptz_immutable(start_time) >= $__timeFrom()\n  AND text_to_timestamptz_immutable(start_time) <= $__timeTo()\nORDER BY 1"
+          "rawSql": "WITH valid_raw AS MATERIALIZED (\n  SELECT raw_payload_json::jsonb AS payload\n  FROM health_observations_raw\n  WHERE original_type = 'health_sync_total_calories'\n    AND pg_input_is_valid(raw_payload_json, 'jsonb')\n), snapshots AS (\n  SELECT DISTINCT ON (f.external_file_id)\n         f.modified_time AS observed_at,\n         NULLIF((v.payload #>> '{row,Total calories}'), '')::double precision AS cumulative_calories\n  FROM valid_raw v\n  JOIN health_ingested_files f ON f.external_file_id = v.payload ->> 'fileId'\n  WHERE f.modified_time >= $__timeFrom()\n    AND f.modified_time <= $__timeTo()\n    AND to_date(left(v.payload #>> '{row,Date}', 10), 'YYYY.MM.DD') = (f.modified_time AT TIME ZONE 'America/New_York')::date\n  ORDER BY f.external_file_id, f.processed_at DESC\n), hourly AS (\n  SELECT date_trunc('hour', observed_at AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York' AS hour,\n         max(cumulative_calories) AS cumulative_calories\n  FROM snapshots\n  WHERE cumulative_calories IS NOT NULL\n  GROUP BY 1\n), deltas AS (\n  SELECT hour, cumulative_calories,\n         lag(cumulative_calories) OVER (PARTITION BY (hour AT TIME ZONE 'America/New_York')::date ORDER BY hour) AS previous_calories\n  FROM hourly\n)\nSELECT hour AS \"time\",\n       round((cumulative_calories - previous_calories)::numeric, 1) AS \"Calories Burned\"\nFROM deltas\nWHERE previous_calories IS NOT NULL\n  AND cumulative_calories >= previous_calories\nORDER BY 1"
         }
       ]
     },
