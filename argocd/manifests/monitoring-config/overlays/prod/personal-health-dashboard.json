@@ -373,7 +373,58 @@
           },
           "unit": "bpm"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "10-pt Moving Avg"
+            },
+            "properties": [
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.lineInterpolation",
+                "value": "smooth"
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              },
+              {
+                "id": "custom.showPoints",
+                "value": "never"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Heart Rate"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 15
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -401,7 +452,7 @@
           "format": "time_series",
           "rawQuery": true,
           "refId": "A",
-          "rawSql": "SELECT\n  text_to_timestamptz_immutable(start_time) AS \"time\",\n  value_numeric AS \"Heart Rate\"\nFROM health_observations_raw\nWHERE metric_type = 'heart_rate'\n  AND original_type = 'health_sync_heart_rate'\n  AND unit IN ('bpm', 'count/min')\n  AND text_to_timestamptz_immutable(start_time) >= $__timeFrom()\n  AND text_to_timestamptz_immutable(start_time) <= $__timeTo()\nORDER BY 1"
+          "rawSql": "SELECT\n  text_to_timestamptz_immutable(start_time) AS \"time\",\n  value_numeric AS \"Heart Rate\",\n  AVG(value_numeric) OVER (ORDER BY text_to_timestamptz_immutable(start_time) ROWS BETWEEN 9 PRECEDING AND 9 FOLLOWING) AS \"10-pt Moving Avg\"\nFROM health_observations_raw\nWHERE metric_type = 'heart_rate'\n  AND original_type = 'health_sync_heart_rate'\n  AND unit IN ('bpm', 'count/min')\n  AND text_to_timestamptz_immutable(start_time) >= $__timeFrom()\n  AND text_to_timestamptz_immutable(start_time) <= $__timeTo()\nORDER BY 1"
         }
       ]
     },
@@ -420,8 +471,70 @@
         "uid": "health-archive"
       },
       "fieldConfig": {
-        "defaults": {},
-        "overrides": []
+        "defaults": {
+          "color": {
+            "mode": "fixed"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "Deep": {
+                  "color": "dark-blue",
+                  "index": 0
+                },
+                "Light": {
+                  "color": "light-blue",
+                  "index": 1
+                },
+                "Rem": {
+                  "color": "purple",
+                  "index": 2
+                },
+                "Awake": {
+                  "color": "yellow",
+                  "index": 3
+                }
+              }
+            }
+          ]
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Sleep Stage"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "Deep": {
+                        "color": "dark-blue",
+                        "index": 0
+                      },
+                      "Light": {
+                        "color": "light-blue",
+                        "index": 1
+                      },
+                      "Rem": {
+                        "color": "purple",
+                        "index": 2
+                      },
+                      "Awake": {
+                        "color": "yellow",
+                        "index": 3
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "alignValue": "left",
@@ -468,13 +581,89 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "none"
+          "unit": "none",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 20,
+            "lineWidth": 1,
+            "lineInterpolation": "linear",
+            "showPoints": "never",
+            "spanNulls": false
+          }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Hourly Avg"
+            },
+            "properties": [
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.lineInterpolation",
+                "value": "linear"
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.drawStyle",
+                "value": "line"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              },
+              {
+                "id": "custom.dashStyle",
+                "value": "dash"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Steps"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 20
+              },
+              {
+                "id": "custom.drawStyle",
+                "value": "bars"
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
-          "displayMode": "list",
+          "calcs": [
+            "sum",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
         },
@@ -494,6 +683,17 @@
           "rawQuery": true,
           "refId": "A",
           "rawSql": "WITH recent AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS observed_at, r.value_numeric, r.original_type, s.source_name\n  FROM health_observations_raw r JOIN health_sources s ON s.id=r.source_id\n  WHERE r.metric_type='steps'\n    AND text_to_timestamptz_immutable(r.start_time) >= $__timeFrom()\n    AND text_to_timestamptz_immutable(r.start_time) <= $__timeTo()\n), chosen AS (\n  SELECT CASE WHEN EXISTS (SELECT 1 FROM recent WHERE original_type='health_sync_steps' AND source_name='Health Sync / Health Connect') THEN 'Health Sync / Health Connect' ELSE 'Health Sync / Samsung Health' END AS source_name\n)\nSELECT (date_trunc('hour', observed_at AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York') AS \"time\", SUM(value_numeric) AS \"Steps\"\nFROM recent CROSS JOIN chosen WHERE original_type='health_sync_steps' AND recent.source_name=chosen.source_name GROUP BY 1 ORDER BY 1"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "health-archive"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "refId": "B",
+          "rawSql": "WITH recent AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS observed_at, r.value_numeric, r.original_type, s.source_name\n  FROM health_observations_raw r JOIN health_sources s ON s.id=r.source_id\n  WHERE r.metric_type='steps'\n    AND text_to_timestamptz_immutable(r.start_time) >= $__timeFrom()\n    AND text_to_timestamptz_immutable(r.start_time) <= $__timeTo()\n), chosen AS (\n  SELECT CASE WHEN EXISTS (SELECT 1 FROM recent WHERE original_type='health_sync_steps' AND source_name='Health Sync / Health Connect') THEN 'Health Sync / Health Connect' ELSE 'Health Sync / Samsung Health' END AS source_name\n)\nSELECT (date_trunc('hour', observed_at AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York') AS \"time\",\n       AVG(SUM(value_numeric)) OVER () AS \"Hourly Avg\"\nFROM recent CROSS JOIN chosen WHERE original_type='health_sync_steps' AND recent.source_name=chosen.source_name\nGROUP BY 1 ORDER BY 1"
         }
       ]
     },
@@ -593,7 +793,7 @@
     },
     {
       "id": 105,
-      "title": "Blood Oxygen (SpO₂)",
+      "title": "Blood Oxygen (SpO\u2082)",
       "type": "timeseries",
       "gridPos": {
         "h": 8,
@@ -682,7 +882,7 @@
           "format": "time_series",
           "rawQuery": true,
           "refId": "A",
-          "rawSql": "SELECT\n  text_to_timestamptz_immutable(start_time) AS \"time\",\n  value_numeric AS \"SpO₂\"\nFROM health_observations_raw\nWHERE metric_type = 'oxygen_saturation'\n  AND unit = '%'\n  AND text_to_timestamptz_immutable(start_time) >= $__timeFrom()\n  AND text_to_timestamptz_immutable(start_time) <= $__timeTo()\nORDER BY 1"
+          "rawSql": "SELECT\n  text_to_timestamptz_immutable(start_time) AS \"time\",\n  value_numeric AS \"SpO\u2082\"\nFROM health_observations_raw\nWHERE metric_type = 'oxygen_saturation'\n  AND unit = '%'\n  AND text_to_timestamptz_immutable(start_time) >= $__timeFrom()\n  AND text_to_timestamptz_immutable(start_time) <= $__timeTo()\nORDER BY 1"
         }
       ]
     },
@@ -1727,7 +1927,7 @@
           "editorMode": "code"
         }
       ],
-      "title": "Blood Oxygen (SpO₂)",
+      "title": "Blood Oxygen (SpO\u2082)",
       "type": "timeseries"
     },
     {
