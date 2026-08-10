@@ -106,6 +106,25 @@ def test_android_contract_mixed_batch_is_200_and_response_is_compatible(client, 
     }
 
 
+def test_storage_rejection_is_merged_into_response(client, monkeypatch):
+    monkeypatch.setattr("app.db.ingest_health_connect", lambda records: {
+        "accepted": [],
+        "duplicates": [],
+        "rejected": [{"key": "k1", "code": "storage_error", "message": "storage error"}],
+    })
+    response = client.post(
+        "/api/v1/health-connect/records:batch",
+        json=envelope([record()]),
+        headers=auth(),
+    )
+    assert response.status_code == 200
+    assert response.json == {
+        "accepted": [],
+        "duplicates": [],
+        "rejected": [{"key": "k1", "code": "storage_error", "message": "storage error"}],
+    }
+
+
 def test_legacy_routes_remain_unauthenticated(client, monkeypatch):
     monkeypatch.setattr("app.db.processed_index", lambda: {})
     assert client.get("/healthz").status_code == 200

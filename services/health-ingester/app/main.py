@@ -62,8 +62,14 @@ def health_connect_batch():
     valid, rejected = validate_batch(body)
     result = db.ingest_health_connect(valid) if valid else {"accepted": [], "duplicates": []}
     accepted, duplicates = result.get("accepted", []), result.get("duplicates", [])
+    rejected.extend(result.get("rejected", []))
     for record in valid:
-        outcome = "accepted" if record["key"] in accepted else "duplicate"
+        if record["key"] in accepted:
+            outcome = "accepted"
+        elif record["key"] in duplicates:
+            outcome = "duplicate"
+        else:
+            continue
         COLLECTOR_RECORDS.labels(record_type=record["recordType"], origin=record["originPackage"], outcome=outcome).inc()
     for _ in rejected:
         COLLECTOR_RECORDS.labels(record_type="unknown", origin="unknown", outcome="rejected").inc()

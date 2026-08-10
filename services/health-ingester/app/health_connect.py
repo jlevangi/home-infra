@@ -5,7 +5,7 @@ from __future__ import annotations
 import hmac
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 MAX_RECORDS = 500
@@ -24,6 +24,43 @@ def _time(value: Any) -> datetime:
     if parsed.tzinfo is None:
         raise ValueError("invalid_timestamp")
     return parsed
+
+
+def _iso(value: str) -> str:
+    """Return one stable, timezone-aware representation for archive columns."""
+    return _time(value).astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _epoch_millis(value: str) -> int:
+    return int(_time(value).timestamp() * 1000)
+
+
+def expand_health_connect_record(record: dict) -> list[dict]:
+    """Map one validated protocol record to archive observation rows."""
+    raw = json.dumps(record, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    payload = record["payload"]
+    common = {
+        "start_time": _iso(record["startTime"]),
+        "end_time": _iso(record["endTime"]),
+        "source_name": f"Health Connect Direct / {record['originPackage']}",
+        "device_name": (record.get("device") or {}).get("model"),
+        "raw_payload_json": raw,
+    }
+    key = record["key"]
+    if record["recordType"] == "heart_rate":
+        return [{**common, "metric_type": "heart_rate", "original_type": "health_connect_direct_heart_rate",
+                 "start_time": _iso(sample["time"]), "end_time": _iso(sample["time"]),
+                 "value_numeric": sample["beatsPerMinute"], "value_text": None, "unit": "bpm",
+                 "external_id": f"{key}:sample:{_epoch_millis(sample['time'])}"}
+                for sample in payload["samples"]]
+    if record["recordType"] == "steps":
+        return [{**common, "metric_type": "steps", "original_type": "health_connect_direct_steps",
+                 "value_numeric": payload["count"], "value_text": None, "unit": "count", "external_id": key}]
+    return [{**common, "metric_type": "sleep_segment", "original_type": "health_connect_direct_sleep_stage",
+             "start_time": _iso(stage["startTime"]), "end_time": _iso(stage["endTime"]),
+             "value_numeric": None, "value_text": stage["stage"], "unit": None,
+             "external_id": f"{key}:stage:{index}"}
+            for index, stage in enumerate(payload.get("stages", []))]
 
 
 def _reject(record: Any, code: str, message: str) -> dict:
