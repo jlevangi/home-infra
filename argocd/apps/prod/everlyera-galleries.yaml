@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: everlyera
+  name: everlyera-galleries
   namespace: argocd
   labels:
     app.kubernetes.io/part-of: everlyera
@@ -12,14 +12,14 @@ spec:
   source:
     repoURL: git@github.com:jlevangi/home-infra.git
     targetRevision: main
-    path: argocd/manifests/everlyera/overlays/prod
+    path: argocd/manifests/everlyera-galleries/overlays/prod
   destination:
     server: https://kubernetes.default.svc
-    namespace: everlyera
+    namespace: everlyera-galleries
   syncPolicy:
     managedNamespaceMetadata:
       labels:
-        app.kubernetes.io/name: everlyera
+        app.kubernetes.io/name: everlyera-galleries
         app.kubernetes.io/part-of: everlyera
         app.kubernetes.io/managed-by: argocd
         environment: prod

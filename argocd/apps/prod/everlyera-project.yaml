@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: everlyera
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    app.kubernetes.io/name: everlyera
+    app.kubernetes.io/part-of: everlyera
+spec:
+  description: Everly Era website, staging, serving media, and client galleries
+  sourceRepos:
+    - git@github.com:jlevangi/home-infra.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: everlyera
+    - server: https://kubernetes.default.svc
+      namespace: everlyera-stage
+    - server: https://kubernetes.default.svc
+      namespace: everlyera-media
+    - server: https://kubernetes.default.svc
+      namespace: everlyera-galleries
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

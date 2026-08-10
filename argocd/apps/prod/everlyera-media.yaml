@@ -13,10 +13,12 @@ kind: Application
 metadata:
   name: everlyera-media
   namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: everlyera
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  project: everlyera
   source:
     repoURL: git@github.com:jlevangi/home-infra.git
     targetRevision: main
@@ -25,6 +27,12 @@ spec:
     server: https://kubernetes.default.svc
     namespace: everlyera-media
   syncPolicy:
+    managedNamespaceMetadata:
+      labels:
+        app.kubernetes.io/name: everlyera-media
+        app.kubernetes.io/part-of: everlyera
+        app.kubernetes.io/managed-by: argocd
+        environment: prod
     automated:
       prune: true
       selfHeal: true
