@@ -158,6 +158,11 @@ def ingest(meta: dict, observations: list[dict], status: str = "processed",
     }
 
 
+def ingest_health_connect(records: list[dict]) -> dict:
+    """Persistence hook implemented by the next task; route tests replace it."""
+    raise NotImplementedError("Health Connect persistence belongs to Task 5")
+
+
 def metric_freshness() -> dict[str, float]:
     with connect() as conn, conn.cursor() as cur:
         cur.execute(_FRESHNESS_SQL)
