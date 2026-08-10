@@ -27,14 +27,17 @@ Pierce (`pierce@levangie.org`) and Mariah (`random2mariah@gmail.com`) were pre-p
 
 ## Branding
 
-Immich's supported custom CSS setting carries the Everly Era palette and typography without patching the container image or relying on version-specific DOM replacement:
+Immich's supported custom CSS setting carries the Everly Era palette and typography without patching the container image:
 
 - cream `#F6EFE4` and forest `#3C4A31` light theme
 - forest-deep `#2C3724` dark ground
 - warm ink `#2B2118` and taupe `#564B36` text
 - Cormorant/Georgia headings and Inter/system interface text
+- Everly Era wordmark on login, navigation, and client-share headers
 
-Keep Immich controls and layout recognizable. Reapply or review the custom CSS after an Immich upgrade if its documented theme variables change.
+Immich v3's legacy variables are inserted into `rgb(var(...))`; use space-separated RGB channels such as `60 74 49`, not hex values. Current components primarily use the `--immich-ui-*` token families, so set both current and compatibility variables.
+
+A non-empty `/custom.css` response is not proof that the browser accepted the values. Verify computed colors, heading fonts, logo paint/dimensions, and failed brand-asset requests in a real browser at desktop and mobile sizes, including one authenticated page. Review these selectors and tokens after each Immich upgrade.
 
 ## Pilot gallery
 
