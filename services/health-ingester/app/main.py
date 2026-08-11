@@ -17,6 +17,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, generate_late
 from waitress import serve
 
 from . import db, parsers
+from .health_connect import require_collector_token, validate_batch, validate_envelope
 
 logging.basicConfig(
     level=os.environ.get("LOG_LEVEL", "INFO"),
@@ -25,6 +26,7 @@ logging.basicConfig(
 log = logging.getLogger("health-ingester")
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
 
 FILES_TOTAL = Counter(
     "health_ingester_files_total", "Files processed", ["format", "outcome"]
@@ -37,6 +39,42 @@ LAST_OBSERVATION = Gauge(
     "Unix timestamp of the most recent observation per metric type",
     ["metric_type"],
 )
+COLLECTOR_RECORDS = Counter(
+    "health_collector_records_total", "Collector records", ["record_type", "origin", "outcome"]
+)
+COLLECTOR_AUTH_FAILURES = Counter(
+    "health_collector_auth_failures_total", "Collector authentication failures"
+)
+
+
+@app.post("/api/v1/health-connect/records:batch")
+def health_connect_batch():
+    if not require_collector_token(request):
+        COLLECTOR_AUTH_FAILURES.inc()
+        return jsonify(error="unauthorized"), 401
+    if not request.is_json:
+        return jsonify(error="malformed JSON"), 400
+    body = request.get_json(silent=True)
+    if body is None:
+        return jsonify(error="malformed JSON"), 400
+    if error := validate_envelope(body):
+        return jsonify(error=error), 400
+    valid, rejected = validate_batch(body)
+    collector_id = body.get("collectorId", "")
+    result = db.ingest_health_connect(collector_id, valid) if valid else {"accepted": [], "duplicates": []}
+    accepted, duplicates = result.get("accepted", []), result.get("duplicates", [])
+    rejected.extend(result.get("rejected", []))
+    for record in valid:
+        if record["key"] in accepted:
+            outcome = "accepted"
+        elif record["key"] in duplicates:
+            outcome = "duplicate"
+        else:
+            continue
+        COLLECTOR_RECORDS.labels(record_type=record["recordType"], origin=record["originPackage"], outcome=outcome).inc()
+    for _ in rejected:
+        COLLECTOR_RECORDS.labels(record_type="unknown", origin="unknown", outcome="rejected").inc()
+    return jsonify(accepted=accepted, duplicates=duplicates, rejected=rejected)
 
 
 @app.get("/healthz")

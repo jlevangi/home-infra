@@ -1,0 +1,166 @@
+"""Small, dependency-free validator for Health Connect protocol v1."""
+
+from __future__ import annotations
+
+import hmac
+import json
+import os
+from datetime import datetime, timezone
+from typing import Any
+
+MAX_RECORDS = 500
+MAX_BYTES = 2 * 1024 * 1024
+TYPES = {"heart_rate", "sleep", "steps"}
+STAGES = {"awake", "sleeping", "out_of_bed", "light", "deep", "rem", "unknown"}
+
+
+def _time(value: Any) -> datetime:
+    if not isinstance(value, str):
+        raise ValueError
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError("invalid_timestamp") from exc
+    if parsed.tzinfo is None:
+        raise ValueError("invalid_timestamp")
+    return parsed
+
+
+def _iso(value: str) -> str:
+    """Return one stable, timezone-aware representation for archive columns."""
+    return _time(value).astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _epoch_millis(value: str) -> int:
+    return int(_time(value).timestamp() * 1000)
+
+
+def expand_health_connect_record(record: dict) -> list[dict]:
+    """Map one validated protocol record to archive observation rows."""
+    raw = json.dumps(record, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    payload = record["payload"]
+    common = {
+        "start_time": _iso(record["startTime"]),
+        "end_time": _iso(record["endTime"]),
+        "source_name": f"Health Connect Direct / {record['originPackage']}",
+        "device_name": (record.get("device") or {}).get("model"),
+        "raw_payload_json": raw,
+    }
+    key = record["key"]
+    if record["recordType"] == "heart_rate":
+        return [{**common, "metric_type": "heart_rate", "original_type": "health_connect_direct_heart_rate",
+                 "start_time": _iso(sample["time"]), "end_time": _iso(sample["time"]),
+                 "value_numeric": sample["beatsPerMinute"], "value_text": None, "unit": "bpm",
+                 "external_id": f"{key}:sample:{_epoch_millis(sample['time'])}"}
+                for sample in payload["samples"]]
+    if record["recordType"] == "steps":
+        return [{**common, "metric_type": "steps", "original_type": "health_connect_direct_steps",
+                 "value_numeric": payload["count"], "value_text": None, "unit": "count", "external_id": key}]
+    return [{**common, "metric_type": "sleep_segment", "original_type": "health_connect_direct_sleep_stage",
+             "start_time": _iso(stage["startTime"]), "end_time": _iso(stage["endTime"]),
+             "value_numeric": None, "value_text": stage["stage"], "unit": None,
+             "external_id": f"{key}:stage:{index}"}
+            for index, stage in enumerate(payload.get("stages", []))]
+
+
+def _reject(record: Any, code: str, message: str) -> dict:
+    key = record.get("key", "") if isinstance(record, dict) else ""
+    return {"key": key if isinstance(key, str) else "", "code": code, "message": message}
+
+
+def _validate(record: Any) -> None:
+    if not isinstance(record, dict):
+        raise ValueError("invalid_record")
+    required = {"key", "keyVersion", "recordType", "originPackage", "startTime", "endTime", "collectedAt", "payload"}
+    if not required <= record.keys():
+        raise ValueError("missing_field")
+    if not isinstance(record["key"], str) or not isinstance(record["keyVersion"], int) or isinstance(record["keyVersion"], bool):
+        raise ValueError("invalid_identity")
+    if record["recordType"] not in TYPES:
+        raise ValueError("unknown_record_type")
+    start, end = _time(record["startTime"]), _time(record["endTime"])
+    _time(record["collectedAt"])
+    if end < start:
+        raise ValueError("end_before_start")
+    payload = record["payload"]
+    if not isinstance(payload, dict):
+        raise ValueError("invalid_payload")
+    if record["recordType"] == "heart_rate":
+        samples = payload.get("samples")
+        if not isinstance(samples, list):
+            raise ValueError("invalid_samples")
+        for sample in samples:
+            if not isinstance(sample, dict) or not isinstance(sample.get("beatsPerMinute"), int) or isinstance(sample["beatsPerMinute"], bool) or not 1 <= sample["beatsPerMinute"] <= 300:
+                raise ValueError("invalid_bpm")
+            sample_time = _time(sample.get("time"))
+            if not start <= sample_time <= end:
+                raise ValueError("sample_outside_record")
+    elif record["recordType"] == "steps":
+        if not isinstance(payload.get("count"), int) or isinstance(payload["count"], bool) or payload["count"] < 0:
+            raise ValueError("invalid_steps")
+    else:
+        stages = payload.get("stages", [])
+        if not isinstance(stages, list):
+            raise ValueError("invalid_stages")
+        intervals = []
+        for stage in stages:
+            if not isinstance(stage, dict) or stage.get("stage") not in STAGES:
+                raise ValueError("invalid_stage")
+            stage_start, stage_end = _time(stage.get("startTime")), _time(stage.get("endTime"))
+            if stage_end < stage_start or stage_start < start or stage_end > end:
+                raise ValueError("stage_outside_session")
+            intervals.append((stage_start, stage_end))
+        if any(current[0] < previous[1] for previous, current in zip(sorted(intervals), sorted(intervals)[1:])):
+            raise ValueError("overlapping_stages")
+
+
+def validate_batch(body: object) -> tuple[list[dict], list[dict]]:
+    if not isinstance(body, dict):
+        return [], [{"key": None, "code": "invalid_batch", "message": "batch must be an object"}]
+    if body.get("schemaVersion", 1) != 1:
+        return [], [{"key": None, "code": "unsupported_schema", "message": "schemaVersion must be 1"}]
+    records = body.get("records")
+    if not isinstance(records, list):
+        return [], [{"key": None, "code": "invalid_batch", "message": "records must be an array"}]
+    if not records:
+        return [], [{"key": None, "code": "empty_batch", "message": "records must not be empty"}]
+    if len(records) > MAX_RECORDS:
+        return [], [{"key": None, "code": "too_many_records", "message": "at most 500 records"}]
+    valid, rejected, keys = [], [], set()
+    for record in records:
+        try:
+            if len(json.dumps(record, separators=(",", ":"), ensure_ascii=False).encode()) > MAX_BYTES:
+                raise ValueError("oversized_record")
+            _validate(record)
+            if record["key"] in keys:
+                raise ValueError("duplicate_key")
+            keys.add(record["key"])
+            valid.append(record)
+        except (ValueError, TypeError, OverflowError) as exc:
+            code = str(exc) or "invalid_record"
+            rejected.append(_reject(record, code, code.replace("_", " ")))
+    return valid, rejected
+
+
+def validate_envelope(body: object) -> str | None:
+    if not isinstance(body, dict):
+        return "batch must be an object"
+    if body.get("schemaVersion", 1) != 1:
+        return "schemaVersion must be 1"
+    collector_id = body.get("collectorId")
+    if not isinstance(collector_id, str) or not collector_id.strip():
+        return "collectorId must be a non-empty string"
+    records = body.get("records")
+    if not isinstance(records, list):
+        return "records must be an array"
+    if not records:
+        return "records must not be empty"
+    if len(records) > MAX_RECORDS:
+        return "at most 500 records"
+    return None
+
+
+def require_collector_token(request) -> bool:
+    expected = os.environ.get("HEALTH_COLLECTOR_TOKEN")
+    supplied = request.headers.get("Authorization", "")
+    return bool(expected) and supplied.startswith("Bearer ") and hmac.compare_digest(supplied[7:], expected)

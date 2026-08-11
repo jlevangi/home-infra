@@ -54,3 +54,21 @@ spec:
             description: >-
               Prometheus cannot scrape the health-ingester service, so ingestion
               may have stopped and freshness alerts above will not fire.
+
+        - alert: HealthCollectorAuthenticationFailures
+          expr: increase(health_collector_auth_failures_total[15m]) > 5
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Health collector authentication failures
+            description: More than five Health Connect collector authentication failures occurred in the last 15 minutes.
+
+        - alert: HealthCollectorHeartRateNotAccepted
+          expr: increase(health_collector_records_total{record_type="heart_rate", outcome="accepted"}[24h]) < 1
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: No accepted direct heart-rate records for 24 hours
+            description: The Health Connect collector has accepted no direct heart-rate records in the last 24 hours.

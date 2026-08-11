@@ -17,7 +17,7 @@ spec:
         - name: health-archive-ghcr
       containers:
         - name: ingester
-          image: ghcr.io/jlevangi/health-ingester:0.2.1
+          image: ghcr.io/jlevangi/health-ingester:0.3.0@sha256:c3a970628dc40885eb860054309a8fecc7d6a9a0f657cf1cd956c8bf5a0331e0
           imagePullPolicy: IfNotPresent
           env:
             - name: PGHOST
@@ -31,6 +31,11 @@ spec:
                 secretKeyRef:
                   name: health-postgres-secret
                   key: postgres-password
+            - name: HEALTH_COLLECTOR_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: health-collector-secret
+                  key: collector-token
           ports:
             - name: http
               containerPort: 8080

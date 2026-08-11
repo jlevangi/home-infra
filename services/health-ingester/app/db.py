@@ -12,8 +12,23 @@ import os
 
 import psycopg
 from psycopg.rows import dict_row
+from .health_connect import expand_health_connect_record
 
 SOURCE_SYSTEM = "health_sync"
+HEALTH_CONNECT_SOURCE_SYSTEM = "health_connect_direct"
+
+_SOURCE_SQL = """INSERT INTO health_sources
+  (source_system, source_name, source_type, device_name, external_source_id, metadata_json)
+VALUES (%s, %s, %s, %s, %s, %s)
+ON CONFLICT (source_system, source_name, external_source_id)
+DO UPDATE SET source_type = EXCLUDED.source_type, device_name = EXCLUDED.device_name
+RETURNING id"""
+_OBSERVATION_SQL = """INSERT INTO health_observations_raw
+  (source_id, metric_type, original_type, start_time, end_time, value_numeric,
+   value_text, unit, source_name, device_name, external_id, raw_payload_json)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+ON CONFLICT (source_id, original_type, external_id) DO NOTHING
+RETURNING id"""
 
 _INGEST_SQL = """
 WITH payload AS (
@@ -156,6 +171,64 @@ def ingest(meta: dict, observations: list[dict], status: str = "processed",
         "observation_count": row.get("observation_count", 0),
         "inserted_count": row.get("inserted_count", 0),
     }
+
+
+def _collector_identity(collector_id: str, origin_package: str) -> str:
+    return json.dumps([collector_id, origin_package], separators=(",", ":"))
+
+
+def ingest_health_connect(collector_id: str, records: list[dict]) -> dict:
+    accepted, duplicates, rejected = [], [], []
+    with connect() as conn, conn.cursor() as cur:
+        for record in records:
+            savepoint = f"health_connect_record_{len(accepted) + len(duplicates) + len(rejected)}"
+            try:
+                cur.execute(f"SAVEPOINT {savepoint}")
+                rows = expand_health_connect_record(record)
+                inserted = 0
+                source_ids = {}
+                for row in rows:
+                    identity = _collector_identity(collector_id, record["originPackage"])
+                    source_key = (row["source_name"], identity)
+                    if source_key not in source_ids:
+                        cur.execute(_SOURCE_SQL, (
+                            HEALTH_CONNECT_SOURCE_SYSTEM,
+                            row["source_name"],
+                            "android_health_connect",
+                            row["device_name"],
+                            identity,
+                            "{}",
+                        ))
+                        source_row = cur.fetchone()
+                        source_ids[source_key] = source_row["id"] if isinstance(source_row, dict) else source_row[0]
+                    cur.execute(_OBSERVATION_SQL, (
+                        source_ids[source_key],
+                        row["metric_type"],
+                        row["original_type"],
+                        row["start_time"],
+                        row["end_time"],
+                        row["value_numeric"],
+                        row["value_text"],
+                        row["unit"],
+                        row["source_name"],
+                        row["device_name"],
+                        row["external_id"],
+                        row["raw_payload_json"],
+                    ))
+                    if cur.fetchone() is not None:
+                        inserted += 1
+                cur.execute(f"RELEASE SAVEPOINT {savepoint}")
+                (accepted if inserted else duplicates).append(record["key"])
+            except Exception:
+                cur.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
+                # Ensure explicit release to keep transaction clean
+                try:
+                    cur.execute(f"RELEASE SAVEPOINT {savepoint}")
+                except Exception:
+                    pass
+                rejected.append({"key": record.get("key", ""), "code": "storage_error", "message": "storage error"})
+        conn.commit()
+    return {"accepted": accepted, "duplicates": duplicates, "rejected": rejected}
 
 
 def metric_freshness() -> dict[str, float]:
