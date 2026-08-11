@@ -8,7 +8,7 @@ images:
   - name: ghcr.io/qdm12/gluetun
     newTag: v3.41.3
   - name: ghcr.io/linuxserver/qbittorrent
-    newTag: "5.2.3"
+    newTag: "20.04.1"
   - name: ghcr.io/flaresolverr/flaresolverr
     newTag: v1.2.9
 patches:

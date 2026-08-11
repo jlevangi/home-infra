@@ -340,7 +340,7 @@ spec:
               cpu: 500m
               memory: 512Mi
         - name: qbittorrent
-          image: ghcr.io/linuxserver/qbittorrent:5.2.3
+          image: ghcr.io/linuxserver/qbittorrent:20.04.1
           imagePullPolicy: IfNotPresent
           env:
             - name: PUID
