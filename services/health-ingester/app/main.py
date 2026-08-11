@@ -60,7 +60,8 @@ def health_connect_batch():
     if error := validate_envelope(body):
         return jsonify(error=error), 400
     valid, rejected = validate_batch(body)
-    result = db.ingest_health_connect(valid) if valid else {"accepted": [], "duplicates": []}
+    collector_id = body.get("collectorId", "")
+    result = db.ingest_health_connect(collector_id, valid) if valid else {"accepted": [], "duplicates": []}
     accepted, duplicates = result.get("accepted", []), result.get("duplicates", [])
     rejected.extend(result.get("rejected", []))
     for record in valid:

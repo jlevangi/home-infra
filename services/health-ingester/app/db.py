@@ -173,7 +173,11 @@ def ingest(meta: dict, observations: list[dict], status: str = "processed",
     }
 
 
-def ingest_health_connect(records: list[dict]) -> dict:
+def _collector_identity(collector_id: str, origin_package: str) -> str:
+    return json.dumps([collector_id, origin_package], separators=(",", ":"))
+
+
+def ingest_health_connect(collector_id: str, records: list[dict]) -> dict:
     accepted, duplicates, rejected = [], [], []
     with connect() as conn, conn.cursor() as cur:
         for record in records:
@@ -184,23 +188,44 @@ def ingest_health_connect(records: list[dict]) -> dict:
                 inserted = 0
                 source_ids = {}
                 for row in rows:
-                    source_key = (row["source_name"], row["device_name"])
+                    identity = _collector_identity(collector_id, record["originPackage"])
+                    source_key = (row["source_name"], identity)
                     if source_key not in source_ids:
-                        cur.execute(_SOURCE_SQL, (HEALTH_CONNECT_SOURCE_SYSTEM,
-                            row["source_name"], "android_health_connect", row["device_name"],
-                            row["source_name"], "{}"))
+                        cur.execute(_SOURCE_SQL, (
+                            HEALTH_CONNECT_SOURCE_SYSTEM,
+                            row["source_name"],
+                            "android_health_connect",
+                            row["device_name"],
+                            identity,
+                            "{}",
+                        ))
                         source_row = cur.fetchone()
                         source_ids[source_key] = source_row["id"] if isinstance(source_row, dict) else source_row[0]
-                    cur.execute(_OBSERVATION_SQL, (source_ids[source_key], row["metric_type"],
-                        row["original_type"], row["start_time"], row["end_time"], row["value_numeric"],
-                        row["value_text"], row["unit"], row["source_name"], row["device_name"],
-                        row["external_id"], row["raw_payload_json"]))
+                    cur.execute(_OBSERVATION_SQL, (
+                        source_ids[source_key],
+                        row["metric_type"],
+                        row["original_type"],
+                        row["start_time"],
+                        row["end_time"],
+                        row["value_numeric"],
+                        row["value_text"],
+                        row["unit"],
+                        row["source_name"],
+                        row["device_name"],
+                        row["external_id"],
+                        row["raw_payload_json"],
+                    ))
                     if cur.fetchone() is not None:
                         inserted += 1
                 cur.execute(f"RELEASE SAVEPOINT {savepoint}")
                 (accepted if inserted else duplicates).append(record["key"])
             except Exception:
                 cur.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
+                # Ensure explicit release to keep transaction clean
+                try:
+                    cur.execute(f"RELEASE SAVEPOINT {savepoint}")
+                except Exception:
+                    pass
                 rejected.append({"key": record.get("key", ""), "code": "storage_error", "message": "storage error"})
         conn.commit()
     return {"accepted": accepted, "duplicates": duplicates, "rejected": rejected}

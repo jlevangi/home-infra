@@ -6,9 +6,12 @@ END = "2026-08-10T11:00:00Z"
 
 
 def record(record_type="heart_rate", key="k1"):
-    payload = {"samples": [{"time": START, "beatsPerMinute": 80}]}
+    payload = {"samples": [
+        {"time": START, "beatsPerMinute": 80},
+        {"time": "2026-08-10T10:01:00Z", "beatsPerMinute": 81},
+    ]}
     if record_type == "sleep":
-        payload = {"stages": []}
+        payload = {"stages": [{"startTime": START, "endTime": END, "stage": "deep"}]}
     elif record_type == "steps":
         payload = {"count": 12}
     return {
@@ -60,7 +63,7 @@ def test_route_requires_bearer(client):
 ])
 def test_invalid_envelope_is_400_without_db_call(client, monkeypatch, body):
     calls = []
-    monkeypatch.setattr("app.db.ingest_health_connect", lambda records: calls.append(records))
+    monkeypatch.setattr("app.db.ingest_health_connect", lambda collector_id, records: calls.append(records))
     response = client.post(
         "/api/v1/health-connect/records:batch", json=body, headers=auth()
     )
@@ -70,7 +73,7 @@ def test_invalid_envelope_is_400_without_db_call(client, monkeypatch, body):
 
 def test_malformed_json_is_400_without_db_call(client, monkeypatch):
     calls = []
-    monkeypatch.setattr("app.db.ingest_health_connect", lambda records: calls.append(records))
+    monkeypatch.setattr("app.db.ingest_health_connect", lambda collector_id, records: calls.append(records))
     response = client.post(
         "/api/v1/health-connect/records:batch",
         data="{",
@@ -87,7 +90,7 @@ def test_android_contract_mixed_batch_is_200_and_response_is_compatible(client, 
     submitted = [record(), record("sleep", "sleep-1"), record("steps", "steps-1"), invalid]
     calls = []
 
-    def ingest(records):
+    def ingest(collector_id, records):
         calls.append(records)
         return {"accepted": ["k1", "sleep-1"], "duplicates": ["steps-1"]}
 
@@ -107,7 +110,7 @@ def test_android_contract_mixed_batch_is_200_and_response_is_compatible(client, 
 
 
 def test_storage_rejection_is_merged_into_response(client, monkeypatch):
-    monkeypatch.setattr("app.db.ingest_health_connect", lambda records: {
+    monkeypatch.setattr("app.db.ingest_health_connect", lambda collector_id, records: {
         "accepted": [],
         "duplicates": [],
         "rejected": [{"key": "k1", "code": "storage_error", "message": "storage error"}],

@@ -128,8 +128,8 @@ def test_ingestion_accepts_then_classifies_replay_as_duplicate(monkeypatch):
     connection = FakeConnection(cursor)
     monkeypatch.setattr(db, "connect", lambda: connection)
 
-    first = db.ingest_health_connect([record("steps", "steps-1")])
-    second = db.ingest_health_connect([record("steps", "steps-1")])
+    first = db.ingest_health_connect("collector-1", [record("steps", "steps-1")])
+    second = db.ingest_health_connect("collector-1", [record("steps", "steps-1")])
 
     assert first == {"accepted": ["steps-1"], "duplicates": [], "rejected": []}
     assert second == {"accepted": [], "duplicates": ["steps-1"], "rejected": []}
@@ -137,12 +137,25 @@ def test_ingestion_accepts_then_classifies_replay_as_duplicate(monkeypatch):
     assert source_params[:3] == ("health_connect_direct", "Health Connect Direct / com.example.health", "android_health_connect")
 
 
+def test_collector_identity_scopes_direct_source(monkeypatch):
+    cursor = FakeCursor()
+    connection = FakeConnection(cursor)
+    monkeypatch.setattr(db, "connect", lambda: connection)
+
+    first = db.ingest_health_connect("collector-1", [record("steps", "same-key")])
+    second = db.ingest_health_connect("collector-2", [record("steps", "same-key")])
+
+    assert first == {"accepted": ["same-key"], "duplicates": [], "rejected": []}
+    assert second == {"accepted": ["same-key"], "duplicates": [], "rejected": []}
+    assert len(cursor.sources) == 2
+
+
 def test_storage_failure_rolls_back_record_and_keeps_peer(monkeypatch):
     cursor = FakeCursor(fail_external="bad")
     connection = FakeConnection(cursor)
     monkeypatch.setattr(db, "connect", lambda: connection)
 
-    result = db.ingest_health_connect([record("steps", "bad"), record("steps", "good")])
+    result = db.ingest_health_connect("collector-1", [record("steps", "bad"), record("steps", "good")])
 
     assert result == {
         "accepted": ["good"],
