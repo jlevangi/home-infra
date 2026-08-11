@@ -5,8 +5,14 @@ metadata:
   namespace: health-archive
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.middlewares: health-archive-health-ingester-redirect-https@kubernetescrd
+    traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+    traefik.ingress.kubernetes.io/router.tls.domains.0.main: health-ingester.levangie.dev
 spec:
   ingressClassName: traefik
+  tls:
+    - hosts:
+        - health-ingester.levangie.dev
   rules:
     - host: health-ingester.levangie.dev
       http:

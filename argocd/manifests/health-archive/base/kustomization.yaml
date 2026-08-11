@@ -10,4 +10,5 @@ resources:
   - service.yaml
   - deployment-ingester.yaml
   - service-ingester.yaml
+  - middleware-redirect-https.yaml
   - ingress-ingester.yaml
