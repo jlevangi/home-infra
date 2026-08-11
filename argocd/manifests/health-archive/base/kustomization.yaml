@@ -4,8 +4,10 @@ resources:
   - namespace.yaml
   - external-secret.yaml
   - external-secret-ghcr.yaml
+  - external-secret-collector.yaml
   - pvc.yaml
   - deployment-postgres.yaml
   - service.yaml
   - deployment-ingester.yaml
   - service-ingester.yaml
+  - ingress-ingester.yaml
