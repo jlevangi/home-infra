@@ -6,6 +6,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
+RUN chmod -R a+rX ./app
 
 RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin ingester
 USER 10001
