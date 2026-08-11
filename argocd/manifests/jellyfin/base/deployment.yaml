@@ -37,7 +37,7 @@ spec:
               cpu: 500m
               memory: 2Gi
             limits:
-              cpu: 6000m
+              cpu: 8000m
               # Headroom for the 8Gi tmpfs transcode volume which counts against pod memory.
               memory: 16Gi
           livenessProbe:
