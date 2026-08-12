@@ -225,7 +225,7 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT r.value_numeric AS \"Latest Direct Heart Rate\"\nFROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\nWHERE r.metric_type = 'heart_rate' AND s.source_system = 'health_connect_direct' AND r.unit = 'bpm'\nORDER BY text_to_timestamptz_immutable(r.start_time) DESC LIMIT 1",
+          "rawSql": "SELECT r.value_numeric AS \"Latest Direct Heart Rate\"\nFROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\nWHERE r.metric_type = 'heart_rate' AND s.source_system = 'health_connect_direct' AND r.unit = 'count/min'\nORDER BY text_to_timestamptz_immutable(r.start_time) DESC LIMIT 1",
           "refId": "A",
           "editorMode": "code"
         }
@@ -452,7 +452,7 @@
           "format": "time_series",
           "rawQuery": true,
           "refId": "A",
-          "rawSql": "SELECT text_to_timestamptz_immutable(r.start_time) AS \"time\", r.value_numeric AS \"Heart Rate\",\n  AVG(r.value_numeric) OVER (ORDER BY text_to_timestamptz_immutable(r.start_time) ROWS BETWEEN 9 PRECEDING AND 9 FOLLOWING) AS \"10-pt Moving Avg\"\nFROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\nWHERE r.metric_type = 'heart_rate' AND s.source_system = 'health_connect_direct' AND r.unit = 'bpm'\n  AND text_to_timestamptz_immutable(r.start_time) >= $__timeFrom() AND text_to_timestamptz_immutable(r.start_time) <= $__timeTo()\nORDER BY 1"
+          "rawSql": "SELECT text_to_timestamptz_immutable(r.start_time) AS \"time\", r.value_numeric AS \"Heart Rate\",\n  AVG(r.value_numeric) OVER (ORDER BY text_to_timestamptz_immutable(r.start_time) ROWS BETWEEN 9 PRECEDING AND 9 FOLLOWING) AS \"10-pt Moving Avg\"\nFROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\nWHERE r.metric_type = 'heart_rate' AND s.source_system = 'health_connect_direct' AND r.unit = 'count/min'\n  AND text_to_timestamptz_immutable(r.start_time) >= $__timeFrom() AND text_to_timestamptz_immutable(r.start_time) <= $__timeTo()\nORDER BY 1"
         }
       ]
     },
@@ -1009,7 +1009,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT date_trunc('day', text_to_timestamptz_immutable(r.start_time) AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York' AS \"time\",\n  MIN(r.value_numeric) AS \"min\", AVG(r.value_numeric) AS \"avg\", MAX(r.value_numeric) AS \"max\"\nFROM health_observations_raw r JOIN health_sources s ON s.id=r.source_id\nWHERE r.metric_type='heart_rate' AND s.source_system = 'health_connect_direct' AND r.unit='bpm' AND text_to_timestamptz_immutable(r.start_time)>=$__timeFrom() AND text_to_timestamptz_immutable(r.start_time)<=$__timeTo()\nGROUP BY 1 ORDER BY 1",
+          "rawSql": "SELECT date_trunc('day', text_to_timestamptz_immutable(r.start_time) AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York' AS \"time\",\n  MIN(r.value_numeric) AS \"min\", AVG(r.value_numeric) AS \"avg\", MAX(r.value_numeric) AS \"max\"\nFROM health_observations_raw r JOIN health_sources s ON s.id=r.source_id\nWHERE r.metric_type='heart_rate' AND s.source_system = 'health_connect_direct' AND r.unit='count/min' AND text_to_timestamptz_immutable(r.start_time)>=$__timeFrom() AND text_to_timestamptz_immutable(r.start_time)<=$__timeTo()\nGROUP BY 1 ORDER BY 1",
           "refId": "A",
           "editorMode": "code"
         }

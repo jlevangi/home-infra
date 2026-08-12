@@ -45,8 +45,8 @@ def test_expands_android_records_to_archive_rows():
     steps = expand_health_connect_record(record("steps", "steps-1"))
 
     assert [(row["metric_type"], row["original_type"], row["unit"]) for row in heart] == [
-        ("heart_rate", "health_connect_direct_heart_rate", "bpm"),
-        ("heart_rate", "health_connect_direct_heart_rate", "bpm"),
+        ("heart_rate", "health_connect_direct_heart_rate", "count/min"),
+        ("heart_rate", "health_connect_direct_heart_rate", "count/min"),
     ]
     assert heart[0]["external_id"] == "k1:sample:1786356000000"
     assert heart[0]["start_time"] == heart[0]["end_time"] == START

@@ -54,7 +54,9 @@ SCALARS = {
 # recordType -> (sample_value_field, metric_type, unit)
 # Each sample becomes its own row timestamped at the sample instant.
 SAMPLE_SERIES = {
-    "heart_rate": ("beatsPerMinute", "heart_rate", "bpm"),
+    # count/min, not bpm: 0002_normalize_vocabulary.sql collapsed both spellings
+    # onto count/min, and emitting bpm here would reintroduce the split.
+    "heart_rate": ("beatsPerMinute", "heart_rate", "count/min"),
     "speed": ("speedMetersPerSecond", "speed", "m/s"),
     "power": ("powerWatts", "power", "W"),
     "cycling_pedaling_cadence": (
