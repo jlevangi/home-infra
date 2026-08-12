@@ -12,7 +12,7 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 10Gi
+      storage: 20Gi
   storageClassName: longhorn-one-replica-flash
   volumeMode: Filesystem
   volumeName: health-postgres-pv
