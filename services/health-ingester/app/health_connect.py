@@ -4,13 +4,16 @@ from __future__ import annotations
 
 import hmac
 import json
+import math
 import os
 from datetime import datetime, timezone
 from typing import Any
 
+from . import hc_types
+
 MAX_RECORDS = 500
 MAX_BYTES = 2 * 1024 * 1024
-TYPES = {"heart_rate", "sleep", "steps"}
+TYPES = hc_types.TYPES
 STAGES = {"awake", "sleeping", "out_of_bed", "light", "deep", "rem", "unknown"}
 
 
@@ -36,31 +39,79 @@ def _epoch_millis(value: str) -> int:
 
 
 def expand_health_connect_record(record: dict) -> list[dict]:
-    """Map one validated protocol record to archive observation rows."""
+    """Map one validated protocol record to archive observation rows.
+
+    Each record type declares its shape in hc_types; the shape decides how many
+    rows a record produces and how their external_id is derived. The three
+    external_id forms below (bare key, ':sample:', ':stage:') are the ones
+    already in the archive and must not change.
+    """
     raw = json.dumps(record, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
-    payload = record["payload"]
+    record_type, key, payload = record["recordType"], record["key"], record["payload"]
     common = {
         "start_time": _iso(record["startTime"]),
         "end_time": _iso(record["endTime"]),
         "source_name": f"Health Connect Direct / {record['originPackage']}",
         "device_name": (record.get("device") or {}).get("model"),
         "raw_payload_json": raw,
+        "original_type": hc_types.original_type_for(record_type),
     }
-    key = record["key"]
-    if record["recordType"] == "heart_rate":
-        return [{**common, "metric_type": "heart_rate", "original_type": "health_connect_direct_heart_rate",
+
+    if record_type == "sleep":
+        return [{**common, "metric_type": "sleep_segment",
+                 "start_time": _iso(stage["startTime"]), "end_time": _iso(stage["endTime"]),
+                 "value_numeric": None, "value_text": stage["stage"], "unit": None,
+                 "external_id": f"{key}:stage:{index}"}
+                for index, stage in enumerate(payload.get("stages", []))]
+
+    if record_type in hc_types.SAMPLE_SERIES:
+        field, metric_type, unit = hc_types.SAMPLE_SERIES[record_type]
+        return [{**common, "metric_type": metric_type,
                  "start_time": _iso(sample["time"]), "end_time": _iso(sample["time"]),
-                 "value_numeric": sample["beatsPerMinute"], "value_text": None, "unit": "bpm",
+                 "value_numeric": sample[field], "value_text": None, "unit": unit,
                  "external_id": f"{key}:sample:{_epoch_millis(sample['time'])}"}
                 for sample in payload["samples"]]
-    if record["recordType"] == "steps":
-        return [{**common, "metric_type": "steps", "original_type": "health_connect_direct_steps",
-                 "value_numeric": payload["count"], "value_text": None, "unit": "count", "external_id": key}]
-    return [{**common, "metric_type": "sleep_segment", "original_type": "health_connect_direct_sleep_stage",
-             "start_time": _iso(stage["startTime"]), "end_time": _iso(stage["endTime"]),
-             "value_numeric": None, "value_text": stage["stage"], "unit": None,
-             "external_id": f"{key}:stage:{index}"}
-            for index, stage in enumerate(payload.get("stages", []))]
+
+    if record_type in hc_types.MULTI:
+        return [{**common, "metric_type": metric_type, "value_numeric": payload[field],
+                 "value_text": None, "unit": unit, "external_id": f"{key}:{field}"}
+                for field, metric_type, unit in hc_types.MULTI[record_type]
+                if payload.get(field) is not None]
+
+    if record_type == "exercise_session":
+        # Duration in minutes, matching the existing exercise_session rows.
+        minutes = (_time(record["endTime"]) - _time(record["startTime"])).total_seconds() / 60
+        return [{**common, "metric_type": "exercise_session", "value_numeric": minutes,
+                 "value_text": payload.get("title"), "unit": "min", "external_id": key}]
+
+    if record_type in hc_types.CODED:
+        field, metric_type = hc_types.CODED[record_type]
+        return [{**common, "metric_type": metric_type, "value_numeric": payload.get(field),
+                 "value_text": None, "unit": None, "external_id": key}]
+
+    if record_type in hc_types.TEXT_NOTES:
+        return [{**common, "metric_type": hc_types.TEXT_NOTES[record_type],
+                 "value_numeric": None, "value_text": payload.get("notes"),
+                 "unit": None, "external_id": key}]
+
+    field, metric_type, unit = hc_types.SCALARS[record_type]
+    return [{**common, "metric_type": metric_type, "value_numeric": payload[field],
+             "value_text": None, "unit": unit, "external_id": key}]
+
+
+def _number(value: Any) -> float:
+    """Accept any finite number. Ranges are deliberately not checked.
+
+    Only heart rate and step count carry range checks, because those were
+    written against known-bad data. Guessing plausible bounds for the other
+    types would silently drop real measurements, which is the failure this
+    service exists to avoid.
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError("invalid_value")
+    if not math.isfinite(value):
+        raise ValueError("invalid_value")
+    return value
 
 
 def _reject(record: Any, code: str, message: str) -> dict:
@@ -77,7 +128,11 @@ def _validate(record: Any) -> None:
     if not isinstance(record["key"], str) or not isinstance(record["keyVersion"], int) or isinstance(record["keyVersion"], bool):
         raise ValueError("invalid_identity")
     if record["recordType"] not in TYPES:
-        raise ValueError("unknown_record_type")
+        # Deliberately a transient_ code. The collector quarantines permanently
+        # rejected records with no way to release them, so a server that lags
+        # the app's record types would destroy that data on the device. Marking
+        # it transient makes the collector hold the records and retry instead.
+        raise ValueError("transient_unknown_record_type")
     start, end = _time(record["startTime"]), _time(record["endTime"])
     _time(record["collectedAt"])
     if end < start:
@@ -85,20 +140,51 @@ def _validate(record: Any) -> None:
     payload = record["payload"]
     if not isinstance(payload, dict):
         raise ValueError("invalid_payload")
-    if record["recordType"] == "heart_rate":
+    record_type = record["recordType"]
+    if record_type in hc_types.SAMPLE_SERIES:
+        field, _, _ = hc_types.SAMPLE_SERIES[record_type]
         samples = payload.get("samples")
         if not isinstance(samples, list):
             raise ValueError("invalid_samples")
         for sample in samples:
-            if not isinstance(sample, dict) or not isinstance(sample.get("beatsPerMinute"), int) or isinstance(sample["beatsPerMinute"], bool) or not 1 <= sample["beatsPerMinute"] <= 300:
-                raise ValueError("invalid_bpm")
+            if not isinstance(sample, dict):
+                raise ValueError("invalid_samples")
+            if record_type == "heart_rate":
+                bpm = sample.get("beatsPerMinute")
+                if not isinstance(bpm, int) or isinstance(bpm, bool) or not 1 <= bpm <= 300:
+                    raise ValueError("invalid_bpm")
+            else:
+                _number(sample.get(field))
             sample_time = _time(sample.get("time"))
             if not start <= sample_time <= end:
                 raise ValueError("sample_outside_record")
-    elif record["recordType"] == "steps":
+    elif record_type == "steps":
         if not isinstance(payload.get("count"), int) or isinstance(payload["count"], bool) or payload["count"] < 0:
             raise ValueError("invalid_steps")
-    else:
+    elif record_type in hc_types.SCALARS:
+        field, _, _ = hc_types.SCALARS[record_type]
+        _number(payload.get(field))
+    elif record_type in hc_types.MULTI:
+        present = [field for field, _, _ in hc_types.MULTI[record_type]
+                   if payload.get(field) is not None]
+        if not present:
+            raise ValueError("missing_field")
+        for field in present:
+            _number(payload[field])
+    elif record_type == "exercise_session":
+        exercise_type = payload.get("exerciseType")
+        if not isinstance(exercise_type, int) or isinstance(exercise_type, bool):
+            raise ValueError("invalid_value")
+    elif record_type in hc_types.CODED:
+        field, _ = hc_types.CODED[record_type]
+        code = payload.get(field)
+        if code is not None and (not isinstance(code, int) or isinstance(code, bool)):
+            raise ValueError("invalid_value")
+    elif record_type in hc_types.TEXT_NOTES:
+        notes = payload.get("notes")
+        if notes is not None and not isinstance(notes, str):
+            raise ValueError("invalid_value")
+    elif record_type == "sleep":
         stages = payload.get("stages", [])
         if not isinstance(stages, list):
             raise ValueError("invalid_stages")
@@ -112,6 +198,10 @@ def _validate(record: Any) -> None:
             intervals.append((stage_start, stage_end))
         if any(current[0] < previous[1] for previous, current in zip(sorted(intervals), sorted(intervals)[1:])):
             raise ValueError("overlapping_stages")
+    else:
+        # A type listed in hc_types.TYPES with no branch here. Treat it as not
+        # yet supported rather than storing it unvalidated.
+        raise ValueError("transient_unknown_record_type")
 
 
 def validate_batch(body: object) -> tuple[list[dict], list[dict]]:

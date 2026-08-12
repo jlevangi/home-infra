@@ -45,6 +45,11 @@ COLLECTOR_RECORDS = Counter(
 COLLECTOR_AUTH_FAILURES = Counter(
     "health_collector_auth_failures_total", "Collector authentication failures"
 )
+COLLECTOR_UNKNOWN_TYPES = Counter(
+    "health_collector_unknown_record_type_total",
+    "Records whose recordType this service does not recognise",
+    ["record_type"],
+)
 
 
 @app.post("/api/v1/health-connect/records:batch")
@@ -72,8 +77,24 @@ def health_connect_batch():
         else:
             continue
         COLLECTOR_RECORDS.labels(record_type=record["recordType"], origin=record["originPackage"], outcome=outcome).inc()
-    for _ in rejected:
-        COLLECTOR_RECORDS.labels(record_type="unknown", origin="unknown", outcome="rejected").inc()
+
+    # Rejections are reported by key only, so recover each one's type from the
+    # request. Labelling every rejection "unknown" is what hid the collector
+    # sending 39 record types at a service that accepted 3.
+    submitted = {
+        r.get("key"): r for r in body.get("records", []) if isinstance(r, dict)
+    }
+    for rejection in rejected:
+        source = submitted.get(rejection.get("key")) or {}
+        record_type = source.get("recordType") or "unknown"
+        origin = source.get("originPackage") or "unknown"
+        if not isinstance(record_type, str):
+            record_type = "unknown"
+        if not isinstance(origin, str):
+            origin = "unknown"
+        COLLECTOR_RECORDS.labels(record_type=record_type, origin=origin, outcome="rejected").inc()
+        if rejection.get("code") == "transient_unknown_record_type":
+            COLLECTOR_UNKNOWN_TYPES.labels(record_type=record_type).inc()
     return jsonify(accepted=accepted, duplicates=duplicates, rejected=rejected)
 
 
