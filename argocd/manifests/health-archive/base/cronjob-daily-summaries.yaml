@@ -1,0 +1,58 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: health-daily-summaries
+  namespace: health-archive
+spec:
+  # 03:20 America/New_York, after the night's sleep records have landed.
+  schedule: "20 7 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 3600
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: refresh
+              image: postgres:16-alpine
+              # The archive receives the same measurement from several sources.
+              # This picks one per metric per day by priority so aggregate
+              # panels do not double count. A 7-day window rather than the
+              # function's 3-day default, because late-arriving exports and
+              # backfilled workouts routinely land a few days behind.
+              command:
+                - psql
+                - -v
+                - ON_ERROR_STOP=1
+                - -c
+                - SELECT refresh_health_daily_numeric_summaries(CURRENT_DATE - 7, CURRENT_DATE);
+              env:
+                - name: PGHOST
+                  value: health-postgres
+                - name: PGDATABASE
+                  value: health_archive
+                - name: PGUSER
+                  value: health_archive
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: health-postgres-secret
+                      key: postgres-password
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                runAsUser: 70
+                capabilities:
+                  drop: ["ALL"]

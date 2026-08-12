@@ -12,3 +12,4 @@ resources:
   - service-ingester.yaml
   - middleware-redirect-https.yaml
   - ingress-ingester.yaml
+  - cronjob-daily-summaries.yaml
