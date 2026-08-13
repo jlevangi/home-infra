@@ -44,5 +44,5 @@ data:
         'netbox.authentication.user_default_groups_handler',
         'social_core.pipeline.social_auth.load_extra_data',
         'social_core.pipeline.user.user_details',
-        'netbox.configuration.extra_config.set_superuser_status',
+        'netbox_configuration_extra_config.set_superuser_status',
     )
