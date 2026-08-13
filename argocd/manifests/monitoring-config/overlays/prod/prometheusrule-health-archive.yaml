@@ -64,11 +64,14 @@ spec:
             summary: Health collector authentication failures
             description: More than five Health Connect collector authentication failures occurred in the last 15 minutes.
 
-        - alert: HealthCollectorHeartRateNotAccepted
-          expr: increase(health_collector_records_total{record_type="heart_rate", outcome="accepted"}[24h]) < 1
+        - alert: HealthConnectSyncStale
+          expr: sum(increase(health_collector_records_total{outcome=~"accepted|duplicate"}[24h])) < 1
           for: 1h
           labels:
             severity: warning
           annotations:
-            summary: No accepted direct heart-rate records for 24 hours
-            description: The Health Connect collector has accepted no direct heart-rate records in the last 24 hours.
+            summary: No Health Connect sync activity for 24 hours
+            description: >-
+              The Health Connect collector has processed no accepted or duplicate
+              records of any type in the last 24 hours. The expected sync cadence is
+              at least once every 12 hours.
