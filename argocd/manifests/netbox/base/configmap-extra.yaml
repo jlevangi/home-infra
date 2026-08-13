@@ -11,28 +11,27 @@ data:
     REMOTE_AUTH_BACKEND = 'social_core.backends.open_id_connect.OpenIdConnectAuth'
     REMOTE_AUTH_AUTO_CREATE_USER = True
 
-    # Automatically grant Superuser and Staff privileges to user 'pierce'
-    REMOTE_AUTH_SUPERUSERS = ['pierce', 'pierce@levangie.org']
-    REMOTE_AUTH_STAFF_USERS = ['pierce', 'pierce@levangie.org']
+    # Members of this Keycloak group (realm: master) get Superuser + Staff in NetBox.
+    REMOTE_AUTH_SUPERUSER_GROUPS = ['netbox-superadmins']
+    REMOTE_AUTH_STAFF_GROUPS = ['netbox-superadmins']
 
     # Keycloak OIDC Settings
     SOCIAL_AUTH_OIDC_ENDPOINT = 'https://auth.levangie.org/realms/master'
     SOCIAL_AUTH_OIDC_KEY = os.getenv('SOCIAL_AUTH_OIDC_KEY', 'netbox')
     SOCIAL_AUTH_OIDC_SECRET = os.getenv('SOCIAL_AUTH_OIDC_SECRET', 'netbox-client-secret-placeholder')
-    
-    SOCIAL_AUTH_OIDC_SCOPE = ['openid', 'email', 'profile']
+
+    SOCIAL_AUTH_OIDC_SCOPE = ['openid', 'email', 'profile', 'groups']
     SOCIAL_AUTH_OIDC_USERNAME_KEY = 'preferred_username'
 
-    # REMOTE_AUTH_SUPERUSERS/STAFF_USERS above are only honored by NetBox's own
-    # RemoteUserBackend (header-based auth). The social_core OIDC backend used
-    # here never runs that logic, so a pipeline step is needed to apply the
-    # same superuser/staff assignment for OIDC logins.
+    # REMOTE_AUTH_SUPERUSER_GROUPS/STAFF_GROUPS above are only honored by
+    # NetBox's own RemoteUserBackend (header-based auth). The social_core OIDC
+    # backend used here never runs that logic, so a pipeline step reads the
+    # Keycloak "groups" claim from the ID token directly and applies the same
+    # superuser/staff assignment.
     def set_superuser_status(backend, user, response, *args, **kwargs):
-        identifiers = {user.username, user.email}
-        if identifiers & set(REMOTE_AUTH_SUPERUSERS):
-            user.is_superuser = True
-        if identifiers & set(REMOTE_AUTH_STAFF_USERS):
-            user.is_staff = True
+        groups = set(response.get('groups') or [])
+        user.is_superuser = bool(groups & set(REMOTE_AUTH_SUPERUSER_GROUPS))
+        user.is_staff = bool(groups & set(REMOTE_AUTH_STAFF_GROUPS))
         user.save()
 
     SOCIAL_AUTH_PIPELINE = (
