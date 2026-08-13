@@ -4,8 +4,8 @@ resources:
   - namespace.yaml
   - pvc.yaml
   - job-migrate-config.yaml
-  - configmap-custom-init.yaml
   - configmap-custom-menu.yaml
+  - configmap-nginx-conf.yaml
   - deployment.yaml
   - service.yaml
   - service-tftp.yaml
