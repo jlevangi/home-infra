@@ -126,7 +126,7 @@ spec:
     spec:
       initContainers:
         - name: prepare-config
-          image: busybox:1.36
+          image: busybox:1.38
           imagePullPolicy: IfNotPresent
           command:
             - sh
@@ -201,7 +201,7 @@ spec:
     spec:
       initContainers:
         - name: prepare-config
-          image: busybox:1.36
+          image: busybox:1.38
           imagePullPolicy: IfNotPresent
           command:
             - sh
@@ -282,7 +282,7 @@ spec:
       # actually running at this point.
       initContainers:
         - name: clear-stale-qbit-lock
-          image: busybox:1.36
+          image: busybox:1.38
           command:
             - sh
             - -c

@@ -21,7 +21,7 @@ spec:
     spec:
       initContainers:
         - name: wait-for-deps
-          image: busybox:1.36
+          image: busybox:1.38
           imagePullPolicy: IfNotPresent
           command:
             - sh
@@ -33,7 +33,7 @@ spec:
               until nc -z affine-redis 6379; do sleep 5; done
               echo "Dependencies ready."
         - name: render-config
-          image: busybox:1.36
+          image: busybox:1.38
           imagePullPolicy: IfNotPresent
           command:
             - sh

@@ -19,7 +19,7 @@ spec:
         kubernetes.io/os: linux
       initContainers:
         - name: wait-for-db
-          image: busybox:1.35
+          image: busybox:1.38
           command: ['sh', '-c']
           args:
             - |

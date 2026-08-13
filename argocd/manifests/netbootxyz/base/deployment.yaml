@@ -23,7 +23,7 @@ spec:
     spec:
       initContainers:
         - name: stage-custom-config
-          image: busybox:1.36
+          image: busybox:1.38
           # nginx actually runs as `nginx -c /config/nginx/nginx.conf`, which
           # includes /config/nginx/site-confs/* - NOT /etc/nginx/http.d, and
           # NOT the /etc/nginx/nginx.conf that `nginx -T` shows by default

@@ -19,7 +19,7 @@ spec:
     spec:
       initContainers:
         - name: init-cookies
-          image: busybox:1.36
+          image: busybox:1.38
           command:
             - /bin/sh
             - -c
