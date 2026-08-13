@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - configmap.yaml
+  - configmap-extra.yaml
   - secret.yaml
   - pvc-postgres.yaml
   - pvc-media.yaml

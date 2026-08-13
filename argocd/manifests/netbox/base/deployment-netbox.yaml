@@ -38,7 +38,13 @@ spec:
           volumeMounts:
             - name: netbox-media
               mountPath: /opt/netbox/netbox/media
+            - name: extra-config
+              mountPath: /opt/netbox/netbox/netbox/extra_config.py
+              subPath: extra_config.py
       volumes:
         - name: netbox-media
           persistentVolumeClaim:
             claimName: netbox-media-pvc
+        - name: extra-config
+          configMap:
+            name: netbox-extra-config

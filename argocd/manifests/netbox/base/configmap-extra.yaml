@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: netbox-extra-config
+  namespace: netbox
+data:
+  extra_config.py: |
+    import os
+
+    REMOTE_AUTH_ENABLED = True
+    REMOTE_AUTH_BACKEND = 'social_core.backends.open_id_connect.OpenIdConnectAuth'
+    REMOTE_AUTH_AUTO_CREATE_USER = True
+
+    # Automatically grant Superuser and Staff privileges to user 'pierce'
+    REMOTE_AUTH_SUPERUSERS = ['pierce', 'pierce@levangie.org']
+    REMOTE_AUTH_STAFF_USERS = ['pierce', 'pierce@levangie.org']
+
+    # Keycloak OIDC Settings
+    SOCIAL_AUTH_OIDC_ENDPOINT = 'https://auth.levangie.org/realms/master/protocol/openid-connect'
+    SOCIAL_AUTH_OIDC_KEY = os.getenv('SOCIAL_AUTH_OIDC_KEY', 'netbox')
+    SOCIAL_AUTH_OIDC_SECRET = os.getenv('SOCIAL_AUTH_OIDC_SECRET', 'netbox-client-secret-placeholder')
+    
+    SOCIAL_AUTH_OIDC_SCOPE = ['openid', 'email', 'profile']
+    SOCIAL_AUTH_OIDC_USERNAME_KEY = 'preferred_username'
