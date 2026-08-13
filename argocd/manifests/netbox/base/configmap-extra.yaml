@@ -22,3 +22,28 @@ data:
     
     SOCIAL_AUTH_OIDC_SCOPE = ['openid', 'email', 'profile']
     SOCIAL_AUTH_OIDC_USERNAME_KEY = 'preferred_username'
+
+    # REMOTE_AUTH_SUPERUSERS/STAFF_USERS above are only honored by NetBox's own
+    # RemoteUserBackend (header-based auth). The social_core OIDC backend used
+    # here never runs that logic, so a pipeline step is needed to apply the
+    # same superuser/staff assignment for OIDC logins.
+    def set_superuser_status(backend, user, response, *args, **kwargs):
+        identifiers = {user.username, user.email}
+        if identifiers & set(REMOTE_AUTH_SUPERUSERS):
+            user.is_superuser = True
+        if identifiers & set(REMOTE_AUTH_STAFF_USERS):
+            user.is_staff = True
+        user.save()
+
+    SOCIAL_AUTH_PIPELINE = (
+        'social_core.pipeline.social_auth.social_details',
+        'social_core.pipeline.social_auth.social_uid',
+        'social_core.pipeline.social_auth.social_user',
+        'social_core.pipeline.user.get_username',
+        'social_core.pipeline.user.create_user',
+        'social_core.pipeline.social_auth.associate_user',
+        'netbox.authentication.user_default_groups_handler',
+        'social_core.pipeline.social_auth.load_extra_data',
+        'social_core.pipeline.user.user_details',
+        'netbox.configuration.extra_config.set_superuser_status',
+    )
