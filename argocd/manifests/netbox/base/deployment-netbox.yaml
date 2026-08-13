@@ -39,7 +39,7 @@ spec:
             - name: netbox-media
               mountPath: /opt/netbox/netbox/media
             - name: extra-config
-              mountPath: /opt/netbox/netbox/netbox/extra_config.py
+              mountPath: /etc/netbox/config/extra_config.py
               subPath: extra_config.py
       volumes:
         - name: netbox-media
