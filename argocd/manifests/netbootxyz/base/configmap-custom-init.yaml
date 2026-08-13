@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: netbootxyz-custom-init
+  namespace: netbootxyz
+data:
+  99-custom-nginx.sh: |
+    #!/usr/bin/with-contenv bash
+    # Serves the NAS ISOs share and the custom iPXE menu over HTTP.
+    # /etc/nginx is not on the persisted /config volume, so this has to
+    # regenerate the site config on every container start.
+    set -e
+
+    cat > /etc/nginx/http.d/default.conf <<'NGINX'
+    server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+
+        location /isos/ {
+            alias /isos/;
+            autoindex on;
+        }
+
+        location /custom/ {
+            alias /config/custom-assets/;
+        }
+
+        location / {
+            return 404;
+        }
+    }
+    NGINX
+
+    # custom_url is read by menu.ipxe to show "Custom URL Menu". boot.cfg
+    # lives on the persisted PVC and is only seeded once by the image, so
+    # this only needs to patch it in if it's missing.
+    if ! grep -q '^set custom_url' /config/menus/boot.cfg; then
+      sed -i '/^set site_name netboot.xyz/a set custom_url http://172.20.20.202/custom' /config/menus/boot.cfg
+    fi

@@ -51,6 +51,15 @@ spec:
             - name: netbootxyz-data
               mountPath: /assets
               subPath: assets
+            - name: nas-isos
+              mountPath: /isos
+              readOnly: true
+            - name: custom-init
+              mountPath: /config/custom-cont-init.d/99-custom-nginx.sh
+              subPath: 99-custom-nginx.sh
+            - name: custom-menu
+              mountPath: /config/custom-assets/custom.ipxe
+              subPath: custom.ipxe
           resources:
             requests:
               cpu: 25m
@@ -74,3 +83,15 @@ spec:
         - name: netbootxyz-data
           persistentVolumeClaim:
             claimName: netbootxyz-data-pvc
+        - name: nas-isos
+          nfs:
+            server: 172.20.20.5
+            path: /volume1/fileserver/ISOs
+            readOnly: true
+        - name: custom-init
+          configMap:
+            name: netbootxyz-custom-init
+            defaultMode: 0755
+        - name: custom-menu
+          configMap:
+            name: netbootxyz-custom-menu

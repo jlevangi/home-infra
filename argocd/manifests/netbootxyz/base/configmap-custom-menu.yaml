@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: netbootxyz-custom-menu
+  namespace: netbootxyz
+data:
+  custom.ipxe: |
+    #!ipxe
+
+    :main
+    menu Custom ISOs (from NAS: /volume1/fileserver/ISOs)
+    item proxmox-ve-9.2 Proxmox VE 9.2 installer
+    item back Back to netboot.xyz main menu
+    choose target && goto ${target} || goto back
+
+    :proxmox-ve-9.2
+    echo Booting Proxmox VE 9.2 installer from NAS ISO...
+    sanboot http://172.20.20.202/isos/proxmox-ve_9.2-1.iso || goto failed
+
+    :back
+    chain tftp://172.20.20.202/menu.ipxe
+
+    :failed
+    echo Failed to boot - press any key to return to the custom menu.
+    prompt
+    goto main
