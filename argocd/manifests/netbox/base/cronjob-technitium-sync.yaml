@@ -1,0 +1,52 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: netbox-technitium-sync
+  namespace: netbox
+spec:
+  # Every 15 minutes.
+  schedule: "*/15 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 600
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: sync
+              image: ghcr.io/jlevangi/netbox-sync:0.1.0
+              env:
+                - name: NETBOX_URL
+                  value: https://netbox.levangie.dev
+                - name: TECHNITIUM_URL
+                  value: http://172.20.20.4:5380
+                - name: DNS_ZONE
+                  value: levangie.org
+                - name: NETBOX_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: netbox-sync-secrets
+                      key: NETBOX_TOKEN
+                - name: TECHNITIUM_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: netbox-sync-secrets
+                      key: TECHNITIUM_TOKEN
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 64Mi
+                limits:
+                  cpu: 250m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                runAsUser: 10001
+                capabilities:
+                  drop: ["ALL"]

@@ -5,6 +5,8 @@ resources:
   - configmap.yaml
   - configmap-extra.yaml
   - external-secret.yaml
+  - external-secret-sync.yaml
+  - cronjob-technitium-sync.yaml
   - pvc-postgres.yaml
   - pvc-media.yaml
   - deployment-postgres.yaml
