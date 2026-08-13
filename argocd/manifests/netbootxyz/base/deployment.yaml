@@ -24,19 +24,22 @@ spec:
       initContainers:
         - name: stage-custom-config
           image: busybox:1.36
-          # This image runs supervisord directly with no custom-init-script
-          # support, so nginx config is mounted straight into the main
-          # container instead (see nginx-conf volume below). This init
-          # container only needs to stage what has to land on the writable
-          # PVC: the custom iPXE menu, and a one-time patch to boot.cfg so
-          # menu.ipxe shows a "Custom URL Menu" entry pointing at it.
+          # nginx actually runs as `nginx -c /config/nginx/nginx.conf`, which
+          # includes /config/nginx/site-confs/* - NOT /etc/nginx/http.d, and
+          # NOT the /etc/nginx/nginx.conf that `nginx -T` shows by default
+          # (that file/process isn't the one supervisord starts here). The
+          # image's own init.sh only seeds site-confs/default if it's
+          # missing ("[[ ! -f ... ]] &&"), so writing it here first via the
+          # writable PVC mount sticks - a live ConfigMap mount at that path
+          # doesn't, since some of this image's init steps write there too.
           command:
             - sh
             - -c
             - |
               set -eu
-              mkdir -p /config/custom-assets
+              mkdir -p /config/custom-assets /config/nginx/site-confs
               cp /src-menu/custom.ipxe /config/custom-assets/custom.ipxe
+              cp /src-nginx/default.conf /config/nginx/site-confs/default
               if ! grep -q '^set custom_url' /config/menus/boot.cfg; then
                 sed -i '/^set site_name netboot.xyz/a set custom_url http://172.20.20.202/custom' /config/menus/boot.cfg
               fi
@@ -46,6 +49,8 @@ spec:
               subPath: config
             - name: custom-menu
               mountPath: /src-menu
+            - name: nginx-conf
+              mountPath: /src-nginx
       containers:
         - name: netbootxyz
           image: ghcr.io/netbootxyz/netbootxyz:latest
@@ -79,9 +84,6 @@ spec:
             - name: nas-isos
               mountPath: /isos
               readOnly: true
-            - name: nginx-conf
-              mountPath: /etc/nginx/http.d/default.conf
-              subPath: default.conf
           resources:
             requests:
               cpu: 25m
