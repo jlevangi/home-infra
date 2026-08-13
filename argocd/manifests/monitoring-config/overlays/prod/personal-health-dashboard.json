@@ -161,7 +161,7 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "WITH base AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts,\n         text_to_timestamptz_immutable(r.end_time) AS ends, lower(r.value_text) AS stage\n  FROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\n  WHERE r.metric_type = 'sleep_segment' AND s.source_system = 'health_connect_direct'\n    AND lower(r.value_text) IN ('light', 'deep', 'rem', 'awake')\n    AND text_to_timestamptz_immutable(r.start_time) >= now() - interval '14 days'), marked AS (\n  SELECT *, CASE WHEN starts > lag(ends) OVER (ORDER BY starts, ends) + interval '30 minutes'\n                     OR lag(ends) OVER (ORDER BY starts, ends) IS NULL THEN 1 ELSE 0 END AS new_session\n  FROM base\n), segmented AS (\n  SELECT *, SUM(new_session) OVER (ORDER BY starts, ends) AS session_id FROM marked\n), sessions AS (\n  SELECT session_id, (MAX(ends) AT TIME ZONE 'America/New_York')::date AS wake_date,\n         SUM(EXTRACT(EPOCH FROM (ends - starts))) FILTER (WHERE stage <> 'awake') AS asleep_seconds\n  FROM segmented GROUP BY session_id\n), ranked AS (\n  SELECT *, ROW_NUMBER() OVER (PARTITION BY wake_date ORDER BY asleep_seconds DESC) AS rank_for_day FROM sessions\n)\nSELECT asleep_seconds / 3600.0 AS \"Primary Sleep (h)\" FROM ranked\nWHERE rank_for_day = 1 ORDER BY wake_date DESC LIMIT 1",
+          "rawSql": "WITH base AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts,\n         text_to_timestamptz_immutable(r.end_time) AS ends, lower(r.value_text) AS stage\n  FROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\n  WHERE r.metric_type = 'sleep_segment'\n    AND lower(r.value_text) IN ('light', 'deep', 'rem', 'awake')\n    AND text_to_timestamptz_immutable(r.start_time) >= now() - interval '14 days'), marked AS (\n  SELECT *, CASE WHEN starts > lag(ends) OVER (ORDER BY starts, ends) + interval '30 minutes'\n                     OR lag(ends) OVER (ORDER BY starts, ends) IS NULL THEN 1 ELSE 0 END AS new_session\n  FROM base\n), segmented AS (\n  SELECT *, SUM(new_session) OVER (ORDER BY starts, ends) AS session_id FROM marked\n), sessions AS (\n  SELECT session_id, (MAX(ends) AT TIME ZONE 'America/New_York')::date AS wake_date,\n         SUM(EXTRACT(EPOCH FROM (ends - starts))) FILTER (WHERE stage <> 'awake') AS asleep_seconds\n  FROM segmented GROUP BY session_id\n), ranked AS (\n  SELECT *, ROW_NUMBER() OVER (PARTITION BY wake_date ORDER BY asleep_seconds DESC) AS rank_for_day FROM sessions\n)\nSELECT asleep_seconds / 3600.0 AS \"Primary Sleep (h)\" FROM ranked\nWHERE rank_for_day = 1 ORDER BY wake_date DESC LIMIT 1",
           "refId": "A",
           "editorMode": "code"
         }
@@ -231,70 +231,6 @@
         }
       ],
       "title": "Latest Heart Rate",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "health-archive"
-      },
-      "description": "Latest known reading - this source has been quiet for a while, see the Data Freshness table for the exact date.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "bpm"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 6,
-        "x": 18,
-        "y": 1
-      },
-      "id": 5,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "13.1.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "health-archive"
-          },
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "SELECT value_numeric AS \"Resting Heart Rate\"\nFROM health_observations_raw\nWHERE metric_type = 'resting_heart_rate'\nORDER BY text_to_timestamptz_immutable(start_time) DESC\nLIMIT 1",
-          "refId": "A",
-          "editorMode": "code"
-        }
-      ],
-      "title": "Resting Heart Rate (latest)",
       "type": "stat"
     },
     {
@@ -458,7 +394,7 @@
     },
     {
       "id": 102,
-      "title": "Sleep Stages Timeline",
+      "title": "Last Night's Sleep Stages",
       "type": "state-timeline",
       "gridPos": {
         "h": 10,
@@ -561,10 +497,9 @@
           "format": "table",
           "rawQuery": true,
           "refId": "A",
-          "rawSql": "SELECT text_to_timestamptz_immutable(r.start_time) AS \"Start\", text_to_timestamptz_immutable(r.end_time) AS \"End\", initcap(lower(r.value_text)) AS \"Sleep Stage\"\nFROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\nWHERE r.metric_type = 'sleep_segment' AND s.source_system = 'health_connect_direct' AND lower(r.value_text) IN ('light', 'deep', 'rem', 'awake')\n  AND text_to_timestamptz_immutable(r.start_time) >= $__timeFrom() AND text_to_timestamptz_immutable(r.start_time) <= $__timeTo()\nORDER BY 1"
+          "rawSql": "WITH base AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts, text_to_timestamptz_immutable(r.end_time) AS ends, initcap(lower(r.value_text)) AS stage\n  FROM health_observations_raw r JOIN health_sources s ON s.id=r.source_id\n  WHERE r.metric_type='sleep_segment' AND lower(r.value_text) IN ('light','deep','rem','awake') AND text_to_timestamptz_immutable(r.start_time)>=now()-interval '14 days'\n), marked AS (\n  SELECT *, CASE WHEN starts>lag(ends) OVER (ORDER BY starts,ends)+interval '30 minutes' OR lag(ends) OVER (ORDER BY starts,ends) IS NULL THEN 1 ELSE 0 END AS new_session FROM base\n), segmented AS (\n  SELECT *, SUM(new_session) OVER (ORDER BY starts,ends) AS session_id FROM marked\n), sessions AS (\n  SELECT session_id, (MAX(ends) AT TIME ZONE 'America/New_York')::date AS wake_date, SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage<>'Awake') AS asleep_seconds FROM segmented GROUP BY session_id\n), latest AS (\n  SELECT session_id FROM sessions ORDER BY wake_date DESC, asleep_seconds DESC LIMIT 1\n)\nSELECT starts AS \"Start\", ends AS \"End\", stage AS \"Sleep Stage\" FROM segmented JOIN latest USING (session_id) ORDER BY starts"
         }
       ],
-      "timeFrom": "now-12h",
       "timeTo": "now"
     },
     {
@@ -770,7 +705,7 @@
           "format": "time_series",
           "rawQuery": true,
           "refId": "A",
-          "rawSql": "WITH valid_raw AS MATERIALIZED (\n  SELECT raw_payload_json::jsonb AS payload\n  FROM health_observations_raw\n  WHERE original_type = 'health_sync_total_calories'\n    AND pg_input_is_valid(raw_payload_json, 'jsonb')\n), snapshots AS (\n  SELECT DISTINCT ON (f.external_file_id)\n         f.modified_time AS observed_at,\n         NULLIF((v.payload #>> '{row,Total calories}'), '')::double precision AS cumulative_calories\n  FROM valid_raw v\n  JOIN health_ingested_files f ON f.external_file_id = v.payload ->> 'fileId'\n  WHERE f.modified_time >= $__timeFrom()\n    AND f.modified_time <= $__timeTo()\n    AND to_date(left(v.payload #>> '{row,Date}', 10), 'YYYY.MM.DD') = (f.modified_time AT TIME ZONE 'America/New_York')::date\n  ORDER BY f.external_file_id, f.processed_at DESC\n), hourly AS (\n  SELECT date_trunc('hour', observed_at AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York' AS hour,\n         max(cumulative_calories) AS cumulative_calories\n  FROM snapshots\n  WHERE cumulative_calories IS NOT NULL\n  GROUP BY 1\n), deltas AS (\n  SELECT hour, cumulative_calories,\n         lag(cumulative_calories) OVER (PARTITION BY (hour AT TIME ZONE 'America/New_York')::date ORDER BY hour) AS previous_calories\n  FROM hourly\n)\nSELECT hour AS \"time\",\n       round((cumulative_calories - previous_calories)::numeric, 1) AS \"Calories Burned\"\nFROM deltas\nWHERE previous_calories IS NOT NULL\n  AND cumulative_calories >= previous_calories\nORDER BY 1"
+          "rawSql": "SELECT date_trunc('hour', text_to_timestamptz_immutable(r.start_time)) AS \"time\",\n       SUM(r.value_numeric) AS \"Total Calories\"\nFROM health_observations_raw r\nWHERE r.metric_type = 'calories'\n  AND text_to_timestamptz_immutable(r.start_time) BETWEEN $__timeFrom() AND $__timeTo()\nGROUP BY 1 ORDER BY 1"
         }
       ]
     },
@@ -905,7 +840,7 @@
           "format": "table",
           "rawQuery": true,
           "refId": "A",
-          "rawSql": "WITH base AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts,\n         text_to_timestamptz_immutable(r.end_time) AS ends, lower(r.value_text) AS stage\n  FROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\n  WHERE r.metric_type = 'sleep_segment' AND s.source_system = 'health_connect_direct'\n    AND lower(r.value_text) IN ('light', 'deep', 'rem', 'awake')\n    AND text_to_timestamptz_immutable(r.start_time) >= $__timeFrom() AND text_to_timestamptz_immutable(r.start_time) <= $__timeTo()), marked AS (\n  SELECT *, CASE WHEN starts > lag(ends) OVER (ORDER BY starts, ends) + interval '30 minutes'\n                     OR lag(ends) OVER (ORDER BY starts, ends) IS NULL THEN 1 ELSE 0 END AS new_session\n  FROM base\n), segmented AS (\n  SELECT *, SUM(new_session) OVER (ORDER BY starts, ends) AS session_id FROM marked\n), sessions AS (\n  SELECT session_id, (MAX(ends) AT TIME ZONE 'America/New_York')::date AS wake_date,\n         SUM(EXTRACT(EPOCH FROM (ends - starts))) FILTER (WHERE stage <> 'awake') AS asleep_seconds\n  FROM segmented GROUP BY session_id\n), latest AS (\n  SELECT session_id FROM sessions ORDER BY wake_date DESC, asleep_seconds DESC LIMIT 1\n)\nSELECT MIN(starts) AT TIME ZONE 'America/New_York' AS \"Sleep start (ET)\", MAX(ends) AT TIME ZONE 'America/New_York' AS \"Wake time (ET)\",\n  ROUND((SUM(EXTRACT(EPOCH FROM (ends-starts)))/3600.0)::numeric,2) AS \"Tracked hours\",\n  ROUND((SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage<>'awake')/3600.0)::numeric,2) AS \"Asleep hours\"\nFROM segmented JOIN latest USING (session_id)"
+          "rawSql": "WITH base AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts,\n         text_to_timestamptz_immutable(r.end_time) AS ends, lower(r.value_text) AS stage\n  FROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\n  WHERE r.metric_type = 'sleep_segment'\n    AND lower(r.value_text) IN ('light', 'deep', 'rem', 'awake')\n    AND text_to_timestamptz_immutable(r.start_time) >= $__timeFrom() AND text_to_timestamptz_immutable(r.start_time) <= $__timeTo()), marked AS (\n  SELECT *, CASE WHEN starts > lag(ends) OVER (ORDER BY starts, ends) + interval '30 minutes'\n                     OR lag(ends) OVER (ORDER BY starts, ends) IS NULL THEN 1 ELSE 0 END AS new_session\n  FROM base\n), segmented AS (\n  SELECT *, SUM(new_session) OVER (ORDER BY starts, ends) AS session_id FROM marked\n), sessions AS (\n  SELECT session_id, (MAX(ends) AT TIME ZONE 'America/New_York')::date AS wake_date,\n         SUM(EXTRACT(EPOCH FROM (ends - starts))) FILTER (WHERE stage <> 'awake') AS asleep_seconds\n  FROM segmented GROUP BY session_id\n), latest AS (\n  SELECT session_id FROM sessions ORDER BY wake_date DESC, asleep_seconds DESC LIMIT 1\n)\nSELECT MIN(starts) AT TIME ZONE 'America/New_York' AS \"Sleep start (ET)\", MAX(ends) AT TIME ZONE 'America/New_York' AS \"Wake time (ET)\",\n  ROUND((SUM(EXTRACT(EPOCH FROM (ends-starts)))/3600.0)::numeric,2) AS \"Tracked hours\",\n  ROUND((SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage<>'awake')/3600.0)::numeric,2) AS \"Asleep hours\"\nFROM segmented JOIN latest USING (session_id)"
         }
       ]
     },
@@ -1018,194 +953,6 @@
       "type": "timeseries"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "health-archive"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "opacity",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 6,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "always",
-            "spanNulls": 3600000,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "bpm"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 8,
-        "x": 16,
-        "y": 43
-      },
-      "id": 8,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "last"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "health-archive"
-          },
-          "format": "time_series",
-          "rawQuery": true,
-          "rawSql": "SELECT\n  text_to_timestamptz_immutable(start_time) AS \"time\",\n  value_numeric AS \"resting_hr\"\nFROM health_observations_raw\nWHERE metric_type = 'resting_heart_rate'\n  AND text_to_timestamptz_immutable(start_time) >= $__timeFrom() AND text_to_timestamptz_immutable(start_time) <= $__timeTo()\nORDER BY 1",
-          "refId": "A",
-          "editorMode": "code"
-        }
-      ],
-      "title": "Resting Heart Rate (trend)",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "health-archive"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "opacity",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "always",
-            "spanNulls": 3600000,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 24,
-        "x": 0,
-        "y": 52
-      },
-      "id": 9,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "last"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "health-archive"
-          },
-          "format": "time_series",
-          "rawQuery": true,
-          "rawSql": "SELECT\n  (date_trunc('day', text_to_timestamptz_immutable(start_time) AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York') AS \"time\",\n  AVG(CASE WHEN metric_type = 'heart_rate_variability_rmssd' THEN value_numeric END) AS \"rmssd_ms\",\n  AVG(CASE WHEN metric_type = 'heart_rate_variability_sdnn' THEN value_numeric END) AS \"sdnn_ms\"\nFROM health_observations_raw\nWHERE metric_type IN ('heart_rate_variability_rmssd', 'heart_rate_variability_sdnn')\n  AND text_to_timestamptz_immutable(start_time) >= $__timeFrom() AND text_to_timestamptz_immutable(start_time) <= $__timeTo()\nGROUP BY 1\nORDER BY 1",
-          "refId": "A",
-          "editorMode": "code"
-        }
-      ],
-      "title": "Heart Rate Variability (RMSSD / SDNN)",
-      "type": "timeseries"
-    },
-    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -1299,7 +1046,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "WITH base AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts,\n         text_to_timestamptz_immutable(r.end_time) AS ends, lower(r.value_text) AS stage\n  FROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\n  WHERE r.metric_type = 'sleep_segment' AND s.source_system = 'health_connect_direct'\n    AND lower(r.value_text) IN ('light', 'deep', 'rem', 'awake')\n    AND text_to_timestamptz_immutable(r.start_time) >= ($__timeFrom())::timestamptz - interval '1 day' AND text_to_timestamptz_immutable(r.start_time) <= ($__timeTo())::timestamptz), marked AS (\n  SELECT *, CASE WHEN starts > lag(ends) OVER (ORDER BY starts, ends) + interval '30 minutes'\n                     OR lag(ends) OVER (ORDER BY starts, ends) IS NULL THEN 1 ELSE 0 END AS new_session\n  FROM base\n), segmented AS (\n  SELECT *, SUM(new_session) OVER (ORDER BY starts, ends) AS session_id FROM marked\n), sessions AS (\n  SELECT session_id, (MAX(ends) AT TIME ZONE 'America/New_York')::date AS wake_date,\n         SUM(EXTRACT(EPOCH FROM (ends - starts))) FILTER (WHERE stage <> 'awake') AS asleep_seconds\n  FROM segmented GROUP BY session_id\n), ranked AS (\n  SELECT *, ROW_NUMBER() OVER (PARTITION BY wake_date ORDER BY asleep_seconds DESC) AS rank_for_day FROM sessions\n)\nSELECT (r.wake_date::timestamp AT TIME ZONE 'America/New_York') AS \"time\",\n  SUM(EXTRACT(EPOCH FROM (s.ends-s.starts))) FILTER (WHERE s.stage='light') / 3600.0 AS \"Light\",\n  SUM(EXTRACT(EPOCH FROM (s.ends-s.starts))) FILTER (WHERE s.stage='deep') / 3600.0 AS \"Deep\",\n  SUM(EXTRACT(EPOCH FROM (s.ends-s.starts))) FILTER (WHERE s.stage='rem') / 3600.0 AS \"REM\",\n  SUM(EXTRACT(EPOCH FROM (s.ends-s.starts))) FILTER (WHERE s.stage='awake') / 3600.0 AS \"Awake\"\nFROM segmented s JOIN ranked r USING (session_id)\nWHERE r.rank_for_day=1 AND r.wake_date BETWEEN (($__timeFrom())::timestamptz AT TIME ZONE 'America/New_York')::date AND (($__timeTo())::timestamptz AT TIME ZONE 'America/New_York')::date\nGROUP BY r.wake_date ORDER BY 1",
+          "rawSql": "WITH base AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts,\n         text_to_timestamptz_immutable(r.end_time) AS ends, lower(r.value_text) AS stage\n  FROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\n  WHERE r.metric_type = 'sleep_segment'\n    AND lower(r.value_text) IN ('light', 'deep', 'rem', 'awake')\n    AND text_to_timestamptz_immutable(r.start_time) >= ($__timeFrom())::timestamptz - interval '1 day' AND text_to_timestamptz_immutable(r.start_time) <= ($__timeTo())::timestamptz), marked AS (\n  SELECT *, CASE WHEN starts > lag(ends) OVER (ORDER BY starts, ends) + interval '30 minutes'\n                     OR lag(ends) OVER (ORDER BY starts, ends) IS NULL THEN 1 ELSE 0 END AS new_session\n  FROM base\n), segmented AS (\n  SELECT *, SUM(new_session) OVER (ORDER BY starts, ends) AS session_id FROM marked\n), sessions AS (\n  SELECT session_id, (MAX(ends) AT TIME ZONE 'America/New_York')::date AS wake_date,\n         SUM(EXTRACT(EPOCH FROM (ends - starts))) FILTER (WHERE stage <> 'awake') AS asleep_seconds\n  FROM segmented GROUP BY session_id\n), ranked AS (\n  SELECT *, ROW_NUMBER() OVER (PARTITION BY wake_date ORDER BY asleep_seconds DESC) AS rank_for_day FROM sessions\n)\nSELECT (r.wake_date::timestamp AT TIME ZONE 'America/New_York') AS \"time\",\n  SUM(EXTRACT(EPOCH FROM (s.ends-s.starts))) FILTER (WHERE s.stage='light') / 3600.0 AS \"Light\",\n  SUM(EXTRACT(EPOCH FROM (s.ends-s.starts))) FILTER (WHERE s.stage='deep') / 3600.0 AS \"Deep\",\n  SUM(EXTRACT(EPOCH FROM (s.ends-s.starts))) FILTER (WHERE s.stage='rem') / 3600.0 AS \"REM\",\n  SUM(EXTRACT(EPOCH FROM (s.ends-s.starts))) FILTER (WHERE s.stage='awake') / 3600.0 AS \"Awake\"\nFROM segmented s JOIN ranked r USING (session_id)\nWHERE r.rank_for_day=1 AND r.wake_date BETWEEN (($__timeFrom())::timestamptz AT TIME ZONE 'America/New_York')::date AND (($__timeTo())::timestamptz AT TIME ZONE 'America/New_York')::date\nGROUP BY r.wake_date ORDER BY 1",
           "refId": "A",
           "editorMode": "code"
         }
@@ -1370,7 +1117,7 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "WITH base AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts,\n         text_to_timestamptz_immutable(r.end_time) AS ends, lower(r.value_text) AS stage\n  FROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\n  WHERE r.metric_type = 'sleep_segment' AND s.source_system = 'health_connect_direct'\n    AND lower(r.value_text) IN ('light', 'deep', 'rem', 'awake')\n    AND text_to_timestamptz_immutable(r.start_time) >= now()-interval '14 days'), marked AS (\n  SELECT *, CASE WHEN starts > lag(ends) OVER (ORDER BY starts, ends) + interval '30 minutes'\n                     OR lag(ends) OVER (ORDER BY starts, ends) IS NULL THEN 1 ELSE 0 END AS new_session\n  FROM base\n), segmented AS (\n  SELECT *, SUM(new_session) OVER (ORDER BY starts, ends) AS session_id FROM marked\n), sessions AS (\n  SELECT session_id, (MAX(ends) AT TIME ZONE 'America/New_York')::date AS wake_date,\n         SUM(EXTRACT(EPOCH FROM (ends - starts))) FILTER (WHERE stage <> 'awake') AS asleep_seconds\n  FROM segmented GROUP BY session_id\n), latest AS (SELECT session_id FROM sessions ORDER BY wake_date DESC, asleep_seconds DESC LIMIT 1)\nSELECT stage AS \"metric\", SUM(EXTRACT(EPOCH FROM (ends-starts)))/3600.0 AS \"hours\" FROM segmented JOIN latest USING (session_id) GROUP BY stage ORDER BY 2 DESC",
+          "rawSql": "WITH base AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts,\n         text_to_timestamptz_immutable(r.end_time) AS ends, lower(r.value_text) AS stage\n  FROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\n  WHERE r.metric_type = 'sleep_segment'\n    AND lower(r.value_text) IN ('light', 'deep', 'rem', 'awake')\n    AND text_to_timestamptz_immutable(r.start_time) >= now()-interval '14 days'), marked AS (\n  SELECT *, CASE WHEN starts > lag(ends) OVER (ORDER BY starts, ends) + interval '30 minutes'\n                     OR lag(ends) OVER (ORDER BY starts, ends) IS NULL THEN 1 ELSE 0 END AS new_session\n  FROM base\n), segmented AS (\n  SELECT *, SUM(new_session) OVER (ORDER BY starts, ends) AS session_id FROM marked\n), sessions AS (\n  SELECT session_id, (MAX(ends) AT TIME ZONE 'America/New_York')::date AS wake_date,\n         SUM(EXTRACT(EPOCH FROM (ends - starts))) FILTER (WHERE stage <> 'awake') AS asleep_seconds\n  FROM segmented GROUP BY session_id\n), latest AS (SELECT session_id FROM sessions ORDER BY wake_date DESC, asleep_seconds DESC LIMIT 1)\nSELECT stage AS \"metric\", SUM(EXTRACT(EPOCH FROM (ends-starts)))/3600.0 AS \"hours\" FROM segmented JOIN latest USING (session_id) GROUP BY stage ORDER BY 2 DESC",
           "refId": "A",
           "editorMode": "code"
         }
@@ -1829,194 +1576,6 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "opacity",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": 3600000,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 89
-      },
-      "id": 19,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "min",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "health-archive"
-          },
-          "format": "time_series",
-          "rawQuery": true,
-          "rawSql": "SELECT\n  text_to_timestamptz_immutable(start_time) AS \"time\",\n  AVG(value_numeric) AS \"spo2\"\nFROM health_observations_raw\nWHERE metric_type = 'oxygen_saturation'\n  AND text_to_timestamptz_immutable(start_time) >= $__timeFrom() AND text_to_timestamptz_immutable(start_time) <= $__timeTo()\n  AND unit = '%'\nGROUP BY 1\nORDER BY 1",
-          "refId": "A",
-          "editorMode": "code"
-        }
-      ],
-      "title": "Blood Oxygen (SpO₂)",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "health-archive"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "opacity",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 6,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "kg"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 89
-      },
-      "id": 20,
-      "options": {
-        "legend": {
-          "calcs": [
-            "last"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "health-archive"
-          },
-          "format": "time_series",
-          "rawQuery": true,
-          "rawSql": "SELECT\n  text_to_timestamptz_immutable(start_time) AS \"time\",\n  value_numeric AS \"weight\"\nFROM health_observations_raw\nWHERE metric_type = 'weight'\n  AND unit = 'kg'\n  AND text_to_timestamptz_immutable(start_time) >= $__timeFrom() AND text_to_timestamptz_immutable(start_time) <= $__timeTo()\nORDER BY 1",
-          "refId": "A",
-          "editorMode": "code"
-        }
-      ],
-      "title": "Weight (kg)",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "health-archive"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
             "align": "auto",
             "cellOptions": {
               "type": "auto"
@@ -2218,7 +1777,7 @@
               "format": "table",
               "rawQuery": true,
               "refId": "A",
-              "rawSql": "WITH base AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts, text_to_timestamptz_immutable(r.end_time) AS ends, lower(r.value_text) AS stage\n  FROM health_observations_raw r JOIN health_sources s ON s.id=r.source_id\n  WHERE r.metric_type='sleep_segment' AND s.source_system='health_connect_direct' AND lower(r.value_text) IN ('light','deep','rem','awake') AND text_to_timestamptz_immutable(r.start_time)>=now()-interval '14 days'\n), marked AS (\n  SELECT *, CASE WHEN starts>lag(ends) OVER (ORDER BY starts,ends)+interval '30 minutes' OR lag(ends) OVER (ORDER BY starts,ends) IS NULL THEN 1 ELSE 0 END AS new_session FROM base\n), segmented AS (\n  SELECT *, SUM(new_session) OVER (ORDER BY starts,ends) AS session_id FROM marked\n), sessions AS (\n  SELECT session_id, (MAX(ends) AT TIME ZONE 'America/New_York')::date AS wake_date, SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage<>'awake') AS asleep_seconds FROM segmented GROUP BY session_id\n), latest AS (\n  SELECT session_id FROM sessions ORDER BY wake_date DESC, asleep_seconds DESC LIMIT 1\n)\nSELECT MIN(starts) AT TIME ZONE 'America/New_York' AS \"Sleep start (ET)\", MAX(ends) AT TIME ZONE 'America/New_York' AS \"Wake time (ET)\",\n  ROUND((SUM(EXTRACT(EPOCH FROM (ends-starts)))/3600.0)::numeric,2) AS \"Tracked hours\", ROUND((SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage<>'awake')/3600.0)::numeric,2) AS \"Asleep hours\",\n  ROUND((100.0*SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage<>'awake')/NULLIF(SUM(EXTRACT(EPOCH FROM (ends-starts))),0))::numeric,1) AS \"Efficiency %\",\n  ROUND((SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage='light')/3600.0)::numeric,2) AS \"Light h\", ROUND((SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage='deep')/3600.0)::numeric,2) AS \"Deep h\",\n  ROUND((SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage='rem')/3600.0)::numeric,2) AS \"REM h\", ROUND((SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage='awake')/3600.0)::numeric,2) AS \"Awake h\", COUNT(*) FILTER (WHERE stage='awake') AS \"Awake episodes\"\nFROM segmented JOIN latest USING (session_id)"
+              "rawSql": "WITH base AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts, text_to_timestamptz_immutable(r.end_time) AS ends, lower(r.value_text) AS stage\n  FROM health_observations_raw r JOIN health_sources s ON s.id=r.source_id\n  WHERE r.metric_type='sleep_segment'  AND lower(r.value_text) IN ('light','deep','rem','awake') AND text_to_timestamptz_immutable(r.start_time)>=now()-interval '14 days'\n), marked AS (\n  SELECT *, CASE WHEN starts>lag(ends) OVER (ORDER BY starts,ends)+interval '30 minutes' OR lag(ends) OVER (ORDER BY starts,ends) IS NULL THEN 1 ELSE 0 END AS new_session FROM base\n), segmented AS (\n  SELECT *, SUM(new_session) OVER (ORDER BY starts,ends) AS session_id FROM marked\n), sessions AS (\n  SELECT session_id, (MAX(ends) AT TIME ZONE 'America/New_York')::date AS wake_date, SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage<>'awake') AS asleep_seconds FROM segmented GROUP BY session_id\n), latest AS (\n  SELECT session_id FROM sessions ORDER BY wake_date DESC, asleep_seconds DESC LIMIT 1\n)\nSELECT MIN(starts) AT TIME ZONE 'America/New_York' AS \"Sleep start (ET)\", MAX(ends) AT TIME ZONE 'America/New_York' AS \"Wake time (ET)\",\n  ROUND((SUM(EXTRACT(EPOCH FROM (ends-starts)))/3600.0)::numeric,2) AS \"Tracked hours\", ROUND((SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage<>'awake')/3600.0)::numeric,2) AS \"Asleep hours\",\n  ROUND((100.0*SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage<>'awake')/NULLIF(SUM(EXTRACT(EPOCH FROM (ends-starts))),0))::numeric,1) AS \"Efficiency %\",\n  ROUND((SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage='light')/3600.0)::numeric,2) AS \"Light h\", ROUND((SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage='deep')/3600.0)::numeric,2) AS \"Deep h\",\n  ROUND((SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage='rem')/3600.0)::numeric,2) AS \"REM h\", ROUND((SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage='awake')/3600.0)::numeric,2) AS \"Awake h\", COUNT(*) FILTER (WHERE stage='awake') AS \"Awake episodes\"\nFROM segmented JOIN latest USING (session_id)"
             }
           ],
           "title": "Latest Primary Sleep Details",
@@ -2266,7 +1825,7 @@
               "format": "table",
               "rawQuery": true,
               "refId": "A",
-              "rawSql": "WITH base AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts, text_to_timestamptz_immutable(r.end_time) AS ends, initcap(lower(r.value_text)) AS stage\n  FROM health_observations_raw r JOIN health_sources s ON s.id=r.source_id\n  WHERE r.metric_type='sleep_segment' AND s.source_system='health_connect_direct' AND lower(r.value_text) IN ('light','deep','rem','awake') AND text_to_timestamptz_immutable(r.start_time)>=now()-interval '14 days'\n), marked AS (\n  SELECT *, CASE WHEN starts>lag(ends) OVER (ORDER BY starts,ends)+interval '30 minutes' OR lag(ends) OVER (ORDER BY starts,ends) IS NULL THEN 1 ELSE 0 END AS new_session FROM base\n), segmented AS (\n  SELECT *, SUM(new_session) OVER (ORDER BY starts,ends) AS session_id FROM marked\n), sessions AS (\n  SELECT session_id, (MAX(ends) AT TIME ZONE 'America/New_York')::date AS wake_date, SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage<>'Awake') AS asleep_seconds FROM segmented GROUP BY session_id\n), latest AS (\n  SELECT session_id FROM sessions ORDER BY wake_date DESC, asleep_seconds DESC LIMIT 1\n)\nSELECT starts AS \"Start\", ends AS \"End\", stage AS \"Sleep Stage\" FROM segmented JOIN latest USING (session_id) ORDER BY starts"
+              "rawSql": "WITH base AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts, text_to_timestamptz_immutable(r.end_time) AS ends, initcap(lower(r.value_text)) AS stage\n  FROM health_observations_raw r JOIN health_sources s ON s.id=r.source_id\n  WHERE r.metric_type='sleep_segment'  AND lower(r.value_text) IN ('light','deep','rem','awake') AND text_to_timestamptz_immutable(r.start_time)>=now()-interval '14 days'\n), marked AS (\n  SELECT *, CASE WHEN starts>lag(ends) OVER (ORDER BY starts,ends)+interval '30 minutes' OR lag(ends) OVER (ORDER BY starts,ends) IS NULL THEN 1 ELSE 0 END AS new_session FROM base\n), segmented AS (\n  SELECT *, SUM(new_session) OVER (ORDER BY starts,ends) AS session_id FROM marked\n), sessions AS (\n  SELECT session_id, (MAX(ends) AT TIME ZONE 'America/New_York')::date AS wake_date, SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage<>'Awake') AS asleep_seconds FROM segmented GROUP BY session_id\n), latest AS (\n  SELECT session_id FROM sessions ORDER BY wake_date DESC, asleep_seconds DESC LIMIT 1\n)\nSELECT starts AS \"Start\", ends AS \"End\", stage AS \"Sleep Stage\" FROM segmented JOIN latest USING (session_id) ORDER BY starts"
             }
           ],
           "title": "Latest Primary Sleep Timeline",
@@ -2323,7 +1882,7 @@
               "format": "time_series",
               "rawQuery": true,
               "refId": "A",
-              "rawSql": "WITH base AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts, text_to_timestamptz_immutable(r.end_time) AS ends, lower(r.value_text) AS stage\n  FROM health_observations_raw r JOIN health_sources s ON s.id=r.source_id\n  WHERE r.metric_type='sleep_segment' AND s.source_system='health_connect_direct' AND lower(r.value_text) IN ('light','deep','rem','awake') AND text_to_timestamptz_immutable(r.start_time)>=($__timeFrom())::timestamptz-interval '1 day' AND text_to_timestamptz_immutable(r.start_time)<=($__timeTo())::timestamptz\n), marked AS (\n  SELECT *, CASE WHEN starts>lag(ends) OVER (ORDER BY starts,ends)+interval '30 minutes' OR lag(ends) OVER (ORDER BY starts,ends) IS NULL THEN 1 ELSE 0 END AS new_session FROM base\n), segmented AS (\n  SELECT *, SUM(new_session) OVER (ORDER BY starts,ends) AS session_id FROM marked\n), sessions AS (\n  SELECT session_id, (MAX(ends) AT TIME ZONE 'America/New_York')::date AS wake_date, SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage<>'awake') AS asleep_seconds, SUM(EXTRACT(EPOCH FROM (ends-starts))) AS tracked_seconds FROM segmented GROUP BY session_id\n), ranked AS (\n  SELECT *, ROW_NUMBER() OVER (PARTITION BY wake_date ORDER BY asleep_seconds DESC) AS rank_for_day FROM sessions\n)\nSELECT (wake_date::timestamp AT TIME ZONE 'America/New_York') AS \"time\", asleep_seconds/3600.0 AS \"Asleep hours\", tracked_seconds/3600.0 AS \"Tracked hours\", 100.0*asleep_seconds/NULLIF(tracked_seconds,0) AS \"Efficiency %\"\nFROM ranked WHERE rank_for_day=1 AND wake_date BETWEEN (($__timeFrom())::timestamptz AT TIME ZONE 'America/New_York')::date AND (($__timeTo())::timestamptz AT TIME ZONE 'America/New_York')::date ORDER BY wake_date"
+              "rawSql": "WITH base AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts, text_to_timestamptz_immutable(r.end_time) AS ends, lower(r.value_text) AS stage\n  FROM health_observations_raw r JOIN health_sources s ON s.id=r.source_id\n  WHERE r.metric_type='sleep_segment'  AND lower(r.value_text) IN ('light','deep','rem','awake') AND text_to_timestamptz_immutable(r.start_time)>=($__timeFrom())::timestamptz-interval '1 day' AND text_to_timestamptz_immutable(r.start_time)<=($__timeTo())::timestamptz\n), marked AS (\n  SELECT *, CASE WHEN starts>lag(ends) OVER (ORDER BY starts,ends)+interval '30 minutes' OR lag(ends) OVER (ORDER BY starts,ends) IS NULL THEN 1 ELSE 0 END AS new_session FROM base\n), segmented AS (\n  SELECT *, SUM(new_session) OVER (ORDER BY starts,ends) AS session_id FROM marked\n), sessions AS (\n  SELECT session_id, (MAX(ends) AT TIME ZONE 'America/New_York')::date AS wake_date, SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage<>'awake') AS asleep_seconds, SUM(EXTRACT(EPOCH FROM (ends-starts))) AS tracked_seconds FROM segmented GROUP BY session_id\n), ranked AS (\n  SELECT *, ROW_NUMBER() OVER (PARTITION BY wake_date ORDER BY asleep_seconds DESC) AS rank_for_day FROM sessions\n)\nSELECT (wake_date::timestamp AT TIME ZONE 'America/New_York') AS \"time\", asleep_seconds/3600.0 AS \"Asleep hours\", tracked_seconds/3600.0 AS \"Tracked hours\", 100.0*asleep_seconds/NULLIF(tracked_seconds,0) AS \"Efficiency %\"\nFROM ranked WHERE rank_for_day=1 AND wake_date BETWEEN (($__timeFrom())::timestamptz AT TIME ZONE 'America/New_York')::date AND (($__timeTo())::timestamptz AT TIME ZONE 'America/New_York')::date ORDER BY wake_date"
             }
           ],
           "title": "Primary Sleep Duration and Efficiency",
@@ -2364,7 +1923,7 @@
               "format": "table",
               "rawQuery": true,
               "refId": "A",
-              "rawSql": "WITH base AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts, text_to_timestamptz_immutable(r.end_time) AS ends, lower(r.value_text) AS stage\n  FROM health_observations_raw r JOIN health_sources s ON s.id=r.source_id\n  WHERE r.metric_type='sleep_segment' AND s.source_system='health_connect_direct' AND lower(r.value_text) IN ('light','deep','rem','awake') AND text_to_timestamptz_immutable(r.start_time)>=($__timeFrom())::timestamptz-interval '1 day' AND text_to_timestamptz_immutable(r.start_time)<=($__timeTo())::timestamptz\n), marked AS (\n  SELECT *, CASE WHEN starts>lag(ends) OVER (ORDER BY starts,ends)+interval '30 minutes' OR lag(ends) OVER (ORDER BY starts,ends) IS NULL THEN 1 ELSE 0 END AS new_session FROM base\n), segmented AS (\n  SELECT *, SUM(new_session) OVER (ORDER BY starts,ends) AS session_id FROM marked\n), sessions AS (\n  SELECT session_id, MIN(starts) AS starts, MAX(ends) AS ends, (MAX(ends) AT TIME ZONE 'America/New_York')::date AS wake_date, SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage<>'awake') AS asleep_seconds FROM segmented GROUP BY session_id\n), ranked AS (\n  SELECT *, ROW_NUMBER() OVER (PARTITION BY wake_date ORDER BY asleep_seconds DESC) AS rank_for_day FROM sessions\n)\nSELECT starts AT TIME ZONE 'America/New_York' AS \"Nap start (ET)\", ends AT TIME ZONE 'America/New_York' AS \"Nap end (ET)\", ROUND((asleep_seconds/3600.0)::numeric,2) AS \"Asleep hours\"\nFROM ranked WHERE rank_for_day>1 AND asleep_seconds>0 AND wake_date BETWEEN (($__timeFrom())::timestamptz AT TIME ZONE 'America/New_York')::date AND (($__timeTo())::timestamptz AT TIME ZONE 'America/New_York')::date ORDER BY starts DESC"
+              "rawSql": "WITH base AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts, text_to_timestamptz_immutable(r.end_time) AS ends, lower(r.value_text) AS stage\n  FROM health_observations_raw r JOIN health_sources s ON s.id=r.source_id\n  WHERE r.metric_type='sleep_segment'  AND lower(r.value_text) IN ('light','deep','rem','awake') AND text_to_timestamptz_immutable(r.start_time)>=($__timeFrom())::timestamptz-interval '1 day' AND text_to_timestamptz_immutable(r.start_time)<=($__timeTo())::timestamptz\n), marked AS (\n  SELECT *, CASE WHEN starts>lag(ends) OVER (ORDER BY starts,ends)+interval '30 minutes' OR lag(ends) OVER (ORDER BY starts,ends) IS NULL THEN 1 ELSE 0 END AS new_session FROM base\n), segmented AS (\n  SELECT *, SUM(new_session) OVER (ORDER BY starts,ends) AS session_id FROM marked\n), sessions AS (\n  SELECT session_id, MIN(starts) AS starts, MAX(ends) AS ends, (MAX(ends) AT TIME ZONE 'America/New_York')::date AS wake_date, SUM(EXTRACT(EPOCH FROM (ends-starts))) FILTER (WHERE stage<>'awake') AS asleep_seconds FROM segmented GROUP BY session_id\n), ranked AS (\n  SELECT *, ROW_NUMBER() OVER (PARTITION BY wake_date ORDER BY asleep_seconds DESC) AS rank_for_day FROM sessions\n)\nSELECT starts AT TIME ZONE 'America/New_York' AS \"Nap start (ET)\", ends AT TIME ZONE 'America/New_York' AS \"Nap end (ET)\", ROUND((asleep_seconds/3600.0)::numeric,2) AS \"Asleep hours\"\nFROM ranked WHERE rank_for_day>1 AND asleep_seconds>0 AND wake_date BETWEEN (($__timeFrom())::timestamptz AT TIME ZONE 'America/New_York')::date AND (($__timeTo())::timestamptz AT TIME ZONE 'America/New_York')::date ORDER BY starts DESC"
             }
           ],
           "title": "Naps",
@@ -2424,10 +1983,10 @@
               "format": "time_series",
               "rawQuery": true,
               "refId": "A",
-              "rawSql": "WITH recent AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS observed_at, r.value_numeric, r.original_type, s.source_name\n  FROM health_observations_raw r JOIN health_sources s ON s.id=r.source_id\n  WHERE r.metric_type='steps'\n    AND text_to_timestamptz_immutable(r.start_time)>=(date_trunc('day',now() AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York')\n    AND text_to_timestamptz_immutable(r.start_time)<((date_trunc('day',now() AT TIME ZONE 'America/New_York')+interval '1 day') AT TIME ZONE 'America/New_York')\n), chosen AS (\n  SELECT CASE WHEN EXISTS (SELECT 1 FROM recent WHERE original_type='health_sync_steps' AND source_name='Health Sync / Health Connect') THEN 'Health Sync / Health Connect' ELSE 'Health Sync / Samsung Health' END AS source_name\n)\nSELECT (date_trunc('hour', observed_at AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York') AS \"time\", SUM(value_numeric) AS \"Steps\"\nFROM recent CROSS JOIN chosen WHERE original_type='health_sync_steps' AND recent.source_name=chosen.source_name GROUP BY 1 ORDER BY 1"
+              "rawSql": "SELECT date_trunc('hour', text_to_timestamptz_immutable(r.start_time)) AS \"time\",\n       SUM(r.value_numeric) AS \"Steps\"\nFROM health_observations_raw r\nWHERE r.metric_type = 'steps'\n  AND text_to_timestamptz_immutable(r.start_time) BETWEEN $__timeFrom() AND $__timeTo()\nGROUP BY 1 ORDER BY 1"
             }
           ],
-          "title": "Today's Steps by Hour",
+          "title": "Steps by Hour (all sources)",
           "type": "timeseries"
         },
         {
