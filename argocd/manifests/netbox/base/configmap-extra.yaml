@@ -16,7 +16,7 @@ data:
     REMOTE_AUTH_STAFF_USERS = ['pierce', 'pierce@levangie.org']
 
     # Keycloak OIDC Settings
-    SOCIAL_AUTH_OIDC_ENDPOINT = 'https://auth.levangie.org/realms/master/protocol/openid-connect'
+    SOCIAL_AUTH_OIDC_ENDPOINT = 'https://auth.levangie.org/realms/master'
     SOCIAL_AUTH_OIDC_KEY = os.getenv('SOCIAL_AUTH_OIDC_KEY', 'netbox')
     SOCIAL_AUTH_OIDC_SECRET = os.getenv('SOCIAL_AUTH_OIDC_SECRET', 'netbox-client-secret-placeholder')
     
