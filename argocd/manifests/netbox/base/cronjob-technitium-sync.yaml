@@ -16,6 +16,8 @@ spec:
       template:
         spec:
           restartPolicy: Never
+          imagePullSecrets:
+            - name: netbox-sync-ghcr
           containers:
             - name: sync
               image: ghcr.io/jlevangi/netbox-sync:0.1.0

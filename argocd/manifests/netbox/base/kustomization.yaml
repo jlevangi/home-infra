@@ -6,6 +6,7 @@ resources:
   - configmap-extra.yaml
   - external-secret.yaml
   - external-secret-sync.yaml
+  - external-secret-ghcr.yaml
   - cronjob-technitium-sync.yaml
   - pvc-postgres.yaml
   - pvc-media.yaml
