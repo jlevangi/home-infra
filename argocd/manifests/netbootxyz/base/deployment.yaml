@@ -21,6 +21,30 @@ spec:
         app: netbootxyz
         app.kubernetes.io/name: netbootxyz
     spec:
+      initContainers:
+        - name: stage-custom-config
+          image: busybox:1.36
+          # ConfigMap mounts are read-only, and the LSIO init process chowns
+          # everything under custom-cont-init.d before running it (which
+          # fails against a read-only mount). Copy onto the writable PVC
+          # instead so ownership/exec bits can actually be set.
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              mkdir -p /config/custom-cont-init.d /config/custom-assets
+              cp /src-init/99-custom-nginx.sh /config/custom-cont-init.d/99-custom-nginx.sh
+              chmod +x /config/custom-cont-init.d/99-custom-nginx.sh
+              cp /src-menu/custom.ipxe /config/custom-assets/custom.ipxe
+          volumeMounts:
+            - name: netbootxyz-data
+              mountPath: /config
+              subPath: config
+            - name: custom-init
+              mountPath: /src-init
+            - name: custom-menu
+              mountPath: /src-menu
       containers:
         - name: netbootxyz
           image: ghcr.io/netbootxyz/netbootxyz:latest
@@ -54,12 +78,6 @@ spec:
             - name: nas-isos
               mountPath: /isos
               readOnly: true
-            - name: custom-init
-              mountPath: /config/custom-cont-init.d/99-custom-nginx.sh
-              subPath: 99-custom-nginx.sh
-            - name: custom-menu
-              mountPath: /config/custom-assets/custom.ipxe
-              subPath: custom.ipxe
           resources:
             requests:
               cpu: 25m
@@ -91,7 +109,6 @@ spec:
         - name: custom-init
           configMap:
             name: netbootxyz-custom-init
-            defaultMode: 0755
         - name: custom-menu
           configMap:
             name: netbootxyz-custom-menu
