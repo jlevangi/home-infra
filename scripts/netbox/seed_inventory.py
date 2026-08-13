@@ -116,7 +116,7 @@ DEVICE_TYPES = [
     ("Generic", "Generic Server", "generic-server"),
     ("Generic", "Generic Router", "generic-router"),
     ("HP", "EliteDesk G9", "hp-elitedesk-g9"),
-    ("HP", "ProLiant (legacy)", "hp-proliant-legacy"),
+    ("HP", "ProLiant ML350p Gen8", "hp-proliant-ml350p-gen8"),
     ("Dell", "SFF Desktop", "dell-sff-desktop"),
     ("Synology", "DiskStation", "synology-diskstation"),
 ]
@@ -153,8 +153,8 @@ DEVICES = [
      "Synology DS420+ NAS", ["core-infra"]),
     ("elitedesk-1", "172.20.20.7", "hypervisor", "hp-elitedesk-g9", "planned", None,
      "HP EliteDesk G9, 64GB RAM - planned k3s-prod hypervisor", ["planned"]),
-    ("proliant-1", "172.20.20.8", "hypervisor", "hp-proliant-legacy", "planned", None,
-     "HP ProLiant - planned k3s-prod hypervisor, compute-only (1G NIC)", ["planned", "no-longhorn"]),
+    ("proliant-1", "172.20.20.8", "hypervisor", "hp-proliant-ml350p-gen8", "planned", None,
+     "HP ProLiant ML350p Gen8, 64-128GB RAM - planned Proxmox host for stage/test k3s clusters", ["planned"]),
 ]
 
 # Clusters: name -> host device name (None = no device yet)
@@ -220,8 +220,6 @@ VMS = [
      "K3s-prod worker VM (planned, elitedesk-1)", ["planned"]),
     ("k3s-prod-worker-5", "172.20.20.109", "dell-sff", "k3s-worker", "planned", None, "k3s-prod-worker-5.levangie.org",
      "K3s-prod worker VM (planned, dell-sff) - compute-only, no Longhorn", ["planned", "no-longhorn"]),
-    ("k3s-prod-worker-6", "172.20.20.110", "proliant-1", "k3s-worker", "planned", None, "k3s-prod-worker-6.levangie.org",
-     "K3s-prod worker VM (planned, proliant-1) - compute-only, no Longhorn", ["planned", "no-longhorn"]),
 ]
 
 # Bare reserved/free IPs not yet tied to a device (status, ip, description)
@@ -232,7 +230,6 @@ BARE_IPS = [
     ("172.20.20.204", "reserved", "Factorio LoadBalancer VIP"),
     ("172.20.20.205", "reserved", "RustDesk LoadBalancer VIP"),
     ("172.20.20.60", "reserved", "iLO: proliant-1 (planned)"),
-    ("172.20.20.61", "reserved", "iLO: proliant-2, if second ProLiant is racked"),
     ("172.20.20.250", "active", "Unidentified host, answered scan - verify before reassigning"),
     ("172.20.20.12", "deprecated", "pve2 - stale DNS name, origin unclear, not the new hardware"),
     ("172.20.20.13", "deprecated", "pve3 - stale DNS name, origin unclear, not the new hardware"),
