@@ -43,7 +43,6 @@ spec:
               protocol: TCP
             - name: tftp
               containerPort: 69
-              hostPort: 69
               protocol: UDP
           volumeMounts:
             - name: netbootxyz-data
