@@ -20,7 +20,7 @@ spec:
             - name: netbox-sync-ghcr
           containers:
             - name: sync
-              image: ghcr.io/jlevangi/netbox-sync:0.1.0
+              image: ghcr.io/jlevangi/netbox-sync:0.2.0
               env:
                 - name: NETBOX_URL
                   value: https://netbox.levangie.dev

@@ -189,11 +189,11 @@ def sync_dhcp():
     candidates = [
         iface
         for iface in vm_ifaces
-        if iface.get("mac_address") and iface["id"] not in ifaces_with_ip
+        if iface.get("primary_mac_address") and iface["id"] not in ifaces_with_ip
     ]
 
     for iface in candidates:
-        mac = iface["mac_address"]
+        mac = iface["primary_mac_address"]["mac_address"]
         vm_name = iface["virtual_machine"]["name"]
         hw = mac.replace(":", "-").upper()
         log.info("reserve DHCP lease for %s (%s)", vm_name, mac)
