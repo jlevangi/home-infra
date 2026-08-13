@@ -15,6 +15,13 @@ spec:
       labels:
         app: netbox-worker
     spec:
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: netbox
+              topologyKey: kubernetes.io/hostname
       containers:
         - name: worker
           image: netboxcommunity/netbox:v4.2.4
