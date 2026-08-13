@@ -14,8 +14,11 @@ data:
     choose target && goto ${target} || goto back
 
     :proxmox-ve-9.2
-    echo Booting Proxmox VE 9.2 installer from NAS ISO...
-    sanboot --drive 0xe0 http://172.20.20.202/isos/proxmox-ve_9.2-1.iso || goto failed
+    echo Booting Proxmox VE 9.2 installer from NAS ISO (memdisk)...
+    isset ${memdisk} || set memdisk http://boot.netboot.xyz/2.0.73/memdisk
+    kernel ${memdisk} iso raw || goto failed
+    initrd http://172.20.20.202/isos/proxmox-ve_9.2-1.iso || goto failed
+    boot || goto failed
 
     :back
     chain tftp://172.20.20.202/menu.ipxe
