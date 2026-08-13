@@ -52,6 +52,18 @@ def update(detail_path, payload):
     return api("PATCH", detail_path, payload)
 
 
+def fill_description_and_tags(detail_path, obj, description, tags):
+    """Set description/tags only where currently empty - never clobbers
+    hand-written text (e.g. the ones already set in the NetBox UI)."""
+    patch = {}
+    if description and not obj.get("description"):
+        patch["description"] = description
+    if tags and not obj.get("tags"):
+        patch["tags"] = [{"name": t} for t in tags]
+    if patch:
+        update(detail_path, patch)
+
+
 def assign_mac(iface, mac, object_type):
     """Create (if needed) a MACAddress object for an interface and set it primary.
 
@@ -109,6 +121,15 @@ DEVICE_TYPES = [
     ("Synology", "DiskStation", "synology-diskstation"),
 ]
 
+TAGS = [
+    # (name, slug, color)
+    ("core-infra", "core-infra", "e74c3c"),
+    ("planned", "planned", "3498db"),
+    ("legacy", "legacy", "95a5a6"),
+    ("no-longhorn", "no-longhorn", "f39c12"),
+    ("dhcp-reserved", "dhcp-reserved", "16a085"),
+]
+
 PREFIXES = [
     ("172.20.20.0/22", "Homelab primary network (parent)"),
     ("172.20.20.0/24", "Zone 1-3: core infra, hypervisors, OOB, k3s-prod"),
@@ -117,15 +138,22 @@ PREFIXES = [
     ("172.20.23.0/24", "Zone 6: dynamic DHCP pool"),
 ]
 
-# Physical devices: name, ip, role_slug, device_type_slug, status, mac
+# Physical devices: name, ip, role_slug, device_type_slug, status, mac, description, tags
 DEVICES = [
-    ("gateway", "172.20.20.1", "gateway", "generic-router", "active", None),
-    ("atlas", "172.20.20.6", "hypervisor", "generic-server", "active", "14:5d:34:bf:76:2f"),
-    ("dell-sff", "172.20.20.14", "hypervisor", "dell-sff-desktop", "active", "54:bf:64:76:93:5e"),
-    ("pve1", "172.20.20.11", "hypervisor", "generic-server", "offline", None),
-    ("nas-1", "172.20.20.5", "nas", "synology-diskstation", "active", "90:09:d0:23:02:89"),
-    ("elitedesk-1", "172.20.20.7", "hypervisor", "hp-elitedesk-g9", "planned", None),
-    ("proliant-1", "172.20.20.8", "hypervisor", "hp-proliant-legacy", "planned", None),
+    ("gateway", "172.20.20.1", "gateway", "generic-router", "active", None,
+     "Primary router / default gateway", ["core-infra"]),
+    ("atlas", "172.20.20.6", "hypervisor", "generic-server", "active", "14:5d:34:bf:76:2f",
+     "Proxmox host - primary hypervisor, all current k3s-prod VMs", ["core-infra"]),
+    ("dell-sff", "172.20.20.14", "hypervisor", "dell-sff-desktop", "active", "54:bf:64:76:93:5e",
+     "Proxmox host - core infra LXCs/VMs (DNS, Caddy, PBS, HAOS, etc.)", ["core-infra"]),
+    ("pve1", "172.20.20.11", "hypervisor", "generic-server", "offline", None,
+     "Proxmox host - offline, retirement/replacement pending", ["legacy"]),
+    ("nas-1", "172.20.20.5", "nas", "synology-diskstation", "active", "90:09:d0:23:02:89",
+     "Synology DS420+ NAS", ["core-infra"]),
+    ("elitedesk-1", "172.20.20.7", "hypervisor", "hp-elitedesk-g9", "planned", None,
+     "HP EliteDesk G9, 64GB RAM - planned k3s-prod hypervisor", ["planned"]),
+    ("proliant-1", "172.20.20.8", "hypervisor", "hp-proliant-legacy", "planned", None,
+     "HP ProLiant - planned k3s-prod hypervisor, compute-only (1G NIC)", ["planned", "no-longhorn"]),
 ]
 
 # Clusters: name -> host device name (None = no device yet)
@@ -136,37 +164,63 @@ CLUSTERS = [
     ("proliant-1", "proliant-1"),
 ]
 
-# VMs: name, ip (None = dhcp), cluster, role_slug, status, mac, dns_name
+# VMs: name, ip (None = dhcp), cluster, role_slug, status, mac, dns_name, description, tags
 VMS = [
     # atlas cluster - k3s-prod
-    ("k3s-prod-worker-1", "172.20.20.101", "atlas", "k3s-worker", "active", "76:5a:f1:57:5a:01", "k3s-prod-worker-1.levangie.org"),
-    ("k3s-prod-worker-2", "172.20.20.102", "atlas", "k3s-worker", "active", "76:5a:f1:57:5a:02", "k3s-prod-worker-2.levangie.org"),
-    ("k3s-prod-worker-3", "172.20.20.103", "atlas", "k3s-worker", "active", "76:5a:f1:57:5a:03", "k3s-prod-worker-3.levangie.org"),
-    ("k3s-prod-cp-1", "172.20.20.104", "atlas", "k3s-control-plane", "active", "76:5a:f1:57:5a:11", "k3s-prod-cp-1.levangie.org"),
-    ("k3s-prod-cp-2", "172.20.20.105", "atlas", "k3s-control-plane", "active", "76:5a:f1:57:5a:12", "k3s-prod-cp-2.levangie.org"),
-    ("k3s-prod-cp-3", "172.20.20.106", "atlas", "k3s-control-plane", "active", "76:5a:f1:57:5a:13", "k3s-prod-cp-3.levangie.org"),
-    ("k3s-prod-worker-gpu-1", "172.20.20.107", "atlas", "k3s-worker", "active", "76:5a:f1:57:5a:07", "k3s-prod-worker-gpu-1.levangie.org"),
-    ("warpgate", "172.20.20.25", "atlas", "infra-service", "active", "bc:24:11:e8:6d:32", "warpgate.levangie.org"),
-    ("jotta-connect", "172.20.20.249", "atlas", "app-vm", "active", None, "jotta-connect.levangie.org"),
-    ("proxyd", "172.20.20.247", "atlas", "infra-service", "offline", None, "proxyd.levangie.org"),
-    ("sema", "172.20.20.28", "atlas", "infra-service", "offline", None, "sema.levangie.org"),
-    ("pierce-mint-vm", None, "atlas", "app-vm", "active", "bc:24:11:e1:94:31", "pierce-mint-vm.levangie.org"),
+    ("k3s-prod-worker-1", "172.20.20.101", "atlas", "k3s-worker", "active", "76:5a:f1:57:5a:01", "k3s-prod-worker-1.levangie.org",
+     "K3s-prod worker VM (atlas)", []),
+    ("k3s-prod-worker-2", "172.20.20.102", "atlas", "k3s-worker", "active", "76:5a:f1:57:5a:02", "k3s-prod-worker-2.levangie.org",
+     "K3s-prod worker VM (atlas)", []),
+    ("k3s-prod-worker-3", "172.20.20.103", "atlas", "k3s-worker", "active", "76:5a:f1:57:5a:03", "k3s-prod-worker-3.levangie.org",
+     "K3s-prod worker VM (atlas)", []),
+    ("k3s-prod-cp-1", "172.20.20.104", "atlas", "k3s-control-plane", "active", "76:5a:f1:57:5a:11", "k3s-prod-cp-1.levangie.org",
+     "K3s-prod control plane VM (atlas)", []),
+    ("k3s-prod-cp-2", "172.20.20.105", "atlas", "k3s-control-plane", "active", "76:5a:f1:57:5a:12", "k3s-prod-cp-2.levangie.org",
+     "K3s-prod control plane VM (atlas)", []),
+    ("k3s-prod-cp-3", "172.20.20.106", "atlas", "k3s-control-plane", "active", "76:5a:f1:57:5a:13", "k3s-prod-cp-3.levangie.org",
+     "K3s-prod control plane VM (atlas)", []),
+    ("k3s-prod-worker-gpu-1", "172.20.20.107", "atlas", "k3s-worker", "active", "76:5a:f1:57:5a:07", "k3s-prod-worker-gpu-1.levangie.org",
+     "K3s-prod GPU worker VM (atlas)", []),
+    ("warpgate", "172.20.20.25", "atlas", "infra-service", "active", "bc:24:11:e8:6d:32", "warpgate.levangie.org",
+     "SSH / Kubernetes access gateway", ["core-infra"]),
+    ("jotta-connect", "172.20.20.249", "atlas", "app-vm", "active", None, "jotta-connect.levangie.org",
+     "Jottacloud sync connector", []),
+    ("proxyd", "172.20.20.247", "atlas", "infra-service", "offline", None, "proxyd.levangie.org",
+     "Legacy reverse proxy - stopped", ["legacy"]),
+    ("sema", "172.20.20.28", "atlas", "infra-service", "offline", None, "sema.levangie.org",
+     "Semaphore (Ansible UI) - stopped", ["legacy"]),
+    ("pierce-mint-vm", None, "atlas", "app-vm", "active", "bc:24:11:e1:94:31", "pierce-mint-vm.levangie.org",
+     "Pierce's Linux Mint desktop VM", []),
     # dell-sff cluster - core infra
-    ("caddy-srv", "172.20.20.3", "dell-sff", "infra-service", "active", "bc:24:11:74:f9:e4", "caddy.levangie.org"),
-    ("technitium", "172.20.20.4", "dell-sff", "infra-service", "active", "bc:24:11:b5:ac:bc", "dns-1.levangie.org"),
-    ("haos", "172.20.20.21", "dell-sff", "app-vm", "active", "02:5f:35:3f:e9:df", "homeassistant.levangie.org"),
-    ("pbs", "172.20.20.22", "dell-sff", "infra-service", "active", "bc:24:11:85:22:a0", "pbs.levangie.org"),
-    ("guacamole", "172.20.20.26", "dell-sff", "infra-service", "active", "bc:24:11:33:d9:80", "guacamole.levangie.org"),
-    ("wg-easy", "172.20.20.248", "dell-sff", "infra-service", "active", "bc:24:11:61:f0:9a", "wireguard.levangie.org"),
-    ("cloudflare", "172.20.20.254", "dell-sff", "infra-service", "active", "bc:24:11:b7:71:5e", "cloudflare-tunnel.levangie.org"),
-    ("auth-srv", "172.20.20.18", "dell-sff", "infra-service", "offline", "76:e3:77:66:a7:72", None),
-    ("affirm-srv", None, "dell-sff", "app-vm", "active", "bc:24:11:b1:ed:4a", "affirm-srv.levangie.org"),
-    ("bambu-connect", None, "dell-sff", "app-vm", "active", "ba:a1:54:b8:c7:0c", "bambu-connect.levangie.org"),
-    ("gamble-king", None, "dell-sff", "app-vm", "active", "bc:24:11:5d:63:aa", "gamble-king.levangie.org"),
+    ("caddy-srv", "172.20.20.3", "dell-sff", "infra-service", "active", "bc:24:11:74:f9:e4", "caddy.levangie.org",
+     "Caddy reverse proxy", ["core-infra"]),
+    ("technitium", "172.20.20.4", "dell-sff", "infra-service", "active", "bc:24:11:b5:ac:bc", "dns-1.levangie.org",
+     "Technitium DNS + DHCP server", ["core-infra"]),
+    ("haos", "172.20.20.21", "dell-sff", "app-vm", "active", "02:5f:35:3f:e9:df", "homeassistant.levangie.org",
+     "Home Assistant OS", []),
+    ("pbs", "172.20.20.22", "dell-sff", "infra-service", "active", "bc:24:11:85:22:a0", "pbs.levangie.org",
+     "Proxmox Backup Server", ["core-infra"]),
+    ("guacamole", "172.20.20.26", "dell-sff", "infra-service", "active", "bc:24:11:33:d9:80", "guacamole.levangie.org",
+     "Apache Guacamole remote access gateway", []),
+    ("wg-easy", "172.20.20.248", "dell-sff", "infra-service", "active", "bc:24:11:61:f0:9a", "wireguard.levangie.org",
+     "WireGuard VPN gateway (wg-easy)", ["core-infra"]),
+    ("cloudflare", "172.20.20.254", "dell-sff", "infra-service", "active", "bc:24:11:b7:71:5e", "cloudflare-tunnel.levangie.org",
+     "Cloudflare Tunnel - external ingress", ["core-infra"]),
+    ("auth-srv", "172.20.20.18", "dell-sff", "infra-service", "offline", "76:e3:77:66:a7:72", None,
+     "Legacy Keycloak host - stopped, replaced by in-cluster Keycloak", ["legacy"]),
+    ("affirm-srv", None, "dell-sff", "app-vm", "active", "bc:24:11:b1:ed:4a", "affirm-srv.levangie.org",
+     "LXC on dell-sff - purpose not documented, DHCP-reserved", ["dhcp-reserved"]),
+    ("bambu-connect", None, "dell-sff", "app-vm", "active", "ba:a1:54:b8:c7:0c", "bambu-connect.levangie.org",
+     "Bambu Lab 3D printer cloud connector", ["dhcp-reserved"]),
+    ("gamble-king", None, "dell-sff", "app-vm", "active", "bc:24:11:5d:63:aa", "gamble-king.levangie.org",
+     "LXC on dell-sff - purpose not documented, DHCP-reserved", ["dhcp-reserved"]),
     # planned new hardware
-    ("k3s-prod-worker-4", "172.20.20.108", "elitedesk-1", "k3s-worker", "planned", None, "k3s-prod-worker-4.levangie.org"),
-    ("k3s-prod-worker-5", "172.20.20.109", "dell-sff", "k3s-worker", "planned", None, "k3s-prod-worker-5.levangie.org"),
-    ("k3s-prod-worker-6", "172.20.20.110", "proliant-1", "k3s-worker", "planned", None, "k3s-prod-worker-6.levangie.org"),
+    ("k3s-prod-worker-4", "172.20.20.108", "elitedesk-1", "k3s-worker", "planned", None, "k3s-prod-worker-4.levangie.org",
+     "K3s-prod worker VM (planned, elitedesk-1)", ["planned"]),
+    ("k3s-prod-worker-5", "172.20.20.109", "dell-sff", "k3s-worker", "planned", None, "k3s-prod-worker-5.levangie.org",
+     "K3s-prod worker VM (planned, dell-sff) - compute-only, no Longhorn", ["planned", "no-longhorn"]),
+    ("k3s-prod-worker-6", "172.20.20.110", "proliant-1", "k3s-worker", "planned", None, "k3s-prod-worker-6.levangie.org",
+     "K3s-prod worker VM (planned, proliant-1) - compute-only, no Longhorn", ["planned", "no-longhorn"]),
 ]
 
 # Bare reserved/free IPs not yet tied to a device (status, ip, description)
@@ -235,6 +289,10 @@ def main():
             model,
         )
 
+    print("== Tags ==")
+    for name, slug, color in TAGS:
+        get_or_create("/extras/tags/", {"slug": slug}, {"name": name, "slug": slug, "color": color}, name)
+
     print("== Prefixes ==")
     for prefix, description in PREFIXES:
         get_or_create(
@@ -246,7 +304,7 @@ def main():
 
     print("== Physical devices ==")
     device_by_name = {}
-    for name, ip, role_slug, dtype_slug, status, mac in DEVICES:
+    for name, ip, role_slug, dtype_slug, status, mac, description, tags in DEVICES:
         dev = get_or_create(
             "/dcim/devices/",
             {"name": name},
@@ -262,6 +320,7 @@ def main():
         device_by_name[name] = dev
         if dev["status"]["value"] != status:
             update(f"/dcim/devices/{dev['id']}/", {"status": status})
+        fill_description_and_tags(f"/dcim/devices/{dev['id']}/", dev, description, tags)
 
         # Interface + IP
         iface = get_or_create(
@@ -283,6 +342,7 @@ def main():
             },
             f"{name} -> {ip}",
         )
+        fill_description_and_tags(f"/ipam/ip-addresses/{ipobj['id']}/", ipobj, description, tags)
         if not dev.get("primary_ip4"):
             update(f"/dcim/devices/{dev['id']}/", {"primary_ip4": ipobj["id"]})
 
@@ -304,7 +364,7 @@ def main():
         cluster_by_name[cname] = cluster
 
     print("== VMs ==")
-    for name, ip, cluster_name, role_slug, status, mac, dns_name in VMS:
+    for name, ip, cluster_name, role_slug, status, mac, dns_name, description, tags in VMS:
         vm = get_or_create(
             "/virtualization/virtual-machines/",
             {"name": name},
@@ -318,6 +378,7 @@ def main():
         )
         if vm["status"]["value"] != status:
             update(f"/virtualization/virtual-machines/{vm['id']}/", {"status": status})
+        fill_description_and_tags(f"/virtualization/virtual-machines/{vm['id']}/", vm, description, tags)
 
         vmiface = get_or_create(
             "/virtualization/interfaces/",
@@ -340,12 +401,9 @@ def main():
                 },
                 f"{name} -> {ip}",
             )
+            fill_description_and_tags(f"/ipam/ip-addresses/{ipobj['id']}/", ipobj, description, tags)
             if not vm.get("primary_ip4"):
                 update(f"/virtualization/virtual-machines/{vm['id']}/", {"primary_ip4": ipobj["id"]})
-        elif dns_name:
-            # DHCP host: still record the hostname/mac association via interface,
-            # no static IP object.
-            pass
 
     print("== Reserved target IPs (future static migration) ==")
     vm_by_name = {v["name"]: v for v in api("GET", "/virtualization/virtual-machines/", params={"limit": 200})["results"]}
