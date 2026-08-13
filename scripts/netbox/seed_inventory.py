@@ -52,6 +52,32 @@ def update(detail_path, payload):
     return api("PATCH", detail_path, payload)
 
 
+def assign_mac(iface, mac, object_type):
+    """Create (if needed) a MACAddress object for an interface and set it primary.
+
+    NetBox 4.2+ moved MAC addresses off the interface's `mac_address` field
+    onto a dedicated /dcim/mac-addresses/ object linked via
+    assigned_object_type/assigned_object_id, with a `primary_mac_address`
+    pointer back on the interface.
+    """
+    if not mac:
+        return
+    mac = mac.upper()
+    macobj = get_or_create(
+        "/dcim/mac-addresses/",
+        {"mac_address": mac},
+        {
+            "mac_address": mac,
+            "assigned_object_type": object_type,
+            "assigned_object_id": iface["id"],
+        },
+        f"MAC {mac}",
+    )
+    if iface.get("primary_mac_address") is None:
+        iface_path = "/dcim/interfaces/" if object_type == "dcim.interface" else "/virtualization/interfaces/"
+        update(f"{iface_path}{iface['id']}/", {"primary_mac_address": macobj["id"]})
+
+
 # ---------------------------------------------------------------------------
 # Static reference data
 # ---------------------------------------------------------------------------
@@ -241,9 +267,10 @@ def main():
         iface = get_or_create(
             "/dcim/interfaces/",
             {"device_id": dev["id"], "name": "eth0"},
-            {"device": dev["id"], "name": "eth0", "type": "1000base-t", "mac_address": mac},
+            {"device": dev["id"], "name": "eth0", "type": "1000base-t"},
             f"{name} eth0",
         )
+        assign_mac(iface, mac, "dcim.interface")
         ipobj = get_or_create(
             "/ipam/ip-addresses/",
             {"address": f"{ip}/22"},
@@ -295,9 +322,10 @@ def main():
         vmiface = get_or_create(
             "/virtualization/interfaces/",
             {"virtual_machine_id": vm["id"], "name": "eth0"},
-            {"virtual_machine": vm["id"], "name": "eth0", "mac_address": mac},
+            {"virtual_machine": vm["id"], "name": "eth0"},
             f"{name} eth0",
         )
+        assign_mac(vmiface, mac, "virtualization.vminterface")
 
         if ip:
             ipobj = get_or_create(
