@@ -191,11 +191,22 @@ def sync_dhcp():
         for iface in vm_ifaces
         if iface.get("primary_mac_address") and iface["id"] not in ifaces_with_ip
     ]
+    if not candidates:
+        return
+
+    leases = technitium("/dhcp/leases/list", name=DHCP_SCOPE)
+    already_reserved = {
+        lease["hardwareAddress"]
+        for lease in leases.get("response", {}).get("leases", [])
+        if lease["type"] == "Reserved"
+    }
 
     for iface in candidates:
         mac = iface["primary_mac_address"]["mac_address"]
         vm_name = iface["virtual_machine"]["name"]
         hw = mac.replace(":", "-").upper()
+        if hw in already_reserved:
+            continue
         log.info("reserve DHCP lease for %s (%s)", vm_name, mac)
         if not DRY_RUN:
             technitium(
