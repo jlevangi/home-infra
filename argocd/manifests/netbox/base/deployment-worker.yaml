@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: netbox-worker
+  namespace: netbox
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: netbox-worker
+  template:
+    metadata:
+      labels:
+        app: netbox-worker
+    spec:
+      containers:
+        - name: worker
+          image: netboxcommunity/netbox:v4.2.4
+          command: ["/opt/netbox/venv/bin/python3", "/opt/netbox/netbox/manage.py", "rqworker"]
+          envFrom:
+            - configMapRef:
+                name: netbox-config
+            - secretRef:
+                name: netbox-secrets
+          env:
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: netbox-secrets
+                  key: NETBOX_SECRET_KEY
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: netbox-secrets
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: netbox-media
+              mountPath: /opt/netbox/netbox/media
+      volumes:
+        - name: netbox-media
+          persistentVolumeClaim:
+            claimName: netbox-media-pvc

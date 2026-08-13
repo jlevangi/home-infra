@@ -15,7 +15,7 @@ resources:
 
 network:
   bridge: vmbr0
-  ip: 172.20.23.200/22
+  ip: 172.20.20.25/22
   gateway: 172.20.20.1
 
 features:

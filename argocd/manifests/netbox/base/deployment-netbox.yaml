@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: netbox
+  namespace: netbox
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: netbox
+  template:
+    metadata:
+      labels:
+        app: netbox
+    spec:
+      containers:
+        - name: netbox
+          image: netboxcommunity/netbox:v4.2.4
+          envFrom:
+            - configMapRef:
+                name: netbox-config
+            - secretRef:
+                name: netbox-secrets
+          env:
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: netbox-secrets
+                  key: NETBOX_SECRET_KEY
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: netbox-secrets
+                  key: POSTGRES_PASSWORD
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: netbox-media
+              mountPath: /opt/netbox/netbox/media
+      volumes:
+        - name: netbox-media
+          persistentVolumeClaim:
+            claimName: netbox-media-pvc
