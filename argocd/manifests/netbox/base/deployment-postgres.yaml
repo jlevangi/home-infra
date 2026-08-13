@@ -16,6 +16,9 @@ spec:
       containers:
         - name: postgres
           image: postgres:16-alpine
+          env:
+            - name: PGDATA
+              value: "/var/lib/postgresql/data/pgdata"
           envFrom:
             - secretRef:
                 name: netbox-secrets
@@ -24,6 +27,7 @@ spec:
           volumeMounts:
             - name: postgres-data
               mountPath: /var/lib/postgresql/data
+              subPath: pgdata
       volumes:
         - name: postgres-data
           persistentVolumeClaim:
