@@ -128,6 +128,7 @@ TAGS = [
     ("legacy", "legacy", "95a5a6"),
     ("no-longhorn", "no-longhorn", "f39c12"),
     ("dhcp-reserved", "dhcp-reserved", "16a085"),
+    ("single-use", "single-use", "9b59b6"),
 ]
 
 PREFIXES = [
@@ -209,11 +210,11 @@ VMS = [
     ("auth-srv", "172.20.20.18", "dell-sff", "infra-service", "offline", "76:e3:77:66:a7:72", None,
      "Legacy Keycloak host - stopped, replaced by in-cluster Keycloak", ["legacy"]),
     ("affirm-srv", None, "dell-sff", "app-vm", "active", "bc:24:11:b1:ed:4a", "affirm-srv.levangie.org",
-     "LXC on dell-sff - purpose not documented, DHCP-reserved", ["dhcp-reserved"]),
+     "Single-use LXC - Python app experiment", ["single-use", "dhcp-reserved"]),
     ("bambu-connect", None, "dell-sff", "app-vm", "active", "ba:a1:54:b8:c7:0c", "bambu-connect.levangie.org",
      "Bambu Lab 3D printer cloud connector", ["dhcp-reserved"]),
     ("gamble-king", None, "dell-sff", "app-vm", "active", "bc:24:11:5d:63:aa", "gamble-king.levangie.org",
-     "LXC on dell-sff - purpose not documented, DHCP-reserved", ["dhcp-reserved"]),
+     "Single-use LXC - Python app experiment", ["single-use", "dhcp-reserved"]),
     # planned new hardware
     ("k3s-prod-worker-4", "172.20.20.108", "elitedesk-1", "k3s-worker", "planned", None, "k3s-prod-worker-4.levangie.org",
      "K3s-prod worker VM (planned, elitedesk-1)", ["planned"]),
