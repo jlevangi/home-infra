@@ -24,7 +24,7 @@ spec:
           command:
             - sh
             - -c
-            - chown -R 999:999 /mnt/db && rm -rf /mnt/db/pgdata && rm -rf /mnt/db/lost+found
+            - chown -R 999:999 /mnt/db && rm -rf /mnt/db/lost+found
           securityContext:
             runAsUser: 0
           volumeMounts:
