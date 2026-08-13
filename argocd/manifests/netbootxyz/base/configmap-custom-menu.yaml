@@ -15,7 +15,7 @@ data:
 
     :proxmox-ve-9.2
     echo Booting Proxmox VE 9.2 installer from NAS ISO...
-    sanboot http://172.20.20.202/isos/proxmox-ve_9.2-1.iso || goto failed
+    sanboot --drive 0xe0 http://172.20.20.202/isos/proxmox-ve_9.2-1.iso || goto failed
 
     :back
     chain tftp://172.20.20.202/menu.ipxe
