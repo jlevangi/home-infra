@@ -7,12 +7,12 @@ spec:
   groups:
     - name: health-archive.freshness
       rules:
-        # Thresholds are set per metric because collection cadence differs:
-        # steps/heart rate stream continuously, sleep lands once a night.
-        # These exist because heart rate silently stopped for two days and the
-        # only signal was an empty Grafana panel.
+        # Gate freshness on the ingester scrape so a target outage is reported once by TargetDown.
         - alert: HealthArchiveStepsStale
-          expr: time() - health_archive_last_observation_timestamp_seconds{source_system="health_connect_direct", metric_type="steps"} > 86400
+          expr: >-
+            (time() - health_archive_last_observation_timestamp_seconds{source_system="health_connect_direct", metric_type="steps"} > 86400
+            or absent(health_archive_last_observation_timestamp_seconds{source_system="health_connect_direct", metric_type="steps"}))
+            and on() (up{job="health-ingester", namespace="health-archive"} == 1)
           for: 30m
           labels:
             severity: warning
@@ -22,7 +22,10 @@ spec:
               The authenticated Health Connect collector has received no 'steps' rows for more than 24 hours.
 
         - alert: HealthArchiveHeartRateStale
-          expr: time() - health_archive_last_observation_timestamp_seconds{source_system="health_connect_direct", metric_type="heart_rate"} > 86400
+          expr: >-
+            (time() - health_archive_last_observation_timestamp_seconds{source_system="health_connect_direct", metric_type="heart_rate"} > 86400
+            or absent(health_archive_last_observation_timestamp_seconds{source_system="health_connect_direct", metric_type="heart_rate"}))
+            and on() (up{job="health-ingester", namespace="health-archive"} == 1)
           for: 30m
           labels:
             severity: warning
@@ -32,7 +35,10 @@ spec:
               The authenticated Health Connect collector has received no 'heart_rate' rows for more than 24 hours.
 
         - alert: HealthArchiveSleepStale
-          expr: time() - health_archive_last_observation_timestamp_seconds{source_system="health_connect_direct", metric_type="sleep_segment"} > 172800
+          expr: >-
+            (time() - health_archive_last_observation_timestamp_seconds{source_system="health_connect_direct", metric_type="sleep_segment"} > 172800
+            or absent(health_archive_last_observation_timestamp_seconds{source_system="health_connect_direct", metric_type="sleep_segment"}))
+            and on() (up{job="health-ingester", namespace="health-archive"} == 1)
           for: 1h
           labels:
             severity: warning
@@ -42,34 +48,99 @@ spec:
               The authenticated Health Connect collector has received no completed 'sleep_segment' rows for more than 48 hours.
               Two missed nights indicates a collector or upstream Health Connect issue.
 
-        - alert: HealthIngesterDown
-          expr: sum(up{namespace="health-archive", service="health-ingester"}) < 1
-          for: 15m
+        - alert: HealthArchiveDistanceStale
+          expr: >-
+            (time() - health_archive_last_observation_timestamp_seconds{source_system="health_connect_direct", metric_type="distance"} > 129600
+            or absent(health_archive_last_observation_timestamp_seconds{source_system="health_connect_direct", metric_type="distance"}))
+            and on() (up{job="health-ingester", namespace="health-archive"} == 1)
+          for: 30m
           labels:
             severity: warning
           annotations:
-            summary: Health ingester is not being scraped
+            summary: No new distance data for over 36h
             description: >-
-              Prometheus cannot scrape the health-ingester service, so ingestion
-              may have stopped and freshness alerts above will not fire.
+              The authenticated Health Connect collector has received no 'distance' rows for more than 36 hours.
+
+        - alert: HealthArchiveSpeedStale
+          expr: >-
+            (time() - health_archive_last_observation_timestamp_seconds{source_system="health_connect_direct", metric_type="speed"} > 129600
+            or absent(health_archive_last_observation_timestamp_seconds{source_system="health_connect_direct", metric_type="speed"}))
+            and on() (up{job="health-ingester", namespace="health-archive"} == 1)
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: No new speed data for over 36h
+            description: >-
+              The authenticated Health Connect collector has received no 'speed' rows for more than 36 hours.
+
+        - alert: HealthArchiveActiveEnergyStale
+          expr: >-
+            (time() - health_archive_last_observation_timestamp_seconds{source_system="health_connect_direct", metric_type="active_energy"} > 129600
+            or absent(health_archive_last_observation_timestamp_seconds{source_system="health_connect_direct", metric_type="active_energy"}))
+            and on() (up{job="health-ingester", namespace="health-archive"} == 1)
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: No new active energy data for over 36h
+            description: >-
+              The authenticated Health Connect collector has received no 'active_energy' rows for more than 36 hours.
+
+        - alert: HealthArchiveCaloriesStale
+          expr: >-
+            (time() - health_archive_last_observation_timestamp_seconds{source_system="health_connect_direct", metric_type="calories"} > 129600
+            or absent(health_archive_last_observation_timestamp_seconds{source_system="health_connect_direct", metric_type="calories"}))
+            and on() (up{job="health-ingester", namespace="health-archive"} == 1)
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: No new calories data for over 36h
+            description: >-
+              The authenticated Health Connect collector has received no 'calories' rows for more than 36 hours.
 
         - alert: HealthCollectorAuthenticationFailures
-          expr: increase(health_collector_auth_failures_total[15m]) > 5
+          expr: increase(health_collector_auth_failures_total{job="health-ingester", namespace="health-archive"}[15m]) > 0
           for: 5m
           labels:
             severity: warning
           annotations:
-            summary: Health collector authentication failures
-            description: More than five Health Connect collector authentication failures occurred in the last 15 minutes.
+            summary: Health collector authentication failure
+            description: An authentication failure occurred for the Health Connect collector in the last 15 minutes.
+
+        - alert: HealthCollectorRejectedRecords
+          expr: sum(increase(health_collector_records_total{job="health-ingester", namespace="health-archive", outcome="rejected"}[15m])) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Health collector rejected records
+            description: >-
+              The Health Connect collector rejected one or more records in the last 15 minutes.
+              Inspect record_type and origin labels for the affected records.
+
+        - alert: HealthCollectorUnknownRecordTypes
+          expr: sum(increase(health_collector_unknown_record_type_total{job="health-ingester", namespace="health-archive"}[15m])) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Health collector received unknown record types
+            description: >-
+              The Health Connect collector received one or more unknown record types in the last 15 minutes.
+              Inspect the record_type label.
 
         - alert: HealthConnectSyncStale
-          expr: sum(increase(health_collector_records_total{outcome=~"accepted|duplicate"}[24h])) < 1
+          expr: >-
+            (sum(increase(health_collector_records_total{job="health-ingester", namespace="health-archive", outcome=~"accepted|duplicate"}[24h])) < 1
+            or absent(health_collector_records_total{job="health-ingester", namespace="health-archive", outcome=~"accepted|duplicate"}))
+            and on() (up{job="health-ingester", namespace="health-archive"} == 1)
           for: 1h
           labels:
             severity: warning
           annotations:
             summary: No Health Connect sync activity for 24 hours
             description: >-
-              The Health Connect collector has processed no accepted or duplicate
-              records of any type in the last 24 hours. The expected sync cadence is
-              at least once every 12 hours.
+              The Health Connect collector has processed no accepted or duplicate records of any type in the last 24 hours.
+              The expected sync cadence is at least once every 24 hours.
