@@ -63,14 +63,6 @@ spec:
           annotations:
             summary: Longhorn backup is stale
             description: Attached Longhorn volume {{ $labels.volume }} has not had a successful backup in over 48 hours.
-        - alert: LonghornDetachedVolumeWithoutBackup
-          expr: (longhorn_volume_last_backup_at == 0) and on (volume) (longhorn_volume_state{state="detached"} == 1)
-          for: 1h
-          labels:
-            severity: warning
-          annotations:
-            summary: Detached Longhorn volume has no successful backup
-            description: Detached Longhorn volume {{ $labels.volume }} has no successful backup and may not be recoverable if its replicas are lost.
         - alert: GatusEndpointDown
           expr: sum by (group, name) (increase(gatus_results_total{success="false"}[10m])) > 0
           for: 10m
