@@ -414,6 +414,20 @@ CREATE INDEX idx_health_raw_metric_type_start_time_ts ON public.health_observati
 
 
 --
+-- Name: idx_health_raw_source_metric_start_time_ts; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_health_raw_source_metric_start_time_ts ON public.health_observations_raw USING btree (source_id, metric_type, public.text_to_timestamptz_immutable(start_time) DESC);
+
+
+--
+-- Name: idx_health_raw_metric_end_time_ts; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_health_raw_metric_end_time_ts ON public.health_observations_raw USING btree (metric_type, public.text_to_timestamptz_immutable(end_time));
+
+
+--
 -- Name: idx_health_raw_start_time; Type: INDEX; Schema: public; Owner: -
 --
 
