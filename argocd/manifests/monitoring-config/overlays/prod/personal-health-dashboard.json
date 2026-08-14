@@ -1546,7 +1546,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT (summary_date::timestamp AT TIME ZONE 'America/New_York') AS \"time\",\n       value_numeric AS \"Steps\",\n       AVG(value_numeric) OVER (ORDER BY summary_date ROWS BETWEEN 29 PRECEDING AND CURRENT ROW) AS \"30d Avg\"\nFROM health_daily_summaries\nWHERE metric_type = 'steps' AND summary_date BETWEEN ($__timeFrom())::date AND ($__timeTo())::date\nORDER BY 1",
+          "rawSql": "WITH daily AS (\n  SELECT date_trunc('day', text_to_timestamptz_immutable(r.start_time) AT TIME ZONE 'America/New_York')::date AS day,\n         SUM(r.value_numeric) AS steps\n  FROM health_observations_raw r\n  JOIN health_sources s ON s.id = r.source_id\n  WHERE r.metric_type = 'steps'\n    AND s.source_system IN ($source_system)\n    AND r.value_numeric IS NOT NULL\n    AND text_to_timestamptz_immutable(r.start_time) >= $__timeFrom()\n    AND text_to_timestamptz_immutable(r.start_time) <= $__timeTo()\n  GROUP BY 1\n)\nSELECT (day::timestamp AT TIME ZONE 'America/New_York') AS \"time\",\n       steps AS \"Steps\",\n       AVG(steps) OVER (ORDER BY day ROWS BETWEEN 29 PRECEDING AND CURRENT ROW) AS \"30d Avg\"\nFROM daily\nORDER BY day",
           "refId": "A",
           "editorMode": "code"
         }
@@ -1618,7 +1618,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT (summary_date::timestamp AT TIME ZONE 'America/New_York') AS \"time\", value_numeric AS \"Resting HR\"\nFROM health_daily_summaries\nWHERE metric_type = 'resting_heart_rate' AND summary_date BETWEEN ($__timeFrom())::date AND ($__timeTo())::date\nORDER BY 1",
+          "rawSql": "SELECT date_trunc('day', text_to_timestamptz_immutable(r.start_time) AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York' AS \"time\",\n       AVG(r.value_numeric) AS \"Resting HR\"\nFROM health_observations_raw r\nJOIN health_sources s ON s.id = r.source_id\nWHERE r.metric_type = 'resting_heart_rate'\n  AND s.source_system IN ($source_system)\n  AND r.value_numeric IS NOT NULL\n  AND text_to_timestamptz_immutable(r.start_time) >= $__timeFrom()\n  AND text_to_timestamptz_immutable(r.start_time) <= $__timeTo()\nGROUP BY 1 ORDER BY 1",
           "refId": "A",
           "editorMode": "code"
         }
@@ -1691,7 +1691,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT (summary_date::timestamp AT TIME ZONE 'America/New_York') AS \"time\", value_numeric AS \"Weight\"\nFROM health_daily_summaries\nWHERE metric_type = 'weight' AND summary_date BETWEEN ($__timeFrom())::date AND ($__timeTo())::date\nORDER BY 1",
+          "rawSql": "SELECT text_to_timestamptz_immutable(r.start_time) AS \"time\",\n       r.value_numeric AS \"Weight\"\nFROM health_observations_raw r\nJOIN health_sources s ON s.id = r.source_id\nWHERE r.metric_type = 'weight'\n  AND s.source_system IN ($source_system)\n  AND r.value_numeric IS NOT NULL\n  AND text_to_timestamptz_immutable(r.start_time) >= $__timeFrom()\n  AND text_to_timestamptz_immutable(r.start_time) <= $__timeTo()\nORDER BY 1",
           "refId": "A",
           "editorMode": "code"
         }
@@ -1763,7 +1763,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT (summary_date::timestamp AT TIME ZONE 'America/New_York') AS \"time\",\n       MAX(value_numeric) FILTER (WHERE metric_type='heart_rate_min') AS \"Min\",\n       MAX(value_numeric) FILTER (WHERE metric_type='heart_rate')     AS \"Avg\",\n       MAX(value_numeric) FILTER (WHERE metric_type='heart_rate_max') AS \"Max\"\nFROM health_daily_summaries\nWHERE metric_type IN ('heart_rate','heart_rate_min','heart_rate_max') AND summary_date BETWEEN ($__timeFrom())::date AND ($__timeTo())::date\nGROUP BY 1 ORDER BY 1",
+          "rawSql": "SELECT date_trunc('day', text_to_timestamptz_immutable(r.start_time) AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York' AS \"time\",\n       MIN(r.value_numeric) AS \"Min HR\",\n       AVG(r.value_numeric) AS \"Avg HR\",\n       MAX(r.value_numeric) AS \"Max HR\"\nFROM health_observations_raw r\nJOIN health_sources s ON s.id = r.source_id\nWHERE r.metric_type = 'heart_rate'\n  AND s.source_system IN ($source_system)\n  AND r.value_numeric IS NOT NULL\n  AND text_to_timestamptz_immutable(r.start_time) >= $__timeFrom()\n  AND text_to_timestamptz_immutable(r.start_time) <= $__timeTo()\nGROUP BY 1 ORDER BY 1",
           "refId": "A",
           "editorMode": "code"
         }
@@ -1835,7 +1835,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT (summary_date::timestamp AT TIME ZONE 'America/New_York') AS \"time\",\n       MAX(value_numeric) FILTER (WHERE metric_type='active_energy') AS \"Active\",\n       MAX(value_numeric) FILTER (WHERE metric_type='basal_energy')  AS \"Basal\",\n       MAX(value_numeric) FILTER (WHERE metric_type='calories')      AS \"Total\"\nFROM health_daily_summaries\nWHERE metric_type IN ('active_energy','basal_energy','calories') AND summary_date BETWEEN ($__timeFrom())::date AND ($__timeTo())::date\nGROUP BY 1 ORDER BY 1",
+          "rawSql": "SELECT date_trunc('day', text_to_timestamptz_immutable(r.start_time) AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York' AS \"time\",\n       SUM(r.value_numeric) AS \"Active Energy\"\nFROM health_observations_raw r\nJOIN health_sources s ON s.id = r.source_id\nWHERE r.metric_type = 'active_energy'\n  AND s.source_system IN ($source_system)\n  AND r.value_numeric IS NOT NULL\n  AND text_to_timestamptz_immutable(r.start_time) >= $__timeFrom()\n  AND text_to_timestamptz_immutable(r.start_time) <= $__timeTo()\nGROUP BY 1 ORDER BY 1",
           "refId": "A",
           "editorMode": "code"
         }
@@ -1907,7 +1907,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT (summary_date::timestamp AT TIME ZONE 'America/New_York') AS \"time\",\n       value_numeric / 1000.0 AS \"Distance\"\nFROM health_daily_summaries\nWHERE metric_type = 'distance' AND summary_date BETWEEN ($__timeFrom())::date AND ($__timeTo())::date\nORDER BY 1",
+          "rawSql": "SELECT date_trunc('day', text_to_timestamptz_immutable(r.start_time) AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York' AS \"time\",\n       SUM(r.value_numeric) / 1000.0 AS \"Distance (km)\"\nFROM health_observations_raw r\nJOIN health_sources s ON s.id = r.source_id\nWHERE r.metric_type = 'distance'\n  AND s.source_system IN ($source_system)\n  AND r.value_numeric IS NOT NULL\n  AND text_to_timestamptz_immutable(r.start_time) >= $__timeFrom()\n  AND text_to_timestamptz_immutable(r.start_time) <= $__timeTo()\nGROUP BY 1 ORDER BY 1",
           "refId": "A",
           "editorMode": "code"
         }
@@ -2043,12 +2043,11 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "WITH segments AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS seg_start,\n         text_to_timestamptz_immutable(r.end_time) AS seg_end,\n         lower(coalesce(r.value_text, 'unknown')) AS stage,\n         substring(r.external_id from 'health_connect:[^:]+:sleep:([^:]+):stage:[0-9]+') AS session_uuid\n  FROM health_observations_raw r\n  JOIN health_sources s ON s.id = r.source_id\n  WHERE r.metric_type = 'sleep_segment'\n    AND s.source_system = 'health_connect_direct'\n    AND r.external_id ~ '^health_connect:[^:]+:sleep:[^:]+:stage:[0-9]+$'\n    AND text_to_timestamptz_immutable(r.start_time) >= now() - interval '14 days'\n), sessions AS (\n  SELECT session_uuid,\n         min(seg_start) AS bedtime,\n         max(seg_end) AS wake,\n         (max(seg_end) AT TIME ZONE 'America/New_York')::date AS wake_date\n  FROM segments GROUP BY session_uuid\n), ranked AS (\n  SELECT session_uuid, wake_date,\n         (wake - bedtime) AS session_len,\n         row_number() OVER (PARTITION BY wake_date ORDER BY (wake - bedtime) DESC) AS rank_for_day\n  FROM sessions\n), primary_sessions AS (\n  SELECT session_uuid, wake_date FROM ranked WHERE rank_for_day = 1\n), stage_hours AS (\n  SELECT ps.wake_date,\n         seg.stage,\n         COALESCE(sum(extract(epoch FROM (seg.seg_end - seg.seg_start))) / 3600.0, 0) AS hours\n  FROM primary_sessions ps\n  JOIN segments seg USING (session_uuid)\n  GROUP BY ps.wake_date, seg.stage\n)\nSELECT (wake_date::timestamp AT TIME ZONE 'America/New_York') AS \"time\",\n       MAX(hours) FILTER (WHERE stage = 'deep')  AS \"Deep\",\n       MAX(hours) FILTER (WHERE stage = 'rem')   AS \"REM\",\n       MAX(hours) FILTER (WHERE stage = 'light') AS \"Light\",\n       MAX(hours) FILTER (WHERE stage = 'awake') AS \"Awake\"\nFROM stage_hours\nGROUP BY 1 ORDER BY 1",
+          "rawSql": "WITH segments AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS seg_start,\n         text_to_timestamptz_immutable(r.end_time) AS seg_end,\n         lower(coalesce(r.value_text, 'unknown')) AS stage,\n         substring(r.external_id from 'health_connect:[^:]+:sleep:([^:]+):stage:[0-9]+') AS session_uuid\n  FROM health_observations_raw r\n  JOIN health_sources s ON s.id = r.source_id\n  WHERE r.metric_type = 'sleep_segment'\n    AND s.source_system IN ($source_system)\n    AND r.external_id ~ '^health_connect:[^:]+:sleep:[^:]+:stage:[0-9]+$'\n    AND text_to_timestamptz_immutable(r.start_time) >= $__timeFrom()\n    AND text_to_timestamptz_immutable(r.start_time) <= $__timeTo()\n), sessions AS (\n  SELECT session_uuid,\n         min(seg_start) AS bedtime,\n         max(seg_end) AS wake,\n         (max(seg_end) AT TIME ZONE 'America/New_York')::date AS wake_date\n  FROM segments GROUP BY session_uuid\n), ranked AS (\n  SELECT session_uuid, wake_date,\n         (wake - bedtime) AS session_len,\n         row_number() OVER (PARTITION BY wake_date ORDER BY (wake - bedtime) DESC) AS rank_for_day\n  FROM sessions\n), primary_sessions AS (\n  SELECT session_uuid, wake_date FROM ranked WHERE rank_for_day = 1\n), stage_hours AS (\n  SELECT ps.wake_date,\n         seg.stage,\n         COALESCE(sum(extract(epoch FROM (seg.seg_end - seg.seg_start))) / 3600.0, 0) AS hours\n  FROM primary_sessions ps\n  JOIN segments seg USING (session_uuid)\n  GROUP BY ps.wake_date, seg.stage\n)\nSELECT (wake_date::timestamp AT TIME ZONE 'America/New_York') AS \"time\",\n       MAX(hours) FILTER (WHERE stage = 'deep')  AS \"Deep\",\n       MAX(hours) FILTER (WHERE stage = 'rem')   AS \"REM\",\n       MAX(hours) FILTER (WHERE stage = 'light') AS \"Light\",\n       MAX(hours) FILTER (WHERE stage = 'awake') AS \"Awake\"\nFROM stage_hours\nGROUP BY 1 ORDER BY 1",
           "refId": "A",
           "editorMode": "code"
         }
-      ],
-      "timeFrom": "now-14d"
+      ]
     },
     {
       "collapsed": false,
@@ -2129,7 +2128,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT text_to_timestamptz_immutable(r.start_time) AS \"time\",\n       r.value_numeric AS \"$metric\",\n       s.source_system AS metric\nFROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\nWHERE r.metric_type = '$metric'\n  AND s.source_system IN ($source_system)\n  AND r.value_numeric IS NOT NULL\n  AND text_to_timestamptz_immutable(r.start_time) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1",
+          "rawSql": "SELECT text_to_timestamptz_immutable(r.start_time) AS \"time\",\n       CASE WHEN r.value_numeric IS NOT NULL THEN r.value_numeric\n            ELSE NULL END AS \"$metric\",\n       r.value_text,\n       s.source_system AS \"source\"\nFROM health_observations_raw r\nJOIN health_sources s ON s.id = r.source_id\nWHERE r.metric_type = '$metric'\n  AND s.source_system IN ($source_system)\n  AND text_to_timestamptz_immutable(r.start_time) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1",
           "refId": "A",
           "editorMode": "code"
         }
