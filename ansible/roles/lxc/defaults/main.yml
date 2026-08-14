@@ -8,7 +8,7 @@ proxmox_api_token_id: "{{ vault_proxmox_api_token_id }}"
 proxmox_api_token_secret: "{{ vault_proxmox_api_token_secret }}"
 
 # Default Proxmox node
-lxc_default_node: pve1
+lxc_default_node: atlas
 
 # Default container resources
 lxc_default_cores: 2

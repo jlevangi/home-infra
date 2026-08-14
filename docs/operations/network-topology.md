@@ -4,8 +4,15 @@ Use this runbook for the Proxmox host network configuration and the procedure fo
 changing it. The physical port map itself lives in NetBox, not here — see below.
 
 The lab runs a single flat L2 segment, `172.20.20.0/22`, gateway `172.20.20.1`. There
-are no VLANs. Two 8-port switches: a managed 2.5G switch as the fast core, and an
-unmanaged 1G switch as the edge and bond-failover plane.
+are no VLANs. Two switches, both web-managed:
+
+| Switch | Hardware | Role |
+| --- | --- | --- |
+| `sw-core-25g` | SODOLA 8x 2.5GBASE-T + 1x 10G SFP+ | Fast core |
+| `sw-edge-1g` | Netgear GS308E, 8x 1GbE (Plus) | Edge and bond-failover plane |
+
+The SODOLA has a **ninth** interface: a 10G SFP+ uplink. It is deliberately left
+free — see the design decisions below.
 
 ## Switch Port Map
 
@@ -33,9 +40,9 @@ The router lives on the 1G switch because its LAN port is 1G and can never excee
 that regardless of which switch it sits on, so the 1G uplink costs zero throughput
 and frees a 2.5G port.
 
-**Exactly one cable between the switches.** The 1G switch is unmanaged, so a second
-cable is a broadcast storm with no STP to break it. Active-backup bonds never forward
-on two legs at once, so the bonds themselves cannot create a loop.
+**Exactly one cable between the switches.** The GS308E has loop detection, but treat
+that as a backstop rather than permission for a second cable. Active-backup bonds
+never forward on two legs at once, so the bonds themselves cannot create a loop.
 
 ## Host Bonding
 
@@ -182,12 +189,20 @@ anything physical. What stays here is what NetBox cannot express: bond configura
 the change procedure, throughput baselines, and these design decisions. The Obsidian
 note is retired.
 
-**Why two switches.** Without bonding, everything fits on the 2.5G switch alone:
-three hosts, two NAS legs, the workstation and the router is seven of eight ports.
-The second switch is required *because* of the active-backup bonds — three standby
-legs need three more ports, and the 2.5G switch has only one spare. The 1G switch is
-already owned and was otherwise idle, and it is also the only place the ProLiant's
-4x 1G can land.
+**Why two switches.** Without bonding, everything fits on the SODOLA alone: three
+hosts, two NAS legs, the workstation and the router is seven of its eight RJ45 ports.
+The GS308E is required *because* of the active-backup bonds — three standby legs need
+three more ports, and the SODOLA has only one spare. It was already owned and
+otherwise idle, and it is also the only place the ProLiant's 4x 1G can land.
+
+**The 10G SFP+ port stays free.** It could carry the inter-switch uplink with a
+1000BASE-T SFP module, which would let the router keep a direct SODOLA port. That
+buys nothing today: the GS308E is a 1G switch, so the uplink is 1 Gb/s either way,
+and the port count works out the same (seven used, one spare) in both arrangements.
+The genuinely valuable use is a future 10G link to atlas — atlas is the busiest
+talker, serving Longhorn replicas, NFS and migration traffic, so a 10G uplink would
+let it hold several 2.5G conversations at once without contending. Spending the SFP+
+cage on a 1G uplink now would foreclose that.
 
 **Proxmox migration is `insecure`.** `/etc/pve/datacenter.cfg` carries
 `migration: type=insecure,network=172.20.20.0/22`. The default `secure` mode tunnels

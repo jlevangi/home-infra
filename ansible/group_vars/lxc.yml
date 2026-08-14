@@ -3,7 +3,7 @@
 # Shared configuration for all LXC containers
 
 # Default Proxmox node for LXC containers
-lxc_default_node: pve1
+lxc_default_node: atlas
 
 # Default LXC resource settings
 lxc_default_storage: local-lvm

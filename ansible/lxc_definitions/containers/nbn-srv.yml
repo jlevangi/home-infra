@@ -8,7 +8,7 @@ container_id: 200
 description: "Hugo website hosting via Docker - naturallybynature.com"
 
 # Proxmox settings
-node: pve1
+node: atlas
 template: ubuntu-24.04
 
 # Resource allocation
