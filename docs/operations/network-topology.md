@@ -1,6 +1,7 @@
 # Network Topology and Host Bonding
 
-Use this runbook for the physical LAN layout and the Proxmox host network configuration.
+Use this runbook for the Proxmox host network configuration and the procedure for
+changing it. The physical port map itself lives in NetBox, not here — see below.
 
 The lab runs a single flat L2 segment, `172.20.20.0/22`, gateway `172.20.20.1`. There
 are no VLANs. Two 8-port switches: a managed 2.5G switch as the fast core, and an
@@ -8,29 +9,25 @@ unmanaged 1G switch as the edge and bond-failover plane.
 
 ## Switch Port Map
 
-### 2.5G managed switch — fast core
+**NetBox is the source of truth.** The port map is not duplicated here — read it from
+[netbox.levangie.dev](https://netbox.levangie.dev), where both switches are modelled
+as devices with eight interfaces each:
 
-| Port | Device | Link |
-| --- | --- | --- |
-| 1 | atlas `nic0` | 2.5G |
-| 2 | elitedesk-1 `enx6c1ff7cc61a4` (USB RTL8156B) | 2.5G |
-| 3 | dellssf `enx6c1ff7c0d19c` (USB RTL8156B) | 2.5G |
-| 4 | Synology DS420+ LAN1 | 1G — LAG member |
-| 5 | Synology DS420+ LAN2 | 1G — LAG member |
-| 6 | Workstation | 2.5G |
-| 7 | Uplink to 1G switch | 1G |
-| 8 | *spare* | — |
-
-### 1G unmanaged switch — edge and failover plane
-
-| Port | Device |
+| Device | Role |
 | --- | --- |
-| 1 | Uplink from 2.5G switch |
-| 2 | Router (WAN gateway) |
-| 3 | atlas `nic1` — bond standby |
-| 4 | elitedesk-1 `nic0` — bond standby |
-| 5 | dellssf `enp1s0` — bond standby |
-| 6-8 | free — reserved for ProLiant |
+| [`sw-core-25g`](https://netbox.levangie.dev/dcim/devices/?q=sw-core-25g) | Fast core. All 2.5G links, both NAS LAG legs, the uplink. |
+| [`sw-edge-1g`](https://netbox.levangie.dev/dcim/devices/?q=sw-edge-1g) | Edge / failover plane. Standby bond legs, router, future ProLiant. |
+
+Each host's interfaces carry their LAG and bridge relationships, so a device's
+Interfaces tab shows which physical NIC belongs to which bond and where it is cabled.
+
+Cables use NetBox's `status` field, which makes the model double as the cabling
+checklist: runs still to be made are **`planned`**, and links that physically exist
+are **`connected`**. Flip each one to `connected` as you make it.
+
+> Switch port numbers for the pre-existing links (atlas, both NAS legs, the
+> workstation) are the proposed layout, not observed fact — correct them in NetBox if
+> the physical ports differ.
 
 The router lives on the 1G switch because its LAN port is 1G and can never exceed
 that regardless of which switch it sits on, so the 1G uplink costs zero throughput
@@ -176,6 +173,14 @@ silent packet loss. 802.3ad LACP is preferred: it detects miswiring and half-fai
 that static XOR silently tolerates.
 
 ## Design Decisions
+
+**NetBox owns the port map; this runbook owns the procedure.** The topology used to
+live in an Obsidian note and again as tables in this file, which meant two copies
+drifting apart. NetBox already drove DNS for the lab, and cables, LAGs and interfaces
+are first-class DCIM objects there, so it became the single source of truth for
+anything physical. What stays here is what NetBox cannot express: bond configuration,
+the change procedure, throughput baselines, and these design decisions. The Obsidian
+note is retired.
 
 **Why two switches.** Without bonding, everything fits on the 2.5G switch alone:
 three hosts, two NAS legs, the workstation and the router is seven of eight ports.
