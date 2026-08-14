@@ -87,6 +87,41 @@ spec:
           annotations:
             summary: Kubernetes node is not ready
             description: Node {{ $labels.node }} has not reported Ready for 10 minutes.
+        - alert: KubeJobLatestRunFailed
+          expr: |-
+            (
+              kube_job_failed{job="kube-state-metrics", namespace=~".*"} > 0
+              unless on (namespace, job_name)
+              kube_job_owner{job="kube-state-metrics", owner_kind="CronJob"}
+            )
+            or
+            (
+              (
+                (kube_job_failed{job="kube-state-metrics", namespace=~".*"} > 0)
+                * on (namespace, job_name) group_left (owner_name)
+                kube_job_owner{job="kube-state-metrics", owner_kind="CronJob"}
+              )
+              and on (namespace, job_name)
+              (
+                (
+                  kube_job_status_start_time{job="kube-state-metrics"}
+                  * on (namespace, job_name) group_left (owner_name)
+                  kube_job_owner{job="kube-state-metrics", owner_kind="CronJob"}
+                )
+                == on (namespace, owner_name) group_left
+                max by (namespace, owner_name) (
+                  kube_job_status_start_time{job="kube-state-metrics"}
+                  * on (namespace, job_name) group_left (owner_name)
+                  kube_job_owner{job="kube-state-metrics", owner_kind="CronJob"}
+                )
+              )
+            )
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Latest Job run failed to complete
+            description: Job {{ $labels.namespace }}/{{ $labels.job_name }} failed to complete. For CronJobs, this alert resolves when the next run succeeds.
         - alert: KubeMemoryOvercommitWithoutLlamaCpp
           expr: |-
             # Same intent as the upstream KubeMemoryOvercommit rule, but exclude

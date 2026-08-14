@@ -28,6 +28,9 @@ spec:
             # and its large memory request would otherwise make the upstream
             # cluster-wide HA overcommit alert permanently noisy.
             KubeMemoryOvercommit: true
+            # Retained failed CronJob Jobs keep the upstream alert firing after
+            # a newer run succeeds. KubeJobLatestRunFailed replaces it.
+            KubeJobFailed: true
 
         grafana:
           enabled: true
