@@ -1330,7 +1330,8 @@
         }
       ],
       "title": "Steps Daily + 7-day avg",
-      "type": "timeseries"
+      "type": "timeseries",
+      "timeFrom": "now-14d"
     },
     {
       "datasource": {
@@ -1419,7 +1420,8 @@
         }
       ],
       "title": "Weekly Steps",
-      "type": "barchart"
+      "type": "barchart",
+      "timeFrom": "now-8w"
     },
     {
       "datasource": {
@@ -1468,7 +1470,8 @@
         }
       ],
       "title": "Active Energy Daily",
-      "type": "timeseries"
+      "type": "timeseries",
+      "timeFrom": "now-14d"
     },
     {
       "datasource": {
@@ -1517,7 +1520,8 @@
         }
       ],
       "title": "Distance Daily",
-      "type": "timeseries"
+      "type": "timeseries",
+      "timeFrom": "now-14d"
     },
     {
       "collapsed": false,
@@ -2010,7 +2014,68 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Deep"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#1e3a8a"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "REM"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#a855f7"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Light"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#93c5fd"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Awake"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#facc15"
+                }
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -2035,11 +2100,12 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT (summary_date::timestamp AT TIME ZONE 'America/New_York') AS \"time\",\n       MAX(value_numeric) FILTER (WHERE metric_type='sleep_deep_hours')  AS \"Deep\",\n       MAX(value_numeric) FILTER (WHERE metric_type='sleep_rem_hours')   AS \"REM\",\n       MAX(value_numeric) FILTER (WHERE metric_type='sleep_light_hours') AS \"Light\",\n       MAX(value_numeric) FILTER (WHERE metric_type='sleep_awake_hours') AS \"Awake\"\nFROM health_daily_summaries\nWHERE metric_type LIKE 'sleep\\_%\\_hours' AND summary_date BETWEEN ($__timeFrom())::date AND ($__timeTo())::date\nGROUP BY 1 ORDER BY 1",
+          "rawSql": "WITH segments AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts,\n         text_to_timestamptz_immutable(r.end_time) AS ends,\n         lower(coalesce(r.value_text, 'unknown')) AS stage,\n         substring(r.external_id from 'health_connect:[^:]+:sleep:([^:]+):stage:[0-9]+') AS session_uuid\n  FROM health_observations_raw r\n  JOIN health_sources s ON s.id = r.source_id\n  WHERE r.metric_type = 'sleep_segment'\n    AND s.source_system = 'health_connect_direct'\n    AND r.external_id ~ '^health_connect:[^:]+:sleep:[^:]+:stage:[0-9]+$'\n    AND text_to_timestamptz_immutable(r.start_time) >= now() - interval '14 days'\n), sessions AS (\n  SELECT session_uuid,\n         min(starts) AS bedtime,\n         max(ends) AS wake,\n         (max(ends) AT TIME ZONE 'America/New_York')::date AS wake_date\n  FROM segments GROUP BY session_uuid\n), ranked AS (\n  SELECT *, row_number() OVER (PARTITION BY wake_date ORDER BY (max(ends) - min(starts)) DESC) AS rank_for_day\n  FROM sessions\n), primary_sessions AS (\n  SELECT session_uuid, wake_date FROM ranked WHERE rank_for_day = 1\n), stage_hours AS (\n  SELECT ps.wake_date,\n         s.stage,\n         COALESCE(sum(extract(epoch FROM (s.ends - s.starts))) / 3600.0, 0) AS hours\n  FROM primary_sessions ps\n  JOIN segments s USING (session_uuid)\n  GROUP BY ps.wake_date, s.stage\n)\nSELECT (wake_date::timestamp AT TIME ZONE 'America/New_York') AS \"time\",\n       MAX(hours) FILTER (WHERE stage = 'deep')  AS \"Deep\",\n       MAX(hours) FILTER (WHERE stage = 'rem')   AS \"REM\",\n       MAX(hours) FILTER (WHERE stage = 'light') AS \"Light\",\n       MAX(hours) FILTER (WHERE stage = 'awake') AS \"Awake\"\nFROM stage_hours\nGROUP BY 1 ORDER BY 1",
           "refId": "A",
           "editorMode": "code"
         }
-      ]
+      ],
+      "timeFrom": "now-14d"
     },
     {
       "collapsed": false,
