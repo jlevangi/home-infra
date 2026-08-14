@@ -11,7 +11,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/CodeWithCJ/SparkyFitness.git
-    targetRevision: v0.17.3
+    targetRevision: v1.6.2
     path: helm/chart
     helm:
       values: |
