@@ -55,7 +55,7 @@ variable "ci_password" {
 
 variable "template_name" {
   type    = string
-  default = "debian12-server-template"
+  default = "debian12-server-template-elitedesk-1"
 }
 
 variable "vm_storage" {
@@ -130,6 +130,7 @@ resource "proxmox_vm_qemu" "cp" {
   lifecycle {
     ignore_changes = [
       bootdisk,
+      clone,
       disk,
       network,
     ]

@@ -61,7 +61,7 @@ variable "ci_password" {
 variable "template_name" {
   description = "Proxmox template name on elitedesk-1."
   type        = string
-  default     = "debian12-server-template"
+  default     = "debian12-server-template-elitedesk-1"
 }
 
 variable "proxmox_tags" {
@@ -192,6 +192,7 @@ resource "proxmox_vm_qemu" "worker" {
   lifecycle {
     ignore_changes = [
       bootdisk,
+      clone,
       disk,
       network,
     ]
