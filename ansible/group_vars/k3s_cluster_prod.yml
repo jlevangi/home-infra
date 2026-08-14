@@ -18,7 +18,7 @@ traefik_loadbalancer_ip: "172.20.20.200"
 # HAProxy is in place. Workers, joining masters, and generated kubeconfigs will
 # use it instead of pinning themselves to cp-1.
 k3s_api_endpoint: "172.20.20.199"
-k3s_primary_master: "k3s-prod-cp-2"
+k3s_primary_master: "k3s-prod-cp-1"
 
 # -----------------------------------------------------------------------------
 # LONGHORN OVERRIDES (prod has 3 dedicated workers, masters are CP-only)

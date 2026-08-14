@@ -72,7 +72,7 @@ variable "vault_password" {
 variable "proxmox_hosts" {
   description = "Atlas target nodes per control-plane VM."
   type        = list(string)
-  default     = ["atlas", "atlas", "atlas"]
+  default     = ["atlas"]
 }
 
 variable "vm_name_prefix" {
@@ -84,13 +84,13 @@ variable "vm_name_prefix" {
 variable "vm_count" {
   description = "Number of control-plane VMs."
   type        = number
-  default     = 3
+  default     = 1
 }
 
 variable "vm_ids" {
   description = "Fixed Proxmox VMIDs for control-plane VMs."
   type        = list(number)
-  default     = [101, 102, 103]
+  default     = [104]
 }
 
 variable "template_name" {

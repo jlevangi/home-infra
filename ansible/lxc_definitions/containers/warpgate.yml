@@ -41,7 +41,6 @@ warpgate_ssh_targets:
   - { name: atlas, host: 172.20.20.6, username: root, description: "Proxmox primary host" }
   - { name: dell-ssf, host: 172.20.20.14, username: root, description: "Dell SFF Proxmox host" }
   - { name: k3s-prod-cp-1, host: 172.20.20.104, username: ansible, description: "K3s prod control plane 1" }
-  - { name: k3s-prod-cp-2, host: 172.20.20.105, username: ansible, description: "K3s prod control plane 2" }
   - { name: k3s-prod-cp-3, host: 172.20.20.106, username: ansible, description: "K3s prod control plane 3" }
   - { name: k3s-prod-worker-1, host: 172.20.20.101, username: ansible, description: "K3s prod worker 1" }
   - { name: k3s-prod-worker-2, host: 172.20.20.102, username: ansible, description: "K3s prod worker 2" }
