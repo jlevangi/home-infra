@@ -14,7 +14,7 @@ unmanaged 1G switch as the edge and bond-failover plane.
 | --- | --- | --- |
 | 1 | atlas `nic0` | 2.5G |
 | 2 | elitedesk-1 `enx6c1ff7cc61a4` (USB RTL8156B) | 2.5G |
-| 3 | dellssf USB RTL8156B | 2.5G |
+| 3 | dellssf `enx6c1ff7c0d19c` (USB RTL8156B) | 2.5G |
 | 4 | Synology DS420+ LAN1 | 1G — LAG member |
 | 5 | Synology DS420+ LAN2 | 1G — LAG member |
 | 6 | Workstation | 2.5G |
@@ -50,7 +50,7 @@ devices, so the standby leg exists to keep a host reachable when one resets.
 | --- | --- | --- | --- |
 | atlas | `nic0` (onboard) | `nic1` | `172.20.20.6/22` |
 | elitedesk-1 | `enx6c1ff7cc61a4` (USB) | `nic0` | `172.20.20.7/22` |
-| dellssf | `enx<mac>` (USB) | `enp1s0` | `172.20.20.14/22` |
+| dellssf | `enx6c1ff7c0d19c` (USB) | `enp1s0` | `172.20.20.14/22` |
 
 ### Reference configuration
 
@@ -176,6 +176,20 @@ silent packet loss. 802.3ad LACP is preferred: it detects miswiring and half-fai
 that static XOR silently tolerates.
 
 ## Design Decisions
+
+**Why two switches.** Without bonding, everything fits on the 2.5G switch alone:
+three hosts, two NAS legs, the workstation and the router is seven of eight ports.
+The second switch is required *because* of the active-backup bonds — three standby
+legs need three more ports, and the 2.5G switch has only one spare. The 1G switch is
+already owned and was otherwise idle, and it is also the only place the ProLiant's
+4x 1G can land.
+
+**Proxmox migration is `insecure`.** `/etc/pve/datacenter.cfg` carries
+`migration: type=insecure,network=172.20.20.0/22`. The default `secure` mode tunnels
+the migration stream over SSH, and that encryption — not the wire — is the bottleneck
+on dellssf (i3-8100T, 4 threads), so a 2.5G link would go largely unused. The
+tradeoff is that VM memory and disk cross the LAN unencrypted, which is acceptable on
+this trusted flat segment.
 
 **No jumbo frames.** The network is a single flat `172.20.20.0/22` shared with the
 router, the workstation, and every VM. Partial MTU 9000 on a flat subnet blackholes
