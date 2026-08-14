@@ -300,7 +300,7 @@ longhorn_storage_over_provisioning_percentage: 200
 # single reconcile, overwhelming the instance manager. ~20 replicas were
 # marked failed (see beads home-infra-5oh) and many volumes entered the
 # faulted state. Disk rebalancing on a small cluster should be done via PVC
-# right-sizing per handoff/2026-05-29-longhorn-storage-rebalance.md, not via
+# right-sizing per docs/archive/handoff/2026-05-29-longhorn-storage-rebalance.md, not via
 # aggressive auto-balance thresholds.
 longhorn_replica_auto_balance_disk_pressure_percentage: 90
 

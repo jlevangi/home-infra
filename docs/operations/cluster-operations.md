@@ -205,8 +205,8 @@ The script disables scheduling on the over-represented pool cluster-wide while
 the bump runs. This has a side effect: any other volume rebuilding a replica
 in that window can fail and rebuild on the wrong pool. Migrate one volume at
 a time; for large volumes (>50 GB actual size) or volumes mid-rebuild, run in
-isolation. See [Longhorn cross-pool resilience handoff](../../handoff/2026-05-29-longhorn-cross-pool-resilience.md)
-and the [anti-affinity spike notes](../../handoff/2026-05-30-cross-pool-replica-anti-affinity-spike.md)
+isolation. See [Longhorn cross-pool resilience handoff](../archive/handoff/2026-05-29-longhorn-cross-pool-resilience.md)
+and the [anti-affinity spike notes](../archive/handoff/2026-05-30-cross-pool-replica-anti-affinity-spike.md)
 for the methodology lessons.
 
 #### Settings reference

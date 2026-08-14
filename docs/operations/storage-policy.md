@@ -125,5 +125,5 @@ Current policy expectations:
 
 - [Cluster Operations](cluster-operations.md)
 - [Backup And Restore](../recovery/backup-and-restore.md)
-- [Longhorn Cross-Pool Resilience Handoff](../../handoff/2026-05-29-longhorn-cross-pool-resilience.md)
-- [Cross-Pool Migration Complete Handoff](../../handoff/2026-05-30-cross-pool-migration-complete.md)
+- [Longhorn Cross-Pool Resilience Handoff](../archive/handoff/2026-05-29-longhorn-cross-pool-resilience.md)
+- [Cross-Pool Migration Complete Handoff](../archive/handoff/2026-05-30-cross-pool-migration-complete.md)
