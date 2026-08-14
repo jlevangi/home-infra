@@ -216,3 +216,19 @@ spec:
           annotations:
             summary: Proxmox thin pool {{ $labels.vg }}/{{ $labels.thin_pool }} is above 90%
             description: Proxmox host {{ $labels.instance }} LVM thin pool {{ $labels.vg }}/{{ $labels.thin_pool }} is {{ printf "%.2f" $value }}% full. Extend the pool or move VM disks before it reaches 100% and Proxmox VMs enter io-error.
+        - alert: ProxmoxHostBondDegraded
+          expr: node_bonding_slaves{job="proxmox-node-exporter"} - node_bonding_active{job="proxmox-node-exporter"} > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Proxmox bond {{ $labels.master }} on {{ $labels.instance }} has lost a slave
+            description: Proxmox host {{ $labels.instance }} bond {{ $labels.master }} has {{ printf "%.0f" $value }} slave(s) down. Active-backup bonding hides NIC failures by design, so without this alert the host runs on its 1G standby leg unnoticed. Check the USB 2.5G adapter and its cable before assuming the onboard NIC failed.
+        - alert: ProxmoxHostLinkBelowExpected
+          expr: node_network_speed_bytes{job="proxmox-node-exporter", device="bond0"} < 312500000
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Proxmox host {{ $labels.instance }} bond0 is linked below 2.5 Gb/s
+            description: Proxmox host {{ $labels.instance }} bond0 negotiated {{ printf "%.0f" $value }} bytes/sec, below the expected 312500000 (2.5 Gb/s). Either the bond failed over to its 1G standby leg or the 2.5GBASE-T link renegotiated down. Marginal cabling is the usual cause on 2.5GBASE-T; suspect the cable before the adapter.

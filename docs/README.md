@@ -17,6 +17,8 @@ This directory is organized around current operator workflows first. Historical 
   Current path-based environment model, ArgoCD ownership, and rollout rules.
 - [LXC Operations](operations/lxc-operations.md)
   Deploying and maintaining Ansible-managed LXC containers.
+- [Network Topology](operations/network-topology.md)
+  Switch port map, Proxmox host bonding, and the procedure for changing a host's network configuration.
 - [LLM Default Model](operations/llm-default-model.md)
   How llama-cpp and automation clients coordinate the hot-loaded default model without hiding the real model name.
 
