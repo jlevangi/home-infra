@@ -597,7 +597,7 @@
     {
       "id": 12,
       "title": "Sleep Stages (Last 24 Hours)",
-      "type": "timeseries",
+      "type": "state-timeline",
       "gridPos": {
         "h": 8,
         "w": 24,
@@ -610,98 +610,42 @@
       },
       "fieldConfig": {
         "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "stepAfter",
-            "barAlignment": 0,
-            "lineWidth": 2,
-            "fillOpacity": 30,
-            "gradientMode": "opacity",
-            "spanNulls": false,
-            "insertNulls": false,
-            "show": {
-              "lines": true
-            },
-            "thresholdsStyle": {
-              "mode": "area"
-            }
-          },
           "mappings": [
             {
               "options": {
-                "0": {
+                "deep": {
+                  "text": "Deep",
+                  "color": "#1e3a8a"
+                },
+                "rem": {
+                  "text": "REM",
+                  "color": "#a855f7"
+                },
+                "light": {
+                  "text": "Light",
+                  "color": "#93c5fd"
+                },
+                "awake": {
+                  "text": "Awake",
+                  "color": "#facc15"
+                },
+                "unknown": {
                   "text": "Unknown",
                   "color": "#6b7280"
                 }
               },
               "type": "value"
-            },
-            {
-              "options": {
-                "1": {
-                  "text": "Deep",
-                  "color": "#1e3a8a"
-                }
-              },
-              "type": "value"
-            },
-            {
-              "options": {
-                "2": {
-                  "text": "Light",
-                  "color": "#93c5fd"
-                }
-              },
-              "type": "value"
-            },
-            {
-              "options": {
-                "3": {
-                  "text": "REM",
-                  "color": "#a855f7"
-                }
-              },
-              "type": "value"
-            },
-            {
-              "options": {
-                "4": {
-                  "text": "Awake",
-                  "color": "#facc15"
-                }
-              },
-              "type": "value"
             }
           ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#6b7280",
-                "value": null
-              },
-              {
-                "color": "#1e3a8a",
-                "value": 1
-              },
-              {
-                "color": "#93c5fd",
-                "value": 2
-              },
-              {
-                "color": "#a855f7",
-                "value": 3
-              },
-              {
-                "color": "#facc15",
-                "value": 4
-              }
-            ]
+          "color": {
+            "mode": "fixed"
           },
-          "unit": "none",
-          "min": 0,
-          "max": 4.5,
-          "decimals": 0
+          "custom": {
+            "lineWidth": 0,
+            "fillOpacity": 70,
+            "alignValue": "left",
+            "mergeValues": true
+          }
         },
         "overrides": []
       },
@@ -709,14 +653,13 @@
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": false
+          "showLegend": true
         },
         "tooltip": {
           "mode": "single",
           "sort": "none"
         },
-        "xField": null,
-        "yField": null
+        "rowSort": "descending"
       },
       "targets": [
         {
@@ -728,7 +671,7 @@
           "format": "table",
           "rawQuery": true,
           "refId": "A",
-          "rawSql": "SELECT text_to_timestamptz_immutable(r.start_time) AS \"time\",\n       CASE lower(coalesce(r.value_text, 'unknown'))\n         WHEN 'awake' THEN 4 WHEN 'rem' THEN 3 WHEN 'light' THEN 2 WHEN 'deep' THEN 1 ELSE 0\n       END AS \"Sleep Stage\"\nFROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\nWHERE r.metric_type = 'sleep_segment' AND s.source_system = 'health_connect_direct'\n  AND text_to_timestamptz_immutable(r.start_time) >= now() - interval '24 hours'\nORDER BY 1"
+          "rawSql": "SELECT text_to_timestamptz_immutable(r.start_time) AS \"time\",\n       text_to_timestamptz_immutable(r.end_time) AS \"timeEnd\",\n       lower(coalesce(r.value_text, 'unknown')) AS \"Sleep Stage\"\nFROM health_observations_raw r\nJOIN health_sources s ON s.id = r.source_id\nWHERE r.metric_type = 'sleep_segment'\n  AND s.source_system = 'health_connect_direct'\n  AND text_to_timestamptz_immutable(r.start_time) >= now() - interval '24 hours'\nORDER BY 1"
         }
       ],
       "timeTo": "now",
