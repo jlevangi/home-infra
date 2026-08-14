@@ -150,7 +150,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
+        "h": 2,
         "w": 4,
         "x": 0,
         "y": 1
@@ -212,7 +212,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
+        "h": 2,
         "w": 4,
         "x": 4,
         "y": 1
@@ -274,7 +274,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
+        "h": 2,
         "w": 4,
         "x": 8,
         "y": 1
@@ -305,7 +305,7 @@
           "format": "table",
           "rawQuery": true,
           "refId": "A",
-          "rawSql": "WITH segments AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts,\n         text_to_timestamptz_immutable(r.end_time) AS ends,\n         lower(coalesce(r.value_text, 'unknown')) AS stage,\n         substring(r.external_id from 'health_connect:[^:]+:sleep:([^:]+):stage:[0-9]+') AS session_uuid\n  FROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\n  WHERE r.metric_type = 'sleep_segment'\n    AND s.source_system = 'health_connect_direct'\n    AND r.external_id ~ '^health_connect:[^:]+:sleep:[^:]+:stage:[0-9]+$'\n), sessions AS (\n  SELECT session_uuid, min(starts) AS bedtime, max(ends) AS wake,\n         sum(extract(epoch FROM (ends - starts))) FILTER (WHERE stage <> 'awake') / 3600.0 AS duration_hours,\n         (max(ends) AT TIME ZONE 'America/New_York')::date AS wake_date\n  FROM segments GROUP BY session_uuid\n), ranked AS (\n  SELECT *, row_number() OVER (PARTITION BY wake_date ORDER BY duration_hours DESC) AS rank_for_day\n  FROM sessions\n)\nSELECT coalesce(sum(duration_hours), 0) AS \"Sleep Last Night\"\nFROM ranked\nWHERE wake_date = (((date_trunc('day', now() AT TIME ZONE 'America/New_York') + interval '1 day') AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York')::date"
+          "rawSql": "WITH segments AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts,\n         text_to_timestamptz_immutable(r.end_time) AS ends,\n         lower(coalesce(r.value_text, 'unknown')) AS stage,\n         substring(r.external_id from 'health_connect:[^:]+:sleep:([^:]+):stage:[0-9]+') AS session_uuid\n  FROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\n  WHERE r.metric_type = 'sleep_segment'\n    AND s.source_system = 'health_connect_direct'\n    AND r.external_id ~ '^health_connect:[^:]+:sleep:[^:]+:stage:[0-9]+$'\n), sessions AS (\n  SELECT session_uuid, min(starts) AS bedtime, max(ends) AS wake,\n         sum(extract(epoch FROM (ends - starts))) FILTER (WHERE stage <> 'awake') / 3600.0 AS duration_hours,\n         (max(ends) AT TIME ZONE 'America/New_York')::date AS wake_date\n  FROM segments GROUP BY session_uuid\n), ranked AS (\n  SELECT *, row_number() OVER (PARTITION BY wake_date ORDER BY duration_hours DESC) AS rank_for_day\n  FROM sessions\n)\nSELECT coalesce(sum(duration_hours), 0) AS \"Sleep Last Night\"\nFROM ranked\nWHERE wake_date = (date_trunc('day', now() AT TIME ZONE 'America/New_York'))::date"
         }
       ],
       "title": "Sleep Last Night",
@@ -336,7 +336,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
+        "h": 2,
         "w": 4,
         "x": 12,
         "y": 1
@@ -398,7 +398,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
+        "h": 2,
         "w": 4,
         "x": 16,
         "y": 1
@@ -441,7 +441,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 5
+        "y": 3
       },
       "id": 20,
       "panels": [],
@@ -456,7 +456,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 6
+        "y": 4
       },
       "datasource": {
         "type": "postgres",
@@ -596,13 +596,13 @@
     },
     {
       "id": 12,
-      "title": "Sleep Stages Hypnogram",
-      "type": "state-timeline",
+      "title": "Sleep Stages (Last 24 Hours)",
+      "type": "timeseries",
       "gridPos": {
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 14
+        "y": 12
       },
       "datasource": {
         "type": "postgres",
@@ -610,58 +610,64 @@
       },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "fixed"
-          },
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {
-                  "text": "Unknown",
-                  "color": "#6b7280",
-                  "index": 0
-                },
-                "1": {
-                  "text": "Deep",
-                  "color": "#1e3a8a",
-                  "index": 1
-                },
-                "2": {
-                  "text": "Light",
-                  "color": "#93c5fd",
-                  "index": 2
-                },
-                "3": {
-                  "text": "REM",
-                  "color": "#a855f7",
-                  "index": 3
-                },
-                "4": {
-                  "text": "Awake",
-                  "color": "#facc15",
-                  "index": 4
-                }
-              }
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "barAlignment": 0,
+            "lineWidth": 2,
+            "fillOpacity": 30,
+            "gradientMode": "opacity",
+            "spanNulls": false,
+            "insertNulls": false,
+            "show": {
+              "lines": true
             }
-          ]
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#6b7280",
+                "value": null
+              },
+              {
+                "color": "#1e3a8a",
+                "value": 1
+              },
+              {
+                "color": "#93c5fd",
+                "value": 2
+              },
+              {
+                "color": "#a855f7",
+                "value": 3
+              },
+              {
+                "color": "#facc15",
+                "value": 4
+              }
+            ]
+          },
+          "unit": "none",
+          "min": 0,
+          "max": 4.5,
+          "decimals": 0
         },
         "overrides": []
       },
       "options": {
-        "alignValue": "left",
         "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
         },
-        "mergeValues": true,
-        "rowHeight": 0.9,
-        "showValue": "auto",
         "tooltip": {
           "mode": "single",
           "sort": "none"
-        }
+        },
+        "xField": null,
+        "yField": null
       },
       "targets": [
         {
@@ -673,10 +679,11 @@
           "format": "table",
           "rawQuery": true,
           "refId": "A",
-          "rawSql": "SELECT text_to_timestamptz_immutable(r.start_time) AS \"time\",\n       text_to_timestamptz_immutable(r.end_time) AS \"end\",\n       CASE lower(coalesce(r.value_text, 'unknown'))\n         WHEN 'awake' THEN 4 WHEN 'rem' THEN 3 WHEN 'light' THEN 2 WHEN 'deep' THEN 1 ELSE 0\n       END AS \"Sleep Stage\"\nFROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\nWHERE r.metric_type = 'sleep_segment' AND s.source_system = 'health_connect_direct'\n  AND text_to_timestamptz_immutable(r.start_time) <= $__timeTo()\n  AND text_to_timestamptz_immutable(r.end_time) >= $__timeFrom()\nORDER BY 1"
+          "rawSql": "SELECT text_to_timestamptz_immutable(r.start_time) AS \"time\",\n       CASE lower(coalesce(r.value_text, 'unknown'))\n         WHEN 'awake' THEN 4 WHEN 'rem' THEN 3 WHEN 'light' THEN 2 WHEN 'deep' THEN 1 ELSE 0\n       END AS \"Sleep Stage\"\nFROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\nWHERE r.metric_type = 'sleep_segment' AND s.source_system = 'health_connect_direct'\n  AND text_to_timestamptz_immutable(r.start_time) >= now() - interval '24 hours'\nORDER BY 1"
         }
       ],
-      "timeTo": "now"
+      "timeTo": "now",
+      "timeFrom": "now-24h"
     },
     {
       "id": 13,
@@ -686,7 +693,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 22
+        "y": 20
       },
       "datasource": {
         "type": "postgres",
@@ -818,7 +825,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 22
+        "y": 20
       },
       "datasource": {
         "type": "postgres",
@@ -891,7 +898,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 30
+        "y": 28
       },
       "id": 30,
       "panels": [],
@@ -920,7 +927,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 31
+        "y": 29
       },
       "id": 21,
       "options": {
@@ -937,7 +944,7 @@
           "format": "table",
           "rawQuery": true,
           "refId": "A",
-          "rawSql": "WITH segments AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts,\n         text_to_timestamptz_immutable(r.end_time) AS ends,\n         lower(coalesce(r.value_text, 'unknown')) AS stage,\n         substring(r.external_id from 'health_connect:[^:]+:sleep:([^:]+):stage:[0-9]+') AS session_uuid\n  FROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\n  WHERE r.metric_type = 'sleep_segment'\n    AND s.source_system = 'health_connect_direct'\n    AND r.external_id ~ '^health_connect:[^:]+:sleep:[^:]+:stage:[0-9]+$'\n), sessions AS (\n  SELECT session_uuid, min(starts) AS bedtime, max(ends) AS wake,\n         sum(extract(epoch FROM (ends - starts))) FILTER (WHERE stage <> 'awake') / 3600.0 AS duration_hours,\n         (max(ends) AT TIME ZONE 'America/New_York')::date AS wake_date\n  FROM segments GROUP BY session_uuid\n), ranked AS (\n  SELECT *, row_number() OVER (PARTITION BY wake_date ORDER BY duration_hours DESC) AS rank_for_day\n  FROM sessions\n)\nSELECT bedtime AT TIME ZONE 'America/New_York' AS \"Bedtime\",\n       wake AT TIME ZONE 'America/New_York' AS \"Wake\",\n       round(duration_hours::numeric, 2) AS \"Hours\",\n       CASE WHEN rank_for_day = 1 THEN 'Sleep' ELSE 'Nap' END AS \"Type/Nap\"\nFROM ranked\nORDER BY wake DESC LIMIT 10"
+          "rawSql": "WITH segments AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts,\n         text_to_timestamptz_immutable(r.end_time) AS ends,\n         lower(coalesce(r.value_text, 'unknown')) AS stage,\n         substring(r.external_id from 'health_connect:[^:]+:sleep:([^:]+):stage:[0-9]+') AS session_uuid\n  FROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\n  WHERE r.metric_type = 'sleep_segment'\n    AND s.source_system = 'health_connect_direct'\n    AND r.external_id ~ '^health_connect:[^:]+:sleep:[^:]+:stage:[0-9]+$'\n), sessions AS (\n  SELECT session_uuid, min(starts) AS bedtime, max(ends) AS wake,\n         sum(extract(epoch FROM (ends - starts))) FILTER (WHERE stage <> 'awake') / 3600.0 AS duration_hours,\n         (max(ends) AT TIME ZONE 'America/New_York')::date AS wake_date\n  FROM segments GROUP BY session_uuid\n), ranked AS (\n  SELECT *, row_number() OVER (PARTITION BY wake_date ORDER BY duration_hours DESC) AS rank_for_day\n  FROM sessions\n)\nSELECT\n  CASE\n    WHEN wake_date = (now() AT TIME ZONE 'America/New_York')::date THEN 'Last night'\n    WHEN wake_date = (now() AT TIME ZONE 'America/New_York')::date - 1 THEN '1 night ago'\n    WHEN wake_date = (now() AT TIME ZONE 'America/New_York')::date - 2 THEN '2 nights ago'\n    WHEN wake_date = (now() AT TIME ZONE 'America/New_York')::date - 3 THEN '3 nights ago'\n    WHEN wake_date = (now() AT TIME ZONE 'America/New_York')::date - 4 THEN '4 nights ago'\n    WHEN wake_date = (now() AT TIME ZONE 'America/New_York')::date - 5 THEN '5 nights ago'\n    WHEN wake_date = (now() AT TIME ZONE 'America/New_York')::date - 6 THEN '6 nights ago'\n    ELSE to_char(wake_date, 'MM/DD')\n  END AS \"Night\",\n  to_char(bedtime AT TIME ZONE 'America/New_York', 'HH:MI AM') AS \"Bedtime\",\n  to_char(wake AT TIME ZONE 'America/New_York', 'HH:MI AM') AS \"Wake\",\n  round(duration_hours::numeric, 1) AS \"Hours\",\n  CASE WHEN rank_for_day = 1 THEN 'Sleep' ELSE 'Nap' END AS \"Type\"\nFROM ranked\nORDER BY wake DESC LIMIT 10"
         }
       ],
       "title": "Recent Sleep Sessions",
@@ -962,7 +969,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 39
+        "y": 37
       },
       "id": 22,
       "options": {
@@ -1046,7 +1053,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 39
+        "y": 37
       },
       "id": 23,
       "options": {
@@ -1092,7 +1099,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 47
+        "y": 45
       },
       "id": 40,
       "panels": [],
@@ -1203,7 +1210,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 48
+        "y": 46
       },
       "id": 31,
       "options": {
@@ -1286,7 +1293,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 48
+        "y": 46
       },
       "id": 32,
       "options": {
@@ -1345,7 +1352,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 56
+        "y": 54
       },
       "id": 33,
       "options": {
@@ -1394,7 +1401,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 56
+        "y": 54
       },
       "id": 34,
       "options": {
@@ -1430,7 +1437,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 64
+        "y": 62
       },
       "id": 50,
       "panels": [],
@@ -1449,7 +1456,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 65
+        "y": 63
       },
       "fieldConfig": {
         "defaults": {
@@ -1522,7 +1529,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 65
+        "y": 63
       },
       "fieldConfig": {
         "defaults": {
@@ -1594,7 +1601,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 73
+        "y": 71
       },
       "fieldConfig": {
         "defaults": {
@@ -1667,7 +1674,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 73
+        "y": 71
       },
       "fieldConfig": {
         "defaults": {
@@ -1739,7 +1746,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 81
+        "y": 79
       },
       "fieldConfig": {
         "defaults": {
@@ -1811,7 +1818,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 81
+        "y": 79
       },
       "fieldConfig": {
         "defaults": {
@@ -1883,7 +1890,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 89
+        "y": 87
       },
       "fieldConfig": {
         "defaults": {
@@ -1952,7 +1959,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 97
+        "y": 95
       },
       "id": 60,
       "panels": [],
@@ -1971,7 +1978,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 98
+        "y": 96
       },
       "fieldConfig": {
         "defaults": {
