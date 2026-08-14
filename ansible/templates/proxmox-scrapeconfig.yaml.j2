@@ -40,12 +40,14 @@ spec:
   metricsPath: /pve
   staticConfigs:
 {% for host in groups.proxmox_hosts | sort %}
-{%   set pve_port = hostvars[host].proxmox_host_pve_exporter_listen_port | default(proxmox_host_pve_exporter_listen_port | default(9221)) %}
+{%   if hostvars[host].proxmox_host_manage_pve_exporter | default(false) %}
+{%     set pve_port = hostvars[host].proxmox_host_pve_exporter_listen_port | default(proxmox_host_pve_exporter_listen_port | default(9221)) %}
     - targets:
         - {{ hostvars[host].ansible_host }}:{{ pve_port }}
       labels:
         proxmox_host: {{ host }}
         instance: {{ host }}
+{%   endif %}
 {% endfor %}
   relabelings:
     - sourceLabels: [instance]

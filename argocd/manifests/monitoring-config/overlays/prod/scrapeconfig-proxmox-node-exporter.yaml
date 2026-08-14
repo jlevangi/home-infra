@@ -17,6 +17,16 @@ spec:
       labels:
         proxmox_host: atlas
         instance: atlas
+    - targets:
+        - 172.20.20.14:9100
+      labels:
+        proxmox_host: dellssf
+        instance: dellssf
+    - targets:
+        - 172.20.20.7:9100
+      labels:
+        proxmox_host: elitedesk-1
+        instance: elitedesk-1
   relabelings:
     - sourceLabels: [instance]
       targetLabel: proxmox_host
