@@ -30,17 +30,17 @@ def record(record_type="heart_rate", key="k1"):
     }
 
 
-def test_freshness_query_uses_source_metric_and_completion_timestamps():
+def test_freshness_query_uses_index_driven_latest_lookups_and_completion_time():
     sql = " ".join(db._FRESHNESS_SQL.split()).lower()
-    assert "group by source.source_system, observation.metric_type" in sql
-    assert "text_to_timestamptz_immutable(observation.end_time)" in sql
-    assert "text_to_timestamptz_immutable(observation.start_time)" in sql
+    assert "select distinct source.id as source_id" in sql
+    assert "cross join lateral" in sql
+    assert "where observation.source_id = metrics.source_id" in sql
     assert "source.source_system = 'health_connect_direct'" in sql
-    assert "metric_type" in sql
-
-    # Sleep freshness means the completed interval, while point metrics use start_time.
-    assert "case when observation.metric_type = 'sleep_segment'" in sql
-    assert "else text_to_timestamptz_immutable(observation.start_time)" in sql
+    assert "order by text_to_timestamptz_immutable(observation.start_time) desc" in sql
+    assert "order by text_to_timestamptz_immutable(observation.end_time) desc" in sql
+    assert "metrics.metric_type <> 'sleep_segment'" in sql
+    assert "metrics.metric_type = 'sleep_segment'" in sql
+    assert "group by source.source_system, observation.metric_type" not in sql
 
 
 def test_expands_android_records_to_archive_rows():

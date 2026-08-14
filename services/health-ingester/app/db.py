@@ -81,19 +81,46 @@ SELECT observation_count, inserted_count FROM ledger
 """
 
 _FRESHNESS_SQL = """
-SELECT source.source_system, observation.metric_type,
-       EXTRACT(EPOCH FROM max(
-           CASE WHEN observation.metric_type = 'sleep_segment'
-                THEN text_to_timestamptz_immutable(observation.end_time)
-                ELSE text_to_timestamptz_immutable(observation.start_time)
-           END
-       )) AS last_seen
-FROM health_observations_raw observation
-JOIN health_sources source ON source.id = observation.source_id
-WHERE source.source_system = 'health_connect_direct'
-  AND observation.metric_type IS NOT NULL
-GROUP BY source.source_system, observation.metric_type
-ORDER BY source.source_system, observation.metric_type
+WITH source_metrics AS (
+    SELECT DISTINCT source.id AS source_id, source.source_system, observation.metric_type
+    FROM health_sources source
+    JOIN health_observations_raw observation ON observation.source_id = source.id
+    WHERE source.source_system = 'health_connect_direct'
+      AND observation.metric_type IS NOT NULL
+), latest AS (
+    SELECT metrics.source_system, metrics.metric_type,
+           EXTRACT(EPOCH FROM text_to_timestamptz_immutable(latest.start_time)) AS last_seen
+    FROM source_metrics metrics
+    CROSS JOIN LATERAL (
+        SELECT observation.start_time
+        FROM health_observations_raw observation
+        WHERE observation.source_id = metrics.source_id
+          AND observation.metric_type = metrics.metric_type
+          AND metrics.metric_type <> 'sleep_segment'
+        ORDER BY text_to_timestamptz_immutable(observation.start_time) DESC
+        LIMIT 1
+    ) latest
+    UNION ALL
+    SELECT metrics.source_system, metrics.metric_type,
+           EXTRACT(EPOCH FROM text_to_timestamptz_immutable(latest.end_time)) AS last_seen
+    FROM source_metrics metrics
+    CROSS JOIN LATERAL (
+        SELECT observation.end_time
+        FROM health_observations_raw observation
+        WHERE observation.source_id = metrics.source_id
+          AND observation.metric_type = metrics.metric_type
+          AND metrics.metric_type = 'sleep_segment'
+        ORDER BY text_to_timestamptz_immutable(observation.end_time) DESC
+        LIMIT 1
+    ) latest
+), freshness AS (
+    SELECT source_system, metric_type, max(last_seen) AS last_seen
+    FROM latest
+    GROUP BY source_system, metric_type
+)
+SELECT source_system, metric_type, last_seen
+FROM freshness
+ORDER BY source_system, metric_type
 """
 
 
