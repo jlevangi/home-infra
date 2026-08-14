@@ -1012,7 +1012,35 @@
           "mappings": [],
           "unit": "h"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Avg (14 nights)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 3
+              },
+              {
+                "id": "custom.lineInterpolation",
+                "value": "smooth"
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -1048,6 +1076,17 @@
           "rawQuery": true,
           "refId": "A",
           "rawSql": "WITH segments AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts,\n         text_to_timestamptz_immutable(r.end_time) AS ends,\n         lower(coalesce(r.value_text, 'unknown')) AS stage,\n         substring(r.external_id from 'health_connect:[^:]+:sleep:([^:]+):stage:[0-9]+') AS session_uuid\n  FROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\n  WHERE r.metric_type = 'sleep_segment'\n    AND s.source_system = 'health_connect_direct'\n    AND r.external_id ~ '^health_connect:[^:]+:sleep:[^:]+:stage:[0-9]+$'\n), sessions AS (\n  SELECT session_uuid, min(starts) AS bedtime, max(ends) AS wake,\n         sum(extract(epoch FROM (ends - starts))) FILTER (WHERE stage <> 'awake') / 3600.0 AS duration_hours,\n         (max(ends) AT TIME ZONE 'America/New_York')::date AS wake_date\n  FROM segments GROUP BY session_uuid\n), ranked AS (\n  SELECT *, row_number() OVER (PARTITION BY wake_date ORDER BY duration_hours DESC) AS rank_for_day\n  FROM sessions\n)\nSELECT (wake_date::timestamp AT TIME ZONE 'America/New_York') AS \"time\", duration_hours AS \"Sleep hours\"\nFROM ranked\nWHERE rank_for_day = 1 AND wake_date >= (current_date - 13)\nORDER BY wake_date"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "health-archive"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "WITH segments AS MATERIALIZED (\n  SELECT text_to_timestamptz_immutable(r.start_time) AS starts,\n         text_to_timestamptz_immutable(r.end_time) AS ends,\n         lower(coalesce(r.value_text, 'unknown')) AS stage,\n         substring(r.external_id from 'health_connect:[^:]+:sleep:([^:]+):stage:[0-9]+') AS session_uuid\n  FROM health_observations_raw r JOIN health_sources s ON s.id = r.source_id\n  WHERE r.metric_type = 'sleep_segment'\n    AND s.source_system = 'health_connect_direct'\n    AND r.external_id ~ '^health_connect:[^:]+:sleep:[^:]+:stage:[0-9]+$'\n), sessions AS (\n  SELECT session_uuid, min(starts) AS bedtime, max(ends) AS wake,\n         sum(extract(epoch FROM (ends - starts))) FILTER (WHERE stage <> 'awake') / 3600.0 AS duration_hours,\n         (max(ends) AT TIME ZONE 'America/New_York')::date AS wake_date\n  FROM segments GROUP BY session_uuid\n), ranked AS (\n  SELECT *, row_number() OVER (PARTITION BY wake_date ORDER BY duration_hours DESC) AS rank_for_day\n  FROM sessions\n), nights AS (\n  SELECT wake_date, duration_hours\n  FROM ranked\n  WHERE rank_for_day = 1 AND wake_date >= (current_date - 13)\n)\nSELECT (wake_date::timestamp AT TIME ZONE 'America/New_York') AS \"time\",\n       AVG(duration_hours) OVER (ORDER BY wake_date ROWS BETWEEN 13 PRECEDING AND CURRENT ROW) AS \"Avg (14 nights)\"\nFROM nights\nORDER BY wake_date",
+          "refId": "B"
         }
       ],
       "title": "Sleep Duration Trend",
