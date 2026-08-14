@@ -2901,15 +2901,15 @@
         "query": "SELECT DISTINCT metric_type FROM health_observations_raw ORDER BY 1",
         "refresh": 1,
         "multi": true,
-        "includeAll": false,
+        "includeAll": true,
         "sort": 1,
         "current": {
           "selected": true,
           "text": [
-            "steps"
+            "All"
           ],
           "value": [
-            "steps"
+            "$__all"
           ]
         },
         "options": [],

@@ -36,8 +36,8 @@ OBSERVATIONS_TOTAL = Counter(
 )
 LAST_OBSERVATION = Gauge(
     "health_archive_last_observation_timestamp_seconds",
-    "Unix timestamp of the most recent observation per metric type",
-    ["metric_type"],
+    "Unix timestamp of the most recent observation per source system and metric type",
+    ["source_system", "metric_type"],
 )
 COLLECTOR_RECORDS = Counter(
     "health_collector_records_total", "Collector records", ["record_type", "origin", "outcome"]
@@ -180,8 +180,8 @@ def ingest():
 @app.get("/metrics")
 def metrics():
     try:
-        for metric_type, last_seen in db.metric_freshness().items():
-            LAST_OBSERVATION.labels(metric_type=metric_type).set(last_seen)
+        for (source_system, metric_type), last_seen in db.metric_freshness().items():
+            LAST_OBSERVATION.labels(source_system=source_system, metric_type=metric_type).set(last_seen)
     except Exception:
         # Never fail the scrape on a transient database issue; the counters
         # above are still worth exporting.

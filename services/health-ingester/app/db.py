@@ -81,40 +81,19 @@ SELECT observation_count, inserted_count FROM ledger
 """
 
 _FRESHNESS_SQL = """
-WITH RECURSIVE metric_types(metric_type) AS (
-  (
-    SELECT metric_type
-    FROM health_observations_raw
-    WHERE metric_type IS NOT NULL
-    ORDER BY metric_type
-    LIMIT 1
-  )
-  UNION ALL
-  SELECT (
-    SELECT candidate.metric_type
-    FROM health_observations_raw candidate
-    WHERE candidate.metric_type > metric_types.metric_type
-    ORDER BY candidate.metric_type
-    LIMIT 1
-  )
-  FROM metric_types
-  WHERE metric_type IS NOT NULL
-), known_metrics AS (
-  SELECT metric_type
-  FROM metric_types
-  WHERE metric_type IS NOT NULL
-)
-SELECT known_metrics.metric_type,
-       EXTRACT(EPOCH FROM latest.observed_at) AS last_seen
-FROM known_metrics
-CROSS JOIN LATERAL (
-  SELECT text_to_timestamptz_immutable(observation.start_time) AS observed_at
-  FROM health_observations_raw observation
-  WHERE observation.metric_type = known_metrics.metric_type
-  ORDER BY text_to_timestamptz_immutable(observation.start_time) DESC
-  LIMIT 1
-) latest
-ORDER BY known_metrics.metric_type
+SELECT source.source_system, observation.metric_type,
+       EXTRACT(EPOCH FROM max(
+           CASE WHEN observation.metric_type = 'sleep_segment'
+                THEN text_to_timestamptz_immutable(observation.end_time)
+                ELSE text_to_timestamptz_immutable(observation.start_time)
+           END
+       )) AS last_seen
+FROM health_observations_raw observation
+JOIN health_sources source ON source.id = observation.source_id
+WHERE source.source_system = 'health_connect_direct'
+  AND observation.metric_type IS NOT NULL
+GROUP BY source.source_system, observation.metric_type
+ORDER BY source.source_system, observation.metric_type
 """
 
 
@@ -231,11 +210,11 @@ def ingest_health_connect(collector_id: str, records: list[dict]) -> dict:
     return {"accepted": accepted, "duplicates": duplicates, "rejected": rejected}
 
 
-def metric_freshness() -> dict[str, float]:
+def metric_freshness() -> dict[tuple[str, str], float]:
     with connect() as conn, conn.cursor() as cur:
         cur.execute(_FRESHNESS_SQL)
         return {
-            row["metric_type"]: float(row["last_seen"])
+            (row["source_system"], row["metric_type"]): float(row["last_seen"])
             for row in cur.fetchall()
             if row["last_seen"] is not None
         }
