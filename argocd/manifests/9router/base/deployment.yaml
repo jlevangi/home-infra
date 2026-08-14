@@ -16,7 +16,10 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/9router-local-llm-seed: discover-local-models-v1
+        # Bump this whenever configmap-seed-local-llm.yaml changes - ArgoCD updates the
+        # ConfigMap but will not restart the pod on its own, so the initContainer would
+        # otherwise keep running the old seed script.
+        checksum/9router-local-llm-seed: discover-local-models-v2-resilient
       labels:
         app: 9router
         app.kubernetes.io/name: 9router
@@ -101,6 +104,50 @@ spec:
             periodSeconds: 20
             timeoutSeconds: 5
             failureThreshold: 5
+        # Re-runs the same discovery the initContainer does, on a timer, so model changes
+        # on llama-swap reach 9router without restarting the pod. Without this the model
+        # list is only ever as fresh as the last pod start.
+        #
+        # Runs in the same pod on purpose: it shares the PVC and the node, so it never
+        # contends with another node for the RWO volume. SQLite is in WAL mode and the
+        # seed writes in a single short transaction, so it can safely interleave with
+        # 9router's own writes.
+        - name: seed-refresh
+          image: ghcr.io/decolua/9router:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              # Offset the first run so it does not race the initContainer's seed.
+              sleep "${SEED_REFRESH_INTERVAL}"
+              while true; do
+                node /app/seed/seed-local-llm.js || echo "[seed-refresh] seed failed; retrying next cycle"
+                sleep "${SEED_REFRESH_INTERVAL}"
+              done
+          env:
+            - name: SEED_REFRESH_INTERVAL
+              value: "300"
+            - name: NINE_ROUTER_DB
+              value: /app/data/db/data.sqlite
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: 9router-secrets
+                  key: OIDC_CLIENT_SECRET
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+            - name: local-llm-seed
+              mountPath: /app/seed
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
       volumes:
         - name: data
           persistentVolumeClaim:

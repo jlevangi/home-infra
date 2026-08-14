@@ -11,6 +11,9 @@ data:
     const now = new Date().toISOString();
     const apiKey = "local-no-auth";
 
+    // 9router is the single source of truth for which models exist. Nothing downstream
+    // (LibreChat included) should hardcode a model list - they fetch from 9router, and
+    // 9router discovers from the llama-swap endpoints below.
     const endpoints = [
       {
         id: "openai-compatible-chat-local-llama-swap",
@@ -18,41 +21,76 @@ data:
         prefix: "llama-swap",
         name: "Local llama-swap",
         baseUrl: "https://llm.levangie.dev/v1",
-        discoverModels: true
+        discoverModels: true,
+        // Cluster llama-cpp is intentionally out of rotation (too slow on CPU) and is
+        // currently returning HTTP 503. While disabled the seed prunes every model it
+        // owns and marks its connection inactive, so it disappears from 9router and
+        // LibreChat instead of lingering as dead entries. Flip to true to bring it back.
+        enabled: false
       },
       {
         id: "openai-compatible-chat-pc-llama-swap",
         connectionId: "pc-llama-swap",
         prefix: "pc-llama-swap",
-        name: "PC llama-swap (optional)",
+        name: "PC llama-swap",
         baseUrl: "http://pierce-pc.levangie.org:9080/v1",
-        models: [
+        enabled: true,
+        // Discovery is the source of truth. This list was previously hardcoded and went
+        // stale the moment the Qwen3.6 models were replaced, leaving 9router advertising
+        // three models that no longer exist on disk.
+        discoverModels: true,
+        // Used only when the PC is asleep/unreachable at seed time.
+        fallbackModels: [
           "Gemma-4-12B-coder-fable5-composer2.5-v1",
           "Gemma4-26B-A4B",
           "Gemma4-31B",
           "Qwen3-Embedding-0.6B-Q8_0",
-          "Qwen3.6-27B-MTP-Q4KM-131k",
-          "Qwen3.6-27B-browseruse-vision",
-          "Qwen3.6-27B-dense-Q4KS-256k"
+          "Qwen3.8-27B-MTP-Q4KXL-131k"
         ]
       }
     ];
 
     async function main() {
       for (const endpoint of endpoints) {
+        // A disabled endpoint keeps an empty model list, so the prune loop below removes
+        // every model it previously owned. Its connection is also marked inactive.
+        if (endpoint.enabled === false) {
+          endpoint.models = [];
+          console.warn(`[9router local LLM seed] ${endpoint.name} is disabled; pruning its models`);
+          continue;
+        }
         if (!endpoint.discoverModels) continue;
 
-        const response = await fetch(`${endpoint.baseUrl.replace(/\/$/, "")}/models`, {
-          headers: { Authorization: `Bearer ${apiKey}` },
-          signal: AbortSignal.timeout(5000)
-        });
-        if (!response.ok) throw new Error(`${endpoint.name} model discovery returned HTTP ${response.status}`);
+        try {
+          const response = await fetch(`${endpoint.baseUrl.replace(/\/$/, "")}/models`, {
+            headers: { Authorization: `Bearer ${apiKey}` },
+            signal: AbortSignal.timeout(5000)
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-        const payload = await response.json();
-        endpoint.models = (payload.data || payload.models || [])
-          .map((model) => model.id || model.name || model.model)
-          .filter((model) => typeof model === "string" && model.length > 0);
-        if (endpoint.models.length === 0) throw new Error(`${endpoint.name} model discovery returned no models`);
+          const payload = await response.json();
+          endpoint.models = (payload.data || payload.models || [])
+            .map((model) => model.id || model.name || model.model)
+            .filter((model) => typeof model === "string" && model.length > 0);
+          if (endpoint.models.length === 0) throw new Error("discovery returned no models");
+        } catch (error) {
+          // A single unreachable endpoint must NOT abort the whole seed. This previously
+          // threw, so while llm.levangie.dev was returning 503 the job exited(1) and no
+          // endpoint got seeded at all - including the healthy ones.
+          if (endpoint.fallbackModels && endpoint.fallbackModels.length > 0) {
+            endpoint.models = endpoint.fallbackModels;
+            console.warn(`[9router local LLM seed] ${endpoint.name} discovery failed (${error.message}); using ${endpoint.models.length} fallback models`);
+          } else {
+            // No fallback: leave whatever is already in the DB alone rather than pruning
+            // this endpoint's models to nothing. Honoured by the upsert and prune loops.
+            endpoint.skipped = true;
+            console.warn(`[9router local LLM seed] ${endpoint.name} discovery failed (${error.message}); leaving its existing models untouched`);
+          }
+        }
+      }
+
+      if (endpoints.every((endpoint) => endpoint.skipped)) {
+        throw new Error("every endpoint failed model discovery");
       }
 
     const db = new Database(dbPath);
@@ -72,7 +110,7 @@ data:
 
     const upsertConnection = db.prepare(`
       INSERT INTO providerConnections(id, provider, authType, name, email, priority, isActive, data, createdAt, updatedAt)
-      VALUES(?, ?, ?, ?, NULL, ?, 1, ?, ?, ?)
+      VALUES(?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         provider = excluded.provider,
         authType = excluded.authType,
@@ -149,10 +187,15 @@ data:
           "apikey",
           endpoint.name,
           endpointIndex + 1,
+          endpoint.enabled === false ? 0 : 1,
           JSON.stringify(connectionData),
           now,
           now
         );
+
+        // Node + connection stay registered even if discovery failed; only the model
+        // list is left untouched for a skipped endpoint.
+        if (endpoint.skipped) return;
 
         endpoint.models.forEach((model) => {
           const type = model.toLowerCase().includes("embedding") ? "embedding" : "llm";
@@ -168,6 +211,10 @@ data:
       });
 
       endpoints.forEach((endpoint) => {
+        // Never prune an endpoint we could not enumerate - currentKeys has nothing for it,
+        // so pruning would delete every model it has.
+        if (endpoint.skipped) return;
+
         const endpointKeys = new Set(currentKeys.filter((key) => key.startsWith(`${endpoint.prefix}|`)));
         listCustomModelKeys.all(`${endpoint.prefix}|%`).forEach(({ key }) => {
           if (!endpointKeys.has(key)) deleteCustomModel.run(key);
@@ -196,7 +243,8 @@ data:
     db.pragma("wal_checkpoint(TRUNCATE)");
     db.close();
 
-    console.log(`[9router local LLM seed] ensured ${endpoints.length} endpoints and ${endpoints.reduce((sum, endpoint) => sum + endpoint.models.length, 0)} models`);
+    const seeded = endpoints.filter((endpoint) => !endpoint.skipped);
+    console.log(`[9router local LLM seed] ensured ${seeded.length}/${endpoints.length} endpoints and ${seeded.reduce((sum, endpoint) => sum + endpoint.models.length, 0)} models`);
     }
 
     main().catch((error) => {

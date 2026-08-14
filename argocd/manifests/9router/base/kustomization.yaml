@@ -5,10 +5,21 @@ resources:
   - pvc.yaml
   - deployment.yaml
   - deployment-headroom.yaml
+  - deployment-models-shim.yaml
   - service.yaml
   - service-headroom.yaml
+  - service-models-shim.yaml
   - ingress.yaml
   - configmap-seed-local-llm.yaml
   - external-secret.yaml
   - resource-quota.yaml
   - limit-range.yaml
+
+# Generated rather than a plain resource so the ConfigMap name carries a content hash:
+# editing models-shim.py then rolls the Deployment automatically, with no checksum
+# annotation to remember to bump.
+configMapGenerator:
+  - name: models-shim-script
+    namespace: 9router
+    files:
+      - models-shim.py

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: models-shim
+  namespace: 9router
+  labels:
+    app: models-shim
+    app.kubernetes.io/name: models-shim
+spec:
+  type: ClusterIP
+  selector:
+    app: models-shim
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP

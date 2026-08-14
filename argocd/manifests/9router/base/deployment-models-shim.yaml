@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: models-shim
+  namespace: 9router
+  labels:
+    app: models-shim
+    app.kubernetes.io/name: models-shim
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: models-shim
+  template:
+    metadata:
+      labels:
+        app: models-shim
+        app.kubernetes.io/name: models-shim
+    spec:
+      containers:
+        # Sits between LibreChat and 9router. Proxies everything straight through - so
+        # RTK, combos and fallback all still apply - and only rewrites GET /v1/models.
+        #
+        # LibreChat builds each model's context window automatically, but only if every
+        # model object carries id + pricing{prompt,completion} + context_length. 9router
+        # never emits `pricing` and reports a generic default context for custom
+        # OpenAI-compatible endpoints, so LibreChat's zod parse failed on the whole array
+        # and it fell back to a guessed window (the "28K" in the UI).
+        #
+        # This adds `pricing` to every model and replaces context_length for local models
+        # with the real value, which the llama-swap host publishes on :9081 straight from
+        # its own config.yaml --ctx-size. Cloud models keep whatever 9router reported.
+        #
+        # Net effect: no model names, aliases or context numbers configured anywhere in
+        # k8s. Adding a model to config.yaml on pierce-pc is the only action needed.
+        - name: models-shim
+          image: python:3.12-slim
+          imagePullPolicy: IfNotPresent
+          command:
+            - python
+            - /app/shim/models-shim.py
+          args:
+            - --listen=0.0.0.0
+            - --port=8080
+            - --upstream-host=nine-router.9router.svc.cluster.local
+            - --upstream-port=20128
+            # Authoritative context for local models, read from llama-swap's config.yaml
+            # by the shim running on the PC.
+            - --context-source=http://pierce-pc.levangie.org:9081/v1/models
+            - --source-ttl=60
+            # Applies only to models nobody can describe - notably 9router combos, which
+            # carry no context_length at all. 32768 is the same ballpark LibreChat
+            # guesses today, so this is never a regression.
+            - --default-ctx=32768
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: shim-script
+              mountPath: /app/shim
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 48Mi
+            limits:
+              cpu: 500m
+              memory: 192Mi
+          # TCP probes on purpose: an HTTP probe against /v1/models would query 9router
+          # (and through it the PC) on every check.
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: shim-script
+          configMap:
+            # Name carries a kustomize content hash, so editing models-shim.py rolls the
+            # pod automatically - no checksum annotation to remember to bump.
+            name: models-shim-script

@@ -59,9 +59,24 @@ spec:
               presets: true
             endpoints:
               custom:
+                # Points at models-shim, NOT at nine-router directly. The shim proxies
+                # everything through to 9router untouched - RTK, combos and fallback all
+                # still apply - and only rewrites GET /v1/models on the way back.
+                #
+                # It has to exist because LibreChat derives each model's context window
+                # automatically, but only when every model object carries id + pricing +
+                # context_length. 9router never emits `pricing`, and reports a generic
+                # default context for custom OpenAI-compatible endpoints, so LibreChat's
+                # parse failed on the whole list and it guessed (~28k usable). The shim
+                # fills both fields, taking local models' real context from llama-swap's
+                # own config.yaml --ctx-size.
+                #
+                # Net effect: no model names, aliases or context numbers configured here
+                # or anywhere else. Add a model to config.yaml on pierce-pc and it shows
+                # up with the right context by itself.
                 - name: "9router"
                   apiKey: "${NINE_ROUTER_API_KEY}"
-                  baseURL: "http://nine-router.9router.svc.cluster.local:20128/v1"
+                  baseURL: "http://models-shim.9router.svc.cluster.local:8080/v1"
                   models:
                     default:
                       - "agent-default"
