@@ -18,9 +18,21 @@ data:
     // Deleting the stale custom-model entry does NOT fix that - the combo still holds the
     // old string. Add a {from, to} pair here whenever an alias is renamed. Replacement is
     // a plain string swap on the quoted name, so it is idempotent and safe to re-run.
+    // A combo may qualify a model by the endpoint's short prefix (pc-llama-swap/...) OR
+    // by its full provider node id (openai-compatible-chat-pc-llama-swap/...). The 404
+    // above used the node id, so rewriting only the prefix form silently does nothing.
+    // List the bare model rename and every qualifier it might appear under.
     const MODEL_RENAMES = [
-      { from: "llama-swap/Qwen3.6-27B-Q5_K_S", to: "llama-swap/Qwen3.6-27B-Q5_K_S-MTP" },
-      { from: "pc-llama-swap/Qwen3.8-27B-MTP-Q4KXL-131k", to: "pc-llama-swap/Qwen3.8-27B" },
+      {
+        prefixes: ["llama-swap", "openai-compatible-chat-local-llama-swap"],
+        from: "Qwen3.6-27B-Q5_K_S",
+        to: "Qwen3.6-27B-Q5_K_S-MTP",
+      },
+      {
+        prefixes: ["pc-llama-swap", "openai-compatible-chat-pc-llama-swap"],
+        from: "Qwen3.8-27B-MTP-Q4KXL-131k",
+        to: "Qwen3.8-27B",
+      },
     ];
 
     // 9router is the single source of truth for which models exist. Nothing downstream
@@ -233,10 +245,14 @@ data:
         });
       });
 
-      for (const { from, to } of MODEL_RENAMES) {
-        const info = migrateComboModel.run(`"${from}"`, `"${to}"`, now, `%"${from}"%`);
-        if (info && info.changes > 0) {
-          console.log(`[9router local LLM seed] rewrote ${info.changes} combo(s): ${from} -> ${to}`);
+      for (const rename of MODEL_RENAMES) {
+        for (const prefix of rename.prefixes) {
+          const from = `${prefix}/${rename.from}`;
+          const to = `${prefix}/${rename.to}`;
+          const info = migrateComboModel.run(`"${from}"`, `"${to}"`, now, `%"${from}"%`);
+          if (info && info.changes > 0) {
+            console.log(`[9router local LLM seed] rewrote ${info.changes} combo(s): ${from} -> ${to}`);
+          }
         }
       }
 
