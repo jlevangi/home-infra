@@ -42,6 +42,8 @@ This directory is organized around current operator workflows first. Historical 
   Current Vault and External Secrets bootstrap/reference workflow.
 - [Traefik SSL](reference/traefik-ssl.md)
   Current ACME and Cloudflare-based TLS configuration.
+- [NetBox](reference/netbox.md)
+  Inventory source of truth, the Proxmox and Technitium sync jobs, and the data model conventions they depend on.
 
 ## Workstation (WSL)
 
