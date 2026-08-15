@@ -189,6 +189,17 @@ anything physical. What stays here is what NetBox cannot express: bond configura
 the change procedure, throughput baselines, and these design decisions. The Obsidian
 note is retired.
 
+**Host DNS names match the Proxmox node name.** `atlas`, `elitedesk-1` and `dellssf`
+resolve under `levangie.org` to exactly the name `pvecm nodes` reports. `dellssf` was
+renamed from `dell-sff` on 2026-08-14 to follow this; `dell-sff.levangie.org` remains
+as a CNAME transition alias (see `home-infra-texy`).
+
+Records are created by the `netbox-technitium-sync` CronJob from each NetBox IP's
+`dns_name`, but **only for IPs whose status is `active`** — a `reserved` IP is skipped
+with no log line at all. That is why elitedesk-1 had no DNS record for a while after
+it went into production. If a host is missing from DNS, check its IP status in NetBox
+first.
+
 **Why two switches.** Without bonding, everything fits on the SODOLA alone: three
 hosts, two NAS legs, the workstation and the router is seven of its eight RJ45 ports.
 The GS308E is required *because* of the active-backup bonds — three standby legs need
