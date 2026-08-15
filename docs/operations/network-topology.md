@@ -6,10 +6,14 @@ changing it. The physical port map itself lives in NetBox, not here — see belo
 The lab runs a single flat L2 segment, `172.20.20.0/22`, gateway `172.20.20.1`. There
 are no VLANs. Two switches, both web-managed:
 
-| Switch | Hardware | Role |
-| --- | --- | --- |
-| `sw-core-25g` | SODOLA 8x 2.5GBASE-T + 1x 10G SFP+ | Fast core |
-| `sw-edge-1g` | Netgear GS308E, 8x 1GbE (Plus) | Edge and bond-failover plane |
+| Switch | Hardware | Management | Role |
+| --- | --- | --- | --- |
+| `sw-core-25g` | SODOLA SL902-SWTGW218AS, 8x 2.5GBASE-T + 1x 10G SFP+ | `sw-core-25g.levangie.org` (`172.20.20.250`), HTTP only | Fast core |
+| `sw-edge-1g` | Netgear GS308E, 8x 1GbE (Plus) | not yet racked; defaults to DHCP, falls back to `192.168.0.239` | Edge and bond-failover plane |
+
+The SODOLA answers on port 80 only — SSH, telnet, HTTPS and SNMP are all filtered, so
+there is no way to poll it from Prometheus and LAG state must be checked by eye in the
+web UI. Its address is static and sits outside the DHCP pool.
 
 The SODOLA has a **ninth** interface: a 10G SFP+ uplink. It is deliberately left
 free — see the design decisions below.
@@ -187,7 +191,8 @@ drifting apart. NetBox already drove DNS for the lab, and cables, LAGs and inter
 are first-class DCIM objects there, so it became the single source of truth for
 anything physical. What stays here is what NetBox cannot express: bond configuration,
 the change procedure, throughput baselines, and these design decisions. The Obsidian
-note is retired.
+note `3. Homelab notes/Topology` is kept as a target-state planning summary that
+points at NetBox, rather than as a competing record.
 
 **Host DNS names match the Proxmox node name.** `atlas`, `elitedesk-1` and `dellssf`
 resolve under `levangie.org` to exactly the name `pvecm nodes` reports. `dellssf` was
