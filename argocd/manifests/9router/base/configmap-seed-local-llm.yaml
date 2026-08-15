@@ -11,6 +11,18 @@ data:
     const now = new Date().toISOString();
     const apiKey = "local-no-auth";
 
+    // Combos keep their OWN copy of model references, separate from the discovered model
+    // list. So renaming an alias in llama-swap's config.yaml leaves every combo pointing
+    // at a name that no longer routes, and llama-swap answers:
+    //     404 {"src":"llama-swap","error":"no router for requested model"}
+    // Deleting the stale custom-model entry does NOT fix that - the combo still holds the
+    // old string. Add a {from, to} pair here whenever an alias is renamed. Replacement is
+    // a plain string swap on the quoted name, so it is idempotent and safe to re-run.
+    const MODEL_RENAMES = [
+      { from: "llama-swap/Qwen3.6-27B-Q5_K_S", to: "llama-swap/Qwen3.6-27B-Q5_K_S-MTP" },
+      { from: "pc-llama-swap/Qwen3.8-27B-MTP-Q4KXL-131k", to: "pc-llama-swap/Qwen3.8-27B" },
+    ];
+
     // 9router is the single source of truth for which models exist. Nothing downstream
     // (LibreChat included) should hardcode a model list - they fetch from 9router, and
     // 9router discovers from the llama-swap endpoints below.
@@ -221,12 +233,12 @@ data:
         });
       });
 
-      migrateComboModel.run(
-        "\"llama-swap/Qwen3.6-27B-Q5_K_S\"",
-        "\"llama-swap/Qwen3.6-27B-Q5_K_S-MTP\"",
-        now,
-        "%\"llama-swap/Qwen3.6-27B-Q5_K_S\"%"
-      );
+      for (const { from, to } of MODEL_RENAMES) {
+        const info = migrateComboModel.run(`"${from}"`, `"${to}"`, now, `%"${from}"%`);
+        if (info && info.changes > 0) {
+          console.log(`[9router local LLM seed] rewrote ${info.changes} combo(s): ${from} -> ${to}`);
+        }
+      }
 
       const settings = currentSettings?.data ? JSON.parse(currentSettings.data) : {};
       settings.headroomEnabled = true;
