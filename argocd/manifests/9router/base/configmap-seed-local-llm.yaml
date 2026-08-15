@@ -223,10 +223,16 @@ data:
 
         endpoint.models.forEach((model) => {
           const type = model.toLowerCase().includes("embedding") ? "embedding" : "llm";
-          const key = `${endpoint.prefix}|${model}|${type}`;
+          // Key namespace MUST be the provider node id, not the short prefix. 9router's
+          // own addCustomModel() keys on providerAlias = the node id, so a seed writing
+          // `pc-llama-swap|...` created a parallel set of rows that the UI never touched,
+          // while the rows the UI actually manages
+          // (`openai-compatible-chat-pc-llama-swap|...`) were never pruned. That is why
+          // renamed models lingered in the picker and had to be deleted by hand.
+          const key = `${endpoint.id}|${model}|${type}`;
           currentKeys.push(key);
           upsertCustomModel.run(key, JSON.stringify({
-            providerAlias: endpoint.prefix,
+            providerAlias: endpoint.id,
             id: model,
             type,
             name: model
@@ -239,10 +245,26 @@ data:
         // so pruning would delete every model it has.
         if (endpoint.skipped) return;
 
-        const endpointKeys = new Set(currentKeys.filter((key) => key.startsWith(`${endpoint.prefix}|`)));
-        listCustomModelKeys.all(`${endpoint.prefix}|%`).forEach(({ key }) => {
-          if (!endpointKeys.has(key)) deleteCustomModel.run(key);
+        const endpointKeys = new Set(currentKeys.filter((key) => key.startsWith(`${endpoint.id}|`)));
+        let pruned = 0;
+
+        // Live namespace: keyed on the provider node id, the same rows 9router's own
+        // model scan writes. A disabled endpoint has models = [] so this removes all of
+        // its rows, which is the intent.
+        listCustomModelKeys.all(`${endpoint.id}|%`).forEach(({ key }) => {
+          if (!endpointKeys.has(key)) { deleteCustomModel.run(key); pruned++; }
         });
+
+        // Legacy namespace: earlier versions of this seed keyed on the short prefix,
+        // creating duplicate rows nothing else managed. Nothing writes there any more,
+        // so remove them unconditionally.
+        listCustomModelKeys.all(`${endpoint.prefix}|%`).forEach(({ key }) => {
+          deleteCustomModel.run(key); pruned++;
+        });
+
+        if (pruned > 0) {
+          console.log(`[9router local LLM seed] pruned ${pruned} stale model(s) from ${endpoint.name}`);
+        }
       });
 
       for (const rename of MODEL_RENAMES) {
