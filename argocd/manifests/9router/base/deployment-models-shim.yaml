@@ -48,10 +48,20 @@ spec:
             # by the shim running on the PC.
             - --context-source=http://pierce-pc.levangie.org:9081/v1/models
             - --source-ttl=60
-            # Applies only to models nobody can describe - notably 9router combos, which
-            # carry no context_length at all. 32768 is the same ballpark LibreChat
-            # guesses today, so this is never a regression.
-            - --default-ctx=32768
+            # Applies only to models nobody can describe - in practice 9router combos
+            # (agent-local, agent-default, ...), which carry no context_length at all.
+            # 9router's admin API needs an OIDC session, so the shim cannot look up a
+            # combo's members to derive a real value.
+            #
+            # 98304 is the MINIMUM context across the local chat models a combo can land
+            # on (Qwen3.8-27B 98304, Gemma4-26B-A4B 131072, Gemma4-31B 262144, 12B coder
+            # 262144), so it is exact for local combos and conservative for cloud ones.
+            # Raising it above that minimum would risk LibreChat overfilling whichever
+            # member the combo actually picks.
+            #
+            # Was 32768, which is indistinguishable from LibreChat's own fallback and so
+            # made "is the shim working?" impossible to answer from the UI.
+            - --default-ctx=98304
           ports:
             - name: http
               containerPort: 8080
