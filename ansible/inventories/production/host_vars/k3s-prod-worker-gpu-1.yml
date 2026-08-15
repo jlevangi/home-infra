@@ -1,7 +1,7 @@
 ---
-# Dedicated GPU worker on Atlas. Plex and Jellyfin run here for hardware
-# transcoding (NVIDIA Quadro P4000 passthrough). Longhorn uses node tags so
-# only media-focused volumes can place replicas here.
+# GPU-capable worker on Atlas. Plex and Jellyfin use the NVIDIA Quadro P4000,
+# but ordinary workloads may use its otherwise-idle CPU and RAM. Keep the GPU
+# label for targeted workloads without tainting the node against general pods.
 nvidia_gpu_worker: true
 longhorn_node_tags:
   - media-storage
@@ -21,4 +21,5 @@ llm_model_disk_device: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi2
 llm_model_mount_path: /mnt/llm-models
 k3s_agent_args:
   - "--node-label=accelerator=nvidia"
+k3s_agent_removed_args:
   - "--node-taint=accelerator=nvidia:NoSchedule"

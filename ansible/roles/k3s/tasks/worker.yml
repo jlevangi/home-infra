@@ -117,6 +117,18 @@
   become: yes
   when: not k3s_needs_install
 
+- name: Remove retired K3s agent arguments from existing service
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/system/k3s-agent.service
+    regexp: "^\\s*'{{ item | regex_escape }}' \\\\.*$"
+    state: absent
+  loop: "{{ k3s_agent_removed_args }}"
+  register: k3s_agent_removed_args_config
+  become: yes
+  when:
+    - not k3s_needs_install
+    - k3s_agent_removed_args | length > 0
+
 - name: Restart K3s agent after registration endpoint update
   systemd:
     name: k3s-agent
@@ -125,7 +137,7 @@
   become: yes
   when:
     - not k3s_needs_install
-    - k3s_agent_url_config.changed
+    - k3s_agent_url_config.changed or k3s_agent_removed_args_config.changed | default(false)
 
 - name: Display K3s worker installation output
   debug:
