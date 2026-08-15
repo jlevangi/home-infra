@@ -331,7 +331,6 @@ longhorn_snapshot_data_integrity: "disabled"
 # opt specific workers into GPU behavior and Longhorn replica exclusion.
 nvidia_gpu_node_label_key: "accelerator"
 nvidia_gpu_node_label_value: "nvidia"
-nvidia_gpu_node_taint: "accelerator=nvidia:NoSchedule"
 nvidia_container_toolkit_repo: "https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list"
 
 # -----------------------------------------------------------------------------
