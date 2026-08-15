@@ -1,0 +1,154 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: netbox-proxmox-reconcile
+  namespace: netbox
+data:
+  reconcile.py: |
+    #!/usr/bin/env python3
+    """Reconcile Proxmox guests into NetBox.
+
+    Proxmox is authoritative for which guests exist and where they run. This
+    script creates and updates NetBox VMs to match, but NEVER deletes: a guest
+    that disappears is marked offline with a note instead. Deleting a NetBox VM
+    cascades to its IP address, and those IPs drive the levangie.org zone via
+    netbox-technitium-sync, so a delete here could silently drop a DNS record.
+
+    Guests are matched on the proxmox_vmid custom field, which is stable across
+    renames on both sides. Names that differ between the two systems are mapped
+    in ALIASES and used only to adopt a pre-existing NetBox VM on first run.
+    NetBox names are never overwritten - they are referenced by IP records.
+    """
+    import json
+    import os
+    import ssl
+    import sys
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    PVE = os.environ["PROXMOX_URL"].rstrip("/")
+    PVE_AUTH = f"PVEAPIToken={os.environ['PROXMOX_TOKEN_ID']}={os.environ['PROXMOX_TOKEN_SECRET']}"
+    NB = os.environ.get("NETBOX_URL", "https://netbox.levangie.dev").rstrip("/") + "/api"
+    NB_TOKEN = os.environ["NETBOX_TOKEN"]
+    CLUSTER = os.environ.get("NETBOX_CLUSTER", "oasis")
+    DRY = os.environ.get("DRY_RUN", "false").lower() == "true"
+
+    # Guests whose NetBox name intentionally differs from the Proxmox name.
+    ALIASES = {"mint-vm": "pierce-mint-vm", "caddy-srv.levangie.org": "caddy-srv"}
+
+    CTX = ssl.create_default_context()
+    if os.environ.get("PROXMOX_VERIFY_SSL", "false").lower() != "true":
+        CTX.check_hostname = False
+        CTX.verify_mode = ssl.CERT_NONE
+
+    changes = []
+
+    def call(url, headers, method="GET", data=None):
+        r = urllib.request.Request(
+            url, data=json.dumps(data).encode() if data is not None else None,
+            method=method, headers=headers)
+        try:
+            with urllib.request.urlopen(r, timeout=30, context=CTX) as x:
+                return json.load(x) if x.status != 204 else {}
+        except urllib.error.HTTPError as e:
+            print(f"ERROR {method} {url} -> {e.code} {e.read().decode()[:300]}", flush=True)
+            raise
+
+    def pve(path):
+        return call(PVE + path, {"Authorization": PVE_AUTH, "Accept": "application/json"})["data"]
+
+    def nb(method, path, data=None):
+        return call(NB + path, {"Authorization": f"Token {NB_TOKEN}",
+                                "Content-Type": "application/json",
+                                "Accept": "application/json"}, method, data)
+
+    def nb_all(path, **q):
+        q["limit"] = 250
+        return nb("GET", f"{path}?{urllib.parse.urlencode(q)}")["results"]
+
+    def patch(vm, body, why):
+        changes.append(why)
+        if DRY:
+            print(f"DRY  update {vm['name']}: {why}", flush=True)
+            return
+        nb("PATCH", f"/virtualization/virtual-machines/{vm['id']}/", body)
+        print(f"update {vm['name']}: {why}", flush=True)
+
+    def main():
+        cluster = nb_all("/virtualization/clusters/", name=CLUSTER)
+        if not cluster:
+            sys.exit(f"FATAL: NetBox cluster {CLUSTER!r} not found")
+        cluster = cluster[0]
+        devices = {d["name"]: d for d in nb_all("/dcim/devices/", cluster_id=cluster["id"])}
+        if not devices:
+            sys.exit(f"FATAL: no devices assigned to cluster {CLUSTER!r}")
+
+        guests = [g for g in pve("/cluster/resources?type=vm") if not g.get("template")]
+        print(f"=== Proxmox: {len(guests)} non-template guests on {len(devices)} hosts ===", flush=True)
+
+        vms = nb_all("/virtualization/virtual-machines/")
+        by_vmid = {v["custom_fields"].get("proxmox_vmid"): v
+                   for v in vms if v["custom_fields"].get("proxmox_vmid")}
+        by_name = {v["name"]: v for v in vms}
+        # NetBox VM ids confirmed to back a live Proxmox guest. Tracked by NetBox
+        # id, not by vmid: the vmid stamps written in the loop below are not
+        # reflected in this local snapshot, so keying the orphan sweep on vmid
+        # would treat every freshly-stamped VM as missing and mark the whole
+        # fleet offline on the first run.
+        seen = set()
+
+        for g in sorted(guests, key=lambda x: x["vmid"]):
+            vmid, node = g["vmid"], g["node"]
+            want_name = ALIASES.get(g["name"], g["name"])
+            want_status = "active" if g["status"] == "running" else "offline"
+
+            if node not in devices:
+                print(f"WARN  {g['name']} is on {node}, which is not a device in "
+                      f"{CLUSTER}; skipping", flush=True)
+                continue
+
+            vm = by_vmid.get(vmid) or by_name.get(want_name)
+            if vm is None:
+                body = {"name": want_name, "cluster": cluster["id"],
+                        "device": devices[node]["id"], "status": want_status,
+                        "site": (cluster.get("site") or {}).get("id"),
+                        "custom_fields": {"proxmox_vmid": vmid}}
+                changes.append(f"create {want_name}")
+                if DRY:
+                    print(f"DRY  create {want_name} ({vmid}) on {node}", flush=True)
+                else:
+                    nb("POST", "/virtualization/virtual-machines/", body)
+                    print(f"create {want_name} ({vmid}) on {node}", flush=True)
+                continue
+
+            seen.add(vm["id"])
+            body, why = {}, []
+            if vm["custom_fields"].get("proxmox_vmid") != vmid:
+                body["custom_fields"] = {"proxmox_vmid": vmid}
+                why.append(f"vmid={vmid}")
+            if (vm.get("cluster") or {}).get("id") != cluster["id"]:
+                body["cluster"] = cluster["id"]
+                why.append(f"cluster={CLUSTER}")
+            if (vm.get("device") or {}).get("name") != node:
+                body["device"] = devices[node]["id"]
+                why.append(f"host {(vm.get('device') or {}).get('name') or 'none'} -> {node}")
+            if vm["status"]["value"] != want_status:
+                body["status"] = want_status
+                why.append(f"status -> {want_status}")
+            if body:
+                patch(vm, body, ", ".join(why))
+
+        # Present in NetBox, absent from Proxmox. Mark, never delete.
+        note = "Not present in Proxmox. Flagged by netbox-proxmox-reconcile."
+        for vm in vms:
+            if vm["id"] in seen or (vm.get("cluster") or {}).get("id") != cluster["id"]:
+                continue
+            if vm["status"]["value"] in ("offline", "planned", "decommissioning"):
+                continue
+            patch(vm, {"status": "offline", "comments": note},
+                  "absent from Proxmox -> offline (not deleted)")
+
+        print(f"=== {len(changes)} change(s) ===", flush=True)
+
+    main()

@@ -6,8 +6,11 @@ resources:
   - configmap-extra.yaml
   - external-secret.yaml
   - external-secret-sync.yaml
+  - external-secret-proxmox-sync.yaml
   - external-secret-ghcr.yaml
   - cronjob-technitium-sync.yaml
+  - configmap-proxmox-reconcile.yaml
+  - cronjob-proxmox-reconcile.yaml
   - pvc-postgres.yaml
   - pvc-media.yaml
   - deployment-postgres.yaml

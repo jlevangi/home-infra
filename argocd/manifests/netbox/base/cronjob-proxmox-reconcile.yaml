@@ -1,0 +1,60 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: netbox-proxmox-reconcile
+  namespace: netbox
+spec:
+  # Every 15 minutes, offset from netbox-technitium-sync so the two do not overlap.
+  schedule: "7,22,37,52 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 600
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: reconcile
+              # Stdlib-only script, so a bare Python image needs no package installs
+              # at runtime and the job works without egress to PyPI.
+              image: python:3.12-alpine
+              command: ["python3", "/script/reconcile.py"]
+              env:
+                - name: NETBOX_URL
+                  value: https://netbox.levangie.dev
+                - name: NETBOX_CLUSTER
+                  value: oasis
+                - name: NETBOX_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: netbox-sync-secrets
+                      key: NETBOX_TOKEN
+              envFrom:
+                - secretRef:
+                    name: netbox-proxmox-sync-secrets
+              volumeMounts:
+                - name: script
+                  mountPath: /script
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 64Mi
+                limits:
+                  cpu: 250m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                runAsUser: 10001
+                capabilities:
+                  drop: ["ALL"]
+          volumes:
+            - name: script
+              configMap:
+                name: netbox-proxmox-reconcile
+                defaultMode: 0555
