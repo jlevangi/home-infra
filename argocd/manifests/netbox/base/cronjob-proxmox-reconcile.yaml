@@ -20,7 +20,7 @@ spec:
             - name: reconcile
               # Stdlib-only script, so a bare Python image needs no package installs
               # at runtime and the job works without egress to PyPI.
-              image: python:3.12-alpine
+              image: python:3.14-alpine
               command: ["python3", "/script/reconcile.py"]
               env:
                 - name: NETBOX_URL

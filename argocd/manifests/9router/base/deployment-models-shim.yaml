@@ -34,7 +34,7 @@ spec:
         # Net effect: no model names, aliases or context numbers configured anywhere in
         # k8s. Adding a model to config.yaml on pierce-pc is the only action needed.
         - name: models-shim
-          image: python:3.12-slim
+          image: python:3.14-slim
           imagePullPolicy: IfNotPresent
           command:
             - python

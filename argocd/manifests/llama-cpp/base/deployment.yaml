@@ -78,7 +78,7 @@ spec:
         # endpoint Prometheus can scrape. Inactive-model scrapes are
         # skipped because llama-swap's upstream proxy hangs on them.
         - name: metrics-sidecar
-          image: python:3.12-alpine
+          image: python:3.14-alpine
           imagePullPolicy: IfNotPresent
           command: ["python3", "/app/sidecar-exporter.py"]
           ports:
