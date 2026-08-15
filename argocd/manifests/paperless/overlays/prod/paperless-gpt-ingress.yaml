@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: paperless-gpt
+  namespace: paperless
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.middlewares: paperless-paperless-gpt-oauth2-errors@kubernetescrd,paperless-paperless-gpt-oauth2-forwardauth@kubernetescrd
+    external-dns.alpha.kubernetes.io/target: k3s-prod.levangie.dev
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: paperless-gpt.levangie.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: paperless-gpt
+                port:
+                  number: 8080

@@ -2,6 +2,16 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../base
+  - paperless-gpt-configmap.yaml
+  - paperless-gpt-pvc.yaml
+  - paperless-gpt-deployment.yaml
+  - paperless-gpt-service.yaml
+  - paperless-gpt-oauth2-proxy-deployment.yaml
+  - paperless-gpt-oauth2-proxy-service.yaml
+  - paperless-gpt-middleware-forwardauth.yaml
+  - paperless-gpt-middleware-errors.yaml
+  - paperless-gpt-ingress.yaml
+  - paperless-gpt-oauth2-ingress.yaml
 images:
   - name: ghcr.io/paperless-ngx/paperless-ngx
     newTag: "3.0.5"

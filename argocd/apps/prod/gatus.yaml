@@ -200,6 +200,14 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
+            - name: Paperless GPT
+              group: Applications
+              url: https://paperless-gpt.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 302"
+                - "[RESPONSE_TIME] < 5000"
+
             - name: Factorio
               group: Applications
               url: tcp://factorio.levangie.dev:27015
