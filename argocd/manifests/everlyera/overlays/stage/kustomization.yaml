@@ -1,3 +1,16 @@
+# DORMANT as of 2026-08-16. Staging moved to Cloudflare Workers
+# (everlyera-staging.pierce.workers.dev, D1 + R2); this environment is no longer
+# the staging environment and serves nothing.
+#
+# Both deployments are scaled to zero rather than deleted, and the namespace,
+# the Postgres PVC and its data are kept, so restoring is one commit reverting
+# the two replica patches below. `staging.everlyera.com` still resolves to this
+# ingress through the Technitium zone and now answers 404/502 — that name is not
+# released until this overlay is deleted outright.
+#
+# Deleting it for good is everlyera-2rh, and is gated on everlyera-1sh
+# (Cloudflare staging verified end to end). Do not delete the PVC before that:
+# it is the only copy of the staging Postgres.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: everlyera-stage
@@ -12,6 +25,13 @@ labels:
   - pairs: { environment: stage }
     includeSelectors: true
 patches:
+  # Dormant: nothing runs. Revert these two patches to bring staging back.
+  - target: { kind: Deployment, name: everlyera-web }
+    patch: |
+      - { op: replace, path: /spec/replicas, value: 0 }
+  - target: { kind: Deployment, name: everlyera-postgres }
+    patch: |
+      - { op: replace, path: /spec/replicas, value: 0 }
   - target: { kind: PersistentVolumeClaim, name: everlyera-postgres-pvc }
     patch: |
       - { op: remove, path: /metadata/labels/recurring-job-group.longhorn.io~1hourly }
