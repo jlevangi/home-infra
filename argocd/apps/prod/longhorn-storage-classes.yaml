@@ -30,4 +30,11 @@ spec:
       # downtime only affects new PVC binding; in-use PVCs and existing
       # volumes are unaffected. Required for home-infra-rd0's N=2→3 +
       # replicaDiskSoftAntiAffinity mutation.
+      #
+      # Replace=true on its own is NOT enough: it issues `kubectl replace`,
+      # which hits the same immutability error. Force=true makes that
+      # `kubectl replace --force`, i.e. an actual delete + recreate. Without
+      # it the N=3→2 change on 2026-08-17 failed to sync with
+      # "parameters: Forbidden: updates to parameters are forbidden".
       - Replace=true
+      - Force=true
