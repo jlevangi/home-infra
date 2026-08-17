@@ -1,0 +1,15 @@
+---
+# Worker-4 lives on elitedesk-1, not Atlas, and has a single Longhorn-backing
+# disk: scsi1 (200G, /mnt/longhorn-flash). There is no tank tier here — see
+# terraform/stacks/k3s/elitedesk-1/prod/workers/main.tf, which sizes the node
+# for single-replica storage classes rather than Atlas's tank/flash split.
+#
+# Opt out of the group_vars default longhorn_tank_disk_slot (scsi2); this host
+# has no such disk.
+longhorn_tank_disk_slot: ""
+# general-storage only. Deliberately NOT media-storage: with no tank disk, any
+# multi-replica media volume that lands here places its replica on the flash
+# disk, which is how /mnt/longhorn-flash reached 95% on 2026-08-16 (jellyfin,
+# plex and plausible replicas together held 154G of 176G).
+longhorn_node_tags:
+  - general-storage
