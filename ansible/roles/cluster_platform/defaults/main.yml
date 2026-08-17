@@ -6,6 +6,10 @@ platform_worker_nodes: []
 platform_cluster_nodes: []
 platform_cluster_node_count: 0
 platform_node_tags: {}
+# Per-node Longhorn disk topology, keyed by inventory hostname. Both are built
+# by the playbooks from ansible/group_vars/k3s_cluster_topology.yml.
+platform_node_disks: {}
+platform_node_manage_disks: {}
 
 platform_install_longhorn: true
 platform_install_metallb: true

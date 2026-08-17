@@ -235,6 +235,7 @@ ansible-vault view ansible/group_vars/lxc_vault.yml
 │   │   ├── k3s_cluster.yml      # K3s production config
 │   │   ├── k3s_cluster_test.yml # K3s test config
 │   │   ├── k3s_cluster_stage.yml# K3s staging config
+│   │   ├── k3s_cluster_topology.yml # Node roles + Longhorn disk layout (all envs)
 │   │   ├── k3s_cluster_vault.yml# K3s encrypted secrets
 │   │   ├── lxc.yml              # LXC shared config
 │   │   ├── lxc_vault.yml        # LXC encrypted secrets
@@ -329,6 +330,60 @@ The repository supports three environments:
 - VMs have `start_at_node_boot = false` and do not start on Proxmox host boot
 - No Ansible: Talos has no SSH/package manager; the existing `k3s` role does not apply here
 - App deployment (kubectl/helm, ArgoCD) still works against the cluster API if/when wired up; not yet integrated with `scripts/k3s/helpers/k3s-context-manager.sh`
+
+## Node Topology and Longhorn Storage Layout
+
+`ansible/group_vars/k3s_cluster_topology.yml` is the single source of truth for
+which nodes exist, what hardware class each one is, and which Longhorn disks it
+should carry. It replaces the former per-host
+`ansible/inventories/production/host_vars/k3s-prod-*.yml` files.
+
+A **profile** describes a hardware class, not a host — workers built from the
+same Terraform stack share one:
+
+| Profile | Nodes | Longhorn disks |
+|---------|-------|----------------|
+| `atlas-worker` | prod worker-1/2/3 | flash (`scsi3`) + tank (`scsi2`) |
+| `atlas-gpu-worker` | prod worker-gpu-1 | one disk at `/var/lib/longhorn` (`scsi1`) |
+| `elitedesk-worker` | prod worker-4 | flash only (`scsi1`) |
+| `control-plane` | prod cp-1/3/4 | none |
+| `simple-node` | test + stage | unmanaged (Longhorn's own default disk) |
+
+### Adding or removing a node
+
+1. Provision or destroy the VM with the relevant Terraform stack.
+2. Add the host to `ansible/inventories/<env>/hosts.yml`.
+3. Add **one line** to `k3s_node_profile:` in the topology file pointing at the
+   right profile.
+4. Run the cluster deploy (or `deploy-component.sh <env> longhorn`).
+
+Ansible mounts every disk the profile declares and reconciles the Longhorn node
+CR to match — registering missing disks, correcting disk tags and node tags.
+
+### Drift reporting
+
+A disk registered in Longhorn that the topology does **not** declare is
+reported and never removed:
+
+```
+DRIFT k3s-prod-cp-1: disk 'default-disk-...' at /var/lib/longhorn/ is registered
+      in Longhorn but not declared in the node topology (not removed — evict by
+      hand if unwanted)
+```
+
+Removal stays manual on purpose: a typo in a profile must never be able to
+evict a real disk's replicas. To act on a report, disable scheduling and
+request eviction on that disk, wait for replicas to drain, then remove it from
+`spec.disks`.
+
+Disks are matched by **path**, not by name — Longhorn disk names are arbitrary
+map keys, so renaming one in the topology must not read as "remove this disk,
+add another".
+
+Hosts absent from `k3s_node_profile` fall back to `simple-node`, which touches
+no disks. Profiles set `longhorn_manage_disks: false` to opt out of
+reconciliation and drift reporting entirely (test and stage do this, preserving
+their existing behaviour).
 
 ## Application Configuration
 

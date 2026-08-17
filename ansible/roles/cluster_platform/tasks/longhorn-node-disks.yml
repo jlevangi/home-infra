@@ -1,0 +1,39 @@
+---
+# Reconcile Longhorn node tags and disk registration against the topology in
+# ansible/group_vars/k3s_cluster_topology.yml.
+#
+# Declared disks are created and corrected; undeclared disks are reported and
+# left alone. See roles/cluster_platform/files/reconcile-longhorn-disks.py for
+# why the removal half is deliberately manual.
+
+- name: Reconcile Longhorn disks and node tags from the node topology
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "{{ role_path }}/files/reconcile-longhorn-disks.py"
+      - --kubeconfig
+      - "{{ kubeconfig_path }}"
+      - --node
+      - "{{ item }}"
+      - --disks
+      - "{{ platform_node_disks[item] | default([]) | to_json }}"
+      - --node-tags
+      - "{{ platform_node_tags[item] | default([]) | to_json }}"
+  loop: "{{ platform_cluster_nodes | default([]) }}"
+  when: platform_node_manage_disks[item] | default(false) | bool
+  register: longhorn_disk_reconcile
+  changed_when: "'CHANGE ' in (longhorn_disk_reconcile.stdout | default(''))"
+  failed_when: longhorn_disk_reconcile.rc | default(0) != 0
+
+- name: Display Longhorn node topology reconciliation
+  ansible.builtin.debug:
+    msg: |
+      📊 Longhorn Node Topology
+      {% for result in longhorn_disk_reconcile.results | default([]) %}
+      {% if result.skipped | default(false) %}
+      ℹ️  {{ result.item }}: disks unmanaged by topology (profile sets longhorn_manage_disks: false)
+      {% else %}
+      {{ result.stdout | default('') }}
+      {% endif %}
+      {% endfor %}
+  when: longhorn_disk_reconcile is defined

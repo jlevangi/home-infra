@@ -263,8 +263,10 @@ longhorn_validation_mode: "auto"  # auto skips the test PVC when healthy volumes
 # `longhorn-steady` remain during the naming transition. The audit script
 # (scripts/maintenance/verify-cross-pool-placement.sh) flags volumes whose
 # replicas all landed on the same pool.
-longhorn_tank_disk_path: "/mnt/longhorn-tank"
-longhorn_flash_disk_path: "/mnt/longhorn-flash"
+#
+# The mount paths themselves are no longer declared here — which nodes have
+# which disks, mounted where and tagged how, now lives per hardware profile in
+# ansible/group_vars/k3s_cluster_topology.yml.
 longhorn_fast_storage_class_name: "longhorn-fast"
 longhorn_steady_storage_class_name: "longhorn-tank"
 longhorn_flash_storage_class_name: "longhorn-flash"

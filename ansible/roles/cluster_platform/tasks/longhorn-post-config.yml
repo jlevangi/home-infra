@@ -33,38 +33,13 @@
   when:
     - master_longhorn_check is defined
 
-- name: Check if worker nodes with Longhorn tags are registered
-  shell: |
-    KUBECONFIG={{ kubeconfig_path }} kubectl get nodes.longhorn.io {{ item }} -n longhorn-system >/dev/null 2>&1
-  loop: "{{ platform_worker_nodes | default([]) }}"
-  register: tagged_worker_longhorn_check
-  failed_when: false
-  when: (platform_node_tags[item] | default([])) | length > 0
-
-- name: Reconcile Longhorn node tags on worker storage nodes
-  shell: |
-    KUBECONFIG={{ kubeconfig_path }} kubectl patch nodes.longhorn.io {{ item.item }} -n longhorn-system \
-      --type='merge' -p='{"spec":{"tags":{{ platform_node_tags[item.item] | default([]) | to_json }}}}'
-  loop: "{{ tagged_worker_longhorn_check.results | default([]) }}"
-  when:
-    - item.rc is defined
-    - item.rc == 0
-
-- name: Display Longhorn worker tag status
-  debug:
-    msg: |
-      📊 Longhorn Worker Tag Status:
-      {% for result in tagged_worker_longhorn_check.results | default([]) %}
-      {% if result.skipped | default(false) %}
-      ℹ️  {{ result.item }}: No Longhorn tags configured
-      {% elif result.rc | default(1) == 0 %}
-      ✅ {{ result.item }}: tags={{ platform_node_tags[result.item] | default([]) | join(',') }}
-      {% else %}
-      ℹ️  {{ result.item }}: Not registered with Longhorn yet
-      {% endif %}
-      {% endfor %}
-  when:
-    - tagged_worker_longhorn_check is defined
+# Node tags and disk registration are reconciled together from the node
+# topology (ansible/group_vars/k3s_cluster_topology.yml), for control-plane
+# and worker nodes alike. This replaces the former worker-only tag patch,
+# which covered spec.tags but left spec.disks entirely unmanaged — the gap
+# that let k3s-prod-worker-4 register its OS filesystem as a Longhorn disk.
+- name: Reconcile Longhorn node topology (tags and disks)
+  include_tasks: longhorn-node-disks.yml
 
 - name: Check if any Longhorn volumes exist
   shell: |

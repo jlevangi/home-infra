@@ -13,39 +13,29 @@
   include_tasks: nvidia-worker.yml
   when: nvidia_gpu_worker | default(false) | bool
 
-- name: Mount Longhorn data disk on hosts that have one
+- name: Mount Longhorn disks declared in the node topology
+  # Disk layout comes from ansible/group_vars/k3s_cluster_topology.yml — the
+  # node's profile lists every Longhorn-backing disk it should have. Each entry
+  # names a block device either explicitly (`device`) or by QEMU slot (`slot`,
+  # expanded through the profile's device_template). A profile with an empty
+  # longhorn_disks list mounts nothing, which is correct for control-plane
+  # nodes and for test/stage nodes that use Longhorn's own default disk.
   include_tasks: longhorn-disk.yml
+  loop: "{{ longhorn_disks | default([]) }}"
+  loop_control:
+    loop_var: longhorn_disk
+    label: "{{ longhorn_disk.name }} -> {{ longhorn_disk.path }}"
   vars:
-    disk_device: "{{ longhorn_data_disk_device }}"
-    disk_path: /var/lib/longhorn
-    disk_label: data
-  when:
-    - longhorn_data_disk_device is defined
-    - longhorn_data_disk_device | length > 0
-
-- name: Resolve longhorn_tank_disk_device from slot when not set explicitly
-  # host_vars can set longhorn_tank_disk_device directly (non-QEMU layouts);
-  # otherwise derive it from longhorn_disk_device_template + longhorn_tank_disk_slot.
-  # Gated on worker_group so CP nodes (which inherit the cluster-level slot
-  # default) skip cleanly. An empty slot signals "this worker has no tank disk".
-  set_fact:
-    longhorn_tank_disk_device: "{{ longhorn_disk_device_template | replace('{slot}', longhorn_tank_disk_slot) }}"
-  when:
-    - longhorn_tank_disk_device is not defined
-    - longhorn_tank_disk_slot | default('') | length > 0
-    - longhorn_disk_device_template is defined
-    - inventory_hostname in groups[worker_group | default('')] | default([])
-
-- name: Mount Longhorn tank disk on hosts that have one
-  include_tasks: longhorn-disk.yml
-  vars:
-    disk_device: "{{ longhorn_tank_disk_device }}"
-    disk_path: "{{ longhorn_tank_disk_path }}"
-    disk_label: tank
-  when:
-    - longhorn_tank_disk_device is defined
-    - longhorn_tank_disk_device | length > 0
-    - inventory_hostname in groups[worker_group | default('')] | default([])
+    disk_device: >-
+      {{
+        longhorn_disk.device
+        | default(
+            (k3s_node_config.device_template | default(k3s_node_device_template))
+            | replace('{slot}', longhorn_disk.slot | default(''))
+          )
+      }}
+    disk_path: "{{ longhorn_disk.path }}"
+    disk_label: "{{ longhorn_disk.name }}"
 
 - name: Mount LLM model disk on hosts that have one
   include_tasks: llm-model-disk.yml

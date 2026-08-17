@@ -1,0 +1,182 @@
+---
+# =============================================================================
+# K3S NODE TOPOLOGY — single source of truth for node roles and storage layout
+# =============================================================================
+# Every K3s node in the homelab is described here, across all environments.
+# Hostnames are globally unique (k3s-prod-worker-1, k3s-test-worker-1, ...) so
+# one file can hold the lot.
+#
+# Adding or removing a node is a ONE-LINE change to k3s_node_profile below.
+# Nothing else needs a new file — this replaces the former per-host
+# inventories/production/host_vars/k3s-prod-*.yml files, which had to be
+# hand-created for each worker and drifted from the live cluster (see the
+# 2026-08-16 worker-4 incident: its Longhorn node tag and an unwanted disk
+# registration on the OS filesystem existed only in the live cluster).
+#
+# A profile describes a HARDWARE CLASS, not a host. Two workers built from the
+# same Terraform stack share a profile. This is what makes scaling the node
+# count safe: Terraform creates VM k3s-prod-worker-5 from the elitedesk-1
+# stack, you add one line pointing it at `elitedesk-worker`, and Ansible
+# mounts and registers exactly the right Longhorn disks with the right tags.
+#
+# Longhorn disk reconciliation is REPORT-ONLY for disks this file does not
+# declare: the k3s deploy surfaces them loudly but never evicts automatically,
+# so a typo here cannot trigger a mass replica migration. Evict by hand after
+# reading the report (see docs/operations/cluster-operations.md).
+# =============================================================================
+
+# Default by-id template used to turn a `slot` into a block device path. Atlas,
+# dellssf and elitedesk-1 all run QEMU/Proxmox VMs, so one template covers
+# them; a profile can override it with `device_template`, and any individual
+# disk can bypass it entirely with an explicit `device`.
+k3s_node_device_template: "/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-{slot}"
+
+k3s_node_profiles:
+
+  # ---------------------------------------------------------------------------
+  # Atlas general worker — k3s-prod-worker-{1,2,3}
+  # Terraform: terraform/stacks/k3s/atlas/prod/workers
+  # Cross-pool layout added 2026-05-29 after the failing-SSD incident: every
+  # volume can keep one replica on flash and one on tank.
+  # ---------------------------------------------------------------------------
+  atlas-worker:
+    longhorn_node_tags:
+      - general-storage
+      - media-storage
+    longhorn_manage_disks: true
+    longhorn_disks:
+      - name: default-disk-flash
+        path: /mnt/longhorn-flash
+        slot: scsi3
+        tags: [flash, general-storage]
+      - name: default-disk-tank
+        path: /mnt/longhorn-tank
+        slot: scsi2
+        tags: [general-storage, tank]
+
+  # ---------------------------------------------------------------------------
+  # Atlas GPU worker — k3s-prod-worker-gpu-1
+  # NVIDIA Quadro P4000 passthrough for Plex/Jellyfin hardware transcoding.
+  # Its scsi1 disk is mounted AT /var/lib/longhorn — that is a dedicated disk,
+  # not the OS filesystem, which is why registering that path is correct here
+  # and wrong on every other node.
+  # ---------------------------------------------------------------------------
+  atlas-gpu-worker:
+    nvidia_gpu_worker: true
+    k3s_agent_args:
+      - "--node-label=accelerator=nvidia"
+      - "--node-taint=accelerator=nvidia:NoSchedule"
+    longhorn_node_tags:
+      - general-storage
+      - media-storage
+    longhorn_manage_disks: true
+    longhorn_disks:
+      # Stable by-id path matters more here than elsewhere: Longhorn CSI iSCSI
+      # volumes attached for Plex/Jellyfin claim earlier /dev/sd* letters than
+      # the local data disk would.
+      - name: default-tank-disk
+        path: /var/lib/longhorn
+        slot: scsi1
+        tags: [general-storage, tank]
+    # Dedicated LVM-backed disk for LLM model files, surfaced to Kubernetes as
+    # a static local PV for the llama-cpp app. LVM rather than ZFS so heavy
+    # write bursts during model staging skip compression/checksum/ARC overhead.
+    # NOTE: currently commented out in this host's /etc/fstab and not mounted.
+    llm_model_disk_slot: scsi2
+    llm_model_mount_path: /mnt/llm-models
+
+  # ---------------------------------------------------------------------------
+  # elitedesk-1 worker — k3s-prod-worker-4
+  # Terraform: terraform/stacks/k3s/elitedesk-1/prod/workers
+  # Single 200G data disk; no tank tier. Deliberately NOT media-storage: with
+  # no tank disk, a multi-replica media volume landing here puts its replica on
+  # flash. That is exactly how /mnt/longhorn-flash hit 95% on 2026-08-16, when
+  # jellyfin, plex and plausible replicas together held 154G of 176G.
+  # ---------------------------------------------------------------------------
+  elitedesk-worker:
+    longhorn_node_tags:
+      - general-storage
+    longhorn_manage_disks: true
+    longhorn_disks:
+      - name: default-disk-flash
+        path: /mnt/longhorn-flash
+        slot: scsi1
+        tags: [flash, general-storage]
+
+  # ---------------------------------------------------------------------------
+  # Prod control plane — k3s-prod-cp-{1,3,4}
+  # CP nodes are excluded from storage entirely (k3s_cluster_prod.yml sets
+  # longhorn_exclude_master_from_storage: true, which disables scheduling at
+  # the NODE level). They declare no disks, so Longhorn's auto-created default
+  # disk at /var/lib/longhorn/ is reported as undeclared drift on every run.
+  # That report is intentional: it keeps the OS-filesystem registration visible
+  # rather than silent, which is the failure mode that bit worker-4.
+  # ---------------------------------------------------------------------------
+  control-plane:
+    longhorn_node_tags: []
+    longhorn_manage_disks: true
+    longhorn_disks: []
+
+  # ---------------------------------------------------------------------------
+  # Test / stage nodes — no dedicated Longhorn disks. They use Longhorn's own
+  # auto-created default disk at /var/lib/longhorn. `longhorn_manage_disks:
+  # false` means Ansible neither reconciles nor reports on their disks, which
+  # preserves today's behaviour for those clusters exactly.
+  # ---------------------------------------------------------------------------
+  simple-node:
+    longhorn_node_tags: []
+    longhorn_manage_disks: false
+    longhorn_disks: []
+
+# =============================================================================
+# HOST -> PROFILE ASSIGNMENT
+# Adding a node is one line here. Hosts absent from this map fall back to
+# `simple-node`, which touches no disks.
+# =============================================================================
+k3s_node_profile:
+  # --- production ---
+  k3s-prod-cp-1: control-plane
+  k3s-prod-cp-3: control-plane
+  k3s-prod-cp-4: control-plane
+  k3s-prod-worker-1: atlas-worker
+  k3s-prod-worker-2: atlas-worker
+  k3s-prod-worker-3: atlas-worker
+  k3s-prod-worker-4: elitedesk-worker
+  k3s-prod-worker-gpu-1: atlas-gpu-worker
+
+  # --- test ---
+  k3s-test-cp-1: simple-node
+  k3s-test-worker-1: simple-node
+  k3s-test-worker-2: simple-node
+  k3s-test-worker-3: simple-node
+
+  # --- staging ---
+  k3s-stage-cp-1: simple-node
+  k3s-stage-worker-1: simple-node
+  k3s-stage-worker-2: simple-node
+  k3s-stage-worker-3: simple-node
+
+# =============================================================================
+# RESOLUTION — per-host facts derived from the profile above.
+# These are lazily evaluated per host, so hostvars[<node>].longhorn_disks
+# resolves correctly from any play.
+# =============================================================================
+k3s_node_profile_name: "{{ k3s_node_profile[inventory_hostname] | default('simple-node') }}"
+k3s_node_config: "{{ k3s_node_profiles[k3s_node_profile_name] }}"
+
+longhorn_node_tags: "{{ k3s_node_config.longhorn_node_tags | default([]) }}"
+longhorn_manage_disks: "{{ k3s_node_config.longhorn_manage_disks | default(false) }}"
+longhorn_disks: "{{ k3s_node_config.longhorn_disks | default([]) }}"
+nvidia_gpu_worker: "{{ k3s_node_config.nvidia_gpu_worker | default(false) }}"
+k3s_agent_args: "{{ k3s_node_config.k3s_agent_args | default([]) }}"
+llm_model_mount_path: "{{ k3s_node_config.llm_model_mount_path | default('') }}"
+llm_model_disk_device: >-
+  {{
+    k3s_node_config.llm_model_disk_device
+    | default(
+        (k3s_node_config.device_template | default(k3s_node_device_template))
+        | replace('{slot}', k3s_node_config.llm_model_disk_slot)
+        if k3s_node_config.llm_model_disk_slot | default('') | length > 0
+        else ''
+      )
+  }}
