@@ -41,46 +41,16 @@
       platform_worker_nodes: "{{ groups[worker_group] | default([]) }}"
       platform_cluster_nodes: "{{ groups[cluster_group] | default([]) }}"
       platform_cluster_node_count: "{{ groups[cluster_group] | default([]) | length }}"
-      # Node topology, keyed by inventory hostname and resolved per host from
-      # ansible/group_vars/k3s_cluster_topology.yml. Covers the whole cluster
-      # rather than just workers so control-plane nodes are reconciled (and
-      # their undeclared default disks reported) too.
-      platform_node_tags: >-
-        {{
-          dict(
-            (groups[cluster_group] | default([]))
-            | zip(
-              (
-                groups[cluster_group] | default([])
-              ) | map('extract', hostvars, 'longhorn_node_tags')
-                | map('default', [])
-            )
-          )
-        }}
-      platform_node_disks: >-
-        {{
-          dict(
-            (groups[cluster_group] | default([]))
-            | zip(
-              (
-                groups[cluster_group] | default([])
-              ) | map('extract', hostvars, 'longhorn_disks')
-                | map('default', [])
-            )
-          )
-        }}
-      platform_node_manage_disks: >-
-        {{
-          dict(
-            (groups[cluster_group] | default([]))
-            | zip(
-              (
-                groups[cluster_group] | default([])
-              ) | map('extract', hostvars, 'longhorn_manage_disks')
-                | map('default', false)
-            )
-          )
-        }}
+      # Node topology, keyed by hostname, from
+      # ansible/group_vars/k3s_cluster_topology.yml. Resolved there rather than
+      # extracted from hostvars — vars_files values are play vars and never
+      # appear in hostvars. Covers the whole cluster rather than just workers
+      # so control-plane nodes are reconciled (and their undeclared default
+      # disks reported) too.
+      platform_node_tags: "{{ k3s_node_tags_by_host }}"
+      platform_node_disks: "{{ k3s_node_disks_by_host }}"
+      platform_node_manage_disks: "{{ k3s_node_manage_disks_by_host }}"
+      platform_gpu_nodes: "{{ k3s_gpu_nodes }}"
       platform_install_longhorn: "{{ k3s_install_longhorn | default(true) }}"
       platform_install_metallb: "{{ k3s_install_metallb | default(true) }}"
       platform_install_traefik: "{{ k3s_install_traefik | default(true) }}"

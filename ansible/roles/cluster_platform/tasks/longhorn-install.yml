@@ -21,15 +21,18 @@
   when: longhorn_replica_count is not defined
 
 - name: Detect GPU workers in this cluster
+  # platform_gpu_nodes comes from the node topology
+  # (ansible/group_vars/k3s_cluster_topology.yml). It replaces a hostvars
+  # lookup of nvidia_gpu_worker, which only worked while that flag lived in
+  # per-host inventory files: vars_files values are play vars and never appear
+  # in hostvars, so the lookup would have silently resolved to "no GPU nodes"
+  # and dropped Longhorn's GPU tolerations.
   set_fact:
     longhorn_cluster_has_gpu_workers: >-
       {{
         (platform_worker_nodes | default([]))
-        | map('extract', hostvars, 'nvidia_gpu_worker')
-        | select('defined')
-        | map('bool')
-        | select
-        | list | length > 0
+        | intersect(platform_gpu_nodes | default([]))
+        | length > 0
       }}
 
 - name: Build Longhorn scheduling values

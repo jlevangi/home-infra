@@ -157,10 +157,61 @@ k3s_node_profile:
   k3s-stage-worker-3: simple-node
 
 # =============================================================================
-# RESOLUTION — per-host facts derived from the profile above.
-# These are lazily evaluated per host, so hostvars[<node>].longhorn_disks
-# resolves correctly from any play.
+# RESOLUTION
+#
+# Two shapes, because they are consumed from two different places:
+#
+#   * The `*_by_host` maps below are keyed by hostname and are what the
+#     playbooks hand to roles/cluster_platform. They must NOT be built by
+#     extracting from `hostvars`: this file is loaded through the playbooks'
+#     `vars_files`, and vars_files values are play vars, not inventory vars, so
+#     they never appear in hostvars. (The former per-host files did appear,
+#     which is why the old hostvars-based extraction worked and silently
+#     stopped working the moment the data moved here.) Resolving straight from
+#     the dicts above sidesteps that entirely.
+#
+#   * The bare per-host vars at the bottom are for the `k3s` role, which runs
+#     in each host's own context where `inventory_hostname` is meaningful.
+#
+# Every profile must define longhorn_node_tags, longhorn_manage_disks and
+# longhorn_disks, since the maps below read those attributes unconditionally.
 # =============================================================================
+k3s_node_config_by_host: >-
+  {{
+    dict(
+      k3s_node_profile.keys()
+      | zip(k3s_node_profile.values() | map('extract', k3s_node_profiles))
+    )
+  }}
+k3s_node_tags_by_host: >-
+  {{
+    dict(
+      k3s_node_config_by_host.keys()
+      | zip(k3s_node_config_by_host.values() | map(attribute='longhorn_node_tags'))
+    )
+  }}
+k3s_node_disks_by_host: >-
+  {{
+    dict(
+      k3s_node_config_by_host.keys()
+      | zip(k3s_node_config_by_host.values() | map(attribute='longhorn_disks'))
+    )
+  }}
+k3s_node_manage_disks_by_host: >-
+  {{
+    dict(
+      k3s_node_config_by_host.keys()
+      | zip(k3s_node_config_by_host.values() | map(attribute='longhorn_manage_disks'))
+    )
+  }}
+k3s_gpu_nodes: >-
+  {{
+    k3s_node_config_by_host | dict2items
+    | selectattr('value.nvidia_gpu_worker', 'defined')
+    | selectattr('value.nvidia_gpu_worker')
+    | map(attribute='key') | list
+  }}
+
 k3s_node_profile_name: "{{ k3s_node_profile[inventory_hostname] | default('simple-node') }}"
 k3s_node_config: "{{ k3s_node_profiles[k3s_node_profile_name] }}"
 
