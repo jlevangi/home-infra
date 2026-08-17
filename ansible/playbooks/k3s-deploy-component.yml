@@ -51,6 +51,7 @@
       platform_node_disks: "{{ k3s_node_disks_by_host }}"
       platform_node_manage_disks: "{{ k3s_node_manage_disks_by_host }}"
       platform_gpu_nodes: "{{ k3s_gpu_nodes }}"
+      platform_node_zones: "{{ k3s_node_zone }}"
       platform_install_longhorn: "{{ k3s_install_longhorn | default(true) }}"
       platform_install_metallb: "{{ k3s_install_metallb | default(true) }}"
       platform_install_traefik: "{{ k3s_install_traefik | default(true) }}"

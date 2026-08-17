@@ -12,6 +12,8 @@ platform_node_disks: {}
 platform_node_manage_disks: {}
 # Hostnames of GPU workers, used to decide Longhorn's GPU tolerations.
 platform_gpu_nodes: []
+# Hostname -> physical Proxmox host, applied as topology.kubernetes.io/zone.
+platform_node_zones: {}
 
 platform_install_longhorn: true
 platform_install_metallb: true

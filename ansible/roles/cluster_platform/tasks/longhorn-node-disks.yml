@@ -25,6 +25,27 @@
   changed_when: "'CHANGE ' in (longhorn_disk_reconcile.stdout | default(''))"
   failed_when: longhorn_disk_reconcile.rc | default(0) != 0
 
+- name: Ensure Kubernetes zone labels match the node topology
+  # topology.kubernetes.io/zone is what Longhorn uses to spread replicas across
+  # physical machines rather than merely across nodes. Applied here rather than
+  # via --node-label on the k3s agent so a node migrated between Proxmox hosts
+  # gets corrected on the next run instead of only at join time.
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ kubeconfig_path }}"
+      - label
+      - node
+      - "{{ item }}"
+      - "topology.kubernetes.io/zone={{ platform_node_zones[item] }}"
+      - --overwrite
+  loop: "{{ platform_cluster_nodes | default([]) }}"
+  when: platform_node_zones[item] | default('') | length > 0
+  register: zone_label_result
+  changed_when: "'not labeled' not in (zone_label_result.stdout | default(''))"
+  failed_when: zone_label_result.rc | default(0) != 0
+
 - name: Display Longhorn node topology reconciliation
   ansible.builtin.debug:
     msg: |

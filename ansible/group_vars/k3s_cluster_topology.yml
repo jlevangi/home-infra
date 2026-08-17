@@ -149,6 +149,35 @@ k3s_node_profile:
   k3s-prod-worker-4: elitedesk-worker
   k3s-prod-worker-gpu-1: atlas-gpu-worker
 
+# =============================================================================
+# PHYSICAL HOST -> topology.kubernetes.io/zone
+#
+# Longhorn reads this label to spread replicas across machines rather than
+# just across nodes. Kept separate from the profile on purpose: placement can
+# change independently of hardware class (a VM can be migrated between Proxmox
+# hosts), and the control-plane profile already spans three of them.
+#
+# k3s-prod-cp-3 was labelled `atlas` until 2026-08-17 despite having been
+# migrated to dellssf — the kind of drift this map exists to prevent.
+#
+# `replica-zone-soft-anti-affinity` is currently true (best-effort spreading).
+# It cannot be made strict yet: that would require one replica of every volume
+# to sit in zone elitedesk-1, whose only storage node is worker-4 at 176.4G
+# usable against 235.1G of unique data — and tank-pinned volumes have no valid
+# placement there at all, since worker-4 has no tank disk. Growing worker-4's
+# disk past ~260G, or adding a storage node on a third physical host, is what
+# unlocks flipping that setting.
+# =============================================================================
+k3s_node_zone:
+  k3s-prod-cp-1: atlas
+  k3s-prod-cp-3: dellssf
+  k3s-prod-cp-4: elitedesk-1
+  k3s-prod-worker-1: atlas
+  k3s-prod-worker-2: atlas
+  k3s-prod-worker-3: atlas
+  k3s-prod-worker-4: elitedesk-1
+  k3s-prod-worker-gpu-1: atlas
+
   # --- test ---
   k3s-test-cp-1: simple-node
   k3s-test-worker-1: simple-node
