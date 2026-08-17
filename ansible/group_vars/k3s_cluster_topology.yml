@@ -66,6 +66,11 @@ k3s_node_profiles:
     k3s_agent_args:
       - "--node-label=accelerator=nvidia"
       - "--node-taint=accelerator=nvidia:NoSchedule"
+    # general-storage is deliberate, not leftover drift. The GPU node was
+    # originally media-only, but with two of the four Atlas workers being
+    # retired it has to carry general replicas as well — otherwise there are
+    # too few general-storage nodes left to satisfy replica anti-affinity.
+    # Confirmed 2026-08-17.
     longhorn_node_tags:
       - general-storage
       - media-storage
