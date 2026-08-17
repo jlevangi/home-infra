@@ -205,7 +205,7 @@ spec:
               url: https://paperless-gpt.levangie.dev
               interval: 5m
               client:
-                follow-redirects: false
+                ignore-redirect: true
               conditions:
                 - "[STATUS] == 302"
                 - "[RESPONSE_TIME] < 5000"
