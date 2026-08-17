@@ -6,7 +6,7 @@ ArgoCD-managed Longhorn StorageClasses for the prod cluster.
 
 | SC | Purpose |
 |---|---|
-| `longhorn` | Canonical general-purpose class. 3 replicas, soft cross-pool placement. |
+| `longhorn` | Canonical general-purpose class. 2 replicas, soft cross-pool placement. |
 | `longhorn-general` | Legacy alias for `longhorn`. |
 | `longhorn-fast` | Canonical flash-pinned class for low-latency, read-mostly state. |
 | `longhorn-tank` | Canonical tank-pinned class for heavy continuous writers. |
@@ -41,8 +41,15 @@ The current manifests keep canonical names plus temporary legacy aliases in para
 - Legacy aliases kept for bound PVC compatibility during migration:
   `longhorn-general`, `longhorn-flash`, `longhorn-steady`, `longhorn-singleton`
 
-The canonical default `longhorn` already reflects the post-`home-infra-rd0` state:
-`numberOfReplicas: "3"` and `replicaDiskSoftAntiAffinity: "enabled"`.
+The canonical default `longhorn` carries `numberOfReplicas: "2"` and
+`replicaDiskSoftAntiAffinity: "enabled"`.
+
+It was `"3"` under `home-infra-rd0`, sized for 3 flash + 3 tank disks spread
+across workers 1/2/3. Two of those Atlas workers are being retired (2026-08-17),
+leaving three storage nodes; at N=3 every general volume is forced onto all
+three, which pushes `k3s-prod-worker-4` past its DiskPressure threshold. N=2
+also shifts the disk-anti-affinity outcome from 2-tank + 1-flash to 1-flash +
+1-tank, keeping less app data on the slow HDD pool.
 
 Only one default should exist during the transition. `longhorn` remains that
 default; the alias objects can be retired after bound PVC migrations complete.

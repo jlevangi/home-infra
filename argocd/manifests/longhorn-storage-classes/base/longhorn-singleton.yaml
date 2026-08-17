@@ -16,7 +16,7 @@ parameters:
   fromBackup: ""
   fsType: ext4
   nodeSelector: general-storage
-  numberOfReplicas: "3"
+  numberOfReplicas: "2"
   replicaAutoBalance: best-effort
   recurringJobSelector: '[{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'
   staleReplicaTimeout: "30"

@@ -8,13 +8,13 @@ kind: StorageClass
 metadata:
   name: longhorn-general
   annotations:
-    description: "Legacy alias for the canonical longhorn class. Same 3-replica soft cross-pool placement."
+    description: "Legacy alias for the canonical longhorn class. Same 2-replica soft cross-pool placement."
 provisioner: driver.longhorn.io
 allowVolumeExpansion: true
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 parameters:
-  numberOfReplicas: "3"
+  numberOfReplicas: "2"
   replicaAutoBalance: best-effort
   replicaDiskSoftAntiAffinity: enabled
   staleReplicaTimeout: "30"
