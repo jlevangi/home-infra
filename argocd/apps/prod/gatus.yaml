@@ -457,6 +457,15 @@ spec:
                 - "[BODY].db == true"
                 - "[BODY].redis == true"
 
+            - name: Komga
+              group: Media
+              url: https://komga.levangie.dev/actuator/health
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+                - "[BODY].status == UP"
+
             - name: 9router
               group: Infrastructure
               url: https://9router.levangie.dev
