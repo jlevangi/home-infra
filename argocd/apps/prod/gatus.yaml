@@ -466,6 +466,14 @@ spec:
                 - "[RESPONSE_TIME] < 5000"
                 - "[BODY].status == UP"
 
+            - name: Calibre-Web
+              group: Media
+              url: https://calibre.levangie.dev/login
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
             - name: 9router
               group: Infrastructure
               url: https://9router.levangie.dev

@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: calibre-web
+  namespace: calibre-web
+  labels:
+    app: calibre-web
+    app.kubernetes.io/name: calibre-web
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: calibre-web
+  template:
+    metadata:
+      labels:
+        app: calibre-web
+        app.kubernetes.io/name: calibre-web
+    spec:
+      containers:
+        - name: calibre-web
+          image: crocodilestick/calibre-web-automated:v4.0.6
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: calibre-web-config
+          ports:
+            - name: http
+              containerPort: 8083
+              protocol: TCP
+          volumeMounts:
+            # Holds app.db — which is where the Keycloak OIDC settings live,
+            # since CWA configures OAuth in the admin UI and not from env.
+            # Losing this PVC means re-entering the OIDC config by hand.
+            - name: config
+              mountPath: /config
+            - name: media
+              mountPath: /calibre-library
+              subPath: calibre/library
+            # Books dropped here are imported, converted to EPUB, then deleted
+            # from this folder — so only ever place copies here.
+            - name: media
+              mountPath: /cwa-book-ingest
+              subPath: calibre/ingest
+            # The pre-existing hand-organised ebook tree, read-only so an
+            # import can never restructure or delete the originals.
+            - name: media
+              mountPath: /books-readonly
+              subPath: books
+              readOnly: true
+          resources:
+            requests:
+              cpu: 200m
+              memory: 1Gi
+            limits:
+              # Calibre's ebook-convert is CPU- and memory-hungry during ingest.
+              cpu: "4"
+              memory: 4Gi
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: 8083
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /login
+              port: 8083
+            initialDelaySeconds: 120
+            periodSeconds: 20
+            failureThreshold: 6
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: calibre-web-config-pvc
+        - name: media
+          nfs:
+            server: 172.20.20.5
+            path: /volume1/media

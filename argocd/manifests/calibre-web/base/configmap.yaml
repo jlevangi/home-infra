@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: calibre-web-config
+  namespace: calibre-web
+data:
+  # Match the ownership already on /volume1/media (uid 1024, gid 100 "users"),
+  # otherwise the ingest folder and library are written as the wrong owner and
+  # the rest of the media stack can no longer read them.
+  PUID: "1024"
+  PGID: "100"
+  TZ: "America/New_York"
+  CWA_PORT_OVERRIDE: "8083"
