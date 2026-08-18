@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: komga-config
+  namespace: komga
+data:
+  SERVER_PORT: "25600"
+  # Komga sits behind Traefik. Without this, Spring builds the OAuth2 redirect
+  # URI from the internal request and Keycloak rejects it as unregistered.
+  SERVER_FORWARD_HEADERS_STRATEGY: "framework"
+
+  # Keycloak OIDC. The registration id `keycloak` is what puts the callback at
+  # /login/oauth2/code/keycloak, which is the URI registered on the client.
+  SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_NAME: "Keycloak"
+  SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_ID: "komga"
+  SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_SCOPE: "openid,profile,email"
+  SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_AUTHORIZATION_GRANT_TYPE: "authorization_code"
+  SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_REDIRECT_URI: "{baseUrl}/login/oauth2/code/{registrationId}"
+  SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI: "https://auth.levangie.org/realms/master"
+  SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_USER_NAME_ATTRIBUTE: "email"
+
+  # Komga has no group/role mapping of its own — access is gated in Keycloak by
+  # the `komga` realm role (client browser flow override `komga-browser`), so
+  # anyone who completes the login is authorised and gets an account here.
+  KOMGA_OAUTH2_ACCOUNT_CREATION: "true"

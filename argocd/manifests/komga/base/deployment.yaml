@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: komga
+  namespace: komga
+  labels:
+    app: komga
+    app.kubernetes.io/name: komga
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: komga
+  template:
+    metadata:
+      labels:
+        app: komga
+        app.kubernetes.io/name: komga
+    spec:
+      containers:
+        - name: komga
+          image: gotson/komga:1.26.3
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: komga-config
+          env:
+            - name: SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: komga-secrets
+                  key: OIDC_CLIENT_SECRET
+          ports:
+            - name: http
+              containerPort: 25600
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: media
+              mountPath: /data/comics
+              subPath: comics
+            # Existing ebook library — mounted read-only so Komga can index it
+            # without being able to touch the files already on the NAS.
+            - name: media
+              mountPath: /data/books
+              subPath: books
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 25600
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 25600
+            initialDelaySeconds: 120
+            periodSeconds: 20
+            failureThreshold: 6
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: komga-config-pvc
+        - name: media
+          nfs:
+            server: 172.20.20.5
+            path: /volume1/media
