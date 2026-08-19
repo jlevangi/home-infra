@@ -79,6 +79,7 @@ class FakeCursor:
         self.last = None
         self.fail_external = fail_external
         self.executions = []
+        self.deleted_sessions = []
 
     def __enter__(self):
         return self
@@ -88,11 +89,19 @@ class FakeCursor:
 
     def execute(self, sql, params=None):
         self.executions.append((sql, params))
-        if sql.startswith("INSERT INTO health_sources"):
+        stripped = sql.strip()
+        if stripped.startswith("INSERT INTO health_sources"):
             key = (params[0], params[1], params[4])
             self.sources.setdefault(key, len(self.sources) + 1)
             self.last = {"id": self.sources[key]}
-        elif sql.startswith("INSERT INTO health_observations_raw"):
+        elif stripped.startswith("SELECT id FROM health_sources"):
+            # Return a fake source id for sleep dedup lookup
+            self.last = {"id": 1}
+        elif stripped.startswith("DELETE FROM health_observations_raw"):
+            # Track deleted session keys for test assertions
+            self.deleted_sessions.append(sql)
+            self.last = None
+        elif stripped.startswith("INSERT INTO health_observations_raw"):
             external_id = params[10]
             if external_id == self.fail_external:
                 raise RuntimeError("secret SQL detail")
@@ -170,3 +179,32 @@ def test_storage_failure_rolls_back_record_and_keeps_peer(monkeypatch):
     assert any(statement.startswith("ROLLBACK TO SAVEPOINT") for statement in sql)
     assert "secret SQL detail" not in json.dumps(result)
     assert connection.commits == 1
+
+
+def test_sleep_supersession_triggers_dedup_delete(monkeypatch):
+    """When a sleep record arrives, existing overlapping sessions on the same
+    wake_date are deleted before inserting the new (refined) session."""
+    cursor = FakeCursor()
+    connection = FakeConnection(cursor)
+    monkeypatch.setattr(db, "connect", lambda: connection)
+
+    result = db.ingest_health_connect("collector-1", [record("sleep", "sleep-new")])
+
+    assert result == {"accepted": ["sleep-new"], "duplicates": [], "rejected": []}
+    # The dedup DELETE must have fired before the INSERT
+    delete_idx = next(i for i, (sql, _) in enumerate(cursor.executions)
+                      if sql.strip().startswith("DELETE FROM health_observations_raw"))
+    insert_idx = next(i for i, (sql, _) in enumerate(cursor.executions)
+                      if sql.strip().startswith("INSERT INTO health_observations_raw"))
+    assert delete_idx < insert_idx
+    assert len(cursor.deleted_sessions) == 1
+
+
+def test_non_sleep_records_skip_dedup(monkeypatch):
+    """Non-sleep records must not trigger the dedup DELETE."""
+    cursor = FakeCursor()
+    connection = FakeConnection(cursor)
+    monkeypatch.setattr(db, "connect", lambda: connection)
+
+    db.ingest_health_connect("collector-1", [record("steps", "steps-1")])
+    assert len(cursor.deleted_sessions) == 0

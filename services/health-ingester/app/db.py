@@ -80,6 +80,27 @@ WITH payload AS (
 SELECT observation_count, inserted_count FROM ledger
 """
 
+_SLEEP_DEDUP_SQL = """
+DELETE FROM health_observations_raw r
+USING (
+  SELECT
+    substring(external_id from '^(.*):stage:[0-9]+$') AS session_key
+  FROM health_observations_raw
+  WHERE source_id = %s
+    AND metric_type = 'sleep_segment'
+    AND external_id ~ '^health_connect:[^:]+:sleep:[^:]+:stage:[0-9]+$'
+    AND external_id NOT LIKE %s
+  GROUP BY 1
+  HAVING min(text_to_timestamptz_immutable(start_time)) < %s::timestamptz
+     AND max(text_to_timestamptz_immutable(end_time)) > %s::timestamptz
+     AND (date(max(text_to_timestamptz_immutable(end_time))) AT TIME ZONE 'America/New_York')::date
+         = (date(%s::timestamptz) AT TIME ZONE 'America/New_York')::date
+) AS superseded
+WHERE r.source_id = %s
+  AND r.metric_type = 'sleep_segment'
+  AND substring(r.external_id from '^(.*):stage:[0-9]+$') = superseded.session_key
+"""
+
 _FRESHNESS_SQL = """
 WITH source_metrics AS (
     SELECT DISTINCT source.id AS source_id, source.source_system, observation.metric_type
@@ -191,6 +212,29 @@ def ingest_health_connect(collector_id: str, records: list[dict]) -> dict:
             try:
                 cur.execute(f"SAVEPOINT {savepoint}")
                 rows = expand_health_connect_record(record)
+
+                # Zepp supersession guard: when a sleep session arrives that
+                # overlaps an existing session on the same wake_date, delete the
+                # old session's rows first so the refined version replaces it.
+                # Genuine naps (disjoint time ranges) are untouched.
+                if record["recordType"] == "sleep" and rows:
+                    identity = _collector_identity(collector_id, record["originPackage"])
+                    cur.execute(
+                        "SELECT id FROM health_sources"
+                        " WHERE source_system = %s AND external_source_id = %s",
+                        (HEALTH_CONNECT_SOURCE_SYSTEM, identity),
+                    )
+                    src = cur.fetchone()
+                    if src:
+                        source_id = src["id"] if isinstance(src, dict) else src[0]
+                        new_start = rows[0]["start_time"]
+                        new_end = rows[-1]["end_time"]
+                        new_key = record["key"]
+                        cur.execute(_SLEEP_DEDUP_SQL, (
+                            source_id, new_key + ":%",
+                            new_end, new_start, new_end, source_id,
+                        ))
+
                 inserted = 0
                 source_ids = {}
                 for row in rows:
@@ -227,7 +271,6 @@ def ingest_health_connect(collector_id: str, records: list[dict]) -> dict:
                 (accepted if inserted else duplicates).append(record["key"])
             except Exception:
                 cur.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
-                # Ensure explicit release to keep transaction clean
                 try:
                     cur.execute(f"RELEASE SAVEPOINT {savepoint}")
                 except Exception:
