@@ -42,9 +42,10 @@ def expand_health_connect_record(record: dict) -> list[dict]:
     """Map one validated protocol record to archive observation rows.
 
     Each record type declares its shape in hc_types; the shape decides how many
-    rows a record produces and how their external_id is derived. The three
-    external_id forms below (bare key, ':sample:', ':stage:') are the ones
-    already in the archive and must not change.
+    rows a record produces and how their external_id is derived. Sleep stages
+    use the stage start epoch-millis so re-collection of a revised record is
+    idempotent; sample series use the sample epoch-millis; single-value records
+    use the bare record key.
     """
     raw = json.dumps(record, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
     record_type, key, payload = record["recordType"], record["key"], record["payload"]
@@ -61,8 +62,8 @@ def expand_health_connect_record(record: dict) -> list[dict]:
         return [{**common, "metric_type": "sleep_segment",
                  "start_time": _iso(stage["startTime"]), "end_time": _iso(stage["endTime"]),
                  "value_numeric": None, "value_text": stage["stage"], "unit": None,
-                 "external_id": f"{key}:stage:{index}"}
-                for index, stage in enumerate(payload.get("stages", []))]
+                 "external_id": f"{key}:stage:{_epoch_millis(stage['startTime'])}"}
+                for stage in payload.get("stages", [])]
 
     if record_type in hc_types.SAMPLE_SERIES:
         field, metric_type, unit = hc_types.SAMPLE_SERIES[record_type]

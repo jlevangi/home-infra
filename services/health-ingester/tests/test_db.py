@@ -54,7 +54,7 @@ def test_expands_android_records_to_archive_rows():
     ]
     assert heart[0]["external_id"] == "k1:sample:1786356000000"
     assert heart[0]["start_time"] == heart[0]["end_time"] == START
-    assert sleep[0]["external_id"] == "sleep-1:stage:0"
+    assert sleep[0]["external_id"] == "sleep-1:stage:1786356000000"
     assert sleep[0]["value_text"] == "deep"
     assert steps[0]["external_id"] == "steps-1"
     assert steps[0]["value_numeric"] == 12
