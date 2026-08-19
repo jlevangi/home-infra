@@ -236,3 +236,48 @@ def test_stale_sleep_resend_skipped_when_better_exists(monkeypatch):
     result = db.ingest_health_connect("collector-1", [record("sleep", "sleep-old")])
     assert result == {"accepted": [], "duplicates": ["sleep-old"], "rejected": []}
     assert len(cursor.deleted_sessions) == 0
+
+class SameSessionFakeCursor(FakeCursor):
+    """Reports a stored stage count for the incoming session key."""
+
+    def __init__(self, stored_stage_count):
+        super().__init__()
+        self.stored_stage_count = stored_stage_count
+        self.stale_prunes = []
+
+    def execute(self, sql, params=None):
+        stripped = sql.strip()
+        if stripped.startswith("SELECT count(*) AS stage_count"):
+            self.executions.append((sql, params))
+            self.last = {"stage_count": self.stored_stage_count}
+            return
+        if "external_id <> ALL" in stripped:
+            self.stale_prunes.append(params)
+        super().execute(sql, params)
+
+
+def test_recollected_sleep_session_prunes_stage_rows_it_no_longer_contains(monkeypatch):
+    """A re-collection of the same session must clear stage rows the new stage
+    list no longer contains — ON CONFLICT DO NOTHING cannot remove them."""
+    cursor = SameSessionFakeCursor(stored_stage_count=1)
+    connection = FakeConnection(cursor)
+    monkeypatch.setattr(db, "connect", lambda: connection)
+
+    db.ingest_health_connect("collector-1", [record("sleep", "sleep-1")])
+
+    assert len(cursor.stale_prunes) == 1
+    source_id, prefix, keep = cursor.stale_prunes[0]
+    assert prefix == "sleep-1:stage:%"
+    assert keep == ["sleep-1:stage:1786356000000"]
+
+
+def test_stale_same_session_replay_does_not_truncate_refined_session(monkeypatch):
+    """A replay carrying fewer stages than are already stored for the session
+    must leave the stored stages alone."""
+    cursor = SameSessionFakeCursor(stored_stage_count=9)
+    connection = FakeConnection(cursor)
+    monkeypatch.setattr(db, "connect", lambda: connection)
+
+    db.ingest_health_connect("collector-1", [record("sleep", "sleep-1")])
+
+    assert cursor.stale_prunes == []

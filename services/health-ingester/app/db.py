@@ -121,6 +121,22 @@ WHERE r.source_id = %s
   AND substring(r.external_id from '^(.*):stage:[0-9]+$') = superseded.session_key
 """
 
+_SLEEP_SESSION_STAGE_COUNT_SQL = """
+SELECT count(*) AS stage_count
+FROM health_observations_raw
+WHERE source_id = %s
+  AND metric_type = 'sleep_segment'
+  AND external_id LIKE %s
+"""
+
+_SLEEP_STALE_STAGE_SQL = """
+DELETE FROM health_observations_raw
+WHERE source_id = %s
+  AND metric_type = 'sleep_segment'
+  AND external_id LIKE %s
+  AND external_id <> ALL(%s)
+"""
+
 _FRESHNESS_SQL = """
 WITH source_metrics AS (
     SELECT DISTINCT source.id AS source_id, source.source_system, observation.metric_type
@@ -271,6 +287,21 @@ def ingest_health_connect(collector_id: str, records: list[dict]) -> dict:
                             source_id, new_key + ":%",
                             new_end, new_start, new_end, new_stage_count, source_id,
                         ))
+
+                        # Same-session reconciliation: a re-collection of this very
+                        # session leaves behind any stage row the new stage list no
+                        # longer contains (older positional keys, or a stage whose
+                        # start moved), which ON CONFLICT DO NOTHING cannot clear.
+                        # Only prune when the incoming list is at least as complete,
+                        # so a stale replay can never truncate a refined session.
+                        stage_prefix = new_key + ":stage:%"
+                        cur.execute(_SLEEP_SESSION_STAGE_COUNT_SQL, (source_id, stage_prefix))
+                        existing = cur.fetchone()
+                        existing_count = existing["stage_count"] if isinstance(existing, dict) else (existing[0] if existing else 0)
+                        if existing_count and new_stage_count >= existing_count:
+                            cur.execute(_SLEEP_STALE_STAGE_SQL, (
+                                source_id, stage_prefix, [row["external_id"] for row in rows],
+                            ))
 
                 inserted = 0
                 source_ids = {}
