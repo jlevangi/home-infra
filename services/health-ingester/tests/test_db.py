@@ -97,6 +97,9 @@ class FakeCursor:
         elif stripped.startswith("SELECT id FROM health_sources"):
             # Return a fake source id for sleep dedup lookup
             self.last = {"id": 1}
+        elif stripped.startswith("SELECT count(*) AS better_existing"):
+            # No better existing session by default
+            self.last = {"better_existing": 0}
         elif stripped.startswith("DELETE FROM health_observations_raw"):
             # Track deleted session keys for test assertions
             self.deleted_sessions.append(sql)
@@ -207,4 +210,29 @@ def test_non_sleep_records_skip_dedup(monkeypatch):
     monkeypatch.setattr(db, "connect", lambda: connection)
 
     db.ingest_health_connect("collector-1", [record("steps", "steps-1")])
+    assert len(cursor.deleted_sessions) == 0
+
+
+def test_stale_sleep_resend_skipped_when_better_exists(monkeypatch):
+    """When an existing overlapping session has >= stage count, the incoming
+    stale re-send is classified as duplicate, not accepted, and no DELETE fires."""
+    cursor = FakeCursor()
+    # Override: report 1 better existing session
+    cursor._better_existing = 1
+
+    class StaleFakeCursor(FakeCursor):
+        def execute(self, sql, params=None):
+            stripped = sql.strip()
+            if stripped.startswith("SELECT count(*) AS better_existing"):
+                self.executions.append((sql, params))
+                self.last = {"better_existing": 1}
+                return
+            super().execute(sql, params)
+
+    cursor = StaleFakeCursor()
+    connection = FakeConnection(cursor)
+    monkeypatch.setattr(db, "connect", lambda: connection)
+
+    result = db.ingest_health_connect("collector-1", [record("sleep", "sleep-old")])
+    assert result == {"accepted": [], "duplicates": ["sleep-old"], "rejected": []}
     assert len(cursor.deleted_sessions) == 0

@@ -80,6 +80,25 @@ WITH payload AS (
 SELECT observation_count, inserted_count FROM ledger
 """
 
+_SLEEP_OVERLAP_CHECK_SQL = """
+SELECT count(*) AS better_existing
+FROM (
+  SELECT substring(external_id from '^(.*):stage:[0-9]+$') AS session_key,
+         count(*) AS stage_count
+  FROM health_observations_raw
+  WHERE source_id = %s
+    AND metric_type = 'sleep_segment'
+    AND external_id ~ '^health_connect:[^:]+:sleep:[^:]+:stage:[0-9]+$'
+    AND external_id NOT LIKE %s
+  GROUP BY 1
+  HAVING min(text_to_timestamptz_immutable(start_time)) < %s::timestamptz
+     AND max(text_to_timestamptz_immutable(end_time)) > %s::timestamptz
+     AND (date(max(text_to_timestamptz_immutable(end_time))) AT TIME ZONE 'America/New_York')::date
+         = (date(%s::timestamptz) AT TIME ZONE 'America/New_York')::date
+) AS existing
+WHERE stage_count >= %s
+"""
+
 _SLEEP_DEDUP_SQL = """
 DELETE FROM health_observations_raw r
 USING (
@@ -95,6 +114,7 @@ USING (
      AND max(text_to_timestamptz_immutable(end_time)) > %s::timestamptz
      AND (date(max(text_to_timestamptz_immutable(end_time))) AT TIME ZONE 'America/New_York')::date
          = (date(%s::timestamptz) AT TIME ZONE 'America/New_York')::date
+     AND count(*) < %s
 ) AS superseded
 WHERE r.source_id = %s
   AND r.metric_type = 'sleep_segment'
@@ -214,8 +234,9 @@ def ingest_health_connect(collector_id: str, records: list[dict]) -> dict:
                 rows = expand_health_connect_record(record)
 
                 # Zepp supersession guard: when a sleep session arrives that
-                # overlaps an existing session on the same wake_date, delete the
-                # old session's rows first so the refined version replaces it.
+                # overlaps an existing session on the same wake_date, either:
+                #  - incoming has MORE stages → delete the old (stale) session
+                #  - incoming has FEWER stages → skip it (stale re-send)
                 # Genuine naps (disjoint time ranges) are untouched.
                 if record["recordType"] == "sleep" and rows:
                     identity = _collector_identity(collector_id, record["originPackage"])
@@ -230,9 +251,25 @@ def ingest_health_connect(collector_id: str, records: list[dict]) -> dict:
                         new_start = rows[0]["start_time"]
                         new_end = rows[-1]["end_time"]
                         new_key = record["key"]
+                        new_stage_count = len(rows)
+
+                        # Check if a better or equal session already exists
+                        cur.execute(_SLEEP_OVERLAP_CHECK_SQL, (
+                            source_id, new_key + ":%",
+                            new_end, new_start, new_end, new_stage_count,
+                        ))
+                        better = cur.fetchone()
+                        better_count = better["better_existing"] if isinstance(better, dict) else (better[0] if better else 0)
+                        if better_count and better_count > 0:
+                            # Existing session is at least as good — skip this stale re-send
+                            cur.execute(f"RELEASE SAVEPOINT {savepoint}")
+                            duplicates.append(record["key"])
+                            continue
+
+                        # Incoming is better — delete the old overlapping sessions
                         cur.execute(_SLEEP_DEDUP_SQL, (
                             source_id, new_key + ":%",
-                            new_end, new_start, new_end, source_id,
+                            new_end, new_start, new_end, new_stage_count, source_id,
                         ))
 
                 inserted = 0
