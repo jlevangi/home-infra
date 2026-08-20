@@ -32,13 +32,8 @@ as devices with eight interfaces each:
 Each host's interfaces carry their LAG and bridge relationships, so a device's
 Interfaces tab shows which physical NIC belongs to which bond and where it is cabled.
 
-Cables use NetBox's `status` field, which makes the model double as the cabling
-checklist: runs still to be made are **`planned`**, and links that physically exist
-are **`connected`**. Flip each one to `connected` as you make it.
-
-> Switch port numbers for the pre-existing links (atlas, both NAS legs, the
-> workstation) are the proposed layout, not observed fact — correct them in NetBox if
-> the physical ports differ.
+Cables use NetBox's `status` field. The current records were physically verified by
+Pierce on 2026-08-20; connected records represent real cable runs.
 
 The router lives on the 1G switch because its LAN port is 1G and can never exceed
 that regardless of which switch it sits on, so the 1G uplink costs zero throughput
