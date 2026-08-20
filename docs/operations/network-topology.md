@@ -26,8 +26,8 @@ as devices with eight interfaces each:
 
 | Device | Role |
 | --- | --- |
-| [`sw-core-25g`](https://netbox.levangie.dev/dcim/devices/?q=sw-core-25g) | Fast core. All 2.5G links, both NAS LAG legs, the uplink. |
-| [`sw-edge-1g`](https://netbox.levangie.dev/dcim/devices/?q=sw-edge-1g) | Edge / failover plane. Standby bond legs, router, future ProLiant. |
+| [`sw-core-25g`](https://netbox.levangie.dev/dcim/devices/?q=sw-core-25g) | Fast core. All active 2.5G Proxmox links and the uplink. |
+| [`sw-edge-1g`](https://netbox.levangie.dev/dcim/devices/?q=sw-edge-1g) | Edge plane. Router, both NAS LAG legs, and capacity for unplugged bond members. |
 
 Each host's interfaces carry their LAG and bridge relationships, so a device's
 Interfaces tab shows which physical NIC belongs to which bond and where it is cabled.
@@ -50,15 +50,15 @@ never forward on two legs at once, so the bonds themselves cannot create a loop.
 
 ## Host Bonding
 
-Every Proxmox host runs `vmbr0` on top of an `active-backup` bond: a 2.5G primary and
-a 1G standby on the other switch. The USB adapters are consumer Realtek RTL8156B
-devices, so the standby leg exists to keep a host reachable when one resets.
+Every Proxmox host runs `vmbr0` on top of an `active-backup` bond. The 2.5G member is
+active. The configured 1G member is intentionally unplugged and can be cabled later
+to restore failover without changing the Proxmox network configuration.
 
-| Host | Primary (2.5G) | Standby (1G) | `vmbr0` address |
+| Host | Active (2.5G) | Configured 1G member | `vmbr0` address |
 | --- | --- | --- | --- |
-| atlas | `nic0` (onboard) | `nic1` | `172.20.20.6/22` |
-| elitedesk-1 | `enx6c1ff7cc61a4` (USB) | `nic0` | `172.20.20.7/22` |
-| dellssf | `enx6c1ff7c0d19c` (USB) | `enp1s0` | `172.20.20.14/22` |
+| atlas | `nic0` (onboard) | `nic1` (unplugged) | `172.20.20.6/22` |
+| elitedesk-1 | `enx6c1ff7cc61a4` (USB) | `nic0` (unplugged) | `172.20.20.7/22` |
+| dellssf | `enx6c1ff7c0d19c` (USB) | `enp1s0` (unplugged) | `172.20.20.14/22` |
 
 ### Reference configuration
 
@@ -163,7 +163,14 @@ Recorded 2026-08-14 with `iperf3`, single stream, before the 2.5G cabling:
 | atlas -> elitedesk-1 | 917 Mbit/s |
 | dellssf -> atlas | 945 Mbit/s |
 
-Target after cabling on the atlas <-> elitedesk-1 path is roughly 2.3-2.4 Gbit/s.
+Measured after cabling: roughly 2.34-2.35 Gbit/s across Atlas, EliteDesk, and Dell-SSF.
+
+### Monitoring policy
+
+`ProxmoxHostLinkBelowExpected` alerts when `bond0` reports less than 2.5 Gb/s and
+remains actionable. Do not alert on configured slave count versus active slave count:
+the 1G members are intentionally unplugged, so `ProxmoxHostBondDegraded` would be a
+permanent false positive.
 
 ## NAS Link Aggregation
 
