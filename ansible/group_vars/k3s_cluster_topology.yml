@@ -65,7 +65,9 @@ k3s_node_profiles:
     nvidia_gpu_worker: true
     k3s_agent_args:
       - "--node-label=accelerator=nvidia"
-      - "--node-taint=accelerator=nvidia:NoSchedule"
+    # General workloads are allowed here deliberately. The GPU node was
+    # originally tainted media-only, but the taint was removed when two Atlas
+    # workers were retired; future installs must preserve that untainted state.
     # general-storage is deliberate, not leftover drift. The GPU node was
     # originally media-only, but with two of the four Atlas workers being
     # retired it has to carry general replicas as well — otherwise there are
