@@ -85,6 +85,16 @@
       "addLabels": ["component:helper"]
     },
     {
+      "description": "Split BusyBox and Python updates by owning manifest directory",
+      "matchPackageNames": ["busybox", "python"],
+      "additionalBranchPrefix": "{{packageFileDir}}-"
+    },
+    {
+      "description": "Ignore LinuxServer qBittorrent legacy date-based build tags",
+      "matchPackageNames": ["ghcr.io/linuxserver/qbittorrent"],
+      "allowedVersions": "/^[0-9]\\.[0-9]+\\.[0-9]+$/"
+    },
+    {
       "description": "Postgres major upgrades need manual data migration planning",
       "matchFileNames": ["argocd/manifests/**"],
       "matchPackageNames": ["postgres"],
