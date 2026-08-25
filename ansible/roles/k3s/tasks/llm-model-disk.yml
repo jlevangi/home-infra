@@ -2,7 +2,7 @@
 # Format and mount a dedicated block device for LLM model files.
 # Activated by setting `llm_model_disk_device` (e.g. /dev/disk/by-id/...) and
 # `llm_model_mount_path` in host_vars. Used by the GPU worker to back the
-# llama-cpp static local PV (/mnt/llm-models on a dedicated scsi2 LVM disk).
+# llama-cpp static local PV (/mnt/llm-tank on dedicated scsi2 tank storage).
 # Unset = no-op everywhere else.
 
 - name: Stat LLM model disk

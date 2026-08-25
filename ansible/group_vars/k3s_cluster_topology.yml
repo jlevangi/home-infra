@@ -85,12 +85,11 @@ k3s_node_profiles:
         path: /var/lib/longhorn
         slot: scsi1
         tags: [general-storage, tank]
-    # Dedicated LVM-backed disk for LLM model files, surfaced to Kubernetes as
-    # a static local PV for the llama-cpp app. LVM rather than ZFS so heavy
-    # write bursts during model staging skip compression/checksum/ARC overhead.
-    # NOTE: currently commented out in this host's /etc/fstab and not mounted.
+    # Dedicated tank-backed ext4 disk for local LLM model files, surfaced to
+    # Kubernetes through the llama-cpp static local PV. This is HDD-backed
+    # capacity storage, not the constrained SSD-backed flash pool.
     llm_model_disk_slot: scsi2
-    llm_model_mount_path: /mnt/llm-models
+    llm_model_mount_path: /mnt/llm-tank
 
   # ---------------------------------------------------------------------------
   # elitedesk-1 worker — k3s-prod-worker-4

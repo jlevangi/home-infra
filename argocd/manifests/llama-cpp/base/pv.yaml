@@ -1,6 +1,6 @@
-# Static local PV backed by the 600 GiB tank zvol attached to the prod GPU
-# worker VM (scsi2, /dev/sdc1, ext4 mounted at /mnt/llm-tank). The user
-# downloads GGUF files into this path directly; the pod mounts it read-only.
+# Static local PV backed by the 800 GiB HDD-backed tank zvol attached to the
+# prod GPU worker VM (scsi2, /dev/sdb1, ext4 mounted at /mnt/llm-tank). The
+# pod mounts model files read-only; this is not SSD-backed flash storage.
 apiVersion: v1
 kind: PersistentVolume
 metadata:

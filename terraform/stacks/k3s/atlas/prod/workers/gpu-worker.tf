@@ -59,7 +59,7 @@ variable "gpu_worker_cpu_sockets" {
 }
 
 variable "gpu_worker_memory" {
-  description = "Memory (MiB) for the GPU worker. 122880 MiB (120 GiB) is the current target now that llama-cpp is no longer serving very large MiniMax-class models. Memory hot-add does NOT work on this VM because hostpci0 (P4000 passthrough) pins the full allocation at start — changing this requires a VM reboot, and total host commit on atlas (322 GiB) needs to stay above the sum of every prod VM's memory."
+  description = "Memory (MiB) for the GPU worker. 122880 MiB (120 GiB) is the approved target for local LLM experiments. Memory hot-add does NOT work on this VM because hostpci0 (P4000 passthrough) pins the full allocation at start — changing this requires a VM reboot, and total host commit on atlas must retain host and guest headroom."
   type        = number
   default     = 122880
 }

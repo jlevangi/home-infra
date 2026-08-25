@@ -21,6 +21,10 @@ This directory is organized around current operator workflows first. Historical 
   Switch port map, Proxmox host bonding, and the procedure for changing a host's network configuration.
 - [LLM Default Model](operations/llm-default-model.md)
   How llama-cpp and automation clients coordinate the hot-loaded default model without hiding the real model name.
+- [LLM Model Storage](operations/llm-model-storage.md)
+  Atlas GPU-worker model disk ownership, HDD/SSD tier policy, and Colibri pilot guardrails.
+- [LLM Model Cleanup — 2026-08-25](operations/llm-model-cleanup-2026-08-25.md)
+  Manifest for removal of inactive legacy GGUFs before Colibri model staging.
 
 ## Recovery
 
