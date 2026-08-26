@@ -5,10 +5,15 @@ metadata:
   namespace: 3dprintcalc
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
   labels:
     app: printcalc
     app.kubernetes.io/name: printcalc
 spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - 3dprintcalc.levangie.org
   rules:
     - host: 3dprintcalc.levangie.org
       http:

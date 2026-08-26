@@ -19,11 +19,46 @@ spec:
         app: printcalc
         app.kubernetes.io/name: printcalc
     spec:
+      imagePullSecrets:
+        - name: printcalc-ghcr
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
       containers:
         - name: printcalc
-          image: jlevangie/3d-print-cost-calculator
+          image: ghcr.io/jlevangi/3dprintcalculator:sha-9cd1773@sha256:dce1ca4328b69696227acb570626e0dcd8abd6d60eaab43cc1d21f511f3a0b8a
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000
+          env:
+            - name: DATABASE_PATH
+              value: /app/data/calculator.db
+            - name: OIDC_ISSUER_URL
+              value: https://auth.levangie.org/realms/master
+            - name: OIDC_CLIENT_ID
+              value: 3dprintcalc
+            - name: OIDC_REDIRECT_URI
+              value: https://3dprintcalc.levangie.org/auth/callback
+            - name: SESSION_COOKIE_SECURE
+              value: "true"
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: printcalc-secrets
+                  key: SECRET_KEY
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: printcalc-secrets
+                  key: OIDC_CLIENT_SECRET
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: false
           resources:
             requests:
               cpu: 25m
@@ -43,3 +78,10 @@ spec:
               port: 5000
             initialDelaySeconds: 30
             periodSeconds: 20
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: printcalc-data
