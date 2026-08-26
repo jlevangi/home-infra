@@ -4,7 +4,7 @@ resources:
   - ../../base
 images:
   - name: ghcr.io/lukegus/termix
-    newTag: "2.6.1"
+    newTag: "2.7.1"
 patches:
   - target:
       kind: Ingress

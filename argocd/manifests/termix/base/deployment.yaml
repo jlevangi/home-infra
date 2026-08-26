@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: termix
-          image: ghcr.io/lukegus/termix:2.6.1
+          image: ghcr.io/lukegus/termix:2.7.1
           imagePullPolicy: IfNotPresent
           env:
             - name: PORT

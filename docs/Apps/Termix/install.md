@@ -15,7 +15,7 @@ The `termix` Deployment runs a single pod with two containers:
 
 | Container | Image | Purpose |
 | --- | --- | --- |
-| `termix` | `ghcr.io/lukegus/termix:latest` | Web UI and SSH/remote-session management |
+| `termix` | `ghcr.io/lukegus/termix:2.7.1` | Web UI and SSH/remote-session management |
 | `guacd` | `guacamole/guacd:1.6.0` | Apache Guacamole protocol proxy for RDP, VNC, and Telnet sessions |
 
 `guacd` is intentionally a sidecar in the same pod as Termix. The deployment supports both connection paths:
@@ -64,7 +64,9 @@ Termix uses native OIDC against the Keycloak `master` realm.
 - Username display claim: `preferred_username`
 - Requested scopes: `openid email profile` (`groups` is emitted by a dedicated Keycloak client mapper)
 
-The Keycloak user `pierce` is a member of `termix-admins`. Termix auto-provisions the account on first SSO login and synchronizes administrator status from that group on every login. Password login remains enabled as recovery; do not enable silent/default OIDC login until the normal login path has been proven stable.
+The Keycloak user `pierce` is a member of `termix-admins`. Its OIDC subject is linked to the retained Termix account named `Pierce`, preserving that account's hosts, credentials, history, and recordings. Termix synchronizes administrator status from the group on every login. Password login remains enabled as recovery; do not enable silent/default OIDC login until the normal login path has been proven stable.
+
+If OIDC creates a duplicate account, do not move only the visible host rows: Termix user-owned data spans many tables and the database file is encrypted. Stop Termix, back up `/app/data/db.sqlite.encrypted`, use the application database modules to transfer the duplicate account's OIDC fields to the retained account, then delete the empty duplicate and save the in-memory database.
 
 To revoke Pierce's Termix admin access without disabling SSO, remove `pierce` from the Keycloak `termix-admins` group. Termix applies the downgrade on the next login.
 
