@@ -28,7 +28,7 @@ spec:
         fsGroup: 10001
       containers:
         - name: printcalc
-          image: ghcr.io/jlevangi/3dprintcalculator:sha-9cd1773@sha256:dce1ca4328b69696227acb570626e0dcd8abd6d60eaab43cc1d21f511f3a0b8a
+          image: ghcr.io/jlevangi/3dprintcalculator:sha-52a1aaa@sha256:0af865d60131b776659b1d96fbecfc37da12256b5cb3f4bfc4c04d5b2db05c4d
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000
