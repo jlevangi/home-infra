@@ -538,14 +538,6 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
-            - name: Affine
-              group: Applications
-              url: https://affine.levangie.dev
-              interval: 5m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
-
             - name: Kan
               group: Applications
               url: https://kan.levangie.dev/auth/login
