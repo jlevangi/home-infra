@@ -126,6 +126,21 @@ Immich expects a scalar role claim whose value is `admin` or `user`. The dedicat
 
 Because the shared `master` realm contains unrelated users, `gallery.everlyera.com` has Immich auto-registration disabled. Administrators must pre-create a matching Immich account before granting Keycloak access. Keep password login enabled as break-glass and store generated local passwords with the OIDC client secret at `kv/prod/everlyera-gallery-oidc`.
 
+## Session policy
+
+The `master` realm uses these interactive SSO limits:
+
+| Session type | Idle timeout | Maximum lifespan |
+|---|---:|---:|
+| Normal | 7 days | 30 days |
+| Remember Me | 30 days | 90 days |
+
+`Remember Me` is enabled. The access-token lifespan remains 60 seconds; OIDC
+clients should refresh access tokens rather than treating that short token
+lifetime as an interactive logout. These settings are realm-owned in Keycloak's
+database and currently require an admin API or Realm Settings change rather
+than an ArgoCD manifest update.
+
 ## Login theme
 
 The CSS-first `levangie` login theme lives under
