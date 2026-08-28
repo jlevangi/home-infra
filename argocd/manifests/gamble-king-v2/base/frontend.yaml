@@ -40,7 +40,7 @@ spec:
         - name: gamble-king-v2-ghcr
       containers:
         - name: web
-          image: ghcr.io/jlevangi/gamble-king:web-main@sha256:75c4908c682c81178184052a678bb109e1de0d626fb4b62b47f1ee9bb5926ebf
+          image: ghcr.io/jlevangi/gamble-king:web-main@sha256:0e965935b1c1b9a443953f0479d9896dc521a55a200a52ca4ba90265a80269b1
           ports:
             - name: http
               containerPort: 80
