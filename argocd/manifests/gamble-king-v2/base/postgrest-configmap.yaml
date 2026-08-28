@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gk-postgrest-config
+  namespace: gamble-king-v2-dev
+data:
+  # anon/authenticated match the roles created by the gamble-king repo's
+  # RLS migrations (docs/02-data-model-rls.md) -- PostgREST switches into
+  # PGRST_DB_ANON_ROLE for unauthenticated requests and into the JWT's
+  # "role" claim (anon|authenticated) for authenticated ones.
+  PGRST_DB_ANON_ROLE: "anon"
+  PGRST_DB_SCHEMA: "public"
+  PGRST_SERVER_PORT: "3000"

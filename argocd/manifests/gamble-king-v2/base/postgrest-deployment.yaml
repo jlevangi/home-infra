@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gk-postgrest
+  namespace: gamble-king-v2-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gk-postgrest
+  template:
+    metadata:
+      labels:
+        app: gk-postgrest
+    spec:
+      containers:
+        - name: postgrest
+          image: postgrest/postgrest:v12.2.3
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: gk-postgrest-config
+          env:
+            - name: PGRST_DB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: gamble-king-v2-secrets
+                  key: PGRST_DB_URI
+            - name: PGRST_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: gamble-king-v2-secrets
+                  key: JWT_SECRET
+          ports:
+            - containerPort: 3000
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: "25m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"

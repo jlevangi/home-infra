@@ -1,0 +1,19 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: gk-strip-auth-prefix
+  namespace: gamble-king-v2-dev
+spec:
+  stripPrefix:
+    prefixes:
+      - /auth/v1
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: gk-strip-rest-prefix
+  namespace: gamble-king-v2-dev
+spec:
+  stripPrefix:
+    prefixes:
+      - /rest/v1

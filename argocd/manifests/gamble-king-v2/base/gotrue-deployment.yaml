@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gk-gotrue
+  namespace: gamble-king-v2-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gk-gotrue
+  template:
+    metadata:
+      labels:
+        app: gk-gotrue
+    spec:
+      containers:
+        - name: gotrue
+          image: supabase/gotrue:v2.158.1
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: gk-gotrue-config
+          env:
+            - name: GOTRUE_DB_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: gamble-king-v2-secrets
+                  key: GOTRUE_DB_DATABASE_URL
+            - name: GOTRUE_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: gamble-king-v2-secrets
+                  key: JWT_SECRET
+          ports:
+            - containerPort: 9999
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: "25m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
