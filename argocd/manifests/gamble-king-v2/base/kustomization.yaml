@@ -12,6 +12,9 @@ resources:
   - postgrest-configmap.yaml
   - postgrest-deployment.yaml
   - postgrest-service.yaml
+  - frontend.yaml
+  - studio.yaml
+  - studio-auth.yaml
   - middleware-strip-prefix.yaml
   - ingress.yaml
 images:

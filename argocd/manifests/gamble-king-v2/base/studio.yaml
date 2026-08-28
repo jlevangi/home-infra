@@ -1,0 +1,160 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gk-postgres-meta
+  namespace: gamble-king-v2-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gk-postgres-meta
+  template:
+    metadata:
+      labels:
+        app: gk-postgres-meta
+    spec:
+      containers:
+        - name: meta
+          image: supabase/postgres-meta:v0.96.6
+          env:
+            - name: PG_META_PORT
+              value: "8080"
+            - name: PG_META_DB_HOST
+              value: gk-postgres
+            - name: PG_META_DB_PORT
+              value: "5432"
+            - name: PG_META_DB_NAME
+              value: postgres
+            - name: PG_META_DB_USER
+              value: supabase_admin
+            - name: PG_META_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: gamble-king-v2-secrets
+                  key: POSTGRES_PASSWORD
+            - name: CRYPTO_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: gamble-king-v2-secrets
+                  key: PG_META_CRYPTO_KEY
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gk-postgres-meta
+  namespace: gamble-king-v2-dev
+spec:
+  selector:
+    app: gk-postgres-meta
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gk-studio
+  namespace: gamble-king-v2-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gk-studio
+  template:
+    metadata:
+      labels:
+        app: gk-studio
+    spec:
+      containers:
+        - name: studio
+          image: supabase/studio:2026.08.03-sha-022b374
+          env:
+            - name: HOSTNAME
+              value: "0.0.0.0"
+            - name: STUDIO_PG_META_URL
+              value: http://gk-postgres-meta:8080
+            - name: POSTGRES_HOST
+              value: gk-postgres
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_DB
+              value: postgres
+            - name: POSTGRES_USER_READ_WRITE
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: gamble-king-v2-secrets
+                  key: POSTGRES_PASSWORD
+            - name: PG_META_CRYPTO_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: gamble-king-v2-secrets
+                  key: PG_META_CRYPTO_KEY
+            - name: DEFAULT_ORGANIZATION_NAME
+              value: Gamble King
+            - name: DEFAULT_PROJECT_NAME
+              value: Gamble King v2 Dev
+            - name: SUPABASE_URL
+              value: https://gambleking-dev.levangie.dev
+            - name: SUPABASE_PUBLIC_URL
+              value: https://gambleking-dev.levangie.dev
+            - name: SUPABASE_ANON_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: gamble-king-v2-secrets
+                  key: ANON_KEY
+            - name: SUPABASE_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: gamble-king-v2-secrets
+                  key: SERVICE_ROLE_KEY
+            - name: AUTH_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: gamble-king-v2-secrets
+                  key: JWT_SECRET
+            - name: PGRST_DB_SCHEMAS
+              value: public
+          ports:
+            - name: http
+              containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /api/platform/profile
+              port: http
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gk-studio
+  namespace: gamble-king-v2-dev
+spec:
+  selector:
+    app: gk-studio
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http

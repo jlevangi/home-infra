@@ -30,6 +30,13 @@ spec:
     - host: gambleking-dev.levangie.dev
       http:
         paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gamble-king-v2-web
+                port:
+                  name: http
           - path: /auth/v1
             pathType: Prefix
             backend:
