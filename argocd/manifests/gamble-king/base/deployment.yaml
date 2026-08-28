@@ -23,7 +23,7 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: gamble-king
-          image: ghcr.io/jlevangi/poker-night:2.5.4@sha256:eea16d843cdc455791a2551317ab7e63c1da37231f4bad01a9177a195115f5ca
+          image: ghcr.io/jlevangi/poker-night:2.5.5@sha256:901a1639bea9e57d747d7feabb6ef0add7eb3b8951f22438e546b8c91968b29a
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
