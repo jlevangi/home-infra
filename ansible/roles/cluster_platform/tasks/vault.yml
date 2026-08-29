@@ -339,6 +339,9 @@
       path "{{ vault_kv_path }}/data/talos-test/*" {
         capabilities = ["read"]
       }
+      path "{{ vault_kv_path }}/data/dev/*" {
+        capabilities = ["read"]
+      }
       POLICY'
     register: vault_policy_write
     changed_when: "vault_policy_write.rc == 0"

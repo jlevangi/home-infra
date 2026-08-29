@@ -1,0 +1,79 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: gamble-king-v2-ghcr
+  namespace: gamble-king-v2-dev
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: vault-kv
+    kind: ClusterSecretStore
+  target:
+    name: gamble-king-v2-ghcr
+    creationPolicy: Owner
+    template:
+      type: kubernetes.io/dockerconfigjson
+      data:
+        .dockerconfigjson: "{{ .dockerconfig }}"
+  data:
+    - secretKey: dockerconfig
+      remoteRef:
+        key: dev/gamble-king-v2
+        property: GHCR_DOCKERCONFIGJSON
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gamble-king-v2-web
+  namespace: gamble-king-v2-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gamble-king-v2-web
+  template:
+    metadata:
+      labels:
+        app: gamble-king-v2-web
+    spec:
+      imagePullSecrets:
+        - name: gamble-king-v2-ghcr
+      containers:
+        - name: web
+          image: ghcr.io/jlevangi/gamble-king:web-main@sha256:969df25a152a6cca1dcffde5e54438c505d44189b85d44354c1762c2a424962e
+          ports:
+            - name: http
+              containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+              add: ["CHOWN", "DAC_OVERRIDE", "SETGID", "SETUID", "NET_BIND_SERVICE"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gamble-king-v2-web
+  namespace: gamble-king-v2-dev
+spec:
+  selector:
+    app: gamble-king-v2-web
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

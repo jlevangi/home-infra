@@ -1,0 +1,53 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gamble-king-v2
+  namespace: gamble-king-v2-dev
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+    # No external-dns target override and no Cloudflare Tunnel route:
+    # external-dns's ingress source auto-discovers the Traefik LoadBalancer
+    # for any *.levangie.dev host and syncs an internal-only Technitium
+    # record, same as gamble-king (v1)'s ingress. This host is therefore
+    # resolvable inside the network and NOT publicly reachable -- no
+    # further DNS step needed (docs/05-dev-environment.md).
+    traefik.ingress.kubernetes.io/router.middlewares: >-
+      gamble-king-v2-dev-gk-strip-auth-prefix@kubernetescrd,
+      gamble-king-v2-dev-gk-strip-rest-prefix@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - gambleking-dev.levangie.dev
+  # Only the Supabase platform surface (auth + REST/RPC) is routed here.
+  # apps/web has no cluster deployment yet (no image registry/CI pipeline
+  # set up this pass) -- for now it runs locally (`npm run dev`) pointed
+  # at this ingress as its remote backend via VITE_SUPABASE_URL. Adding a
+  # "/" route to a deployed web frontend is a follow-up once that pipeline
+  # exists (poker-night-dci.5.2 follow-up, not blocking this foundation).
+  rules:
+    - host: gambleking-dev.levangie.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gamble-king-v2-web
+                port:
+                  name: http
+          - path: /auth/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: gk-gotrue
+                port:
+                  name: http
+          - path: /rest/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: gk-postgrest
+                port:
+                  name: http
