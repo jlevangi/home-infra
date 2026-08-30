@@ -1,0 +1,10 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  labels:
+    environment: dev
+  name: gk-strip-rest-prefix
+spec:
+  stripPrefix:
+    prefixes:
+    - /rest/v1

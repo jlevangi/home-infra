@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: '1'
+  labels:
+    environment: dev
+  name: gk-postgres-meta
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gk-postgres-meta
+      environment: dev
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: gk-postgres-meta
+        environment: dev
+    spec:
+      containers:
+      - env:
+        - name: PG_META_PORT
+          value: '8080'
+        - name: PG_META_DB_HOST
+          value: gk-postgres
+        - name: PG_META_DB_PORT
+          value: '5432'
+        - name: PG_META_DB_NAME
+          value: postgres
+        - name: PG_META_DB_USER
+          value: supabase_admin
+        - name: PG_META_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: POSTGRES_PASSWORD
+              name: gamble-king-v2-secrets
+        - name: CRYPTO_KEY
+          valueFrom:
+            secretKeyRef:
+              key: PG_META_CRYPTO_KEY
+              name: gamble-king-v2-secrets
+        image: supabase/postgres-meta:v0.96.6
+        imagePullPolicy: IfNotPresent
+        name: meta
+        ports:
+        - containerPort: 8080
+          name: http
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+        resources:
+          limits:
+            cpu: 250m
+            memory: 256Mi
+          requests:
+            cpu: 25m
+            memory: 64Mi

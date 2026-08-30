@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- deployment-gamble-king-v2-web.yaml
+- deployment-gk-gotrue.yaml
+- deployment-gk-postgres-meta.yaml
+- deployment-gk-postgres.yaml
+- deployment-gk-postgrest.yaml
+- deployment-gk-studio-oauth2-proxy.yaml
+- deployment-gk-studio.yaml
+- middleware-gk-strip-auth-prefix.yaml
+- middleware-gk-strip-rest-prefix.yaml
+- middleware-gk-studio-errors.yaml
+- middleware-gk-studio-forwardauth.yaml
+- pvc-gk-postgres-pvc.yaml
+- service-gamble-king-v2-web.yaml
+- service-gk-gotrue.yaml
+- service-gk-postgres-meta.yaml
+- service-gk-postgres.yaml
+- service-gk-postgrest.yaml
+- service-gk-studio-oauth2-proxy.yaml
+- service-gk-studio.yaml

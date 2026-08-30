@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: '1'
+  labels:
+    environment: dev
+  name: gk-studio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gk-studio
+      environment: dev
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: gk-studio
+        environment: dev
+    spec:
+      containers:
+      - env:
+        - name: HOSTNAME
+          value: 0.0.0.0
+        - name: STUDIO_PG_META_URL
+          value: http://gk-postgres-meta:8080
+        - name: POSTGRES_HOST
+          value: gk-postgres
+        - name: POSTGRES_PORT
+          value: '5432'
+        - name: POSTGRES_DB
+          value: postgres
+        - name: POSTGRES_USER_READ_WRITE
+          value: postgres
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: POSTGRES_PASSWORD
+              name: gamble-king-v2-secrets
+        - name: PG_META_CRYPTO_KEY
+          valueFrom:
+            secretKeyRef:
+              key: PG_META_CRYPTO_KEY
+              name: gamble-king-v2-secrets
+        - name: DEFAULT_ORGANIZATION_NAME
+          value: Gamble King
+        - name: DEFAULT_PROJECT_NAME
+          value: Gamble King v2 Dev
+        - name: SUPABASE_URL
+          value: https://gambleking-dev.levangie.dev
+        - name: SUPABASE_PUBLIC_URL
+          value: https://gambleking-dev.levangie.dev
+        - name: SUPABASE_ANON_KEY
+          valueFrom:
+            secretKeyRef:
+              key: ANON_KEY
+              name: gamble-king-v2-secrets
+        - name: SUPABASE_SERVICE_KEY
+          valueFrom:
+            secretKeyRef:
+              key: SERVICE_ROLE_KEY
+              name: gamble-king-v2-secrets
+        - name: AUTH_JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              key: JWT_SECRET
+              name: gamble-king-v2-secrets
+        - name: PGRST_DB_SCHEMAS
+          value: public
+        image: supabase/studio:2026.08.03-sha-022b374
+        imagePullPolicy: IfNotPresent
+        name: studio
+        ports:
+        - containerPort: 3000
+          name: http
+        readinessProbe:
+          httpGet:
+            path: /api/platform/profile
+            port: http
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 50m
+            memory: 256Mi

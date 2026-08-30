@@ -1,0 +1,16 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  labels:
+    environment: dev
+  name: gk-studio-errors
+spec:
+  errors:
+    query: /oauth2/sign_in?rd={url}
+    service:
+      name: gk-studio-oauth2-proxy
+      port: 4180
+    status:
+    - 401-403
+    statusRewrites:
+      '401': 302

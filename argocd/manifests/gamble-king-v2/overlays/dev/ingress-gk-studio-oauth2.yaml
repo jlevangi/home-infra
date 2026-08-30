@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+  labels:
+    environment: dev
+  name: gk-studio-oauth2
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: supabase-gambleking-dev.levangie.dev
+    http:
+      paths:
+      - backend:
+          service:
+            name: gk-studio-oauth2-proxy
+            port:
+              name: http
+        path: /oauth2
+        pathType: Prefix
+  tls:
+  - hosts:
+    - supabase-gambleking-dev.levangie.dev

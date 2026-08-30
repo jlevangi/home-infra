@@ -1,0 +1,41 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.middlewares: gamble-king-v2-dev-gk-strip-auth-prefix@kubernetescrd,
+      gamble-king-v2-dev-gk-strip-rest-prefix@kubernetescrd
+    traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+  labels:
+    environment: dev
+  name: gamble-king-v2
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: gambleking-dev.levangie.dev
+    http:
+      paths:
+      - backend:
+          service:
+            name: gamble-king-v2-web
+            port:
+              name: http
+        path: /
+        pathType: Prefix
+      - backend:
+          service:
+            name: gk-gotrue
+            port:
+              name: http
+        path: /auth/v1
+        pathType: Prefix
+      - backend:
+          service:
+            name: gk-postgrest
+            port:
+              name: http
+        path: /rest/v1
+        pathType: Prefix
+  tls:
+  - hosts:
+    - gambleking-dev.levangie.dev

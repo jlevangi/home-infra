@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: '5'
+  labels:
+    environment: dev
+  name: gamble-king-v2-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gamble-king-v2-web
+      environment: dev
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: gamble-king-v2-web
+        environment: dev
+    spec:
+      containers:
+      - image: ghcr.io/jlevangi/gamble-king:web-main@sha256:969df25a152a6cca1dcffde5e54438c505d44189b85d44354c1762c2a424962e
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+        name: web
+        ports:
+        - containerPort: 80
+          name: http
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+        resources:
+          limits:
+            cpu: 200m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 32Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            add:
+            - CHOWN
+            - DAC_OVERRIDE
+            - SETGID
+            - SETUID
+            - NET_BIND_SERVICE
+            drop:
+            - ALL
+      imagePullSecrets:
+      - name: gamble-king-v2-ghcr
