@@ -105,6 +105,14 @@ spec:
                 - "[BODY].postgres == ok"
                 - "[BODY].clickhouse == ok"
 
+            - name: Gamble King v2 Dev
+              group: Applications
+              url: https://dev.gambleking.app/healthz
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
             - name: Kaylee Watkins
               group: Applications
               url: https://kayleewatkins.com
