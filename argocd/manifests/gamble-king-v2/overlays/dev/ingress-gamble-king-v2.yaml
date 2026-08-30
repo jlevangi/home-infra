@@ -12,6 +12,30 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
+  - host: dev.gambleking.app
+    http:
+      paths:
+      - backend:
+          service:
+            name: gamble-king-v2-web
+            port:
+              name: http
+        path: /
+        pathType: Prefix
+      - backend:
+          service:
+            name: gk-gotrue
+            port:
+              name: http
+        path: /auth/v1
+        pathType: Prefix
+      - backend:
+          service:
+            name: gk-postgrest
+            port:
+              name: http
+        path: /rest/v1
+        pathType: Prefix
   - host: gambleking-dev.levangie.dev
     http:
       paths:
@@ -38,4 +62,5 @@ spec:
         pathType: Prefix
   tls:
   - hosts:
+    - dev.gambleking.app
     - gambleking-dev.levangie.dev

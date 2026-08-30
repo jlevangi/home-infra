@@ -1,8 +1,6 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  annotations:
-    deployment.kubernetes.io/revision: '3'
   labels:
     environment: dev
   name: gk-gotrue
@@ -20,6 +18,7 @@ spec:
   template:
     metadata:
       annotations:
+        gambleking.app/config-revision: dev-domain-2026-08-30
         kubectl.kubernetes.io/restartedAt: '2026-08-28T13:31:05-04:00'
       labels:
         app: gk-gotrue

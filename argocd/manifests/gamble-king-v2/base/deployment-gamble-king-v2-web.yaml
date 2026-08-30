@@ -1,8 +1,6 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  annotations:
-    deployment.kubernetes.io/revision: '5'
   labels:
     environment: dev
   name: gamble-king-v2-web
@@ -24,19 +22,27 @@ spec:
         environment: dev
     spec:
       containers:
-      - image: ghcr.io/jlevangi/gamble-king:web-main@sha256:969df25a152a6cca1dcffde5e54438c505d44189b85d44354c1762c2a424962e
+      - env:
+        - name: PUBLIC_SUPABASE_URL
+          value: https://dev.gambleking.app
+        - name: PUBLIC_SUPABASE_ANON_KEY
+          valueFrom:
+            secretKeyRef:
+              key: ANON_KEY
+              name: gamble-king-v2-secrets
+        image: ghcr.io/jlevangi/gamble-king:app-b3e5f38ebf442fb70ae29b1ac14f007e5e9aee66@sha256:142fef0b0284dede5bf6616ae59294ec960df3139f2f1c2be04ff23760cd7cf7
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
-            path: /
+            path: /healthz
             port: http
         name: web
         ports:
-        - containerPort: 80
+        - containerPort: 3000
           name: http
         readinessProbe:
           httpGet:
-            path: /
+            path: /healthz
             port: http
         resources:
           limits:
@@ -48,13 +54,10 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
-            add:
-            - CHOWN
-            - DAC_OVERRIDE
-            - SETGID
-            - SETUID
-            - NET_BIND_SERVICE
             drop:
             - ALL
+          runAsGroup: 1000
+          runAsNonRoot: true
+          runAsUser: 1000
       imagePullSecrets:
       - name: gamble-king-v2-ghcr
