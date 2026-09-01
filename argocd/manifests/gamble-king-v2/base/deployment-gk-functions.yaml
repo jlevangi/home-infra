@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: gk-functions
+    environment: dev
+  name: gk-functions
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gk-functions
+      environment: dev
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: gk-functions
+        environment: dev
+    spec:
+      containers:
+      - env:
+        - name: SUPABASE_URL
+          value: https://dev.gambleking.app
+        - name: APP_ORIGIN
+          value: https://dev.gambleking.app
+        - name: SUPABASE_ANON_KEY
+          valueFrom:
+            secretKeyRef:
+              key: ANON_KEY
+              name: gamble-king-v2-secrets
+        - name: SUPABASE_SERVICE_ROLE_KEY
+          valueFrom:
+            secretKeyRef:
+              key: SERVICE_ROLE_KEY
+              name: gamble-king-v2-secrets
+        # Stripe values are optional until test-mode credentials exist. The
+        # functions fail closed with HTTP 503 while these keys are absent.
+        - name: STRIPE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              key: STRIPE_SECRET_KEY
+              name: gamble-king-v2-secrets
+              optional: true
+        - name: STRIPE_PRICE_ID
+          valueFrom:
+            secretKeyRef:
+              key: STRIPE_PRICE_ID
+              name: gamble-king-v2-secrets
+              optional: true
+        - name: STRIPE_WEBHOOK_SECRET
+          valueFrom:
+            secretKeyRef:
+              key: STRIPE_WEBHOOK_SECRET
+              name: gamble-king-v2-secrets
+              optional: true
+        image: ghcr.io/jlevangi/gamble-king:functions-9e535b4acff0bea2c622ce37027a78ff4bf51e24@sha256:aa49a7198e05075b868dedef4ff672b96b3f95fa43147771d97a8cf4bddca7e7
+        imagePullPolicy: IfNotPresent
+        name: functions
+        ports:
+        - containerPort: 9000
+          name: http
+        readinessProbe:
+          failureThreshold: 6
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          tcpSocket:
+            port: http
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 50m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      imagePullSecrets:
+      - name: gamble-king-v2-ghcr
