@@ -30,7 +30,7 @@ spec:
             secretKeyRef:
               key: ANON_KEY
               name: gamble-king-v2-secrets
-        image: ghcr.io/jlevangi/gamble-king:app-e135c4c41de9865c40eac25c43520dbd94e1c6a6@sha256:578e375cfefec5f92440f1994bdf9a39c8ec36804271bf52539371212ad99f4c
+        image: ghcr.io/jlevangi/gamble-king:app-d1dcecb65db7ce9b317d691f1cd6bb4dc6c09968@sha256:6b104732bf3f7e25d1b42ac0b1bb3feacfd8a6b34e04cf1dd1fab788e62ee78a
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
