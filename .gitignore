@@ -154,3 +154,8 @@ coverage/
 
 # Local-only cluster state snapshots (contain secrets)
 .snapshots/
+
+# Local Python virtualenvs (accidentally committed 2026-09-01)
+.venv/
+**/.venv/
+.worktrees/
