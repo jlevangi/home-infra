@@ -1,0 +1,392 @@
+/* Everly Era Photography LLC — Immich 3.1 / @immich/ui 0.85 light-only theme */
+:root,
+.light,
+.dark {
+  color-scheme: light;
+
+  /* Everly Era semantic roles. */
+  --ee-canvas: #f6efe4;
+  --ee-surface: #fbf8f3;
+  --ee-subtle: #efe4d2;
+  --ee-hover: #e5d8c4;
+  --ee-border: #d9c6a7;
+  --ee-text: #2b2118;
+  --ee-muted: #564b36;
+  --ee-primary: #3c4a31;
+  --ee-primary-hover: #2c3724;
+  --ee-on-primary: #f6efe4;
+  --ee-danger: #8a2b20;
+  --ee-focus: #3c4a31;
+
+  /* Legacy Immich variables are RGB channels, not CSS colors. */
+  --immich-primary: 60 74 49;
+  --immich-bg: 246 239 228;
+  --immich-fg: 43 33 24;
+  --immich-gray: 86 75 54;
+  --immich-dark-primary: 60 74 49;
+  --immich-dark-bg: 246 239 228;
+  --immich-dark-fg: 43 33 24;
+  --immich-dark-gray: 239 228 210;
+
+  /* @immich/ui semantic primary scale. */
+  --immich-ui-primary-50: #f4f6f1;
+  --immich-ui-primary-100: #e5eadf;
+  --immich-ui-primary-200: #ccd6c2;
+  --immich-ui-primary-300: #a8b894;
+  --immich-ui-primary-400: #728363;
+  --immich-ui-primary-500: #3c4a31;
+  --immich-ui-primary-600: #2c3724;
+  --immich-ui-primary-700: #232d1c;
+  --immich-ui-primary-800: #1a2215;
+  --immich-ui-primary-900: #12180e;
+  --immich-ui-primary-950: #0a0e08;
+
+  /* @immich/ui light scale: pale to dark. */
+  --immich-ui-light: #f6efe4;
+  --immich-ui-light-50: #fbf8f3;
+  --immich-ui-light-100: #f6efe4;
+  --immich-ui-light-200: #efe4d2;
+  --immich-ui-light-300: #d9c6a7;
+  --immich-ui-light-400: #b9a582;
+  --immich-ui-light-500: #8d7b5d;
+  --immich-ui-light-600: #6f6047;
+  --immich-ui-light-700: #564b36;
+  --immich-ui-light-800: #3e3426;
+  --immich-ui-light-900: #2b2118;
+  --immich-ui-light-950: #1b150f;
+
+  /* @immich/ui dark scale is intentionally dark-to-pale. */
+  --immich-ui-dark: #2b2118;
+  --immich-ui-dark-50: #1b150f;
+  --immich-ui-dark-100: #2b2118;
+  --immich-ui-dark-200: #3e3426;
+  --immich-ui-dark-300: #564b36;
+  --immich-ui-dark-400: #6f6047;
+  --immich-ui-dark-500: #8d7b5d;
+  --immich-ui-dark-600: #b9a582;
+  --immich-ui-dark-700: #d9c6a7;
+  --immich-ui-dark-800: #efe4d2;
+  --immich-ui-dark-900: #f6efe4;
+  --immich-ui-dark-950: #fbf8f3;
+
+  /* @immich/ui surface and state roles. */
+  --immich-ui-muted: var(--ee-muted);
+  --immich-ui-gray: var(--ee-subtle);
+  --immich-ui-default-border: var(--ee-border);
+
+  --immich-ui-danger-50: #fff7f5;
+  --immich-ui-danger-100: #f9e5e1;
+  --immich-ui-danger-200: #efc8c1;
+  --immich-ui-danger-300: #dfa095;
+  --immich-ui-danger-400: #c86658;
+  --immich-ui-danger-500: #8a2b20;
+  --immich-ui-danger-600: #762219;
+  --immich-ui-danger-700: #611b14;
+  --immich-ui-danger-800: #4c1510;
+  --immich-ui-danger-900: #38100c;
+  --immich-ui-danger-950: #240907;
+
+  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+html,
+body {
+  color-scheme: light !important;
+  background-color: var(--ee-canvas) !important;
+  color: var(--ee-text) !important;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--ee-primary);
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight: 400 !important;
+  letter-spacing: 0.01em;
+}
+
+::placeholder {
+  color: var(--ee-muted) !important;
+  opacity: 1;
+}
+
+:focus-visible {
+  outline-color: var(--ee-focus) !important;
+}
+
+/*
+ * Legacy utility bridge.
+ * New @immich/ui components inherit the tokens above. These grouped rules only
+ * neutralize old Tailwind light/dark utilities that bypass semantic roles.
+ */
+.text-immich-fg,
+.text-dark,
+.dark .dark\:text-immich-dark-fg,
+.dark .dark\:text-white {
+  color: var(--ee-text) !important;
+}
+
+.text-muted,
+.text-gray-400,
+.text-gray-500,
+.text-gray-600,
+.text-immich-gray,
+.text-immich-dark-gray,
+.text-immich-text-gray-500,
+.dark .dark\:text-gray-300,
+.dark .dark\:text-immich-gray {
+  color: var(--ee-muted) !important;
+}
+
+.text-primary,
+.text-immich-primary,
+.dark .dark\:text-immich-dark-primary,
+.dark .dark\:hover\:text-immich-dark-primary:hover {
+  color: var(--ee-primary) !important;
+}
+
+.text-red-500,
+.text-red-600,
+.text-immich-error,
+[class*="text-error"] {
+  color: var(--ee-danger) !important;
+}
+
+.bg-light,
+.bg-light-100,
+.bg-white,
+.bg-gray-50,
+.dark .dark\:bg-immich-dark-bg,
+.dark .dark\:bg-white {
+  background-color: var(--ee-canvas) !important;
+  color: var(--ee-text) !important;
+}
+
+.bg-light-50,
+.bg-gray-100,
+.bg-gray-200,
+.dark .dark\:bg-immich-dark-gray,
+.dark .dark\:bg-gray-700,
+.dark .dark\:bg-gray-800,
+.dark .dark\:bg-gray-900,
+.dark .dark\:bg-primary-100 {
+  background-color: var(--ee-surface) !important;
+  color: var(--ee-text) !important;
+}
+
+.hover\:bg-gray-100:hover,
+.hover\:bg-gray-200:hover,
+.dark .dark\:hover\:bg-gray-500\/20:hover,
+.dark .dark\:hover\:bg-immich-dark-gray:hover {
+  background-color: var(--ee-hover) !important;
+  color: var(--ee-text) !important;
+}
+
+.border,
+.border-b,
+.border-e,
+.border-r,
+.border-t,
+[class*="border-gray"],
+[class*="border-immich"] {
+  border-color: var(--ee-border) !important;
+}
+
+/* Native controls not yet provided by @immich/ui. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select,
+textarea {
+  background-color: var(--ee-surface) !important;
+  border-color: var(--ee-border) !important;
+  color: var(--ee-text) !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):hover,
+select:hover,
+textarea:hover,
+input[type="radio"]:checked + label,
+input[type="checkbox"]:checked + label[class*="peer-checked"],
+input[type="radio"] + label:hover,
+input[type="checkbox"] + label[class*="peer-checked"]:hover {
+  background-color: var(--ee-subtle) !important;
+  color: var(--ee-text) !important;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background-color: var(--ee-subtle) !important;
+  color: var(--ee-muted) !important;
+  opacity: 0.72;
+}
+
+input[type="radio"] + label,
+input[type="checkbox"] + label[class*="peer-checked"] {
+  background-color: var(--ee-surface) !important;
+  color: var(--ee-text) !important;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+/* Legacy transient surfaces. */
+[role="menu"],
+[role="listbox"],
+[role="dialog"],
+[data-radix-popper-content-wrapper] > *,
+#account-info-panel {
+  background-color: var(--ee-surface) !important;
+  border-color: var(--ee-border) !important;
+  color: var(--ee-text) !important;
+}
+
+[role="menuitem"],
+[role="option"] {
+  color: var(--ee-text) !important;
+}
+
+[role="menuitem"]:hover,
+[role="menuitem"]:focus,
+[role="option"]:hover,
+[role="option"][aria-selected="true"] {
+  background-color: var(--ee-subtle) !important;
+  color: var(--ee-text) !important;
+}
+
+/* Photo overlays are the only intentional inverse interaction surfaces. */
+#asset-grid button[role="checkbox"] {
+  background-color: var(--ee-primary) !important;
+  color: var(--ee-on-primary) !important;
+}
+
+#asset-grid button[role="checkbox"] svg {
+  color: inherit !important;
+}
+
+#asset-grid button[role="checkbox"]:hover,
+#asset-grid button[role="checkbox"]:focus-visible,
+#asset-grid button[role="checkbox"][aria-checked="true"] {
+  background-color: var(--ee-primary-hover) !important;
+  color: #ffffff !important;
+  outline-color: var(--ee-on-primary) !important;
+}
+
+#immich-asset-viewer button,
+#immich-asset-viewer [role="button"] {
+  color: var(--ee-on-primary) !important;
+}
+
+#immich-asset-viewer button:hover,
+#immich-asset-viewer button:focus-visible,
+#immich-asset-viewer [role="button"]:hover,
+#immich-asset-viewer [role="button"]:focus-visible {
+  background-color: rgb(246 239 228 / 18%) !important;
+  color: #ffffff !important;
+  outline-color: var(--ee-on-primary) !important;
+}
+
+#immich-asset-viewer button:active,
+#immich-asset-viewer [role="button"]:active {
+  background-color: rgb(246 239 228 / 28%) !important;
+  color: #ffffff !important;
+}
+
+#immich-asset-viewer #detail-panel,
+#immich-asset-viewer #detail-panel button,
+#immich-asset-viewer #detail-panel [role="button"],
+#immich-asset-viewer [role="menu"],
+#immich-asset-viewer [role="menuitem"] {
+  color: var(--ee-text) !important;
+}
+
+#immich-asset-viewer #detail-panel button:hover,
+#immich-asset-viewer #detail-panel button:focus-visible,
+#immich-asset-viewer [role="menuitem"]:hover,
+#immich-asset-viewer [role="menuitem"]:focus {
+  background-color: var(--ee-subtle) !important;
+  color: var(--ee-text) !important;
+}
+
+/* Login card must match the cream-backed wordmark. */
+section:has(img[alt="Immich logo"]) > div[class*="max-w-xl"] > div[class*="bg-light"] {
+  background-color: var(--ee-canvas) !important;
+}
+
+/* Brand assets: choose one PNG by Immich's native logo role. */
+img[alt="Immich logo"][class*="aspect-square"] {
+  content: url("https://everlyera.com/everly-era-monogram.webp");
+  object-fit: contain;
+}
+
+img[alt="Immich logo"]:not([class*="aspect-square"]) {
+  content: url("https://everlyera.com/everly-era-wordmark.webp");
+  width: auto;
+  object-fit: contain;
+}
+
+/* Only the full-page auth backdrop uses the oversized watermark treatment. */
+section > div[class*="absolute"][class*="-z-10"] > img[alt="Immich logo"] {
+  content: url("https://everlyera.com/everly-era-monogram.webp");
+  opacity: 0.12;
+  padding: 8vh;
+}
+
+#dashboard-navbar a[href="/photos"],
+header a[href="/"] {
+  display: inline-flex;
+  width: auto;
+  height: 3.5rem;
+  background: none;
+}
+
+section [class*="max-w-xl"] img[alt="Immich logo"] {
+  content: url("https://everlyera.com/everly-era-wordmark.webp");
+  width: min(22rem, 76vw) !important;
+  height: 7rem !important;
+  aspect-ratio: auto !important;
+  object-fit: contain;
+  opacity: 1;
+  padding: 0;
+}
+
+section [class*="max-w-xl"] h1 {
+  font-size: 0;
+}
+
+section [class*="max-w-xl"] h1::after {
+  content: "Client Galleries";
+  font-size: 2.25rem;
+}
+
+/* Mobile authenticated header geometry. */
+@media (max-width: 639px) {
+  #top-menu-button {
+    flex: 0 0 2.5rem;
+    width: 2.5rem !important;
+    min-width: 2.5rem;
+  }
+
+  #dashboard-navbar a[href="/photos"] {
+    flex: 0 0 5rem;
+    width: 5rem;
+    max-width: 5rem;
+    height: 3rem;
+  }
+}
+
+@media (max-width: 359px) {
+  #dashboard-navbar > div[class*="grid-cols"] > div[class*="justify-between"] {
+    padding-inline-end: 0.75rem;
+  }
+}

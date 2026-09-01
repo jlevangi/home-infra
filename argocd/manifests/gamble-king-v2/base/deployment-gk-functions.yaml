@@ -55,7 +55,7 @@ spec:
               key: STRIPE_WEBHOOK_SECRET
               name: gamble-king-v2-secrets
               optional: true
-        image: ghcr.io/jlevangi/gamble-king:functions-47bb86a9a4d72843a9ff6c7a77f5cfd06dca34e6@sha256:5c2f365cb42e4caadb10c2990c126ed63da789c973e9c655324ccef2f4e8bbc8
+        image: ghcr.io/jlevangi/gamble-king:functions-a9a0c36a99255a268e6afe17420aa535fa7668e9@sha256:f6f1a61ff41d43db424e3a2797a17d6e29f2a6eeb5aa214d27bf79fdeb794877
         imagePullPolicy: IfNotPresent
         name: functions
         ports:
