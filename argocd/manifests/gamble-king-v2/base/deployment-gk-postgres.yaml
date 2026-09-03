@@ -33,7 +33,7 @@ spec:
               key: JWT_SECRET
               name: gamble-king-v2-secrets
         - name: PGDATA
-          value: /var/lib/postgresql/data/pgdata
+          value: /var/lib/postgresql/data
         image: supabase/postgres:15.6.1.146
         imagePullPolicy: IfNotPresent
         livenessProbe:
@@ -72,8 +72,7 @@ spec:
       - command:
         - sh
         - -c
-        - mkdir -p /mnt/db/pgdata && chown -R 105:106 /mnt/db/pgdata && chmod 700
-          /mnt/db/pgdata
+        - rm -rf /mnt/db/lost+found && chown -R 105:106 /mnt/db && chmod 700 /mnt/db
         image: busybox:1.36
         imagePullPolicy: IfNotPresent
         name: prepare-data
