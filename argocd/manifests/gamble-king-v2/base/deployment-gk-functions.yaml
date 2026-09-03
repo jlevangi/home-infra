@@ -3,28 +3,28 @@ kind: Deployment
 metadata:
   labels:
     app: gk-functions
-    environment: dev
+    environment: staging
   name: gk-functions
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: gk-functions
-      environment: dev
+      environment: staging
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
         app: gk-functions
-        environment: dev
+        environment: staging
     spec:
       containers:
       - env:
         - name: SUPABASE_URL
-          value: https://dev.gambleking.app
+          value: https://staging.gambleking.app
         - name: APP_ORIGIN
-          value: https://dev.gambleking.app
+          value: https://staging.gambleking.app
         - name: SUPABASE_ANON_KEY
           valueFrom:
             secretKeyRef:

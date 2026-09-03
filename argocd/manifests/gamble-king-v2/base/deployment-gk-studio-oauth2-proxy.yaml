@@ -2,14 +2,14 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    environment: dev
+    environment: staging
   name: gk-studio-oauth2-proxy
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: gk-studio-oauth2-proxy
-      environment: dev
+      environment: staging
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -19,20 +19,20 @@ spec:
     metadata:
       labels:
         app: gk-studio-oauth2-proxy
-        environment: dev
+        environment: staging
     spec:
       containers:
       - args:
         - --provider=keycloak-oidc
         - --oidc-issuer-url=https://auth.levangie.org/realms/master
-        - --redirect-url=https://supabase-gambleking-dev.levangie.dev/oauth2/callback
+        - --redirect-url=https://supabase-gambleking-staging.levangie.dev/oauth2/callback
         - --http-address=0.0.0.0:4180
         - --upstream=static://202
         - --email-domain=*
         - --cookie-secure=true
         - --cookie-samesite=lax
-        - --cookie-domain=supabase-gambleking-dev.levangie.dev
-        - --whitelist-domain=supabase-gambleking-dev.levangie.dev
+        - --cookie-domain=supabase-gambleking-staging.levangie.dev
+        - --whitelist-domain=supabase-gambleking-staging.levangie.dev
         - --reverse-proxy=true
         - --set-xauthrequest=true
         - --skip-provider-button=true

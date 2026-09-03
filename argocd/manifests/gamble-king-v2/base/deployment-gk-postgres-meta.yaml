@@ -2,14 +2,14 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    environment: dev
+    environment: staging
   name: gk-postgres-meta
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: gk-postgres-meta
-      environment: dev
+      environment: staging
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -19,7 +19,7 @@ spec:
     metadata:
       labels:
         app: gk-postgres-meta
-        environment: dev
+        environment: staging
     spec:
       containers:
       - env:

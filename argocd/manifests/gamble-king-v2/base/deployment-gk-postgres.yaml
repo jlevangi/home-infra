@@ -2,21 +2,21 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    environment: dev
+    environment: staging
   name: gk-postgres
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: gk-postgres
-      environment: dev
+      environment: staging
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
         app: gk-postgres
-        environment: dev
+        environment: staging
     spec:
       containers:
       - env:

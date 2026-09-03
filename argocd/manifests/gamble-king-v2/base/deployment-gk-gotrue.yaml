@@ -2,14 +2,14 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    environment: dev
+    environment: staging
   name: gk-gotrue
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: gk-gotrue
-      environment: dev
+      environment: staging
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -18,11 +18,11 @@ spec:
   template:
     metadata:
       annotations:
-        gambleking.app/config-revision: dev-domain-2026-08-30
+        gambleking.app/config-revision: staging-domain-2026-09-03
         kubectl.kubernetes.io/restartedAt: '2026-08-28T13:31:05-04:00'
       labels:
         app: gk-gotrue
-        environment: dev
+        environment: staging
     spec:
       containers:
       - env:

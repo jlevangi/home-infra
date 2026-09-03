@@ -3,17 +3,17 @@ kind: Ingress
 metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-    traefik.ingress.kubernetes.io/router.middlewares: gamble-king-v2-dev-gk-strip-auth-prefix@kubernetescrd,
-      gamble-king-v2-dev-gk-strip-rest-prefix@kubernetescrd,
-      gamble-king-v2-dev-gk-strip-functions-prefix@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: gamble-king-v2-staging-gk-strip-auth-prefix@kubernetescrd,
+      gamble-king-v2-staging-gk-strip-rest-prefix@kubernetescrd,
+      gamble-king-v2-staging-gk-strip-functions-prefix@kubernetescrd
     traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
   labels:
-    environment: dev
+    environment: staging
   name: gamble-king-v2
 spec:
   ingressClassName: traefik
   rules:
-  - host: dev.gambleking.app
+  - host: staging.gambleking.app
     http:
       paths:
       - backend:
@@ -44,7 +44,7 @@ spec:
               name: http
         path: /functions/v1
         pathType: Prefix
-  - host: gambleking-dev.levangie.dev
+  - host: gambleking-staging.levangie.dev
     http:
       paths:
       - backend:
@@ -77,5 +77,5 @@ spec:
         pathType: Prefix
   tls:
   - hosts:
-    - dev.gambleking.app
-    - gambleking-dev.levangie.dev
+    - staging.gambleking.app
+    - gambleking-staging.levangie.dev

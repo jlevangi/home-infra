@@ -1,6 +1,6 @@
 apiVersion: v1
 data:
-  API_EXTERNAL_URL: https://dev.gambleking.app/auth/v1
+  API_EXTERNAL_URL: https://staging.gambleking.app/auth/v1
   GOTRUE_API_HOST: 0.0.0.0
   GOTRUE_API_PORT: '9999'
   GOTRUE_DB_DRIVER: postgres
@@ -9,10 +9,10 @@ data:
   GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
   GOTRUE_JWT_EXP: '3600'
   GOTRUE_MAILER_AUTOCONFIRM: 'true'
-  GOTRUE_SITE_URL: https://dev.gambleking.app
-  GOTRUE_URI_ALLOW_LIST: https://dev.gambleking.app/**,https://gambleking-dev.levangie.dev/**
+  GOTRUE_SITE_URL: https://staging.gambleking.app
+  GOTRUE_URI_ALLOW_LIST: https://staging.gambleking.app/**,https://gambleking-staging.levangie.dev/**
 kind: ConfigMap
 metadata:
   labels:
-    environment: dev
+    environment: staging
   name: gk-gotrue-config

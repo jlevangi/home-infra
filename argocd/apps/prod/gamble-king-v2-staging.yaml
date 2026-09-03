@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: gamble-king-v2-dev
+  name: gamble-king-v2-staging
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -10,10 +10,10 @@ spec:
   source:
     repoURL: git@github.com:jlevangi/home-infra.git
     targetRevision: main
-    path: argocd/manifests/gamble-king-v2/overlays/dev
+    path: argocd/manifests/gamble-king-v2/overlays/staging
   destination:
     server: https://kubernetes.default.svc
-    namespace: gamble-king-v2-dev
+    namespace: gamble-king-v2-staging
   syncPolicy:
     automated:
       prune: true

@@ -3,7 +3,7 @@ kind: PersistentVolumeClaim
 metadata:
   labels:
     app: gk-postgres
-    environment: dev
+    environment: staging
     recurring-job-group.longhorn.io/daily: enabled
     recurring-job-group.longhorn.io/weekly: enabled
     recurring-job.longhorn.io/source: enabled
@@ -16,4 +16,3 @@ spec:
     requests:
       storage: 5Gi
   storageClassName: longhorn-tank
-  volumeName: pvc-1e0624d3-eb0b-44d4-8153-538719937bd2

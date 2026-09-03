@@ -2,14 +2,14 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    environment: dev
+    environment: staging
   name: gk-studio
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: gk-studio
-      environment: dev
+      environment: staging
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -19,7 +19,7 @@ spec:
     metadata:
       labels:
         app: gk-studio
-        environment: dev
+        environment: staging
     spec:
       containers:
       - env:
@@ -48,11 +48,11 @@ spec:
         - name: DEFAULT_ORGANIZATION_NAME
           value: Gamble King
         - name: DEFAULT_PROJECT_NAME
-          value: Gamble King v2 Dev
+          value: Gamble King v2 Staging
         - name: SUPABASE_URL
-          value: https://gambleking-dev.levangie.dev
+          value: https://gambleking-staging.levangie.dev
         - name: SUPABASE_PUBLIC_URL
-          value: https://gambleking-dev.levangie.dev
+          value: https://gambleking-staging.levangie.dev
         - name: SUPABASE_ANON_KEY
           valueFrom:
             secretKeyRef:

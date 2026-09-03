@@ -2,14 +2,14 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    environment: dev
+    environment: staging
   name: gamble-king-v2-web
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: gamble-king-v2-web
-      environment: dev
+      environment: staging
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -19,12 +19,12 @@ spec:
     metadata:
       labels:
         app: gamble-king-v2-web
-        environment: dev
+        environment: staging
     spec:
       containers:
       - env:
         - name: PUBLIC_SUPABASE_URL
-          value: https://dev.gambleking.app
+          value: https://staging.gambleking.app
         - name: PUBLIC_SUPABASE_ANON_KEY
           valueFrom:
             secretKeyRef:

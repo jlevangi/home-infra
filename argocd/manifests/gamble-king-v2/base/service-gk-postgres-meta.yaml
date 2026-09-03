@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    environment: dev
+    environment: staging
   name: gk-postgres-meta
 spec:
   ports:
@@ -11,4 +11,4 @@ spec:
     targetPort: http
   selector:
     app: gk-postgres-meta
-    environment: dev
+    environment: staging

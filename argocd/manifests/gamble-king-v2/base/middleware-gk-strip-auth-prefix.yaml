@@ -2,7 +2,7 @@ apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   labels:
-    environment: dev
+    environment: staging
   name: gk-strip-auth-prefix
 spec:
   stripPrefix:
