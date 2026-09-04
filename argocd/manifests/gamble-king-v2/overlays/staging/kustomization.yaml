@@ -10,3 +10,5 @@ resources:
 - ingress-gamble-king-v2.yaml
 - ingress-gk-studio-oauth2.yaml
 - ingress-gk-studio.yaml
+patches:
+- path: patch-web-app-env.yaml
