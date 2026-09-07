@@ -139,6 +139,45 @@ class FakeConnection:
         self.commits += 1
 
 
+def batch_metadata():
+    return {
+        "request_id": "00000000-0000-0000-0000-000000000001",
+        "received_at": "2026-08-10T12:00:00Z",
+        "collector_id": "collector-1",
+        "submitted_count": 1,
+        "oldest_observation_at": None,
+        "newest_observation_at": None,
+        "origin_counts": {"com.example.health": 1},
+        "record_type_counts": {"steps": 1},
+    }
+
+
+def test_batch_receipt_is_written_and_finalized_on_separate_transactions(monkeypatch):
+    cursor = FakeCursor()
+    connections = [FakeConnection(cursor), FakeConnection(cursor)]
+    monkeypatch.setattr(db, "connect", lambda: connections.pop(0))
+
+    db.record_collector_run(batch_metadata())
+    db.finish_collector_run(batch_metadata(), ["accepted"], ["duplicate"], [{"key": "bad"}], "partial")
+
+    assert connections == []
+    assert cursor.executions[0][0] == db._COLLECTOR_RUN_RETENTION_SQL
+    assert "INSERT INTO collector_sync_runs" in cursor.executions[1][0]
+    assert "status = %s" in cursor.executions[-1][0]
+
+
+def test_batch_receipt_failure_can_be_marked_failed_after_ingestion_error(monkeypatch):
+    cursor = FakeCursor()
+    connection = FakeConnection(cursor)
+    monkeypatch.setattr(db, "connect", lambda: connection)
+
+    db.record_collector_run(batch_metadata())
+    db.mark_collector_run_failed(batch_metadata())
+
+    assert connection.commits == 2
+    assert cursor.executions[-1][1] == (0, 0, 0, "failed", batch_metadata()["request_id"])
+
+
 def test_ingestion_accepts_then_classifies_replay_as_duplicate(monkeypatch):
     cursor = FakeCursor()
     connection = FakeConnection(cursor)

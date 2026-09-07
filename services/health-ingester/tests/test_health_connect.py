@@ -2,7 +2,9 @@ from copy import deepcopy
 
 import pytest
 
-from app.health_connect import validate_batch, validate_envelope
+from datetime import datetime, timezone
+
+from app.health_connect import collector_batch_metadata, validate_batch, validate_envelope
 
 START = "2026-08-10T10:00:00Z"
 END = "2026-08-10T11:00:00Z"
@@ -122,3 +124,26 @@ def test_sleep_stages_must_be_contained_and_nonoverlapping():
 
 def test_datetime_is_timezone_aware():
     assert validate_batch(envelope([record()]))[0]
+
+
+def test_collector_batch_metadata_contains_bounded_aggregates_without_payload_data():
+    metadata = collector_batch_metadata(
+        envelope([record(), record("sleep", "sleep-1")]),
+        "00000000-0000-0000-0000-000000000001",
+        datetime(2026, 8, 10, 12, tzinfo=timezone.utc),
+    )
+    assert metadata["submitted_count"] == 2
+    assert metadata["oldest_observation_at"].isoformat() == "2026-08-10T10:00:00+00:00"
+    assert metadata["newest_observation_at"].isoformat() == "2026-08-10T11:00:00+00:00"
+    assert metadata["origin_counts"] == {"com.example.health": 2}
+    assert metadata["record_type_counts"] == {"heart_rate": 1, "sleep": 1}
+    assert "key" not in metadata and "payload" not in metadata
+
+
+def test_collector_batch_metadata_caps_untrusted_origin_cardinality():
+    body = envelope([record("steps", f"k{i}") for i in range(40)])
+    for i, item in enumerate(body["records"]):
+        item["originPackage"] = f"origin-{i}"
+    metadata = collector_batch_metadata(body, "run", datetime.now(timezone.utc))
+    assert len(metadata["origin_counts"]) == 33
+    assert metadata["origin_counts"]["other"] == 8

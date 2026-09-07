@@ -6,6 +6,7 @@ import hmac
 import json
 import math
 import os
+from collections import Counter
 from datetime import datetime, timezone
 from typing import Any
 
@@ -203,6 +204,49 @@ def _validate(record: Any) -> None:
         # A type listed in hc_types.TYPES with no branch here. Treat it as not
         # yet supported rather than storing it unvalidated.
         raise ValueError("transient_unknown_record_type")
+
+
+def collector_batch_metadata(body: dict, request_id: str, received_at: datetime) -> dict:
+    """Build bounded, non-payload batch aggregates for persistence and logs."""
+    records = body.get("records", [])
+    origins = Counter()
+    record_types = Counter()
+    timestamps = []
+    for record in records if isinstance(records, list) else []:
+        if not isinstance(record, dict):
+            record_types["unknown"] += 1
+            continue
+        origin = record.get("originPackage")
+        origins[origin if isinstance(origin, str) and origin else "unknown"] += 1
+        record_type = record.get("recordType")
+        record_types[record_type if isinstance(record_type, str) and record_type in TYPES else "unknown"] += 1
+        for field in ("startTime", "endTime"):
+            try:
+                timestamps.append(_time(record[field]))
+            except (KeyError, TypeError, ValueError):
+                pass
+
+    def bounded_counts(counts: Counter) -> dict[str, int]:
+        # Origin is collector-controlled input; cap names and map excess keys.
+        result = {}
+        for name, count in counts.most_common(32):
+            safe_name = name[:128]
+            result[safe_name] = result.get(safe_name, 0) + count
+        excess = sum(counts.values()) - sum(result.values())
+        if excess:
+            result["other"] = excess
+        return result
+
+    return {
+        "request_id": request_id,
+        "received_at": received_at,
+        "collector_id": body.get("collectorId", ""),
+        "submitted_count": len(records) if isinstance(records, list) else 0,
+        "oldest_observation_at": min(timestamps) if timestamps else None,
+        "newest_observation_at": max(timestamps) if timestamps else None,
+        "origin_counts": bounded_counts(origins),
+        "record_type_counts": dict(record_types),
+    }
 
 
 def validate_batch(body: object) -> tuple[list[dict], list[dict]]:

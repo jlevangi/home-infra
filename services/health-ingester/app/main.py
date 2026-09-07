@@ -9,15 +9,24 @@ folders hold thousands of historical exports.
 from __future__ import annotations
 
 import base64
+import json
 import logging
 import os
+from datetime import datetime, timezone
+from uuid import uuid4
 
 from flask import Flask, jsonify, request
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, generate_latest
 from waitress import serve
 
 from . import db, parsers
-from .health_connect import require_collector_token, validate_batch, validate_envelope
+from .health_connect import (
+    collector_batch_metadata,
+    TYPES,
+    require_collector_token,
+    validate_batch,
+    validate_envelope,
+)
 
 logging.basicConfig(
     level=os.environ.get("LOG_LEVEL", "INFO"),
@@ -50,51 +59,120 @@ COLLECTOR_UNKNOWN_TYPES = Counter(
     "Records whose recordType this service does not recognise",
     ["record_type"],
 )
+COLLECTOR_BATCHES = Counter(
+    "health_collector_batches_total", "Collector HTTP batches", ["outcome"]
+)
+COLLECTOR_BATCH_RECORDS = Counter(
+    "health_collector_batch_records_total", "Records submitted by collector batches", ["outcome"]
+)
+COLLECTOR_BATCH_RECEIPT_LAG = Gauge(
+    "health_collector_batch_receipt_lag_seconds",
+    "Seconds between newest observation and HTTP receipt, by collector outcome",
+    ["outcome"],
+)
 
 
 @app.post("/api/v1/health-connect/records:batch")
 def health_connect_batch():
+    request_id = str(uuid4())
+    received_at = datetime.now(timezone.utc)
     if not require_collector_token(request):
         COLLECTOR_AUTH_FAILURES.inc()
+        COLLECTOR_BATCHES.labels(outcome="unauthorized").inc()
+        log.info("collector batch rejected request_id=%s outcome=unauthorized", request_id)
         return jsonify(error="unauthorized"), 401
     if not request.is_json:
+        COLLECTOR_BATCHES.labels(outcome="malformed").inc()
+        log.info("collector batch rejected request_id=%s outcome=malformed", request_id)
         return jsonify(error="malformed JSON"), 400
     body = request.get_json(silent=True)
     if body is None:
+        COLLECTOR_BATCHES.labels(outcome="malformed").inc()
+        log.info("collector batch rejected request_id=%s outcome=malformed", request_id)
         return jsonify(error="malformed JSON"), 400
     if error := validate_envelope(body):
+        COLLECTOR_BATCHES.labels(outcome="invalid").inc()
+        log.info("collector batch rejected request_id=%s outcome=invalid", request_id)
         return jsonify(error=error), 400
+    metadata = collector_batch_metadata(body, request_id, received_at)
     valid, rejected = validate_batch(body)
-    collector_id = body.get("collectorId", "")
-    result = db.ingest_health_connect(collector_id, valid) if valid else {"accepted": [], "duplicates": []}
+    COLLECTOR_BATCHES.labels(outcome="received").inc()
+    COLLECTOR_BATCH_RECORDS.labels(outcome="submitted").inc(metadata["submitted_count"])
+    if metadata["newest_observation_at"]:
+        COLLECTOR_BATCH_RECEIPT_LAG.labels(outcome="received").set(
+            max(0, (received_at - metadata["newest_observation_at"]).total_seconds())
+        )
+    try:
+        db.record_collector_run(metadata)
+        result = db.ingest_health_connect(metadata, valid)
+    except Exception:
+        COLLECTOR_BATCHES.labels(outcome="storage_error").inc()
+        try:
+            db.mark_collector_run_failed(metadata)
+        except Exception:
+            log.exception("collector batch failure could not be recorded request_id=%s", request_id)
+        log.exception("collector batch storage failed request_id=%s", request_id)
+        return jsonify(error="storage unavailable"), 503
     accepted, duplicates = result.get("accepted", []), result.get("duplicates", [])
     rejected.extend(result.get("rejected", []))
+    outcome = "validation_rejected" if not valid else ("partial" if rejected else "completed")
+    try:
+        db.finish_collector_run(metadata, accepted, duplicates, rejected, outcome)
+    except Exception:
+        COLLECTOR_BATCHES.labels(outcome="storage_error").inc()
+        try:
+            db.mark_collector_run_failed(metadata)
+        except Exception:
+            log.exception("collector batch failure could not be finalized request_id=%s", request_id)
+        log.exception("collector batch finalization failed request_id=%s", request_id)
+        return jsonify(error="storage unavailable"), 503
+    COLLECTOR_BATCHES.labels(outcome=outcome).inc()
+    submitted = {
+        r.get("key"): r for r in body.get("records", []) if isinstance(r, dict)
+    }
     for record in valid:
-        if record["key"] in accepted:
-            outcome = "accepted"
-        elif record["key"] in duplicates:
-            outcome = "duplicate"
-        else:
-            continue
-        COLLECTOR_RECORDS.labels(record_type=record["recordType"], origin=record["originPackage"], outcome=outcome).inc()
+        record_outcome = "accepted" if record["key"] in accepted else (
+            "duplicate" if record["key"] in duplicates else None
+        )
+        if record_outcome:
+            COLLECTOR_RECORDS.labels(
+                record_type=record["recordType"],
+                origin=record.get("originPackage", "unknown"),
+                outcome=record_outcome,
+            ).inc()
 
     # Rejections are reported by key only, so recover each one's type from the
     # request. Labelling every rejection "unknown" is what hid the collector
     # sending 39 record types at a service that accepted 3.
-    submitted = {
-        r.get("key"): r for r in body.get("records", []) if isinstance(r, dict)
-    }
     for rejection in rejected:
         source = submitted.get(rejection.get("key")) or {}
-        record_type = source.get("recordType") or "unknown"
-        origin = source.get("originPackage") or "unknown"
-        if not isinstance(record_type, str):
+        record_type = source.get("recordType")
+        if not isinstance(record_type, str) or record_type not in TYPES:
             record_type = "unknown"
-        if not isinstance(origin, str):
+        origin = source.get("originPackage", "unknown")
+        if not isinstance(origin, str) or not origin:
             origin = "unknown"
         COLLECTOR_RECORDS.labels(record_type=record_type, origin=origin, outcome="rejected").inc()
         if rejection.get("code") == "transient_unknown_record_type":
             COLLECTOR_UNKNOWN_TYPES.labels(record_type=record_type).inc()
+    COLLECTOR_BATCH_RECORDS.labels(outcome="accepted").inc(len(accepted))
+    COLLECTOR_BATCH_RECORDS.labels(outcome="duplicate").inc(len(duplicates))
+    COLLECTOR_BATCH_RECORDS.labels(outcome="rejected").inc(len(rejected))
+    log.info(
+        "collector batch %s",
+        json.dumps({
+            "request_id": request_id,
+            "collector_id": metadata["collector_id"],
+            "submitted": metadata["submitted_count"],
+            "accepted": len(accepted),
+            "duplicate": len(duplicates),
+            "rejected": len(rejected),
+            "oldest_observation_at": metadata["oldest_observation_at"].isoformat() if metadata["oldest_observation_at"] else None,
+            "newest_observation_at": metadata["newest_observation_at"].isoformat() if metadata["newest_observation_at"] else None,
+            "origin_counts": metadata["origin_counts"],
+            "record_type_counts": metadata["record_type_counts"],
+        }, sort_keys=True, separators=(",", ":")),
+    )
     return jsonify(accepted=accepted, duplicates=duplicates, rejected=rejected)
 
 

@@ -89,11 +89,14 @@ def test_android_contract_mixed_batch_is_200_and_response_is_compatible(client, 
     invalid["payload"]["count"] = 1.5
     submitted = [record(), record("sleep", "sleep-1"), record("steps", "steps-1"), invalid]
     calls = []
+    finishes = []
 
-    def ingest(collector_id, records):
-        calls.append(records)
+    def ingest(metadata, records):
+        calls.append((metadata, records))
         return {"accepted": ["k1", "sleep-1"], "duplicates": ["steps-1"]}
 
+    monkeypatch.setattr("app.db.record_collector_run", lambda metadata: None)
+    monkeypatch.setattr("app.db.finish_collector_run", lambda *args: finishes.append(args))
     monkeypatch.setattr("app.db.ingest_health_connect", ingest)
     response = client.post(
         "/api/v1/health-connect/records:batch",
@@ -101,7 +104,8 @@ def test_android_contract_mixed_batch_is_200_and_response_is_compatible(client, 
         headers=auth(),
     )
     assert response.status_code == 200
-    assert [item["key"] for item in calls[0]] == ["k1", "sleep-1", "steps-1"]
+    assert [item["key"] for item in calls[0][1]] == ["k1", "sleep-1", "steps-1"]
+    assert finishes[0][2:] == (["steps-1"], [{"key": "bad", "code": "invalid_steps", "message": "invalid steps"}], "partial")
     assert response.json == {
         "accepted": ["k1", "sleep-1"],
         "duplicates": ["steps-1"],
@@ -110,7 +114,9 @@ def test_android_contract_mixed_batch_is_200_and_response_is_compatible(client, 
 
 
 def test_storage_rejection_is_merged_into_response(client, monkeypatch):
-    monkeypatch.setattr("app.db.ingest_health_connect", lambda collector_id, records: {
+    monkeypatch.setattr("app.db.record_collector_run", lambda metadata: None)
+    monkeypatch.setattr("app.db.finish_collector_run", lambda *args: None)
+    monkeypatch.setattr("app.db.ingest_health_connect", lambda metadata, records: {
         "accepted": [],
         "duplicates": [],
         "rejected": [{"key": "k1", "code": "storage_error", "message": "storage error"}],
@@ -126,6 +132,44 @@ def test_storage_rejection_is_merged_into_response(client, monkeypatch):
         "duplicates": [],
         "rejected": [{"key": "k1", "code": "storage_error", "message": "storage error"}],
     }
+
+
+def test_invalid_record_only_batch_finalizes_as_validation_rejected(client, monkeypatch):
+    finishes = []
+    monkeypatch.setattr("app.db.record_collector_run", lambda metadata: None)
+    monkeypatch.setattr("app.db.ingest_health_connect", lambda metadata, records: {
+        "accepted": [], "duplicates": [], "rejected": []
+    })
+    monkeypatch.setattr("app.db.finish_collector_run", lambda *args: finishes.append(args))
+    invalid = record("steps", "bad")
+    invalid["payload"]["count"] = -1
+    response = client.post("/api/v1/health-connect/records:batch", json=envelope([invalid]), headers=auth())
+    assert response.status_code == 200
+    assert response.json["accepted"] == []
+    assert response.json["rejected"][0]["key"] == "bad"
+    assert finishes[0][1:] == ([], [], response.json["rejected"], "validation_rejected")
+
+
+def test_completed_batch_finalizes_as_completed(client, monkeypatch):
+    finishes = []
+    monkeypatch.setattr("app.db.record_collector_run", lambda metadata: None)
+    monkeypatch.setattr("app.db.ingest_health_connect", lambda metadata, records: {
+        "accepted": ["k1"], "duplicates": [], "rejected": []
+    })
+    monkeypatch.setattr("app.db.finish_collector_run", lambda *args: finishes.append(args))
+    response = client.post("/api/v1/health-connect/records:batch", json=envelope([record()]), headers=auth())
+    assert response.status_code == 200
+    assert finishes[0][1:] == (["k1"], [], [], "completed")
+
+
+def test_thrown_storage_path_marks_durable_receipt_failed(client, monkeypatch):
+    calls = []
+    monkeypatch.setattr("app.db.record_collector_run", lambda metadata: calls.append("record"))
+    monkeypatch.setattr("app.db.ingest_health_connect", lambda metadata, records: (_ for _ in ()).throw(RuntimeError("db down")))
+    monkeypatch.setattr("app.db.mark_collector_run_failed", lambda metadata: calls.append("failed"))
+    response = client.post("/api/v1/health-connect/records:batch", json=envelope([record()]), headers=auth())
+    assert response.status_code == 503
+    assert calls == ["record", "failed"]
 
 
 def test_legacy_routes_remain_unauthenticated(client, monkeypatch):

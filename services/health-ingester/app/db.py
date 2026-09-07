@@ -29,6 +29,57 @@ _OBSERVATION_SQL = """INSERT INTO health_observations_raw
 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
 ON CONFLICT (source_id, original_type, external_id) DO NOTHING
 RETURNING id"""
+_COLLECTOR_RUN_INSERT_SQL = """INSERT INTO collector_sync_runs
+  (request_id, received_at, collector_id, submitted_count, accepted_count,
+   duplicate_count, rejected_count, oldest_observation_at,
+   newest_observation_at, origin_counts, record_type_counts, status)
+VALUES (%s, %s, %s, %s, 0, 0, 0, %s, %s, %s::jsonb, %s::jsonb, 'received')"""
+_COLLECTOR_RUN_UPDATE_SQL = """UPDATE collector_sync_runs
+SET accepted_count = %s, duplicate_count = %s, rejected_count = %s,
+    status = %s
+WHERE request_id = %s"""
+_COLLECTOR_RUN_RETENTION_SQL = """WITH expired AS (
+    SELECT request_id FROM collector_sync_runs
+    WHERE received_at < now() - interval '90 days'
+    ORDER BY received_at
+    LIMIT 1000
+)
+DELETE FROM collector_sync_runs
+WHERE request_id IN (SELECT request_id FROM expired)"""
+
+
+def _record_collector_run(cur, metadata: dict) -> None:
+    cur.execute(_COLLECTOR_RUN_RETENTION_SQL)
+    cur.execute(_COLLECTOR_RUN_INSERT_SQL, (
+        metadata["request_id"], metadata["received_at"], metadata["collector_id"],
+        metadata["submitted_count"], metadata["oldest_observation_at"],
+        metadata["newest_observation_at"], json.dumps(metadata["origin_counts"]),
+        json.dumps(metadata["record_type_counts"]),
+    ))
+
+
+def record_collector_run(metadata: dict) -> None:
+    """Durably record receipt before opening the observation transaction."""
+    with connect() as conn, conn.cursor() as cur:
+        _record_collector_run(cur, metadata)
+        conn.commit()
+
+
+def finish_collector_run(
+    metadata: dict, accepted: list, duplicates: list, rejected: list, status: str
+) -> None:
+    if status not in {"completed", "partial", "validation_rejected", "failed"}:
+        raise ValueError("invalid collector run status")
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute(_COLLECTOR_RUN_UPDATE_SQL, (
+            len(accepted), len(duplicates), len(rejected), status, metadata["request_id"],
+        ))
+        conn.commit()
+
+
+def mark_collector_run_failed(metadata: dict) -> None:
+    finish_collector_run(metadata, [], [], [], "failed")
+
 
 _INGEST_SQL = """
 WITH payload AS (
@@ -240,8 +291,14 @@ def _collector_identity(collector_id: str, origin_package: str) -> str:
     return json.dumps([collector_id, origin_package], separators=(",", ":"))
 
 
-def ingest_health_connect(collector_id: str, records: list[dict]) -> dict:
+def ingest_health_connect(metadata: dict | str, records: list[dict]) -> dict:
     accepted, duplicates, rejected = [], [], []
+    is_batch = isinstance(metadata, dict)
+    if not is_batch:
+        metadata = {
+            "collector_id": metadata,
+        }
+    collector_id = metadata["collector_id"]
     with connect() as conn, conn.cursor() as cur:
         for record in records:
             savepoint = f"health_connect_record_{len(accepted) + len(duplicates) + len(rejected)}"
