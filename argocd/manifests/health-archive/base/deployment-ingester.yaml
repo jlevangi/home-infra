@@ -17,7 +17,7 @@ spec:
         - name: health-archive-ghcr
       containers:
         - name: ingester
-          image: ghcr.io/jlevangi/health-ingester:0.5.2@sha256:c6dfb05698b1008d4e8e6f4bd71d6b2572a58285853b4e6778667ff49d896f09
+          image: ghcr.io/jlevangi/health-ingester:0.5.3@sha256:4b0cca315f2dfd5f500d3886974d87b4ce67872490abdc964902e41148849976
           imagePullPolicy: IfNotPresent
           env:
             - name: PGHOST
