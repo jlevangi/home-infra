@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: matrix-synapse
+  namespace: matrix-synapse
+  labels:
+    app.kubernetes.io/name: matrix-synapse
+spec:
+  type: ClusterIP
+  selector:
+    app: matrix-synapse
+  ports:
+    - name: http
+      port: 8008
+      targetPort: 8008
+      protocol: TCP
+    - name: metrics
+      port: 9090
+      targetPort: 9090
+      protocol: TCP

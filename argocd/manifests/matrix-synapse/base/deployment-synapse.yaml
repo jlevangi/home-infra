@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: matrix-synapse
+  namespace: matrix-synapse
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: matrix-synapse
+  template:
+    metadata:
+      labels:
+        app: matrix-synapse
+    spec:
+      securityContext:
+        fsGroup: 991
+        fsGroupChangePolicy: OnRootMismatch
+      initContainers:
+        - name: prepare-data
+          image: busybox:1.36
+          command: [sh, -c, "chown -R 991:991 /data"]
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: data
+              mountPath: /data
+        - name: render-config
+          image: ghcr.io/element-hq/synapse:v1.160.0
+          command:
+            - python
+            - -c
+            - |
+              import json, os, pathlib
+              source = pathlib.Path('/config-template/homeserver.yaml').read_text()
+              for key in ('POSTGRES_PASSWORD', 'OIDC_CLIENT_SECRET', 'MACAROON_SECRET_KEY', 'FORM_SECRET'):
+                  source = source.replace(json.dumps(f'__{key}__'), json.dumps(os.environ[key]))
+              pathlib.Path('/config/homeserver.yaml').write_text(source)
+              pathlib.Path('/data/matrix.levangie.dev.signing.key').write_text(os.environ['SIGNING_KEY'].rstrip() + '\n')
+          envFrom:
+            - secretRef:
+                name: matrix-synapse-secrets
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 991
+            runAsGroup: 991
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: config-template
+              mountPath: /config-template
+              readOnly: true
+            - name: config
+              mountPath: /config
+            - name: data
+              mountPath: /data
+      containers:
+        - name: synapse
+          image: ghcr.io/element-hq/synapse:v1.160.0
+          args: [run]
+          env:
+            - name: SYNAPSE_CONFIG_PATH
+              value: /config/homeserver.yaml
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 991
+            runAsGroup: 991
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          ports:
+            - name: http
+              containerPort: 8008
+            - name: metrics
+              containerPort: 9090
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 18
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 3Gi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config-template
+          configMap:
+            name: matrix-synapse-config
+        - name: config
+          emptyDir: {}
+        - name: data
+          persistentVolumeClaim:
+            claimName: matrix-synapse-data
+        - name: tmp
+          emptyDir: {}

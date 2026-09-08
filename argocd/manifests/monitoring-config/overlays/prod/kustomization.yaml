@@ -11,6 +11,7 @@ resources:
   - scrapeconfig-llama-cpp-pc.yaml
   - prometheusrule-health-archive.yaml
   - servicemonitor-health-ingester.yaml
+  - servicemonitor-matrix-synapse.yaml
 configMapGenerator:
   - name: grafana-dashboard-home-assistant
     namespace: monitoring

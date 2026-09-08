@@ -586,6 +586,14 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
+            - name: Matrix Synapse
+              group: Applications
+              url: https://matrix.levangie.dev/_matrix/client/versions
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
   destination:
     server: https://kubernetes.default.svc
     namespace: gatus

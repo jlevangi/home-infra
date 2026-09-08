@@ -1,0 +1,48 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: matrix-synapse
+  namespace: matrix-synapse
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    external-dns.alpha.kubernetes.io/target: k3s-prod.levangie.dev
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - matrix.levangie.dev
+      secretName: matrix-synapse-tls
+  rules:
+    - host: matrix.levangie.dev
+      http:
+        paths:
+          - path: /_matrix
+            pathType: Prefix
+            backend:
+              service:
+                name: matrix-synapse
+                port:
+                  number: 8008
+          - path: /_synapse/client
+            pathType: Prefix
+            backend:
+              service:
+                name: matrix-synapse
+                port:
+                  number: 8008
+          - path: /.well-known/matrix
+            pathType: Prefix
+            backend:
+              service:
+                name: matrix-synapse
+                port:
+                  number: 8008
+          - path: /health
+            pathType: Exact
+            backend:
+              service:
+                name: matrix-synapse
+                port:
+                  number: 8008

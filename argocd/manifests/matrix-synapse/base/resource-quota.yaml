@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: matrix-synapse-storage-quota
+  namespace: matrix-synapse
+spec:
+  hard:
+    requests.storage: 50Gi
+    persistentvolumeclaims: "4"
+    longhorn.io/requests.storage: 50Gi

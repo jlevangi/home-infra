@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: matrix-synapse-data
+  namespace: matrix-synapse
+  labels:
+    app: matrix-synapse
+    volume-type: application-data
+    recurring-job.longhorn.io/source: "enabled"
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: longhorn-redundant

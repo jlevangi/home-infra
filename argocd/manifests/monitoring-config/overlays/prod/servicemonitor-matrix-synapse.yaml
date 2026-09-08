@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: matrix-synapse
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  namespaceSelector:
+    matchNames:
+      - matrix-synapse
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: matrix-synapse
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /_synapse/metrics
