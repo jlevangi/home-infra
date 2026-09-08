@@ -109,6 +109,15 @@
           - python3-pip
         state: present
 
+    - name: Install Beads issue tracker
+      ansible.builtin.unarchive:
+        src: https://github.com/steveyegge/beads/releases/download/v1.2.2/beads_1.2.2_linux_amd64.tar.gz
+        dest: /usr/local/bin
+        remote_src: true
+        include:
+          - bd
+        creates: /usr/local/bin/bd
+
     - name: Install GitHub CLI signing key
       ansible.builtin.get_url:
         url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
@@ -126,6 +135,10 @@
       ansible.builtin.apt:
         name: gh
         state: present
+
+    - name: Install Playwright Chromium system dependencies
+      ansible.builtin.command: npx --yes playwright@1.55.0 install-deps chromium
+      changed_when: false
 
     - name: Create OpenHands service account
       ansible.builtin.user:
@@ -147,6 +160,13 @@
       loop:
         - "{{ openhands_home }}/.openhands"
         - "{{ openhands_home }}/workspace"
+
+    - name: Install Playwright Chromium browser
+      ansible.builtin.command: >-
+        sudo -u {{ openhands_user }} env HOME={{ openhands_home }}
+        npx --yes playwright@1.55.0 install chromium
+      args:
+        creates: "{{ openhands_home }}/.cache/ms-playwright/chromium-1187"
 
     - name: Install OpenHands environment
       ansible.builtin.template:
