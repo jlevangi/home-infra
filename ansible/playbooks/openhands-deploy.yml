@@ -83,6 +83,50 @@
       register: openhands_npm_install
       changed_when: "'added' in openhands_npm_install.stdout or 'changed' in openhands_npm_install.stdout"
 
+    - name: Install pnpm (via corepack)
+      ansible.builtin.command: corepack prepare pnpm@latest --activate
+      changed_when: false
+
+    - name: Install Kubernetes apt keyring
+      ansible.builtin.get_url:
+        url: https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key
+        dest: /etc/apt/keyrings/kubernetes.asc
+        mode: "0644"
+
+    - name: Configure Kubernetes apt repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes.asc] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /"
+        filename: kubernetes
+        state: present
+        update_cache: true
+
+    - name: Install kubectl, python3.11, python3-venv, GitHub CLI dependencies
+      ansible.builtin.apt:
+        name:
+          - kubectl
+          - python3
+          - python3-venv
+          - python3-pip
+        state: present
+
+    - name: Install GitHub CLI signing key
+      ansible.builtin.get_url:
+        url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
+        dest: /etc/apt/keyrings/githubcli.gpg
+        mode: "0644"
+
+    - name: Configure GitHub CLI repository
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/githubcli.gpg] https://cli.github.com/packages stable main"
+        filename: github-cli
+        state: present
+        update_cache: true
+
+    - name: Install gh
+      ansible.builtin.apt:
+        name: gh
+        state: present
+
     - name: Create OpenHands service account
       ansible.builtin.user:
         name: "{{ openhands_user }}"
