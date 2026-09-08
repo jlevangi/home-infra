@@ -10,6 +10,10 @@
     openhands_user: openhands
     openhands_home: /opt/openhands
     openhands_port: 8000
+    openhands_previews:
+      - { preview_port: 3000, proxy_port: 4300, host: 3000.openhands.levangie.dev }
+      - { preview_port: 5173, proxy_port: 4473, host: 5173.openhands.levangie.dev }
+      - { preview_port: 8001, proxy_port: 4801, host: 8001.openhands.levangie.dev }
   tasks:
     - name: Install base packages
       ansible.builtin.apt:
@@ -234,6 +238,24 @@
         enabled: true
         state: started
         daemon_reload: true
+
+    - name: Install preview oauth2-proxy systemd services
+      ansible.builtin.template:
+        src: ../templates/openhands-preview-oauth2-proxy.service.j2
+        dest: "/etc/systemd/system/openhands-preview-{{ item.preview_port }}.service"
+        owner: root
+        group: root
+        mode: "0644"
+      loop: "{{ openhands_previews }}"
+      notify: Reload systemd
+
+    - name: Enable preview oauth2-proxy services
+      ansible.builtin.systemd_service:
+        name: "openhands-preview-{{ item.preview_port }}"
+        enabled: true
+        state: started
+        daemon_reload: true
+      loop: "{{ openhands_previews }}"
 
     - name: Wait for Agent Canvas
       ansible.builtin.uri:

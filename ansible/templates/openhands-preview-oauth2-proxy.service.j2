@@ -1,0 +1,35 @@
+[Unit]
+Description=oauth2-proxy for OpenHands preview {{ item.preview_port }}
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ openhands_user }}
+Group={{ openhands_user }}
+EnvironmentFile=/etc/openhands-oauth2-proxy.env
+ExecStart=/usr/local/bin/oauth2-proxy \
+  --provider=keycloak-oidc \
+  --oidc-issuer-url=https://auth.levangie.org/realms/master \
+  --client-id=openhands \
+  --redirect-url=https://{{ item.host }}/oauth2/callback \
+  --http-address=0.0.0.0:{{ item.proxy_port }} \
+  --upstream=http://127.0.0.1:{{ item.preview_port }} \
+  --email-domain=* \
+  --cookie-name=_oauth2_proxy_{{ item.preview_port }} \
+  --cookie-secure=true \
+  --cookie-samesite=lax \
+  --cookie-domain={{ item.host }} \
+  --whitelist-domain={{ item.host }} \
+  --reverse-proxy=true \
+  --skip-provider-button=true \
+  --pass-access-token=true \
+  --pass-authorization-header=true
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+
+[Install]
+WantedBy=multi-user.target
