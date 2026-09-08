@@ -37,6 +37,7 @@ data:
         cp_max: 10
 
     enable_registration: false
+    registration_shared_secret: "__REGISTRATION_SHARED_SECRET__"
     password_config:
       enabled: false
 

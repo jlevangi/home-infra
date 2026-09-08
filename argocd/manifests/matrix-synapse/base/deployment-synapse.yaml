@@ -35,7 +35,7 @@ spec:
             - |
               import json, os, pathlib
               source = pathlib.Path('/config-template/homeserver.yaml').read_text()
-              for key in ('POSTGRES_PASSWORD', 'OIDC_CLIENT_SECRET', 'MACAROON_SECRET_KEY', 'FORM_SECRET'):
+              for key in ('POSTGRES_PASSWORD', 'OIDC_CLIENT_SECRET', 'MACAROON_SECRET_KEY', 'FORM_SECRET', 'REGISTRATION_SHARED_SECRET'):
                   source = source.replace(json.dumps(f'__{key}__'), json.dumps(os.environ[key]))
               pathlib.Path('/config/homeserver.yaml').write_text(source)
               pathlib.Path('/data/matrix.levangie.dev.signing.key').write_text(os.environ['SIGNING_KEY'].rstrip() + '\n')
