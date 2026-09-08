@@ -31,9 +31,24 @@ spec:
             - name: BROWSER_WEB_URL
               value: http://karakeep-chrome:9222
             - name: NEXTAUTH_URL
-              value: https://karakeep.levangie.org
+              value: https://karakeep.levangie.dev
             - name: DISABLE_SIGNUPS
+              value: "false"
+            - name: DISABLE_PASSWORD_AUTH
               value: "true"
+            - name: OAUTH_AUTO_REDIRECT
+              value: "true"
+            - name: OAUTH_WELLKNOWN_URL
+              value: https://auth.levangie.org/realms/master/.well-known/openid-configuration
+            - name: OAUTH_CLIENT_ID
+              value: karakeep
+            - name: OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: karakeep-secrets
+                  key: OAUTH_CLIENT_SECRET
+            - name: OAUTH_PROVIDER_NAME
+              value: Keycloak
             - name: MAX_ASSET_SIZE_MB
               value: "50"
             - name: NEXTAUTH_SECRET

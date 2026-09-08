@@ -309,7 +309,7 @@ spec:
 
             - name: Karakeep
               group: Applications
-              url: https://karakeep.levangie.org
+              url: https://karakeep.levangie.dev
               interval: 5m
               conditions:
                 - "[STATUS] == 200"
