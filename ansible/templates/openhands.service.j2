@@ -10,7 +10,7 @@ Group={{ openhands_user }}
 WorkingDirectory={{ openhands_home }}/workspace
 EnvironmentFile=/etc/openhands.env
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
-ExecStart=/usr/bin/agent-canvas --public --port {{ openhands_port }}
+ExecStart=/usr/bin/agent-canvas --port {{ openhands_port }}
 Restart=on-failure
 RestartSec=10
 TimeoutStopSec=30

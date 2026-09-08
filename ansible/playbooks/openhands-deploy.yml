@@ -176,6 +176,45 @@
         state: started
         daemon_reload: true
 
+    - name: Install oauth2-proxy
+      ansible.builtin.unarchive:
+        src: https://github.com/oauth2-proxy/oauth2-proxy/releases/download/v7.9.0/oauth2-proxy-v7.9.0.linux-amd64.tar.gz
+        dest: /usr/local/bin
+        remote_src: true
+        include:
+          - oauth2-proxy-v7.9.0.linux-amd64/oauth2-proxy
+        extra_opts:
+          - --strip-components=1
+        creates: /usr/local/bin/oauth2-proxy
+
+    - name: Install oauth2-proxy environment
+      ansible.builtin.template:
+        src: ../templates/openhands-oauth2-proxy.env.j2
+        dest: /etc/openhands-oauth2-proxy.env
+        owner: root
+        group: "{{ openhands_user }}"
+        mode: "0640"
+      no_log: true
+      notify: Restart OpenHands oauth2-proxy
+
+    - name: Install oauth2-proxy systemd service
+      ansible.builtin.template:
+        src: ../templates/openhands-oauth2-proxy.service.j2
+        dest: /etc/systemd/system/openhands-oauth2-proxy.service
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart OpenHands oauth2-proxy
+
+    - name: Enable oauth2-proxy service
+      ansible.builtin.systemd_service:
+        name: openhands-oauth2-proxy
+        enabled: true
+        state: started
+        daemon_reload: true
+
     - name: Wait for Agent Canvas
       ansible.builtin.uri:
         url: "http://127.0.0.1:{{ openhands_port }}/health"
@@ -202,4 +241,9 @@
     - name: Restart OpenHands
       ansible.builtin.systemd_service:
         name: openhands
+        state: restarted
+
+    - name: Restart OpenHands oauth2-proxy
+      ansible.builtin.systemd_service:
+        name: openhands-oauth2-proxy
         state: restarted
