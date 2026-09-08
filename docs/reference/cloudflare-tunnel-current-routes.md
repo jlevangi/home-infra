@@ -4,6 +4,8 @@ Inventory captured: **2026-07-21** via read-only Cloudflare API.
 
 Update **2026-08-10**: the live tunnel contained 32 rules before this change, including newer routes not represented in the July table. `gallery.everlyera.com` was added at index 31, immediately before the catch-all, bringing the live total to 33. Its service is `https://k3s-prod.levangie.dev` with `noTLSVerify=true`, `httpHostHeader=gallery.everlyera.com`, and `originServerName=gallery.everlyera.com`. Cloudflare DNS has one proxied CNAME to the Maurice tunnel. Public verification returned `HTTP/2 200`, Immich HTML, and a valid Google Trust Services certificate for `everlyera.com`.
 
+Update **2026-09-07**: `matrix.levangie.dev` was added immediately before the final catch-all, targeting `https://k3s-prod.levangie.dev`. Public DNS record `ec7ee0f1009f6d4c23dd113a6c2183f3` is a proxied CNAME to the Maurice tunnel. Public client, well-known, key, and federation-version endpoints returned HTTP 200; the Matrix federation tester reported `FederationOK=true`.
+
 - Account ID: `e0e043685655b3d2d63201a6c84fc409`
 - Tunnel: `Maurice` (`e163e2bb-e184-41aa-a96b-eb1dbdb99418`), remotely managed
 - Ordered rules: **30 total**: 29 hostname rules and one final catch-all
