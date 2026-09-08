@@ -1,0 +1,161 @@
+---
+- name: Deploy OpenHands Agent Canvas
+  hosts: openhands
+  become: true
+  vars_files:
+    - ../group_vars/openhands_vault.yml
+  vars:
+    openhands_version: "1.16.0"
+    nodejs_major: "22"
+    openhands_user: openhands
+    openhands_home: /opt/openhands
+    openhands_port: 8000
+  tasks:
+    - name: Install base packages
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - git
+          - gnupg
+          - jq
+          - tmux
+        state: present
+        update_cache: true
+
+    - name: Install Docker signing key
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/debian/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: "0644"
+
+    - name: Configure Docker repository
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+        filename: docker
+        state: present
+        update_cache: true
+
+    - name: Install Docker engine
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+
+    - name: Enable Docker
+      ansible.builtin.systemd_service:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Install NodeSource signing key
+      ansible.builtin.get_url:
+        url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key
+        dest: /etc/apt/keyrings/nodesource.asc
+        mode: "0644"
+
+    - name: Configure NodeSource repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/nodesource.asc] https://deb.nodesource.com/node_{{ nodejs_major }}.x nodistro main"
+        filename: nodesource
+        state: present
+        update_cache: true
+
+    - name: Install Node.js
+      ansible.builtin.apt:
+        name: nodejs
+        state: present
+
+    - name: Install uv
+      ansible.builtin.shell: |
+        set -o pipefail
+        curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
+      args:
+        executable: /bin/bash
+        creates: /usr/local/bin/uv
+
+    - name: Install Agent Canvas
+      ansible.builtin.command: "npm install --global @openhands/agent-canvas@{{ openhands_version }}"
+      register: openhands_npm_install
+      changed_when: "'added' in openhands_npm_install.stdout or 'changed' in openhands_npm_install.stdout"
+
+    - name: Create OpenHands service account
+      ansible.builtin.user:
+        name: "{{ openhands_user }}"
+        home: "{{ openhands_home }}"
+        create_home: true
+        shell: /bin/bash
+        system: true
+        groups: docker
+        append: true
+
+    - name: Create OpenHands state and workspace directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ openhands_user }}"
+        group: "{{ openhands_user }}"
+        mode: "0750"
+      loop:
+        - "{{ openhands_home }}/.openhands"
+        - "{{ openhands_home }}/workspace"
+
+    - name: Install OpenHands environment
+      ansible.builtin.template:
+        src: ../templates/openhands.env.j2
+        dest: /etc/openhands.env
+        owner: root
+        group: "{{ openhands_user }}"
+        mode: "0640"
+      no_log: true
+      notify: Restart OpenHands
+
+    - name: Install OpenHands systemd service
+      ansible.builtin.template:
+        src: ../templates/openhands.service.j2
+        dest: /etc/systemd/system/openhands.service
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart OpenHands
+
+    - name: Enable OpenHands service
+      ansible.builtin.systemd_service:
+        name: openhands
+        enabled: true
+        state: started
+        daemon_reload: true
+
+    - name: Wait for Agent Canvas
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ openhands_port }}/health"
+        status_code: 200
+      register: openhands_health
+      retries: 30
+      delay: 5
+      until: openhands_health.status == 200
+
+    - name: Verify installed versions
+      ansible.builtin.command: "{{ item }}"
+      loop:
+        - node --version
+        - uv --version
+        - agent-canvas --version
+      register: openhands_versions
+      changed_when: false
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+
+    - name: Restart OpenHands
+      ansible.builtin.systemd_service:
+        name: openhands
+        state: restarted

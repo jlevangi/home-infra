@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars and populate from the existing Proxmox vault.
+token_id     = "terraform@pam!tf-token"
+token_secret = "REPLACE_ME"
+
+ci_user     = "ansible"
+ci_password = "REPLACE_ME"
+ssh_key     = "ssh-ed25519 REPLACE_ME"
