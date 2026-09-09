@@ -8,7 +8,7 @@ terraform {
 
 resource "proxmox_vm_qemu" "this" {
   count       = var.vm_count
-  name        = length(var.vm_names) > 0 ? var.vm_names[count.index] : "${var.vm_name_prefix}-${count.index + 1}"
+  name        = "${var.vm_name_prefix}-${count.index + 1}"
   vmid        = length(var.vm_ids) > 0 ? var.vm_ids[count.index] : null
   target_node = element(var.target_nodes, count.index)
   tags        = length(var.proxmox_tags) > 0 ? join(";", sort(distinct(var.proxmox_tags))) : null

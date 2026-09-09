@@ -8,17 +8,6 @@ variable "vm_count" {
   type        = number
 }
 
-variable "vm_names" {
-  description = "Optional exact VM names in creation order. Leave empty to use <vm_name_prefix>-<index>."
-  type        = list(string)
-  default     = []
-
-  validation {
-    condition     = length(var.vm_names) == 0 || length(var.vm_names) == var.vm_count
-    error_message = "vm_names must be empty or contain exactly vm_count entries."
-  }
-}
-
 variable "vm_ids" {
   description = "Optional fixed Proxmox VMIDs in creation order. Leave empty to let Proxmox assign IDs."
   type        = list(number)
