@@ -4,7 +4,7 @@ resources:
   - ../../base
 images:
   - name: ghcr.io/jr4dh3y/boxbox
-    newTag: "0.2.2"
+    newTag: "0.2.1"
 patches:
   - target:
       kind: Ingress
