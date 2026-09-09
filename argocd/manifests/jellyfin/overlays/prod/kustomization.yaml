@@ -50,7 +50,7 @@ patches:
         value: tracearr-data-pv
 images:
   - name: lscr.io/linuxserver/jellyfin
-    newTag: "10.11.11"
+    newTag: "12.0ubu2604-ls48"
 labels:
   - pairs:
       environment: prod
