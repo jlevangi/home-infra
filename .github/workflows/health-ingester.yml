@@ -20,7 +20,7 @@ jobs:
       - name: Build and push
         env:
           GHCR_TOKEN: ${{ github.token }}
-          IMAGE: ghcr.io/jlevangi/health-ingester:git-${{ github.sha }}
+          IMAGE: ghcr.io/jlevangi/home-infra-health-ingester:git-${{ github.sha }}
         run: |
           printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
           docker build --pull --tag "$IMAGE" services/health-ingester
