@@ -227,5 +227,6 @@
   "prConcurrentLimit": 5,
   "prHourlyLimit": 2,
   "dependencyDashboard": true,
+  "dependencyDashboardTitle": "Renovate Dependency Dashboard",
   "timezone": "America/New_York"
 }
