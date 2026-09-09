@@ -17,30 +17,23 @@ patches:
       - op: add
         path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
         value: "k3s-prod.levangie.dev"
+  # Temporary CPU-only placement while the GPU node awaits a reboot to load
+  # matching NVIDIA 535.309 kernel and userspace drivers.
   - target:
       kind: Deployment
       name: jellyfin
     patch: |
       - op: add
-        path: /spec/template/spec/runtimeClassName
-        value: nvidia
-      - op: add
-        path: /spec/template/spec/nodeSelector
+        path: /spec/template/spec/affinity
         value:
-          accelerator: nvidia
-      - op: add
-        path: /spec/template/spec/tolerations
-        value:
-          - key: accelerator
-            operator: Equal
-            value: nvidia
-            effect: NoSchedule
-      - op: add
-        path: /spec/template/spec/containers/0/resources/requests/nvidia.com~1gpu
-        value: 1
-      - op: add
-        path: /spec/template/spec/containers/0/resources/limits/nvidia.com~1gpu
-        value: 1
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
+                    - key: kubernetes.io/hostname
+                      operator: NotIn
+                      values:
+                        - k3s-prod-worker-gpu-1
   - target:
       kind: PersistentVolumeClaim
       name: tracearr-data-pvc
