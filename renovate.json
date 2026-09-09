@@ -6,6 +6,13 @@
     "scripts/**",
     "terraform/archive/**"
   ],
+  "ignoreDeps": [
+    "ghcr.io/jlevangi/3dprintcalculator",
+    "ghcr.io/jlevangi/everlyera",
+    "ghcr.io/jlevangi/gamble-king",
+    "ghcr.io/jlevangi/health-ingester",
+    "ghcr.io/jlevangi/netbox-sync"
+  ],
   "kubernetes": {
     "managerFilePatterns": ["/argocd/manifests/.+\\.ya?ml$/"]
   },
@@ -17,7 +24,7 @@
       "description": "Application container image non-major updates - weekly individual PRs",
       "matchFileNames": ["argocd/manifests/**"],
       "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest"],
-      "schedule": ["after 6am on Monday"],
+      "schedule": ["* 6-8 * * 1"],
       "automerge": false
     },
     {
@@ -156,7 +163,7 @@
       "matchFileNames": ["argocd/apps/prod/**"],
       "matchManagers": ["argocd"],
       "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest"],
-      "schedule": ["after 6am on Monday"],
+      "schedule": ["* 6-8 * * 1"],
       "automerge": false
     },
     {
@@ -198,8 +205,9 @@
       "groupName": "terraform-providers"
     },
     {
-      "description": "Major updates need review",
+      "description": "Major updates require explicit Dependency Dashboard approval",
       "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true,
       "automerge": false,
       "labels": ["major-update"]
     },

@@ -30,4 +30,12 @@ Renovate detects image and chart references, but it cannot infer application com
 5. Merge one application at a time and verify ArgoCD revision, rollout, logs, endpoint behavior, and PVC continuity.
 6. Treat database majors as maintenance projects with backups, migration, compatibility validation, and rollback plans.
 
+## Backlog controls
+
+- Non-major application image and production Helm chart PRs can be created only Monday from 06:00 through 08:59 America/New_York.
+- Every major update requires explicit approval from the Dependency Dashboard before Renovate creates a PR.
+- Images built by this repository's own application release workflows are listed in `ignoreDeps`; Renovate must not replace release-pipeline pins. Renovate may still perform metadata lookups for extracted digest-pinned references.
+- Private GHCR lookup warnings require encrypted `ghcr.io` credentials in the Mend repository integration. Never place registry tokens in `renovate.json`.
+- Registry lookup warnings for external images still require investigation. Do not hide them with global warning suppression.
+
 Mend IaC scanning is unavailable on the current Mend Community account. The dependency ownership and migration controls in Renovate remain active without it.
