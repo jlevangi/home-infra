@@ -9,4 +9,4 @@ spec:
     kind: Deployment
     name: factorio
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Initial"

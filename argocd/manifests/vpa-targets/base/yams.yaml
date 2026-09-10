@@ -9,7 +9,7 @@ spec:
     kind: Deployment
     name: jellyplex-watched
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Initial"
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
@@ -22,7 +22,7 @@ spec:
     kind: Deployment
     name: tautulli
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Initial"
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
@@ -35,7 +35,7 @@ spec:
     kind: Deployment
     name: seerr
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Initial"
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
@@ -48,7 +48,7 @@ spec:
     kind: Deployment
     name: jellyseerr
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Initial"
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
@@ -61,7 +61,7 @@ spec:
     kind: Deployment
     name: qbittorrent
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Initial"
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
@@ -74,7 +74,7 @@ spec:
     kind: Deployment
     name: nzbget
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Initial"
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
@@ -87,7 +87,7 @@ spec:
     kind: Deployment
     name: sonarr
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Initial"
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
@@ -100,7 +100,7 @@ spec:
     kind: Deployment
     name: radarr
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Initial"
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
@@ -113,7 +113,7 @@ spec:
     kind: Deployment
     name: radarr4k
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Initial"
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
@@ -126,7 +126,7 @@ spec:
     kind: Deployment
     name: bazarr
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Initial"
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
@@ -139,7 +139,7 @@ spec:
     kind: Deployment
     name: prowlarr
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Initial"
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
@@ -152,7 +152,7 @@ spec:
     kind: Deployment
     name: wizarr
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Initial"
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
@@ -165,4 +165,4 @@ spec:
     kind: Deployment
     name: flaresolverr
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Initial"

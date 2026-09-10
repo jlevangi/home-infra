@@ -9,7 +9,7 @@ spec:
     kind: Deployment
     name: bookstack
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Initial"
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
@@ -22,4 +22,4 @@ spec:
     kind: Deployment
     name: bookstack-mariadb
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Initial"

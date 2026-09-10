@@ -9,4 +9,4 @@ spec:
     kind: StatefulSet
     name: vault-raft
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Initial"

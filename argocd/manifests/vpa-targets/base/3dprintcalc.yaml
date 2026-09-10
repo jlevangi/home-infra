@@ -9,4 +9,4 @@ spec:
     kind: Deployment
     name: printcalc
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Auto"

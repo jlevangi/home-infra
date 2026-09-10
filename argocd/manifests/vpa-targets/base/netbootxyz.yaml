@@ -9,4 +9,4 @@ spec:
     kind: Deployment
     name: netbootxyz
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Auto"

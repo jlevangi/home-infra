@@ -9,4 +9,4 @@ spec:
     kind: Deployment
     name: searxng
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Auto"

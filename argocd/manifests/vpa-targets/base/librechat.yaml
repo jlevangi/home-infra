@@ -9,7 +9,7 @@ spec:
     kind: Deployment
     name: librechat-librechat
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Initial"
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
@@ -22,7 +22,7 @@ spec:
     kind: Deployment
     name: librechat-mongodb
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Initial"
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
@@ -35,4 +35,4 @@ spec:
     kind: StatefulSet
     name: librechat-meilisearch
   updatePolicy:
-    updateMode: "Off"
+    updateMode: "Initial"
