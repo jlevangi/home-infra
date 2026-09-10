@@ -87,8 +87,8 @@
       "addLabels": ["component:auth"]
     },
     {
-      "description": "Kubernetes image updates - identify and isolate by owning manifest directory",
-      "matchManagers": ["kubernetes"],
+      "description": "Kubernetes and Kustomize image updates - identify and isolate by owning manifest directory",
+      "matchManagers": ["kubernetes", "kustomize"],
       "matchFileNames": ["argocd/manifests/**"],
       "additionalBranchPrefix": "{{packageFileDir}}-",
       "commitMessageTopic": "{{depName}} in {{packageFileDir}}"
