@@ -24,7 +24,7 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: alist
-          image: xhofe/alist:v3.63.0
+          image: xhofe/alist:v3.64.0
           imagePullPolicy: IfNotPresent
           env:
             - name: PUID
