@@ -8,4 +8,4 @@ labels:
     includeSelectors: true
 images:
   - name: crowdsecurity/crowdsec
-    newTag: v1.7.8
+    newTag: v1.8.1
