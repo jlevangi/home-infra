@@ -93,6 +93,13 @@ Two behaviours that are easy to trip over:
 It also never deletes, so renaming a host means removing the old record manually. The
 zone is DNSSEC-signed and Technitium re-signs automatically on add or delete.
 
+The travel Caddy's home-LAN address is tracked in NetBox even though `.mobile` is outside
+the sync's `levangie.org` zone. NetBox IP object `47` reserves `172.20.20.252/22` for
+virtual machine `zima-caddy` / interface `net1-home`; Technitium's manually managed
+internal Primary zone `mobile` has `*.mobile` pointing to that address. Keep the IP
+`reserved` until CT 111's second interface is attached to the ZimaBoard's `vmbr0`, then
+mark it `active`. The existing `net0=192.168.8.3/24` on `vmbr1` remains the travel path.
+
 ## Troubleshooting
 
 - **A host has no DNS record** — check the IP's status is `active` in NetBox first, then
