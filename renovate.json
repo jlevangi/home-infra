@@ -87,11 +87,12 @@
       "addLabels": ["component:auth"]
     },
     {
-      "description": "Kubernetes and Kustomize image updates - identify and isolate by owning manifest directory",
+      "description": "Kubernetes and Kustomize image updates - group matching pins by dependency and owning application",
       "matchManagers": ["kubernetes", "kustomize"],
       "matchFileNames": ["argocd/manifests/**"],
-      "additionalBranchPrefix": "{{packageFileDir}}-",
-      "commitMessageTopic": "{{depName}} in {{packageFileDir}}"
+      "additionalBranchPrefix": "{{ lookup (split packageFileDir '/') 2 }}-",
+      "groupName": "{{depName}} for {{ lookup (split packageFileDir '/') 2 }}",
+      "commitMessageTopic": "{{depName}} for {{ lookup (split packageFileDir '/') 2 }}"
     },
     {
       "description": "Shared helper images need affected-application review",
