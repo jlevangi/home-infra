@@ -87,14 +87,16 @@
       "addLabels": ["component:auth"]
     },
     {
+      "description": "Kubernetes image updates - identify and isolate by owning manifest directory",
+      "matchManagers": ["kubernetes"],
+      "matchFileNames": ["argocd/manifests/**"],
+      "additionalBranchPrefix": "{{packageFileDir}}-",
+      "commitMessageTopic": "{{depName}} in {{packageFileDir}}"
+    },
+    {
       "description": "Shared helper images need affected-application review",
       "matchPackageNames": ["busybox", "curlimages/curl", "python"],
       "addLabels": ["component:helper"]
-    },
-    {
-      "description": "Split BusyBox and Python updates by owning manifest directory",
-      "matchPackageNames": ["busybox", "python"],
-      "additionalBranchPrefix": "{{packageFileDir}}-"
     },
     {
       "description": "Ignore LinuxServer qBittorrent legacy date-based build tags",
@@ -157,6 +159,13 @@
       "matchFileNames": ["argocd/apps/prod/vault.yaml"],
       "matchManagers": ["argocd"],
       "enabled": false
+    },
+    {
+      "description": "Metrics Server 0.9 requires Kubernetes 1.34 or newer",
+      "matchFileNames": ["argocd/apps/prod/metrics-server.yaml"],
+      "matchManagers": ["argocd"],
+      "matchPackageNames": ["metrics-server"],
+      "allowedVersions": "<3.14.0"
     },
     {
       "description": "Prod Helm chart non-major updates - weekly individual PRs",

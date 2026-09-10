@@ -37,6 +37,9 @@ Renovate detects image and chart references, but it cannot infer application com
 - The custom dashboard title replaces the previously closed `Dependency Dashboard`, allowing Renovate to maintain a fresh control issue without reopening stale history.
 - Images built by this repository's own application release workflows are listed in `ignoreDeps`; Renovate must not replace release-pipeline pins. Renovate may still perform metadata lookups for extracted digest-pinned references.
 - Private GHCR lookup warnings require encrypted `ghcr.io` credentials in the Mend repository integration. Never place registry tokens in `renovate.json`.
-- Registry lookup warnings for external images still require investigation. Do not hide them with global warning suppression.
+- External registry lookup warnings for external images still require investigation. Do not hide them with global warning suppression.
+- Kubernetes image branches and PR titles include their owning manifest directory. For example, a BusyBox update in Healthchecks is shown as `busybox in argocd/manifests/healthchecks/base`, not merely `busybox`.
+- Kubernetes image updates are isolated by manifest directory. Do not broadly group helper images across unrelated applications; shared version does not imply shared lifecycle or rollback.
+- Metrics Server chart versions `3.14.0` and newer are blocked while production runs Kubernetes 1.28 because they contain Metrics Server 0.9, whose supported minimum is Kubernetes 1.34.
 
 Mend IaC scanning is unavailable on the current Mend Community account. The dependency ownership and migration controls in Renovate remain active without it.
