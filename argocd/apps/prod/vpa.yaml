@@ -26,9 +26,25 @@ spec:
               cpu: 200m
               memory: 1Gi
         updater:
-          enabled: false
+          enabled: true
+          resources:
+            requests:
+              cpu: 25m
+              memory: 100Mi
+            limits:
+              cpu: 100m
+              memory: 250Mi
         admissionController:
-          enabled: false
+          enabled: true
+          generateCertificate: true
+          registerWebhook: true
+          resources:
+            requests:
+              cpu: 25m
+              memory: 100Mi
+            limits:
+              cpu: 100m
+              memory: 250Mi
   destination:
     server: https://kubernetes.default.svc
     namespace: vpa
