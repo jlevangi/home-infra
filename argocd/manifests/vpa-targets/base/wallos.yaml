@@ -9,4 +9,4 @@ spec:
     kind: Deployment
     name: wallos
   updatePolicy:
-    updateMode: "Auto"
+    updateMode: "Initial"

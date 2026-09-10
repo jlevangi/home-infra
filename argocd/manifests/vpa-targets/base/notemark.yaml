@@ -9,4 +9,4 @@ spec:
     kind: Deployment
     name: notemark
   updatePolicy:
-    updateMode: "Auto"
+    updateMode: "Initial"
