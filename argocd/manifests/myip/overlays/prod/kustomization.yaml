@@ -4,7 +4,7 @@ resources:
   - ../../base
 images:
   - name: jason5ng32/myip
-    newTag: v7.2.1
+    newTag: v7.5.0
 labels:
   - pairs:
       environment: prod
