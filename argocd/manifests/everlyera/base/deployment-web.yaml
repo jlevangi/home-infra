@@ -89,12 +89,14 @@ spec:
             httpGet: { path: /, port: 3000 }
             initialDelaySeconds: 10
             periodSeconds: 15
+            timeoutSeconds: 5
             failureThreshold: 6
           livenessProbe:
             httpGet: { path: /, port: 3000 }
             initialDelaySeconds: 60
             periodSeconds: 30
-            failureThreshold: 3
+            timeoutSeconds: 5
+            failureThreshold: 5
           securityContext:
             allowPrivilegeEscalation: false
             capabilities: { drop: ["ALL"] }
