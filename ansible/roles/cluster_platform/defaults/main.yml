@@ -34,3 +34,25 @@ longhorn_namespace_pod_security_warn: ""
 metallb_namespace_pod_security_enforce: ""
 metallb_namespace_pod_security_audit: ""
 metallb_namespace_pod_security_warn: ""
+metallb_chart_version: "0.15.3"
+metallb_probe_timeout_seconds: 5
+metallb_controller_resources:
+  requests:
+    cpu: 10m
+    memory: 128Mi
+metallb_speaker_resources:
+  requests:
+    cpu: 10m
+    memory: 128Mi
+metallb_frr_resources:
+  requests:
+    cpu: 10m
+    memory: 128Mi
+metallb_frr_metrics_resources:
+  requests:
+    cpu: 5m
+    memory: 64Mi
+metallb_reloader_resources:
+  requests:
+    cpu: 5m
+    memory: 16Mi

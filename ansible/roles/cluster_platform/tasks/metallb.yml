@@ -45,7 +45,7 @@
 
 - name: Determine if MetalLB needs deployment
   set_fact:
-    metallb_needs_deployment: "{{ force_metallb_redeploy | default(false) or metallb_running_check.stdout == '' }}"
+    metallb_needs_deployment: "{{ metallb_helm_check.rc == 0 or metallb_running_check.stdout == '' }}"
 
 - name: Display MetalLB installation info
   debug:
@@ -123,8 +123,18 @@
   shell: |
     export KUBECONFIG={{ kubeconfig_path }}
     helm upgrade --install metallb metallb/metallb \
+      --version {{ metallb_chart_version }} \
       --namespace metallb-system \
       --create-namespace \
+      --set controller.livenessProbe.timeoutSeconds={{ metallb_probe_timeout_seconds }} \
+      --set controller.readinessProbe.timeoutSeconds={{ metallb_probe_timeout_seconds }} \
+      --set speaker.livenessProbe.timeoutSeconds={{ metallb_probe_timeout_seconds }} \
+      --set speaker.readinessProbe.timeoutSeconds={{ metallb_probe_timeout_seconds }} \
+      --set-json 'controller.resources={{ metallb_controller_resources | to_json }}' \
+      --set-json 'speaker.resources={{ metallb_speaker_resources | to_json }}' \
+      --set-json 'speaker.frr.resources={{ metallb_frr_resources | to_json }}' \
+      --set-json 'speaker.frrMetrics.resources={{ metallb_frr_metrics_resources | to_json }}' \
+      --set-json 'speaker.reloader.resources={{ metallb_reloader_resources | to_json }}' \
       --wait \
       --timeout=10m
   register: metallb_install_result
