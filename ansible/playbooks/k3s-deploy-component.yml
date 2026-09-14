@@ -218,20 +218,6 @@
         - deploy_component == 'argocd'
         - inventory_hostname == (k3s_primary_master | default('') | trim if (k3s_primary_master | default('') | trim | length > 0) else groups[master_group][0])
 
-    - name: Deploy MetalLB load balancer
-      ansible.builtin.include_role:
-        name: ../roles/cluster_platform
-        tasks_from: metallb.yml
-        apply:
-          delegate_to: localhost
-          become: false
-      vars:
-        <<: *platform_role_vars
-        kubeconfig_path: "{{ platform_kubeconfig_tempfile.path }}"
-      when:
-        - deploy_component == 'metallb'
-        - inventory_hostname == groups[master_group][0]
-
     - name: Deploy Traefik ingress controller
       ansible.builtin.include_role:
         name: ../roles/cluster_platform
