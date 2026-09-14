@@ -26,3 +26,18 @@ resources:
   - vaultwarden.yaml
   - wallos.yaml
   - yams.yaml
+
+patches:
+  # Let VPA right-size scheduling requests without creating CPU throttling or
+  # ratio-scaled limits after a transient workload spike.
+  - target:
+      group: autoscaling.k8s.io
+      version: v1
+      kind: VerticalPodAutoscaler
+    patch: |-
+      - op: add
+        path: /spec/resourcePolicy
+        value:
+          containerPolicies:
+            - containerName: "*"
+              controlledValues: RequestsOnly
