@@ -9,4 +9,4 @@ spec:
     kind: Deployment
     name: pocketid
   updatePolicy:
-    updateMode: "Auto"
+    updateMode: "Initial"

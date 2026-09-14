@@ -9,7 +9,7 @@ spec:
     kind: Deployment
     name: changedetection
   updatePolicy:
-    updateMode: "Auto"
+    updateMode: "Initial"
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
