@@ -94,7 +94,6 @@ spec:
               cpu: "200m"
             limits:
               memory: "2Gi"
-              cpu: "1000m"
       volumes:
         - name: data
           persistentVolumeClaim:
