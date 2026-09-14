@@ -61,7 +61,6 @@ spec:
               cpu: "100m"
             limits:
               memory: "512Mi"
-              cpu: "500m"
       volumes:
         - name: data
           persistentVolumeClaim:
