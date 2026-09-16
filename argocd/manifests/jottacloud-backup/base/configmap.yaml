@@ -62,7 +62,7 @@ data:
       [ "${DRY_RUN:-0}" = "1" ] && dry_run_arg="--dry-run"
 
       rclone sync "${source_path}" "${DEST_ROOT}/${dest_rel}/" \
-        --config /config/rclone.conf \
+        --config /state/rclone.conf \
         --cache-dir /state/cache \
         --fast-list \
         --metadata \
@@ -112,6 +112,11 @@ data:
     }
 
     : "${HEALTHCHECKS_URL:?HEALTHCHECKS_URL is required}"
+    if [ ! -f /state/rclone.conf ]; then
+      cp /config/rclone.conf /state/rclone.conf
+      chmod 0600 /state/rclone.conf
+      log "Initialized writable rclone configuration in persistent state."
+    fi
     require_sources
     K3S_SNAPSHOT="$(newest_k3s_snapshot)"
     if [ -z "${K3S_SNAPSHOT}" ]; then
