@@ -19,6 +19,10 @@ spec:
       kind: PersistentVolumeClaim
       jsonPointers:
         - /spec/resources/requests/storage
+    - group: external-secrets.io
+      kind: ExternalSecret
+      jsonPointers:
+        - /spec/dataFrom
   syncPolicy:
     automated:
       prune: true
