@@ -4,4 +4,5 @@ resources:
   - namespace.yaml
   - external-secret.yaml
   - configmap.yaml
+  - pvc.yaml
   - cronjob.yaml

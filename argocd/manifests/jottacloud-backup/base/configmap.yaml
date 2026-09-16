@@ -63,6 +63,7 @@ data:
 
       rclone sync "${source_path}" "${DEST_ROOT}/${dest_rel}/" \
         --config /config/rclone.conf \
+        --cache-dir /state/cache \
         --fast-list \
         --metadata \
         --delete-during \

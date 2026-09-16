@@ -45,6 +45,7 @@ spec:
               command:
                 - /bin/sh
                 - /scripts/backup.sh
+              args: []
               env:
                 - name: HEALTHCHECKS_URL
                   valueFrom:
@@ -71,6 +72,8 @@ spec:
                 - name: config
                   mountPath: /config
                   readOnly: true
+                - name: state
+                  mountPath: /state
                 - name: tmp
                   mountPath: /tmp
                 - name: fileserver
@@ -102,6 +105,9 @@ spec:
             - name: config
               secret:
                 secretName: jottacloud-backup-config
+            - name: state
+              persistentVolumeClaim:
+                claimName: jottacloud-backup-state
             - name: tmp
               emptyDir:
                 sizeLimit: 1Gi
