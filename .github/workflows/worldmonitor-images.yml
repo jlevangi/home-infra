@@ -24,7 +24,8 @@ jobs:
           - name: relay
             dockerfile: Dockerfile.relay
           - name: redis-rest
-            dockerfile: docker/Dockerfile.redis-rest
+            dockerfile: Dockerfile.redis-rest
+            context: docker
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -40,6 +41,7 @@ jobs:
       - name: Build and push
         env:
           IMAGE: ghcr.io/jlevangi/home-infra-worldmonitor-${{ matrix.name }}:${{ inputs.version }}
+          CONTEXT: ${{ matrix.context || '.' }}
         run: |
-          docker build --pull --file "${{ matrix.dockerfile }}" --tag "$IMAGE" .
+          docker build --pull --file "${{ matrix.dockerfile }}" --tag "$IMAGE" "$CONTEXT"
           docker push "$IMAGE"
