@@ -1,0 +1,142 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: jottacloud-backup
+  namespace: jottacloud-backup
+  labels:
+    app.kubernetes.io/name: jottacloud-backup
+spec:
+  schedule: "0 3 * * *"
+  timeZone: Etc/UTC
+  suspend: true
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 43200
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: jottacloud-backup
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: node-role.kubernetes.io/control-plane
+                        operator: DoesNotExist
+          containers:
+            - name: backup
+              image: rclone/rclone@sha256:3103526c506266a9ecdf064efe99bf3677d92ef6407af124d8c56b4f49cbaa51
+              imagePullPolicy: IfNotPresent
+              command:
+                - /bin/sh
+                - /scripts/backup.sh
+              env:
+                - name: HEALTHCHECKS_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: jottacloud-backup-config
+                      key: healthchecks_url
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: "2"
+                  memory: 2Gi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              volumeMounts:
+                - name: script
+                  mountPath: /scripts
+                  readOnly: true
+                - name: config
+                  mountPath: /config
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
+                - name: fileserver
+                  mountPath: /mnt/nas/fileserver
+                  readOnly: true
+                - name: docker
+                  mountPath: /mnt/nas/docker
+                  readOnly: true
+                - name: backup
+                  mountPath: /mnt/nas/backup
+                  readOnly: true
+                - name: everlyera
+                  mountPath: /mnt/nas/everlyera
+                  readOnly: true
+                - name: k3s-storage
+                  mountPath: /mnt/nas/k3s-storage
+                  readOnly: true
+                - name: media-immich
+                  mountPath: /mnt/nas/media-immich
+                  readOnly: true
+                - name: xyz
+                  mountPath: /mnt/nas/xyz
+                  readOnly: true
+          volumes:
+            - name: script
+              configMap:
+                name: jottacloud-backup-script
+                defaultMode: 0555
+            - name: config
+              secret:
+                secretName: jottacloud-backup-config
+            - name: tmp
+              emptyDir:
+                sizeLimit: 1Gi
+            - name: fileserver
+              nfs:
+                server: 172.20.20.5
+                path: /volume1/fileserver
+                readOnly: true
+            - name: docker
+              nfs:
+                server: 172.20.20.5
+                path: /volume1/docker
+                readOnly: true
+            - name: backup
+              nfs:
+                server: 172.20.20.5
+                path: /volume1/backup
+                readOnly: true
+            - name: everlyera
+              nfs:
+                server: 172.20.20.5
+                path: /volume1/everlyera
+                readOnly: true
+            - name: k3s-storage
+              nfs:
+                server: 172.20.20.5
+                path: /volume1/k3s-storage
+                readOnly: true
+            - name: media-immich
+              nfs:
+                server: 172.20.20.5
+                path: /volume1/media/immich
+                readOnly: true
+            - name: xyz
+              nfs:
+                server: 172.20.20.5
+                path: /volume1/xyz
+                readOnly: true
