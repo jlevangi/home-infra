@@ -1,0 +1,147 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jottacloud-backup-script
+  namespace: jottacloud-backup
+data:
+  backup.sh: |
+    #!/bin/sh
+    set -eu
+
+    DEST_ROOT="crypt:nas-backup"
+    ROOTS="fileserver docker backup everlyera k3s-storage media-immich xyz"
+
+    log() {
+      printf '[%s] %s\n' "$(date -u +%FT%TZ)" "$*"
+    }
+
+    healthcheck() {
+      suffix="${1:-}"
+      [ "${DRY_RUN:-0}" = "1" ] && return 0
+      wget -q -T 20 -t 3 -O /dev/null "${HEALTHCHECKS_URL}${suffix}" || true
+    }
+
+    fail() {
+      rc="$?"
+      trap - 0
+      log "Backup failed with exit code ${rc}."
+      healthcheck /fail
+      exit "${rc}"
+    }
+    trap fail 0
+
+    require_sources() {
+      failed=0
+      for rel in ${ROOTS}; do
+        path="/mnt/nas/${rel}"
+        if [ ! -d "${path}" ] || [ ! -r "${path}" ]; then
+          log "ERROR: missing or unreadable NAS source: ${path}"
+          failed=1
+        fi
+      done
+      [ "${failed}" -eq 0 ]
+    }
+
+    newest_k3s_snapshot() {
+      find /mnt/nas/k3s-storage/#snapshot -mindepth 1 -maxdepth 1 -type d \
+        -exec test -d '{}/longhorn/shared' ';' -print | sort | sed -n '$p'
+    }
+
+    sync_root() {
+      rel="$1"
+      source_path="/mnt/nas/${rel}/"
+      dest_rel="${rel}"
+      [ "${rel}" = "media-immich" ] && dest_rel="media/immich"
+
+      if [ "${rel}" = "k3s-storage" ]; then
+        source_path="${K3S_SNAPSHOT}/"
+      fi
+
+      log "Syncing ${source_path} -> ${DEST_ROOT}/${dest_rel}/"
+      dry_run_arg=""
+      [ "${DRY_RUN:-0}" = "1" ] && dry_run_arg="--dry-run"
+
+      rclone sync "${source_path}" "${DEST_ROOT}/${dest_rel}/" \
+        --config /state/rclone.conf \
+        --cache-dir /state/cache \
+        --fast-list \
+        --metadata \
+        --delete-during \
+        --delete-excluded \
+        --bwlimit 12.5M \
+        --exclude '.DS_Store' \
+        --exclude '**/.DS_Store' \
+        --exclude '**/desktop.ini' \
+        --exclude '*.tmp' \
+        --exclude '*.bak' \
+        --exclude 'tmp/**' \
+        --exclude '.trash/**' \
+        --exclude '.Trash/**' \
+        --exclude '#recycle/**' \
+        --exclude '**/.trash/**' \
+        --exclude '**/.Trash/**' \
+        --exclude '**/#recycle/**' \
+        --exclude '**/@eaDir/**' \
+        --exclude '**/.SynologyWorkingDirectory/**' \
+        --exclude 'Obsidian/**/*.sync-conflict-*' \
+        --exclude '**/.smart-env/**' \
+        --exclude '**/__pycache__/**' \
+        --exclude '**/.venv/**' \
+        --exclude 'git/LazyDJ/venv/**' \
+        --exclude 'codeserver/config/.cache/**' \
+        --exclude 'codeserver/config/.npm/**' \
+        --exclude 'syncthing/**' \
+        --exclude 'portainer_compose_files/old_compose/1/**' \
+        --exclude 'portainer_compose_files/old_compose/2/**' \
+        --exclude 'portainer_compose_files/old_compose/3/**' \
+        --exclude 'portainer_compose_files/old_compose/7/**' \
+        --exclude 'portainer_compose_files/old_compose/8/**' \
+        --exclude 'portainer_compose_files/old_compose/11/**' \
+        --exclude 'portainer_compose_files/old_compose/12/**' \
+        --exclude 'docker-prd-2/gitea/gitea/ssh/**' \
+        --exclude 'docker-prd-2/gitea/gitea/git/.ssh/**' \
+        --exclude 'docker-prd-2/gitea/gitea/gitea/indexers/**' \
+        --exclude 'docker-prd-2/gitea/gitea/gitea/sessions/**' \
+        --exclude 'docker-prd-2/smokeping/config/smokeping_secrets' \
+        --exclude 'docker-prd-2/wordpress/db_data/ib_buffer_pool' \
+        --exclude 'docker-prd-2/gitea/gitea/gitea/conf/app.ini' \
+        --exclude 'docker-prd-2/gitea/gitea/gitea/jwt/private.pem' \
+        --stats 1m \
+        --stats-one-line \
+        ${dry_run_arg}
+    }
+
+    : "${HEALTHCHECKS_URL:?HEALTHCHECKS_URL is required}"
+    if [ ! -f /state/rclone.conf ]; then
+      cp /config/rclone.conf /state/rclone.conf
+      chmod 0600 /state/rclone.conf
+      log "Initialized writable rclone configuration in persistent state."
+    fi
+    require_sources
+    K3S_SNAPSHOT="$(newest_k3s_snapshot)"
+    if [ -z "${K3S_SNAPSHOT}" ]; then
+      log "ERROR: no visible k3s-storage snapshot containing longhorn/shared."
+      exit 21
+    fi
+
+    mode="live"
+    [ "${DRY_RUN:-0}" = "1" ] && mode="dry-run"
+    log "Starting Jottacloud NAS backup (${mode}); k3s snapshot: ${K3S_SNAPSHOT}"
+    healthcheck /start
+
+    failed_roots=""
+    for rel in ${ROOTS}; do
+      if ! sync_root "${rel}"; then
+        log "ERROR: sync failed for ${rel}; continuing with remaining roots."
+        failed_roots="${failed_roots} ${rel}"
+      fi
+    done
+
+    if [ -n "${failed_roots}" ]; then
+      log "Jottacloud NAS backup (${mode}) finished with failed roots:${failed_roots}"
+      exit 30
+    fi
+
+    log "Completed Jottacloud NAS backup (${mode}) successfully."
+    healthcheck
+    trap - 0
