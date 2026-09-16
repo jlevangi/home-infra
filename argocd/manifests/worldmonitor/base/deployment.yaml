@@ -1,0 +1,158 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worldmonitor
+  namespace: worldmonitor
+  labels:
+    app.kubernetes.io/name: worldmonitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: worldmonitor
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: worldmonitor
+    spec:
+      imagePullSecrets:
+        - name: worldmonitor-ghcr
+      containers:
+        - name: worldmonitor
+          image: ghcr.io/jlevangi/home-infra-worldmonitor-app:v2.10.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: UPSTASH_REDIS_REST_URL
+              value: http://127.0.0.1:80
+            - name: UPSTASH_REDIS_REST_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: worldmonitor-secrets
+                  key: REDIS_TOKEN
+            - name: WM_SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: worldmonitor-secrets
+                  key: WM_SESSION_SECRET
+            - name: LOCAL_API_PORT
+              value: "46123"
+            - name: LOCAL_API_MODE
+              value: docker
+            - name: LOCAL_API_CLOUD_FALLBACK
+              value: "false"
+            - name: WS_RELAY_URL
+              value: http://127.0.0.1:3004
+            - name: RELAY_SHARED_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: worldmonitor-secrets
+                  key: RELAY_SHARED_SECRET
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /api/sidecar-health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/sidecar-health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+        - name: ais-relay
+          image: ghcr.io/jlevangi/home-infra-worldmonitor-relay:v2.10.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: RELAY_SHARED_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: worldmonitor-secrets
+                  key: RELAY_SHARED_SECRET
+            - name: UPSTASH_REDIS_REST_URL
+              value: http://127.0.0.1:80
+            - name: UPSTASH_REDIS_REST_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: worldmonitor-secrets
+                  key: REDIS_TOKEN
+            - name: UPSTASH_ALLOW_INSECURE_HTTP
+              value: "true"
+            - name: API_BASE_URL
+              value: http://127.0.0.1:8080
+            - name: PORT
+              value: "3004"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3004
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3004
+            initialDelaySeconds: 20
+            periodSeconds: 20
+        - name: redis
+          image: redis:7-alpine
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -ec
+            - exec redis-server --requirepass "$REDIS_PASSWORD" --maxmemory 256mb --maxmemory-policy allkeys-lru
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: worldmonitor-secrets
+                  key: REDIS_PASSWORD
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 384Mi
+        - name: redis-rest
+          image: ghcr.io/jlevangi/home-infra-worldmonitor-redis-rest:v2.10.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SRH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: worldmonitor-secrets
+                  key: REDIS_TOKEN
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: worldmonitor-secrets
+                  key: REDIS_PASSWORD
+            - name: SRH_CONNECTION_STRING
+              value: redis://:$(REDIS_PASSWORD)@127.0.0.1:6379
+          ports:
+            - name: redis-rest
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
