@@ -44,13 +44,15 @@ data:
 
     newest_k3s_snapshot() {
       newest=""
-      newest_mtime=0
+      newest_key=""
       for snapshot in /mnt/nas/k3s-storage/#snapshot/GMT-*; do
         [ -d "${snapshot}/longhorn/shared" ] || continue
-        mtime="$(stat -c %Y "${snapshot}")"
-        if [ "${mtime}" -gt "${newest_mtime}" ]; then
+        name="${snapshot##*/}"
+        key="$(printf '%s\n' "${name}" | sed -n 's/^GMT[+-][0-9][0-9]-\([0-9][0-9][0-9][0-9]\)\.\([0-9][0-9]\)\.\([0-9][0-9]\)-\([0-9][0-9]\)\.\([0-9][0-9]\)\.\([0-9][0-9]\)$/\1\2\3\4\5\6/p')"
+        [ -n "${key}" ] || continue
+        if [ -z "${newest_key}" ] || [ "${key}" -gt "${newest_key}" ]; then
           newest="${snapshot}"
-          newest_mtime="${mtime}"
+          newest_key="${key}"
         fi
       done
       [ -n "${newest}" ] && printf '%s\n' "${newest}"
