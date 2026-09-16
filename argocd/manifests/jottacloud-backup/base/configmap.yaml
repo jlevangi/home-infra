@@ -43,8 +43,17 @@ data:
     }
 
     newest_k3s_snapshot() {
-      find /mnt/nas/k3s-storage/#snapshot -mindepth 1 -maxdepth 1 -type d \
-        -exec test -d '{}/longhorn/shared' ';' -print | sort | sed -n '$p'
+      newest=""
+      newest_mtime=0
+      for snapshot in /mnt/nas/k3s-storage/#snapshot/GMT-*; do
+        [ -d "${snapshot}/longhorn/shared" ] || continue
+        mtime="$(stat -c %Y "${snapshot}")"
+        if [ "${mtime}" -gt "${newest_mtime}" ]; then
+          newest="${snapshot}"
+          newest_mtime="${mtime}"
+        fi
+      done
+      [ -n "${newest}" ] && printf '%s\n' "${newest}"
     }
 
     sync_root() {
