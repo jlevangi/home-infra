@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vikunja-config
+  namespace: vikunja
+data:
+  VIKUNJA_SERVICE_PUBLICURL: "https://vikunja.levangie.dev"
+  VIKUNJA_SERVICE_TIMEZONE: "America/New_York"
+  VIKUNJA_SERVICE_ENABLEREGISTRATION: "false"
+  VIKUNJA_SERVICE_ENABLELINKSHARING: "false"
+  VIKUNJA_SERVICE_IPEXTRACTIONMETHOD: "xff"
+  VIKUNJA_SERVICE_TRUSTEDPROXIES: "10.0.0.0/8"
+  VIKUNJA_DATABASE_TYPE: "postgres"
+  VIKUNJA_DATABASE_HOST: "vikunja-postgres"
+  VIKUNJA_DATABASE_DATABASE: "vikunja"
+  VIKUNJA_DATABASE_USER: "vikunja"
+  VIKUNJA_AUTH_LOCAL_ENABLED: "false"
+  VIKUNJA_AUTH_OPENID_ENABLED: "true"
+  VIKUNJA_AUTH_OPENID_PROVIDERS_KEYCLOAK_NAME: "Keycloak"
+  VIKUNJA_AUTH_OPENID_PROVIDERS_KEYCLOAK_AUTHURL: "https://auth.levangie.org/realms/master"
+  VIKUNJA_AUTH_OPENID_PROVIDERS_KEYCLOAK_LOGOUTURL: "https://auth.levangie.org/realms/master/protocol/openid-connect/logout"
+  VIKUNJA_AUTH_OPENID_PROVIDERS_KEYCLOAK_CLIENTID: "vikunja"
+  VIKUNJA_AUTH_OPENID_PROVIDERS_KEYCLOAK_SCOPE: "openid profile email"

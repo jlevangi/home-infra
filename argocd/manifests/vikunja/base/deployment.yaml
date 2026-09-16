@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vikunja
+  namespace: vikunja
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: vikunja
+  template:
+    metadata:
+      labels:
+        app: vikunja
+    spec:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: vikunja
+          image: vikunja/vikunja:2.6.0@sha256:b63e4d5d300dbd63003c045afa1ebb98a16ff2a527ef09550cc8df2db57706e2
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          envFrom:
+            - configMapRef:
+                name: vikunja-config
+          env:
+            - name: VIKUNJA_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vikunja-secrets
+                  key: POSTGRES_PASSWORD
+            - name: VIKUNJA_SERVICE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: vikunja-secrets
+                  key: VIKUNJA_SERVICE_SECRET
+            - name: VIKUNJA_AUTH_OPENID_PROVIDERS_KEYCLOAK_CLIENTSECRET
+              valueFrom:
+                secretKeyRef:
+                  name: vikunja-secrets
+                  key: OIDC_CLIENT_SECRET
+          ports:
+            - name: http
+              containerPort: 3456
+          readinessProbe:
+            httpGet:
+              path: /api/v1/info
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /api/v1/info
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 4
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          volumeMounts:
+            - name: files
+              mountPath: /app/vikunja/files
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: files
+          persistentVolumeClaim:
+            claimName: vikunja-files
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi

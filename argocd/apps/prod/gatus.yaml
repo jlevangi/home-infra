@@ -554,6 +554,15 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
+            - name: Vikunja
+              group: Applications
+              url: https://vikunja.levangie.dev/api/v1/info
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+                - "[BODY].auth.openid_connect.enabled == true"
+
             - name: Swiparr
               group: Media
               url: https://swipe.levangie.dev
