@@ -514,6 +514,14 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
+            - name: TREK
+              group: Applications
+              url: https://trek.levangie.dev/api/health
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
             - name: Healthchecks
               group: Monitoring
               url: https://healthchecks.levangie.dev
