@@ -14,6 +14,19 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: jottacloud-backup
+  ignoreDifferences:
+    - group: external-secrets.io
+      kind: ExternalSecret
+      name: jottacloud-backup-config
+      jsonPointers:
+        - /spec/data/0/remoteRef/conversionStrategy
+        - /spec/data/0/remoteRef/decodingStrategy
+        - /spec/data/0/remoteRef/metadataPolicy
+        - /spec/data/0/remoteRef/nullBytePolicy
+        - /spec/data/1/remoteRef/conversionStrategy
+        - /spec/data/1/remoteRef/decodingStrategy
+        - /spec/data/1/remoteRef/metadataPolicy
+        - /spec/data/1/remoteRef/nullBytePolicy
   syncPolicy:
     automated:
       prune: true
