@@ -1,0 +1,45 @@
+name: World Monitor images
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Upstream World Monitor release tag
+        required: true
+        default: v2.10.0
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: app
+            dockerfile: Dockerfile
+          - name: relay
+            dockerfile: Dockerfile.relay
+          - name: redis-rest
+            dockerfile: docker/Dockerfile.redis-rest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: koala73/worldmonitor
+          ref: ${{ inputs.version }}
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        env:
+          IMAGE: ghcr.io/jlevangi/home-infra-worldmonitor-${{ matrix.name }}:${{ inputs.version }}
+        run: |
+          docker build --pull --file "${{ matrix.dockerfile }}" --tag "$IMAGE" .
+          docker push "$IMAGE"
