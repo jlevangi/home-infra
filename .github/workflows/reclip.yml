@@ -1,0 +1,28 @@
+name: ReClip image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/reclip.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  UPSTREAM_SHA: 1d161d15a4fe93d9b3371377f0a421dc3e965b10
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build and push pinned upstream image
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+          IMAGE: ghcr.io/jlevangi/home-infra-reclip:${{ env.UPSTREAM_SHA }}
+        run: |
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker build --pull --tag "$IMAGE" "https://github.com/averygan/reclip.git#${UPSTREAM_SHA}"
+          docker push "$IMAGE"
