@@ -6,6 +6,7 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
     traefik.ingress.kubernetes.io/router.middlewares: alist-alist-logout@kubernetescrd
+    external-dns.alpha.kubernetes.io/target: k3s-prod.levangie.dev
 spec:
   ingressClassName: traefik
   rules:
