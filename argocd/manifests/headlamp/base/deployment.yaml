@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: headlamp
+  namespace: headlamp
+  labels:
+    app: headlamp
+    app.kubernetes.io/name: headlamp
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: headlamp
+  template:
+    metadata:
+      labels:
+        app: headlamp
+        app.kubernetes.io/name: headlamp
+    spec:
+      serviceAccountName: headlamp
+      containers:
+        - name: headlamp
+          image: ghcr.io/kubernetes-sigs/headlamp:v0.45.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - -in-cluster
+            - -oidc-client-id=$(HEADLAMP_OIDC_CLIENT_ID)
+            - -oidc-client-secret=$(HEADLAMP_OIDC_CLIENT_SECRET)
+            - -oidc-idp-issuer-url=$(HEADLAMP_OIDC_ISSUER_URL)
+            - -oidc-scopes=openid,profile,email
+          envFrom:
+            - secretRef:
+                name: headlamp-secrets
+          ports:
+            - name: http
+              containerPort: 4466
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
