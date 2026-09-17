@@ -22,7 +22,7 @@ spec:
       serviceAccountName: headlamp
       containers:
         - name: headlamp
-          image: ghcr.io/kubernetes-sigs/headlamp:v0.45.0
+          image: ghcr.io/headlamp-k8s/headlamp:v0.45.0
           imagePullPolicy: IfNotPresent
           args:
             - -in-cluster

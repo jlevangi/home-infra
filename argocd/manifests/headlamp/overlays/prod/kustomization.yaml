@@ -3,5 +3,5 @@ kind: Kustomization
 resources:
   - ../../base
 images:
-  - name: ghcr.io/kubernetes-sigs/headlamp
+  - name: ghcr.io/headlamp-k8s/headlamp
     newTag: v0.45.0
