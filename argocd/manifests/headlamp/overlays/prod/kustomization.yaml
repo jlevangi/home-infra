@@ -5,3 +5,11 @@ resources:
 images:
   - name: ghcr.io/headlamp-k8s/headlamp
     newTag: v0.45.0
+patches:
+  - target:
+      kind: Ingress
+      name: headlamp-ingress
+    patch: |
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: "k3s-prod.levangie.dev"
