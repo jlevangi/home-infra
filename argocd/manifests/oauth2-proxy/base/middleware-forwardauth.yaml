@@ -5,6 +5,9 @@ metadata:
   namespace: oauth2-proxy
 spec:
   forwardAuth:
+# NOTE: Must use fixed ClusterIP (10.43.220.10) because Traefik pod uses
+    # external upstream DNS (1.1.1.1/8.8.8.8) and cannot resolve internal cluster.local
+    # or private .levangie.dev hostnames.
     address: http://10.43.220.10:4180/oauth2/auth
     trustForwardHeader: true
     authResponseHeaders:
