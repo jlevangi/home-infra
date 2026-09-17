@@ -6,7 +6,6 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
     traefik.ingress.kubernetes.io/router.middlewares: paperless-paperless-gpt-oauth2-errors@kubernetescrd,paperless-paperless-gpt-oauth2-forwardauth@kubernetescrd
-    external-dns.alpha.kubernetes.io/target: k3s-prod.levangie.dev
 spec:
   ingressClassName: traefik
   rules:
