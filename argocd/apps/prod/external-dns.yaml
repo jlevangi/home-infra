@@ -28,6 +28,9 @@ spec:
         domainFilters:
           - levangie.dev
 
+        defaultTargets:
+          - k3s-prod.levangie.dev
+
         logLevel: info
 
         extraArgs:
