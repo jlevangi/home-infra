@@ -1,21 +1,20 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: headlamp-ingress
-  namespace: headlamp
+  name: oauth2-proxy-ingress
+  namespace: oauth2-proxy
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-    traefik.ingress.kubernetes.io/router.middlewares: oauth2-proxy-oauth2-errors@kubernetescrd,oauth2-proxy-oauth2-forwardauth@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
-    - host: headlamp.levangie.dev
+    - host: oauth.levangie.dev
       http:
         paths:
-          - path: /
+          - path: /oauth2
             pathType: Prefix
             backend:
               service:
-                name: headlamp
+                name: oauth2-proxy
                 port:
-                  number: 4466
+                  number: 4180

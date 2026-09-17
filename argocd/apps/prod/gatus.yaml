@@ -80,6 +80,14 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
+            - name: OAuth2 Proxy
+              group: Infrastructure
+              url: https://oauth.levangie.dev/ping
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
             - name: Headlamp
               group: Infrastructure
               url: https://headlamp.levangie.dev

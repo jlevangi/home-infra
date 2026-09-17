@@ -26,13 +26,7 @@ spec:
           imagePullPolicy: IfNotPresent
           args:
             - -in-cluster
-            - -oidc-client-id=$(HEADLAMP_OIDC_CLIENT_ID)
-            - -oidc-client-secret=$(HEADLAMP_OIDC_CLIENT_SECRET)
-            - -oidc-idp-issuer-url=$(HEADLAMP_OIDC_ISSUER_URL)
-            - -oidc-scopes=openid,profile,email
-          envFrom:
-            - secretRef:
-                name: headlamp-secrets
+            - -proxy-auth=true
           ports:
             - name: http
               containerPort: 4466
