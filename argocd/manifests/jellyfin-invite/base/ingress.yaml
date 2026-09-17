@@ -5,6 +5,7 @@ metadata:
   namespace: jellyfin-invite
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    external-dns.alpha.kubernetes.io/target: k3s-prod.levangie.dev
 spec:
   ingressClassName: traefik
   rules:
