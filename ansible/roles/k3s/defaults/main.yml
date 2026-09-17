@@ -14,6 +14,10 @@ k3s_server_args:
   - "--write-kubeconfig-mode=644"
   - "--node-external-ip={{ ansible_default_ipv4.address }}"
   - "--tls-san={{ (k3s_api_endpoint | default('') | trim) if (k3s_api_endpoint | default('') | trim | length > 0) else (load_balancer_ip | default(ansible_default_ipv4.address)) }}"  # Support stable API endpoint / load balancer
+  - "--kube-apiserver-arg=oidc-issuer-url=https://auth.levangie.org/realms/master"
+  - "--kube-apiserver-arg=oidc-client-id=headlamp"
+  - "--kube-apiserver-arg=oidc-username-claim=preferred_username"
+  - "--kube-apiserver-arg=oidc-groups-claim=groups"
 
 k3s_agent_args: []
 

@@ -26,10 +26,17 @@ spec:
           imagePullPolicy: IfNotPresent
           args:
             - -in-cluster
-            - -proxy-auth=true
-            - -unsafe-use-service-account-token=true
-            - -proxy-auth-username-header=X-Auth-Request-User
-            - -proxy-auth-email-header=X-Auth-Request-Email
+            - -oidc-idp-issuer-url=https://auth.levangie.org/realms/master
+            - -oidc-client-id=headlamp
+            - -oidc-client-secret=$(HEADLAMP_OIDC_CLIENT_SECRET)
+            - -oidc-scopes=openid,profile,email,groups
+            - -oidc-callback-url=https://headlamp.levangie.dev/oidc-callback
+          env:
+            - name: HEADLAMP_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: headlamp-secrets
+                  key: HEADLAMP_OIDC_CLIENT_SECRET
           ports:
             - name: http
               containerPort: 4466
