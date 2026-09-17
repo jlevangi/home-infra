@@ -35,6 +35,7 @@ spec:
 
         extraArgs:
           - --webhook-provider-url=http://localhost:8080
+          - --default-targets=k3s-prod.levangie.dev
 
         provider:
           name: webhook
