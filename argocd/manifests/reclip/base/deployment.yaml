@@ -67,5 +67,6 @@ spec:
             periodSeconds: 30
       volumes:
         - name: downloads
-          emptyDir:
-            sizeLimit: 10Gi
+          nfs:
+            server: 172.20.20.5
+            path: /volume1/media/reclip
