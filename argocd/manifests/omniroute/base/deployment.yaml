@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: omniroute
+  namespace: omniroute
+  labels:
+    app: omniroute
+    app.kubernetes.io/name: omniroute
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: omniroute
+  template:
+    metadata:
+      labels:
+        app: omniroute
+        app.kubernetes.io/name: omniroute
+    spec:
+      initContainers:
+        - name: init-data
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+            - chown -R 1000:1000 /app/data
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+      containers:
+        - name: omniroute
+          image: diegosouzapw/omniroute:3.8.50
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DATA_DIR
+              value: /app/data
+            - name: PORT
+              value: "20128"
+            - name: HOSTNAME
+              value: 0.0.0.0
+            - name: NODE_ENV
+              value: production
+            - name: OMNIROUTE_MEMORY_MB
+              value: "1024"
+            - name: NEXT_PUBLIC_BASE_URL
+              value: https://omniroute.levangie.dev
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: omniroute-secrets
+                  key: JWT_SECRET
+            - name: OMNIROUTE_WS_BRIDGE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: omniroute-secrets
+                  key: OMNIROUTE_WS_BRIDGE_SECRET
+            - name: INITIAL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: omniroute-secrets
+                  key: INITIAL_PASSWORD
+          ports:
+            - name: http
+              containerPort: 20128
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1536Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: omniroute-data-pvc
