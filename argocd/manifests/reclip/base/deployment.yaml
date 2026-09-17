@@ -39,6 +39,7 @@ spec:
           volumeMounts:
             - name: downloads
               mountPath: /app/downloads
+              subPath: reclip
           resources:
             requests:
               cpu: 100m
@@ -69,4 +70,4 @@ spec:
         - name: downloads
           nfs:
             server: 172.20.20.5
-            path: /volume1/media/reclip
+            path: /volume1/media
