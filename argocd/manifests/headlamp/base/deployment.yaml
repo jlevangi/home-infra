@@ -29,7 +29,7 @@ spec:
             - -oidc-idp-issuer-url=https://auth.levangie.org/realms/master
             - -oidc-client-id=headlamp
             - -oidc-client-secret=$(HEADLAMP_OIDC_CLIENT_SECRET)
-            - -oidc-scopes=openid,profile,email,groups
+            - -oidc-scopes=openid,profile,email,groups,kubernetes
             - -oidc-callback-url=https://headlamp.levangie.dev/oidc-callback
           env:
             - name: HEADLAMP_OIDC_CLIENT_SECRET
