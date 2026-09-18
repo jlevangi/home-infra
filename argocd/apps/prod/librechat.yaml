@@ -75,7 +75,7 @@ spec:
                 # or anywhere else. Add a model to config.yaml on pierce-pc and it shows
                 # up with the right context by itself.
                 - name: "9router"
-                  apiKey: "${NINE_ROUTER_API_KEY}"
+                  apiKey: "${NIN...EY}"
                   baseURL: "http://models-shim.9router.svc.cluster.local:8080/v1"
                   models:
                     default:
@@ -83,6 +83,15 @@ spec:
                     fetch: true
                   titleConvo: true
                   modelDisplayLabel: "9Router"
+                - name: "OmniRoute"
+                  apiKey: "${OMNIROUTE_API_KEY}"
+                  baseURL: "http://omniroute.omniroute.svc.cluster.local:20128/v1"
+                  models:
+                    default:
+                      - "pc-llama-swap/Qwen3.8-27B"
+                    fetch: true
+                  titleConvo: true
+                  modelDisplayLabel: "OmniRoute"
                 - name: "hermes-agent"
                   apiKey: "${HERMES_API_KEY}"
                   baseURL: "http://172.20.23.94:8642/v1"
