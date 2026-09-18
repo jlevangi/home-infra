@@ -201,10 +201,6 @@ spec:
       name: librechat-mongodb
       jsonPointers:
         - /spec/storageClassName
-    - group: ""
-      kind: PersistentVolumeClaim
-      name: librechat-mongodb
-      jsonPointers:
         - /spec/volumeName
   syncPolicy:
     automated:
@@ -213,3 +209,4 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - RespectIgnoreDifferences=true
+      - ServerSideApply=true
