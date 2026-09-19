@@ -578,14 +578,6 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
-            - name: Kan
-              group: Applications
-              url: https://kan.levangie.dev/auth/login
-              interval: 5m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
-
             - name: Vikunja
               group: Applications
               url: https://vikunja.levangie.dev/api/v1/info
@@ -594,6 +586,78 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
                 - "[BODY].auth.openid_connect.enabled == true"
+
+            - name: SparkyFitness
+              group: Applications
+              url: https://fitness.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: LibreChat
+              group: Applications
+              url: https://librechat.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Omniroute
+              group: Applications
+              url: https://omniroute.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Glance
+              group: Applications
+              url: https://glance.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: MyIP
+              group: Applications
+              url: https://myip.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Gamble King
+              group: Applications
+              url: https://gambleking.app
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Gamble King V2 Staging
+              group: Applications
+              url: https://staging.gambleking.app
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: Everly Era Galleries
+              group: Applications
+              url: https://gallery.everlyera.com
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+
+            - name: FlareSolverr
+              group: Media
+              url: https://flaresolverr.levangie.dev
+              interval: 5m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
 
             - name: Swiparr
               group: Media
@@ -604,6 +668,7 @@ spec:
                 - "[RESPONSE_TIME] < 5000"
 
 
+            - name: Pingvin Share
               group: Applications
               url: https://files.levangie.dev
               interval: 5m
