@@ -47,6 +47,15 @@ spec:
                 secretKeyRef:
                   name: worldmonitor-secrets
                   key: RELAY_SHARED_SECRET
+            - name: LLM_API_URL
+              value: http://nine-router.9router.svc.cluster.local:20128/v1/chat/completions
+            - name: LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: worldmonitor-secrets
+                  key: LLM_API_KEY
+            - name: LLM_MODEL
+              value: agent-free
           ports:
             - name: http
               containerPort: 8080
