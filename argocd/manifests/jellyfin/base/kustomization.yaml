@@ -12,3 +12,7 @@ resources:
   - tracearr-deployment.yaml
   - tracearr-service.yaml
   - tracearr-ingress.yaml
+  - tunarr-pvc.yaml
+  - tunarr-deployment.yaml
+  - tunarr-service.yaml
+  - tunarr-ingress.yaml
