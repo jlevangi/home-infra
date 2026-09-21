@@ -61,6 +61,11 @@ spec:
                 secretKeyRef:
                   name: omniroute-secrets
                   key: INITIAL_PASSWORD
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: omniroute-secrets
+                  key: OIDC_CLIENT_SECRET
           ports:
             - name: http
               containerPort: 20128
