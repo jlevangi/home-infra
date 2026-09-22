@@ -25,7 +25,7 @@ Read-only API inventory on 2026-07-21 found tunnel `Maurice` (`e163e2bb-e184-41a
 - 10 routes preserve Caddy or other LAN origins and are deferred.
 - 3 additional K3s-targeted routes lack an exact live Ingress: `bin.levangie.org`, `pics.levangie.org`, and `cloud.levangie.org`. Treat these only as stale candidates pending owner confirmation.
 - `cloud.levangie.dev` is an approved public FileBrowser Quantum route to `https://k3s-prod.levangie.dev`; its proxied CNAME targets the `Maurice` tunnel.
-- `files.levangie.dev` is an approved public Pingvin Share X route to `https://k3s-prod.levangie.dev`; it is immediately before the catch-all and its proxied CNAME targets the `Maurice` tunnel.
+- `share.levangie.dev` is an approved public Pingvin Share X route to `https://k3s-prod.levangie.dev`; it is immediately before the catch-all and its proxied CNAME targets the `Maurice` tunnel.
 - All 29 hostnames have exact public DNS records across `levangie.org`, `levangie.dev`, `lazydj.xyz`, and `kayleewatkins.com`.
 - Full ordered options and DNS IDs are in `docs/reference/cloudflare-tunnel-current-routes.md`; parity decisions are in `docs/reference/cloudflare-tunnel-route-matrix.md`.
 

@@ -670,7 +670,7 @@ spec:
 
             - name: Pingvin Share
               group: Applications
-              url: https://files.levangie.dev
+              url: https://share.levangie.dev
               interval: 5m
               conditions:
                 - "[STATUS] == 200"

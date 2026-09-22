@@ -44,10 +44,10 @@ Update **2026-09-07**: `matrix.levangie.dev` was added immediately before the fi
 | 25 | `join.levangie.dev` | `none` | `https://k3s-prod.levangie.dev` | `noTLSVerify=true`; `httpHostHeader=join.levangie.dev`; `originServerName=join.levangie.dev` |
 | 26 | `seerr.levangie.org` | `none` | `https://k3s-prod.levangie.dev` | `noTLSVerify=true`; `httpHostHeader=seerr.levangie.org`; `originServerName=seerr.levangie.org` |
 | 27 | `cloud.levangie.dev` | `none` | `https://k3s-prod.levangie.dev` | `noTLSVerify=true`; `httpHostHeader=cloud.levangie.dev`; `originServerName=cloud.levangie.dev` |
-| 28 | `files.levangie.dev` | `none` | `https://k3s-prod.levangie.dev` | `noTLSVerify=true`; `httpHostHeader=files.levangie.dev`; `originServerName=files.levangie.dev` |
+| 28 | `share.levangie.dev` | `none` | `https://k3s-prod.levangie.dev` | `noTLSVerify=true`; `httpHostHeader=share.levangie.dev`; `originServerName=share.levangie.dev` |
 | 29 | `<catch-all>` | `none` | `http_status:404` | none |
 
-The final rule is `http_status:404`; order must be preserved. `cloud.levangie.dev` and `files.levangie.dev` were added after the initial inventory for FileBrowser Quantum and Pingvin Share X. No secret-bearing fields were present in the returned ingress configuration.
+The final rule is `http_status:404`; order must be preserved. `cloud.levangie.dev` and `share.levangie.dev` were added after the initial inventory for FileBrowser Quantum and Pingvin Share X. No secret-bearing fields were present in the returned ingress configuration.
 
 ## Relevant public DNS inventory
 
@@ -57,7 +57,7 @@ The final rule is `http_status:404`; order must be preserved. `cloud.levangie.de
 | `lazydj.xyz` | `9e6341a3f1dfd5ec70da3fe303212e89` | `323003a091391414f61df8cc536212be` | `CNAME` | `lazydj.xyz` | `e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com` | `true` | `1` |
 | `levangie.dev` | `2a78e16b4af72edb6058ea4127aee9cd` | `8b8cc38d59631365e3c50d2b10462d99` | `CNAME` | `bin.levangie.dev` | `e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com` | `true` | `1` |
 | `levangie.dev` | `2a78e16b4af72edb6058ea4127aee9cd` | `6c9385ac24c394bece9ae78c38bdac01` | `CNAME` | `cloud.levangie.dev` | `e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com` | `true` | `1` |
-| `levangie.dev` | `2a78e16b4af72edb6058ea4127aee9cd` | `8169276a077a8a60f18e90670578e6fd` | `CNAME` | `files.levangie.dev` | `e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com` | `true` | `1` |
+| `levangie.dev` | `2a78e16b4af72edb6058ea4127aee9cd` | `8169276a077a8a60f18e90670578e6fd` | `CNAME` | `share.levangie.dev` | `e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com` | `true` | `1` |
 | `levangie.dev` | `2a78e16b4af72edb6058ea4127aee9cd` | `9e34692eeee3ed2a223d180357ec37f7` | `CNAME` | `join.levangie.dev` | `e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com` | `true` | `1` |
 | `levangie.dev` | `2a78e16b4af72edb6058ea4127aee9cd` | `f10b4cf734a4e7879591e78ec9e432e0` | `CNAME` | `library.levangie.dev` | `e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com` | `true` | `1` |
 | `levangie.dev` | `2a78e16b4af72edb6058ea4127aee9cd` | `4e32d133688a037b9a8292b257743a86` | `CNAME` | `ntfy.levangie.dev` | `e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com` | `true` | `1` |

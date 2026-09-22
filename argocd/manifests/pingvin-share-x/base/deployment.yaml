@@ -17,7 +17,7 @@ spec:
       labels:
         app.kubernetes.io/name: pingvin-share-x
       annotations:
-        pingvin-share-x.levangie.dev/config-revision: "5"
+        pingvin-share-x.levangie.dev/config-revision: "7"
     spec:
       securityContext:
         fsGroup: 1000
