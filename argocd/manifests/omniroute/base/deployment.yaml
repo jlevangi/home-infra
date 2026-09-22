@@ -43,7 +43,20 @@ spec:
             - name: NODE_ENV
               value: production
             - name: OMNIROUTE_MEMORY_MB
-              value: "1024"
+              value: "2048"
+            # Admission-control tuning: raise the structural heavy-in-flight cap
+            # from the default 1 to 4 so 3-4 concurrent chat completions don't
+            # all hit the same shed gate; widen the healthy-heap fast path and
+            # the bounded wait so bursts serialize instead of immediately 503-ing;
+            # and tighten the heap-pressure gate to match the higher cap.
+            - name: OMNIROUTE_CHAT_MAX_HEAVY_IN_FLIGHT
+              value: "4"
+            - name: OMNIROUTE_CHAT_ADMISSION_HEALTHY_HEADROOM
+              value: "4"
+            - name: OMNIROUTE_CHAT_ADMISSION_QUEUE_MS
+              value: "5000"
+            - name: OMNIROUTE_CHAT_ADMISSION_HEAP_SHED_RATIO
+              value: "0.9"
             - name: NEXT_PUBLIC_BASE_URL
               value: https://omniroute.levangie.dev
             - name: JWT_SECRET
@@ -73,10 +86,10 @@ spec:
           resources:
             requests:
               cpu: 100m
-              memory: 256Mi
+              memory: 512Mi
             limits:
-              cpu: 1000m
-              memory: 1536Mi
+              cpu: 2000m
+              memory: 3072Mi
           readinessProbe:
             httpGet:
               path: /healthz
