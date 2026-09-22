@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: raft
+  namespace: raft
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: raft
+  template:
+    metadata:
+      labels:
+        app: raft
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: raft
+          image: ghcr.io/franzfischer78/raftmodding-rds:latest
+          ports:
+            - containerPort: 27015
+              protocol: UDP
+              name: game
+          env:
+            - name: STARTUP
+              value: "normal"
+            - name: SERVER_NAME
+              value: "Pierce's Raft"
+            - name: MAX_PLAYERS
+              value: "10"
+            - name: PVP
+              value: "true"
+            - name: GAME_MODE
+              value: "World"
+            - name: SLEEP_MODE
+              value: "Full"
+            - name: NETWORKING_LAYER
+              value: "1"
+            - name: SHOW_IN_SERVERLIST
+              value: "true"
+            - name: RESTART_ON_CRASH
+              value: "true"
+            - name: UPDATE_BRANCH
+              value: "public"
+            - name: MAX_SERVER_FPS
+              value: "30"
+            - name: MASTER_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: raft-secrets
+                  key: MASTER_PRIVATE_KEY
+                  optional: true
+            - name: STEAM_USER
+              valueFrom:
+                secretKeyRef:
+                  name: raft-secrets
+                  key: STEAM_USER
+                  optional: true
+            - name: STEAM_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: raft-secrets
+                  key: STEAM_PASS
+                  optional: true
+            - name: STEAM_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: raft-secrets
+                  key: STEAM_AUTH
+                  optional: true
+            - name: PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: raft-secrets
+                  key: SERVER_PASSWORD
+                  optional: true
+          volumeMounts:
+            - name: data
+              mountPath: /home/container
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "1000m"
+            limits:
+              memory: "4Gi"
+              cpu: "2000m"
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: raft-data

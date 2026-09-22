@@ -1,0 +1,31 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+patches:
+  - target:
+      kind: Service
+      name: raft
+    patch: |
+      - op: add
+        path: /metadata/annotations
+        value:
+          metallb.universe.tf/loadBalancerIPs: 172.20.20.206
+      - op: replace
+        path: /spec/type
+        value: LoadBalancer
+      - op: add
+        path: /spec/externalTrafficPolicy
+        value: Cluster
+      - op: replace
+        path: /spec/ports
+        value:
+          - name: game
+            port: 27015
+            targetPort: 27015
+            protocol: UDP
+            nodePort: 32016
+labels:
+  - pairs:
+      environment: prod
+    includeSelectors: true
