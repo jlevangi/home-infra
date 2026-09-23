@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: car-telemetry
+  namespace: car-telemetry
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.middlewares: car-telemetry-redirect-https@kubernetescrd
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+    external-dns.alpha.kubernetes.io/target: k3s-prod.levangie.dev
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: car-telemetry.levangie.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: car-telemetry
+                port:
+                  number: 80
