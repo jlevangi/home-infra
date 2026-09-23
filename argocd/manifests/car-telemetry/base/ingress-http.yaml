@@ -1,17 +1,12 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: car-telemetry
+  name: car-telemetry-http
   namespace: car-telemetry
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-    traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
-    external-dns.alpha.kubernetes.io/target: k3s-prod.levangie.dev
+    traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
   ingressClassName: traefik
-  tls:
-    - hosts:
-        - car-telemetry.levangie.dev
   rules:
     - host: car-telemetry.levangie.dev
       http:

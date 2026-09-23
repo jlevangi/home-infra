@@ -6,6 +6,6 @@ resources:
   - external-secret-ghcr.yaml
   - pvc.yaml
   - service.yaml
-  - middleware-redirect-https.yaml
   - ingress.yaml
+  - ingress-http.yaml
   - deployment.yaml
