@@ -1,9 +1,12 @@
 import sys
 from pathlib import Path
 
-# Add server directory to path
-server_dir = Path(__file__).resolve().parent.parent / "server"
-sys.path.insert(0, str(server_dir))
+# Add server or parent directory to path
+server_dir = Path(__file__).resolve().parent.parent
+if (server_dir / "ingester").exists():
+    sys.path.insert(0, str(server_dir / "ingester"))
+else:
+    sys.path.insert(0, str(server_dir))
 
 from app import ingest_telemetry, get_history, sanitize_telemetry, TelemetryPoint, get_dashboard, get_live
 
