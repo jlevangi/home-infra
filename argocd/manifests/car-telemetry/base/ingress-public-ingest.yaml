@@ -1,0 +1,34 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: car-telemetry-public-ingest
+  namespace: car-telemetry
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    external-dns.alpha.kubernetes.io/target: k3s-prod.levangie.dev
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: car-telemetry-car-telemetry-ingest-rate-limit@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - car-ingest.levangie.dev
+      secretName: car-telemetry-public-ingest-tls
+  rules:
+    - host: car-ingest.levangie.dev
+      http:
+        paths:
+          - path: /api/telemetry
+            pathType: Exact
+            backend:
+              service:
+                name: car-telemetry
+                port:
+                  name: http
+          - path: /api/telemetry/binary
+            pathType: Exact
+            backend:
+              service:
+                name: car-telemetry
+                port:
+                  name: http

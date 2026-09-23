@@ -32,6 +32,11 @@ spec:
           env:
             - name: CAR_TELEMETRY_DB
               value: /data/telemetry.db
+            - name: CAR_TELEMETRY_INGEST_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: car-telemetry-secrets
+                  key: INGEST_TOKEN
           envFrom:
             - secretRef:
                 name: car-telemetry-secrets

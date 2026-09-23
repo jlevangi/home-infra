@@ -1,9 +1,11 @@
+import hmac
+import os
 import time
 from pathlib import Path
 from typing import List
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -30,6 +32,14 @@ except ImportError:
 
 mqtt_bridge = MqttBridge()
 latest_state: dict = {}
+INGEST_TOKEN = os.environ.get("CAR_TELEMETRY_INGEST_TOKEN", "")
+
+def require_ingest_token(authorization: str | None):
+    if not INGEST_TOKEN:
+        raise HTTPException(status_code=503, detail="ingest authentication is not configured")
+    scheme, _, supplied = (authorization or "").partition(" ")
+    if scheme.lower() != "bearer" or not hmac.compare_digest(supplied, INGEST_TOKEN):
+        raise HTTPException(status_code=401, detail="invalid ingest credentials")
 
 def hydrate_latest_state():
     global latest_state
@@ -122,8 +132,12 @@ def healthz():
     }
 
 @app.post("/api/telemetry")
-def ingest_telemetry(records: List[TelemetryPoint]):
+def ingest_telemetry(
+    records: List[TelemetryPoint],
+    authorization: str | None = Header(default=None)
+):
     global latest_state
+    require_ingest_token(authorization)
     if not records:
         return {"status": "empty", "inserted": 0}
 
@@ -142,9 +156,11 @@ async def ingest_binary_telemetry(
     request: Request,
     vehicle: str = "volvo",
     vin: str = "UNKNOWN",
-    dtcs: str = "none"
+    dtcs: str = "none",
+    authorization: str | None = Header(default=None)
 ):
     global latest_state
+    require_ingest_token(authorization)
     body = await request.body()
     if not body:
         return {"status": "empty", "inserted": 0}

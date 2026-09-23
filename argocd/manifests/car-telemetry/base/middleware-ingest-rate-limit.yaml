@@ -1,0 +1,10 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: car-telemetry-ingest-rate-limit
+  namespace: car-telemetry
+spec:
+  rateLimit:
+    average: 12
+    burst: 24
+    period: 1m

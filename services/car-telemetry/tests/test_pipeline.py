@@ -10,6 +10,11 @@ repo_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(repo_root))
 sys.path.insert(0, str(repo_root / "ingester"))
 
+# Isolate API integration tests from production and removed legacy workspace paths.
+_api_test_dir = tempfile.TemporaryDirectory()
+os.environ["CAR_TELEMETRY_DB"] = str(Path(_api_test_dir.name) / "api-test.db")
+os.environ["CAR_TELEMETRY_INGEST_TOKEN"] = "test-ingest-token"
+
 from fastapi.testclient import TestClient
 try:
     from ingester.models import (
@@ -262,6 +267,7 @@ class TestCarTelemetryPipeline(unittest.TestCase):
     # ---------------------------------------------------------
     def test_api_endpoints_pipeline(self):
         client = TestClient(app)
+        init_db()
 
         # Healthcheck
         r = client.get("/healthz")
@@ -286,7 +292,11 @@ class TestCarTelemetryPipeline(unittest.TestCase):
             "throttle_pct": 20.0,
             "voltage_v": 14.1
         }
-        r = client.post("/api/telemetry", json=[sample_point])
+        r = client.post(
+            "/api/telemetry",
+            json=[sample_point],
+            headers={"Authorization": "Bearer test-ingest-token"}
+        )
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["inserted"], 1)
 
@@ -305,8 +315,21 @@ class TestCarTelemetryPipeline(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertIn("text/html", r.headers["content-type"])
 
+    def test_ingest_requires_authentication(self):
+        client = TestClient(app)
+        init_db()
+        r = client.post("/api/telemetry", json=[{"rpm": 1000.0}])
+        self.assertEqual(r.status_code, 401)
+        r = client.post(
+            "/api/telemetry",
+            json=[{"rpm": 1000.0}],
+            headers={"Authorization": "Bearer wrong-token"}
+        )
+        self.assertEqual(r.status_code, 401)
+
     def test_binary_api_endpoint_streaming(self):
         client = TestClient(app)
+        init_db()
         # Pack 2 V2 records (72 bytes total)
         payload = struct.pack(
             BINARY_RECORD_FORMAT_V2,
@@ -318,7 +341,10 @@ class TestCarTelemetryPipeline(unittest.TestCase):
         r = client.post(
             "/api/telemetry/binary?vehicle=volvo&vin=YV4TEST1234567890&dtcs=none",
             content=payload,
-            headers={"Content-Type": "application/octet-stream"}
+            headers={
+                "Content-Type": "application/octet-stream",
+                "Authorization": "Bearer test-ingest-token"
+            }
         )
         self.assertEqual(r.status_code, 200)
         data = r.json()
@@ -356,6 +382,7 @@ class TestCarTelemetryPipeline(unittest.TestCase):
 
     def test_dtc_fault_and_smog_readiness(self):
         client = TestClient(app)
+        init_db()
         fault_payload = struct.pack(
             BINARY_RECORD_FORMAT_V2,
             12000, 1800, 45, 88, 38, 20, 14180, 24, 75, 115, 2200, 90, 200, 0, 0, 14, 101, 21, 19, 150, 0x05, 980, 460, 115, 2
@@ -363,7 +390,10 @@ class TestCarTelemetryPipeline(unittest.TestCase):
         r = client.post(
             "/api/telemetry/binary?vehicle=volvo&vin=YV4TEST1234567890&dtcs=P0420",
             content=fault_payload,
-            headers={"Content-Type": "application/octet-stream"}
+            headers={
+                "Content-Type": "application/octet-stream",
+                "Authorization": "Bearer test-ingest-token"
+            }
         )
         self.assertEqual(r.status_code, 200)
 
