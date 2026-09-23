@@ -485,6 +485,51 @@
       transition: width 0.3s ease;
     }
 
+    .diagnostic-card {
+      grid-column: 1 / -1;
+    }
+
+    .dtc-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 8px;
+    }
+
+    .dtc-entry {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 6px 10px;
+      align-items: start;
+      padding: 10px 12px;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 10px;
+      background: rgba(245, 158, 11, 0.06);
+    }
+
+    .dtc-code {
+      color: var(--accent-amber);
+      font: 700 0.9rem/1 var(--font-mono);
+    }
+
+    .dtc-description {
+      color: #e2e8f0;
+      font-size: 0.85rem;
+      line-height: 1.35;
+    }
+
+    .dtc-meta,
+    .diagnostic-guidance {
+      grid-column: 2;
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      line-height: 1.35;
+    }
+
+    .diagnostic-empty {
+      color: var(--accent-green);
+      font: 700 0.85rem/1.4 var(--font-mono);
+    }
+
     /* Footer info */
     footer {
       display: flex;
@@ -1043,6 +1088,18 @@
       </div>
     </div>
 
+    <!-- Diagnostics -->
+    <div class="stat-card diagnostic-card" aria-live="polite">
+      <div class="stat-card-title">
+        <span>Diagnostic Guidance</span>
+        <span id="dtcSummary">NO ACTIVE CODES</span>
+      </div>
+      <div class="dtc-list" id="dtcList">
+        <div class="diagnostic-empty">No confirmed diagnostic trouble codes reported.</div>
+      </div>
+      <div class="diagnostic-guidance">Descriptions identify the reported condition, not a confirmed failed component. Diagnose before replacing parts.</div>
+    </div>
+
   </div>
 
   <!-- Footer -->
@@ -1070,6 +1127,8 @@
     const milPill = document.getElementById('milPill');
     const smogPill = document.getElementById('smogPill');
     const dtcPill = document.getElementById('dtcPill');
+    const dtcSummary = document.getElementById('dtcSummary');
+    const dtcList = document.getElementById('dtcList');
 
     const speedVal = document.getElementById('speedVal');
     const speedUnit = document.getElementById('speedUnit');
@@ -1213,7 +1272,33 @@
         smogPill.textContent = 'SMOG: NOT READY';
       }
 
-      dtcPill.textContent = `DTC: ${d.dtc_count || 0}`;
+      const dtcDetails = Array.isArray(d.dtc_details) ? d.dtc_details : [];
+      dtcPill.textContent = `DTC: ${dtcDetails.length || d.dtc_count || 0}`;
+      dtcSummary.textContent = dtcDetails.length
+        ? `${dtcDetails.length} ${dtcDetails.length === 1 ? 'CODE' : 'CODES'} REPORTED`
+        : 'NO ACTIVE CODES';
+      if (dtcDetails.length) {
+        dtcList.replaceChildren(...dtcDetails.map(item => {
+          const entry = document.createElement('div');
+          entry.className = 'dtc-entry';
+          const code = document.createElement('div');
+          code.className = 'dtc-code';
+          code.textContent = item.code;
+          const description = document.createElement('div');
+          description.className = 'dtc-description';
+          description.textContent = item.description;
+          const meta = document.createElement('div');
+          meta.className = 'dtc-meta';
+          meta.textContent = `${item.system} · ${item.scope}`;
+          entry.append(code, description, meta);
+          return entry;
+        }));
+      } else {
+        const empty = document.createElement('div');
+        empty.className = 'diagnostic-empty';
+        empty.textContent = 'No confirmed diagnostic trouble codes reported.';
+        dtcList.replaceChildren(empty);
+      }
 
       // Alerts Banner
       const alertBanner = document.getElementById('alertBanner');

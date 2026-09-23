@@ -19,6 +19,7 @@ try:
         unpack_binary_payload
     )
     from .mqtt import MqttBridge
+    from .diagnostics import decode_dtcs
 except ImportError:
     from config import DB_PATH, STATIC_DIR
     from models import TelemetryPoint, RECORD_SIZE
@@ -29,6 +30,7 @@ except ImportError:
         unpack_binary_payload
     )
     from mqtt import MqttBridge
+    from diagnostics import decode_dtcs
 
 mqtt_bridge = MqttBridge()
 latest_state: dict = {}
@@ -116,10 +118,12 @@ def get_live():
     age = None
     if "timestamp" in latest_state:
         age = round(time.time() - latest_state["timestamp"], 1)
+    data = dict(latest_state)
+    data["dtc_details"] = decode_dtcs(data.get("dtcs"))
     return {
         "status": "ok",
         "age_seconds": age,
-        "data": latest_state
+        "data": data
     }
 
 @app.api_route("/healthz", methods=["GET", "HEAD"])
@@ -185,9 +189,13 @@ def get_history(vehicle: str = "volvo", limit: int = 100):
 
 @app.get("/api/dtc")
 def get_dtc_diagnostics():
+    raw_dtcs = latest_state.get("dtcs", "none")
+    decoded = decode_dtcs(raw_dtcs)
     return {
-        "dtc_count": latest_state.get("dtc_count", 0),
-        "dtcs": latest_state.get("dtcs", "none"),
+        "dtc_count": len(decoded) or latest_state.get("dtc_count", 0),
+        "dtcs": raw_dtcs,
+        "codes": decoded,
         "mil_on": latest_state.get("mil_on", False),
-        "smog_ready": latest_state.get("smog_ready", True)
+        "smog_ready": latest_state.get("smog_ready", True),
+        "guidance": "Descriptions identify the diagnostic condition, not a confirmed failed component."
     }

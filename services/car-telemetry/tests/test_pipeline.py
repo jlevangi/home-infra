@@ -36,6 +36,7 @@ try:
         trip_tracker
     )
     from ingester.app import app
+    from ingester.diagnostics import decode_dtcs
 except ImportError:
     from models import (
         TelemetryPoint,
@@ -56,6 +57,7 @@ except ImportError:
         trip_tracker
     )
     from app import app
+    from diagnostics import decode_dtcs
 
 class TestCarTelemetryPipeline(unittest.TestCase):
     def setUp(self):
@@ -380,6 +382,16 @@ class TestCarTelemetryPipeline(unittest.TestCase):
         self.assertEqual(s3["trip_miles"], 0.0)
         self.assertEqual(s3["trip_fuel_gal"], 0.0)
 
+    def test_dtc_decoder_describes_known_and_classifies_unknown_codes(self):
+        decoded = decode_dtcs("P0420, U1234 P0420 invalid")
+        self.assertEqual([item["code"] for item in decoded], ["P0420", "U1234"])
+        self.assertIn("Catalyst system efficiency", decoded[0]["description"])
+        self.assertEqual(decoded[0]["scope"], "Generic SAE")
+        self.assertEqual(decoded[1]["system"], "Network")
+        self.assertEqual(decoded[1]["scope"], "Manufacturer-specific")
+        self.assertIn("unavailable", decoded[1]["description"])
+        self.assertEqual(decode_dtcs("none"), [])
+
     def test_dtc_fault_and_smog_readiness(self):
         client = TestClient(app)
         init_db()
@@ -401,6 +413,8 @@ class TestCarTelemetryPipeline(unittest.TestCase):
         self.assertEqual(dtc_resp.status_code, 200)
         dtc_data = dtc_resp.json()
         self.assertEqual(dtc_data["dtcs"], "P0420")
+        self.assertEqual(dtc_data["codes"][0]["code"], "P0420")
+        self.assertIn("Catalyst system efficiency", dtc_data["codes"][0]["description"])
         self.assertTrue(dtc_data["mil_on"])
         self.assertFalse(dtc_data["smog_ready"])
 
