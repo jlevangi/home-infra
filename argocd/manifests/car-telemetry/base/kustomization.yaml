@@ -7,7 +7,6 @@ resources:
   - pvc.yaml
   - service.yaml
   - ingress.yaml
-  - ingress-http.yaml
   - ingress-public-ingest.yaml
   - middleware-ingest-rate-limit.yaml
   - deployment.yaml
