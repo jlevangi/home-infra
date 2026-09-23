@@ -1,0 +1,9 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: car-telemetry-ingest-body-limit
+  namespace: car-telemetry
+spec:
+  buffering:
+    maxRequestBodyBytes: 262144
+    memRequestBodyBytes: 262144

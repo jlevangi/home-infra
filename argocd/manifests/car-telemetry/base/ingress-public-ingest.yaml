@@ -7,7 +7,7 @@ metadata:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     external-dns.alpha.kubernetes.io/target: k3s-prod.levangie.dev
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: car-telemetry-car-telemetry-ingest-rate-limit@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: car-telemetry-car-telemetry-ingest-body-limit@kubernetescrd,car-telemetry-car-telemetry-ingest-rate-limit@kubernetescrd
 spec:
   ingressClassName: traefik
   tls:

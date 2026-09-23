@@ -8,5 +8,6 @@ resources:
   - service.yaml
   - ingress.yaml
   - ingress-public-ingest.yaml
+  - middleware-ingest-body-limit.yaml
   - middleware-ingest-rate-limit.yaml
   - deployment.yaml
