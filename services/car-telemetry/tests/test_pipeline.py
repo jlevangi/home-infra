@@ -11,25 +11,46 @@ sys.path.insert(0, str(repo_root))
 sys.path.insert(0, str(repo_root / "ingester"))
 
 from fastapi.testclient import TestClient
-from ingester.models import (
-    TelemetryPoint,
-    BINARY_RECORD_FORMAT_V1, RECORD_SIZE_V1,
-    BINARY_RECORD_FORMAT_V2, RECORD_SIZE_V2
-)
-from ingester.database import (
-    init_db,
-    store_telemetry_batch,
-    fetch_history,
-    fetch_latest_row
-)
-from ingester.processing import (
-    decode_fuel_status,
-    sanitize_telemetry,
-    update_derived_state,
-    unpack_binary_payload,
-    trip_tracker
-)
-from ingester.app import app
+try:
+    from ingester.models import (
+        TelemetryPoint,
+        BINARY_RECORD_FORMAT_V1, RECORD_SIZE_V1,
+        BINARY_RECORD_FORMAT_V2, RECORD_SIZE_V2
+    )
+    from ingester.database import (
+        init_db,
+        store_telemetry_batch,
+        fetch_history,
+        fetch_latest_row
+    )
+    from ingester.processing import (
+        decode_fuel_status,
+        sanitize_telemetry,
+        update_derived_state,
+        unpack_binary_payload,
+        trip_tracker
+    )
+    from ingester.app import app
+except ImportError:
+    from models import (
+        TelemetryPoint,
+        BINARY_RECORD_FORMAT_V1, RECORD_SIZE_V1,
+        BINARY_RECORD_FORMAT_V2, RECORD_SIZE_V2
+    )
+    from database import (
+        init_db,
+        store_telemetry_batch,
+        fetch_history,
+        fetch_latest_row
+    )
+    from processing import (
+        decode_fuel_status,
+        sanitize_telemetry,
+        update_derived_state,
+        unpack_binary_payload,
+        trip_tracker
+    )
+    from app import app
 
 class TestCarTelemetryPipeline(unittest.TestCase):
     def setUp(self):
@@ -283,6 +304,75 @@ class TestCarTelemetryPipeline(unittest.TestCase):
         r = client.get("/")
         self.assertEqual(r.status_code, 200)
         self.assertIn("text/html", r.headers["content-type"])
+
+    def test_binary_api_endpoint_streaming(self):
+        client = TestClient(app)
+        # Pack 2 V2 records (72 bytes total)
+        payload = struct.pack(
+            BINARY_RECORD_FORMAT_V2,
+            10000, 2000, 60, 85, 40, 20, 14200, 25, 80, 120, 2500, 90, 120, 0, 0, 15, 101, 20, 20, 0, 0, 1000, 420, 110, 2
+        ) + struct.pack(
+            BINARY_RECORD_FORMAT_V2,
+            11000, 2100, 62, 86, 42, 22, 14210, 25, 80, 122, 2600, 90, 121, 0, 0, 16, 101, 20, 22, 0, 0, 1002, 425, 112, 2
+        )
+        r = client.post(
+            "/api/telemetry/binary?vehicle=volvo&vin=YV4TEST1234567890&dtcs=none",
+            content=payload,
+            headers={"Content-Type": "application/octet-stream"}
+        )
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["status"], "ok")
+        self.assertEqual(data["inserted"], 2)
+        self.assertEqual(data["bytes"], 72)
+
+    def test_corrupted_or_truncated_payload(self):
+        # 43 bytes is not a multiple of 36; it should slice to 36 (1 record) and discard 7 trailing bytes
+        valid_rec = struct.pack(
+            BINARY_RECORD_FORMAT_V2,
+            5000, 1500, 30, 80, 30, 15, 14100, 22, 90, 110, 1800, 85, 50, 0, 0, 12, 101, 18, 15, 0, 0, 1000, 380, 100, 2
+        )
+        corrupted_payload = valid_rec + b"GARBAGE"
+        records = unpack_binary_payload(corrupted_payload, vehicle="volvo")
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0].rpm, 1500.0)
+
+    def test_trip_tracker_gap_reset(self):
+        # Drive event 1 at t=1000
+        p1 = TelemetryPoint(rpm=2000.0, speed_kph=60.0, maf_gps=25.0, throttle_pct=20.0)
+        update_derived_state(p1, custom_now=1000.0)
+
+        # Drive event 2 at t=1010 (10 seconds later, accumulated distance)
+        p2 = TelemetryPoint(rpm=2000.0, speed_kph=60.0, maf_gps=25.0, throttle_pct=20.0)
+        s2 = update_derived_state(p2, custom_now=1010.0)
+        self.assertGreater(s2["trip_miles"], 0.0)
+
+        # Drive event 3 at t=2100 (> 15 minutes / 900s gap since t=1010)
+        p3 = TelemetryPoint(rpm=0.0, speed_kph=0.0, maf_gps=0.0, throttle_pct=18.0)
+        s3 = update_derived_state(p3, custom_now=2100.0)
+        # Should reset trip mileage and fuel
+        self.assertEqual(s3["trip_miles"], 0.0)
+        self.assertEqual(s3["trip_fuel_gal"], 0.0)
+
+    def test_dtc_fault_and_smog_readiness(self):
+        client = TestClient(app)
+        fault_payload = struct.pack(
+            BINARY_RECORD_FORMAT_V2,
+            12000, 1800, 45, 88, 38, 20, 14180, 24, 75, 115, 2200, 90, 200, 0, 0, 14, 101, 21, 19, 150, 0x05, 980, 460, 115, 2
+        )
+        r = client.post(
+            "/api/telemetry/binary?vehicle=volvo&vin=YV4TEST1234567890&dtcs=P0420",
+            content=fault_payload,
+            headers={"Content-Type": "application/octet-stream"}
+        )
+        self.assertEqual(r.status_code, 200)
+
+        dtc_resp = client.get("/api/dtc")
+        self.assertEqual(dtc_resp.status_code, 200)
+        dtc_data = dtc_resp.json()
+        self.assertEqual(dtc_data["dtcs"], "P0420")
+        self.assertTrue(dtc_data["mil_on"])
+        self.assertFalse(dtc_data["smog_ready"])
 
 if __name__ == "__main__":
     unittest.main()

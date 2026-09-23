@@ -197,14 +197,28 @@ def unpack_binary_payload(
     if not body:
         return []
 
+    # Format version detection:
+    # 1. Exact multiple of V2 (36) -> V2
+    # 2. Exact multiple of V1 (29) -> V1
+    # 3. Truncated stream fallback: prefer V2 if >= 36 bytes, else V1 if >= 29 bytes
     if len(body) % RECORD_SIZE_V2 == 0:
         rec_fmt = BINARY_RECORD_FORMAT_V2
         rec_sz = RECORD_SIZE_V2
         is_v2 = True
-    else:
+    elif len(body) % RECORD_SIZE_V1 == 0:
         rec_fmt = BINARY_RECORD_FORMAT_V1
         rec_sz = RECORD_SIZE_V1
         is_v2 = False
+    elif len(body) >= RECORD_SIZE_V2:
+        rec_fmt = BINARY_RECORD_FORMAT_V2
+        rec_sz = RECORD_SIZE_V2
+        is_v2 = True
+    elif len(body) >= RECORD_SIZE_V1:
+        rec_fmt = BINARY_RECORD_FORMAT_V1
+        rec_sz = RECORD_SIZE_V1
+        is_v2 = False
+    else:
+        return []
 
     valid_len = (len(body) // rec_sz) * rec_sz
     body = body[:valid_len]
