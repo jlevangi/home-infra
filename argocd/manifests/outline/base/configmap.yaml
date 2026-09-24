@@ -3,6 +3,8 @@ kind: ConfigMap
 metadata:
   name: outline-config
   namespace: outline
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
 data:
   NODE_ENV: "production"
   URL: "https://outline.levangie.dev"

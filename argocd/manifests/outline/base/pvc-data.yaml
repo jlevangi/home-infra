@@ -3,6 +3,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: outline-data-pvc
   namespace: outline
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
   labels:
     app: outline
     component: data
