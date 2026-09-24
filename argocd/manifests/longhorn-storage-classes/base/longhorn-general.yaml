@@ -1,14 +1,12 @@
-# Legacy general-purpose Longhorn storage class alias.
-#
-# During the naming transition, legacy `longhorn` remains the cluster default so
-# existing manifests that still omit storageClassName keep binding the same way.
-# New manifests should target `longhorn`; keep this alias for bound PVC compatibility.
+# Compatibility alias for the flash-backed default Longhorn class.
+# Keep for bound PVC compatibility; new manifests should use `longhorn-flash`
+# when declaring the physical tier explicitly.
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: longhorn-general
   annotations:
-    description: "Legacy alias for the canonical longhorn class. Same 2-replica soft cross-pool placement."
+    description: "Compatibility alias for the default two-replica flash-backed Longhorn class."
 provisioner: driver.longhorn.io
 allowVolumeExpansion: true
 reclaimPolicy: Delete
@@ -25,5 +23,6 @@ parameters:
   disableRevisionCounter: "true"
   dataEngine: v1
   backupTargetName: default
+  diskSelector: flash
   nodeSelector: general-storage
   recurringJobSelector: '[{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'

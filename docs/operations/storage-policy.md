@@ -10,9 +10,9 @@ The policy recognizes these intent-based StorageClass names:
 
 | Canonical name | Legacy name | Purpose |
 | --- | --- | --- |
-| `longhorn` | `longhorn-general` | General-purpose default with soft cross-pool placement |
-| `longhorn-fast` | `longhorn-flash` | Low-latency, read-mostly state pinned to flash |
-| `longhorn-tank` | `longhorn-steady` | Heavy continuous writers pinned to tank |
+| `longhorn` | `longhorn-general` | Default 2-replica storage pinned to flash |
+| `longhorn-flash` | `longhorn-fast` | Explicit flash tier for latency-sensitive state |
+| `longhorn-tank` | `longhorn-steady` | Explicit tank tier for capacity/archive workloads |
 | `longhorn-redundant` | `longhorn-singleton` | Single-pod state with no app-layer HA |
 | `longhorn-vault-raft` | none | Vault raft members only |
 | `longhorn-one-replica-flash` | none | Explicit opt-in, backup-restorable state pinned to flash |
@@ -45,9 +45,9 @@ healthy PVC just to switch between those two names.
 | --- | --- | --- | --- | --- | --- |
 | Vault raft member | A pod is already part of an app-level consensus set | `longhorn-vault-raft` | 1 | hourly + daily + weekly | Vault gets HA from raft, not from Longhorn replicas. Keep the PVC single-replica. |
 | Heavy continuous writer | The workload is a database, TSDB, or log store, or normal load shows sustained write pressure above about 200 write IOPS or 5 MiB/s at the 95th percentile | `longhorn-tank` | 2 | hourly + daily + weekly | Use for PostgreSQL, MongoDB, and similar steady writers. Loki may skip hourly if log-history loss is acceptable. Prometheus is a measured exception documented below. |
-| Read-fast, write-rarely | The workload benefits from low latency but does not append continuously | `longhorn-fast` | 2 | daily + weekly | `memos` still belongs here. This class is not for heavy writers. |
-| Single-pod, no app-layer HA | One pod owns the state and would fail hard on a single-replica fault | `longhorn-redundant` | 3 | daily + weekly | Use for singleton config or SQLite-style state such as Grafana, Jellyfin config, or Plex config. |
-| Catch-all | The app has no special storage requirement | `longhorn` | 3 | daily + weekly | Default choice. Soft cross-pool placement is the general-purpose path. Keep healthy default-class PVCs where they are unless there is another reason to migrate them. |
+| Latency-sensitive state | The workload benefits from low latency or uses SQLite/small-file metadata | `longhorn-flash` | 2 | daily + weekly | Canonical explicit flash tier. `longhorn-fast` is a compatibility alias. |
+| Single-pod, no app-layer HA | One pod owns the state and would fail hard on a single-replica fault | `longhorn-redundant` | 2 | daily + weekly | Flash-pinned singleton config or SQLite state such as Grafana, Jellyfin config, or Plex config. |
+| Catch-all | The app has no capacity/archive requirement | `longhorn` | 2 | daily + weekly | Default flash-backed choice. Select tank explicitly; it is not an automatic spillover tier. |
 | Media on the GPU worker | The PVC must follow media/transcoding workloads onto `media-storage` nodes | `longhorn-media` | 3 | daily + weekly | Use only when node placement is the requirement. |
 | Pure local static data | The data should stay on a host-local path and not on Longhorn | static PV | n/a | n/a | Example: large model files that should not consume Longhorn replicas. |
 
@@ -58,13 +58,13 @@ it as `longhorn-tank` even if its absolute IOPS or throughput is lower.
 
 ## Class Selection Rules
 
-1. Start with `longhorn` (the default). `longhorn-general` is an equivalent
-   alias, not a required migration target.
-2. Move to `longhorn-tank` for any steady writer. Do not put databases, TSDBs,
-   or log stores on `longhorn` / `longhorn-general` or `longhorn-fast` just because they are
-   small.
-3. Move to `longhorn-fast` only for read-mostly, latency-sensitive state where
-   the Atlas flash pool has clear headroom.
+1. Start with `longhorn` (the flash-backed default). `longhorn-general` is a
+   compatibility alias, not a required migration target.
+2. Use `longhorn-tank` only when capacity/archive characteristics outweigh
+   latency. Tank is explicit and never the default spillover tier.
+3. Use `longhorn-flash` when declaring the physical flash tier explicitly.
+   `longhorn-fast` is a compatibility alias; do not recreate a healthy PVC only
+   to switch between those two names.
 4. Use `longhorn-redundant` when the workload is a singleton and the app
    cannot self-heal from losing one replica.
 5. Use `longhorn-vault-raft` only for Vault raft members. Do not generalize its

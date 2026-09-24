@@ -6,12 +6,12 @@ ArgoCD-managed Longhorn StorageClasses for the prod cluster.
 
 | SC | Purpose |
 |---|---|
-| `longhorn` | Canonical general-purpose class. 2 replicas, soft cross-pool placement. |
-| `longhorn-general` | Legacy alias for `longhorn`. |
-| `longhorn-fast` | Canonical flash-pinned class for low-latency, read-mostly state. |
-| `longhorn-tank` | Canonical tank-pinned class for heavy continuous writers. |
+| `longhorn` | Default 2-replica class, pinned to flash. |
+| `longhorn-general` | Compatibility alias for `longhorn`. |
+| `longhorn-flash` | Canonical explicit flash tier for latency-sensitive state. |
+| `longhorn-fast` | Compatibility alias for `longhorn-flash`. |
+| `longhorn-tank` | Canonical tank tier for capacity/archive workloads. |
 | `longhorn-steady` | Legacy alias for `longhorn-tank`. |
-| `longhorn-flash` | Legacy alias for `longhorn-fast`. |
 | `longhorn-redundant` | Canonical higher-redundancy class for singleton state. |
 | `longhorn-singleton` | Legacy alias for `longhorn-redundant`. |
 | `longhorn-vault-raft` | Vault raft only. Single replica on tank. |
@@ -34,25 +34,20 @@ ownership:
 
 ## Current state
 
-The current manifests keep canonical names plus temporary legacy aliases in parallel:
+The current manifests keep canonical names plus compatibility aliases in parallel:
 
-- Canonical names used by new manifests: `longhorn`, `longhorn-fast`,
+- Canonical names used by new manifests: `longhorn`, `longhorn-flash`,
   `longhorn-tank`, `longhorn-redundant`, `longhorn-vault-raft`
-- Legacy aliases kept for bound PVC compatibility during migration:
-  `longhorn-general`, `longhorn-flash`, `longhorn-steady`, `longhorn-singleton`
+- Compatibility aliases kept for bound PVCs: `longhorn-general`,
+  `longhorn-fast`, `longhorn-steady`, `longhorn-singleton`
 
-The canonical default `longhorn` carries `numberOfReplicas: "2"` and
-`replicaDiskSoftAntiAffinity: "enabled"`.
+The default `longhorn` class has two replicas and `diskSelector: flash`.
+Capacity/archive workloads must explicitly select `longhorn-tank`; tank is not
+automatic spillover for normal app state. Existing volumes retain their current
+placement until individually reconciled.
 
-It was `"3"` under `home-infra-rd0`, sized for 3 flash + 3 tank disks spread
-across workers 1/2/3. Two of those Atlas workers are being retired (2026-08-17),
-leaving three storage nodes; at N=3 every general volume is forced onto all
-three, which pushes `k3s-prod-worker-4` past its DiskPressure threshold. N=2
-also shifts the disk-anti-affinity outcome from 2-tank + 1-flash to 1-flash +
-1-tank, keeping less app data on the slow HDD pool.
-
-Only one default should exist during the transition. `longhorn` remains that
-default; the alias objects can be retired after bound PVC migrations complete.
+Only `longhorn` is marked default. Alias objects can be retired after bound PVC
+migrations complete.
 
 ## Adding a new env
 

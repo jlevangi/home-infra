@@ -4,27 +4,19 @@
 # persistence.defaultClass is disabled so longhorn-manager doesn't
 # fight on this object.
 #
-# `longhorn` is the canonical general-purpose class and remains the only default
-# so manifests that still omit storageClassName keep their current behavior.
-# `longhorn-general` remains as a legacy alias during the naming transition.
+# `longhorn` is the two-replica flash-backed default. Capacity and archival
+# workloads must explicitly select `longhorn-tank`; the HDD pool is never an
+# automatic spillover target for ordinary application state.
+# `longhorn-general` remains as a compatibility alias.
 #
-# numberOfReplicas=2 + replicaDiskSoftAntiAffinity=enabled.
+# numberOfReplicas=2 + diskSelector=flash. This provides one replica on Atlas
+# flash and one on the independent EliteDesk flash failure domain when space
+# and anti-affinity permit.
 #
-# Was 3 (home-infra-rd0), chosen for a topology of 3 flash + 3 tank disks
-# across workers 1/2/3; the 2026-05-30 spike (home-infra-pwo) verified that
-# landed 2-tank + 1-flash deterministically. Two of those three Atlas workers
-# are being retired (2026-08-17), so that rationale no longer holds, and with
-# only three storage nodes left every 3-replica volume is forced onto all
-# three — pushing k3s-prod-worker-4 past its DiskPressure threshold.
-#
-# Dropping to 2 also improves the flash:tank split for general volumes. Disk
-# soft anti-affinity gave 2-tank + 1-flash at N=3; at N=2 it gives 1-flash +
-# 1-tank, so less app data sits on the slow HDD pool.
-#
-# Note this still leaves one replica of every general volume on tank, so
-# writes are gated by HDD latency. Pinning this class to flash would need more
-# flash capacity than the post-retirement cluster has (~264G usable against
-# ~308G of general replica data), so it stays cross-pool for now.
+# This replaces the former soft cross-pool policy. Mixed flash+tank replicas
+# made every synchronous write wait for HDD latency and obscured workload
+# intent. Existing Longhorn Volumes require an explicit one-volume-at-a-time
+# selector reconciliation; changing this StorageClass only governs new ones.
 #
 # Notes for downstream readers:
 # - The StorageClass parameter accepts "enabled" / "disabled" / "ignored",
@@ -38,7 +30,7 @@ kind: StorageClass
 metadata:
   name: longhorn
   annotations:
-    description: "Canonical general-purpose Longhorn class. Remains default; longhorn-general is a legacy alias during the naming transition."
+    description: "Default two-replica Longhorn class, pinned to flash. Capacity workloads must explicitly select longhorn-tank."
     storageclass.kubernetes.io/is-default-class: "true"
 provisioner: driver.longhorn.io
 allowVolumeExpansion: true
@@ -56,5 +48,6 @@ parameters:
   disableRevisionCounter: "true"
   dataEngine: v1
   backupTargetName: default
+  diskSelector: flash
   nodeSelector: general-storage
   recurringJobSelector: '[{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'

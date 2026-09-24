@@ -1,11 +1,11 @@
-# Canonical low-latency Longhorn storage class. All replicas pin to flash-tagged
-# disks. Prefer this for read-mostly, latency-sensitive state.
+# Compatibility alias for the canonical longhorn-flash class. All replicas pin
+# to flash-tagged disks. Keep for bound PVC compatibility.
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: longhorn-fast
   annotations:
-    description: "Canonical fast Longhorn storage (flash-pinned, low latency). Preferred target for new manifests; legacy alias is longhorn-flash."
+    description: "Compatibility alias for the canonical longhorn-flash class. Both replicas land on flash disks."
 provisioner: driver.longhorn.io
 allowVolumeExpansion: true
 reclaimPolicy: Delete
