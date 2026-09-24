@@ -15,6 +15,7 @@ parameters:
   disableRevisionCounter: "true"
   fromBackup: ""
   fsType: ext4
+  diskSelector: flash
   nodeSelector: general-storage
   numberOfReplicas: "2"
   replicaAutoBalance: best-effort

@@ -107,7 +107,7 @@ k3s_node_profiles:
       - name: default-disk-flash
         path: /mnt/longhorn-flash
         slot: scsi1
-        tags: [flash, general-storage]
+        tags: [flash]
 
   # ---------------------------------------------------------------------------
   # Prod control plane — k3s-prod-cp-{1,3,4}
