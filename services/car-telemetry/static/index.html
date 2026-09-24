@@ -1088,6 +1088,46 @@
       </div>
     </div>
 
+    <!-- Engine Intelligence & Analytics -->
+    <div class="stat-card">
+      <div class="stat-card-title">
+        <span>Engine Intelligence</span>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+        </svg>
+      </div>
+      <div class="stat-row-group">
+        <div class="stat-row">
+          <span class="stat-label">Engine Health</span>
+          <span class="stat-value highlight" id="engineHealthVal">--</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Volumetric Efficiency</span>
+          <span class="stat-value" id="veVal">--</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Combustion Quality</span>
+          <span class="stat-value" id="combustionVal">--</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Intercooler / IAT Delta</span>
+          <span class="stat-value" id="icDeltaVal">--</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Driving Aggression</span>
+          <span class="stat-value" id="aggressionVal">--</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Idle Time / Waste</span>
+          <span class="stat-value" id="idleWasteVal">0s (0.000 gal)</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Charging System</span>
+          <span class="stat-value" id="batteryHealthVal">--</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Diagnostics -->
     <div class="stat-card diagnostic-card" aria-live="polite">
       <div class="stat-card-title">
@@ -1169,6 +1209,15 @@
     const runTimeVal = document.getElementById('runTimeVal');
     const baroVal = document.getElementById('baroVal');
     const totalRecordsVal = document.getElementById('totalRecordsVal');
+
+    // Analytics elements
+    const engineHealthVal = document.getElementById('engineHealthVal');
+    const veVal = document.getElementById('veVal');
+    const combustionVal = document.getElementById('combustionVal');
+    const icDeltaVal = document.getElementById('icDeltaVal');
+    const aggressionVal = document.getElementById('aggressionVal');
+    const idleWasteVal = document.getElementById('idleWasteVal');
+    const batteryHealthVal = document.getElementById('batteryHealthVal');
 
     // Unit toggle
     unitBtn.addEventListener('click', () => {
@@ -1432,6 +1481,45 @@
       tripFuelVal.textContent = `${(d.trip_fuel_gal || 0).toFixed(2)} gal`;
       runTimeVal.textContent = formatSeconds(d.runtime_s);
       baroVal.textContent = `${(d.baro_kpa || 101.3).toFixed(1)} kPa`;
+
+      // Analytics & Intelligence
+      if (engineHealthVal) {
+        engineHealthVal.textContent = d.engine_health_score !== null && d.engine_health_score !== undefined
+          ? `${d.engine_health_score}%`
+          : '--';
+      }
+      if (veVal) {
+        veVal.textContent = d.volumetric_efficiency_pct !== null && d.volumetric_efficiency_pct !== undefined
+          ? `${d.volumetric_efficiency_pct}%`
+          : '--';
+      }
+      if (combustionVal) {
+        const cq = d.combustion_quality;
+        const trimHealth = d.fuel_trim_health;
+        combustionVal.textContent = cq !== null && cq !== undefined
+          ? `${cq}% (${trimHealth || 'OK'})`
+          : '--';
+      }
+      if (icDeltaVal) {
+        const delta = d.iat_ambient_delta_c;
+        const status = d.intercooler_status;
+        icDeltaVal.textContent = delta !== null && delta !== undefined
+          ? `+${delta}°C (${status || 'Normal'})`
+          : '--';
+      }
+      if (aggressionVal) {
+        aggressionVal.textContent = d.driving_aggression !== null && d.driving_aggression !== undefined
+          ? `${d.driving_aggression}%`
+          : '--';
+      }
+      if (idleWasteVal) {
+        const idleSec = d.idle_seconds || 0;
+        const idleGal = d.idle_fuel_gal || 0;
+        idleWasteVal.textContent = `${Math.round(idleSec)}s (${idleGal.toFixed(3)} gal)`;
+      }
+      if (batteryHealthVal) {
+        batteryHealthVal.textContent = d.battery_status || '--';
+      }
     }
 
     // Polling loop

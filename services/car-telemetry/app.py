@@ -20,6 +20,7 @@ try:
     )
     from .mqtt import MqttBridge
     from .diagnostics import decode_dtcs
+    from .analytics import compute_analytics, reset_trip_analytics
 except ImportError:
     from config import DB_PATH, STATIC_DIR
     from models import TelemetryPoint, RECORD_SIZE
@@ -31,6 +32,7 @@ except ImportError:
     )
     from mqtt import MqttBridge
     from diagnostics import decode_dtcs
+    from analytics import compute_analytics, reset_trip_analytics
 
 mqtt_bridge = MqttBridge()
 latest_state: dict = {}
@@ -85,6 +87,8 @@ def hydrate_latest_state():
         derived = update_derived_state(tp)
         if row.get("timestamp"):
             derived["timestamp"] = row["timestamp"]
+        analytics = compute_analytics(derived)
+        derived.update(analytics)
         latest_state = derived
     except Exception as e:
         print("[INIT] Error hydrating latest state from DB:", e)
@@ -150,6 +154,8 @@ def ingest_telemetry(
 
     latest_record = sanitized[-1]
     derived = update_derived_state(latest_record)
+    analytics = compute_analytics(derived)
+    derived.update(analytics)
     latest_state = derived
     mqtt_bridge.publish_state(derived)
 
@@ -177,6 +183,8 @@ async def ingest_binary_telemetry(
 
     latest_record = records[-1]
     derived = update_derived_state(latest_record)
+    analytics = compute_analytics(derived)
+    derived.update(analytics)
     latest_state = derived
     mqtt_bridge.publish_state(derived)
 

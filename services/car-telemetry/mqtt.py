@@ -486,6 +486,233 @@ MQTT_SENSORS = [
             "icon": "mdi:card-account-details",
             "device": DEVICE_INFO
         }
+    },
+    # ── Derived Analytics ──
+    {
+        "id": "volumetric_efficiency",
+        "comp": "sensor",
+        "cfg": {
+            "name": "Volumetric Efficiency",
+            "unique_id": "volvo_xc60_volumetric_efficiency",
+            "state_topic": STATE_TOPIC,
+            "value_template": "{{ value_json.volumetric_efficiency_pct if value_json.volumetric_efficiency_pct is not none else 'unavailable' }}",
+            "unit_of_measurement": "%",
+            "icon": "mdi:engine",
+            "state_class": "measurement",
+            "device": DEVICE_INFO
+        }
+    },
+    {
+        "id": "combustion_quality",
+        "comp": "sensor",
+        "cfg": {
+            "name": "Combustion Quality",
+            "unique_id": "volvo_xc60_combustion_quality",
+            "state_topic": STATE_TOPIC,
+            "value_template": "{{ value_json.combustion_quality if value_json.combustion_quality is not none else 'unavailable' }}",
+            "unit_of_measurement": "%",
+            "icon": "mdi:fire-circle",
+            "state_class": "measurement",
+            "device": DEVICE_INFO
+        }
+    },
+    {
+        "id": "fuel_trim_health",
+        "comp": "sensor",
+        "cfg": {
+            "name": "Fuel Trim Health",
+            "unique_id": "volvo_xc60_fuel_trim_health",
+            "state_topic": STATE_TOPIC,
+            "value_template": "{{ value_json.fuel_trim_health if value_json.fuel_trim_health is not none else 'unavailable' }}",
+            "icon": "mdi:tune-vertical-variant",
+            "device": DEVICE_INFO
+        }
+    },
+    {
+        "id": "driving_aggression",
+        "comp": "sensor",
+        "cfg": {
+            "name": "Driving Aggression Score",
+            "unique_id": "volvo_xc60_driving_aggression",
+            "state_topic": STATE_TOPIC,
+            "value_template": "{{ value_json.driving_aggression if value_json.driving_aggression is not none else 'unavailable' }}",
+            "unit_of_measurement": "%",
+            "icon": "mdi:speedometer-medium",
+            "state_class": "measurement",
+            "device": DEVICE_INFO
+        }
+    },
+    {
+        "id": "iat_ambient_delta",
+        "comp": "sensor",
+        "cfg": {
+            "name": "Intake-Ambient Temp Delta",
+            "unique_id": "volvo_xc60_iat_ambient_delta",
+            "state_topic": STATE_TOPIC,
+            "value_template": "{{ value_json.iat_ambient_delta_c if value_json.iat_ambient_delta_c is not none else 'unavailable' }}",
+            "unit_of_measurement": "°C",
+            "device_class": "temperature",
+            "state_class": "measurement",
+            "device": DEVICE_INFO
+        }
+    },
+    {
+        "id": "intercooler_status",
+        "comp": "sensor",
+        "cfg": {
+            "name": "Intercooler Status",
+            "unique_id": "volvo_xc60_intercooler_status",
+            "state_topic": STATE_TOPIC,
+            "value_template": "{{ value_json.intercooler_status if value_json.intercooler_status is not none else 'unavailable' }}",
+            "icon": "mdi:snowflake-thermometer",
+            "device": DEVICE_INFO
+        }
+    },
+    {
+        "id": "warmup_seconds",
+        "comp": "sensor",
+        "cfg": {
+            "name": "Engine Warmup Time",
+            "unique_id": "volvo_xc60_warmup_seconds",
+            "state_topic": STATE_TOPIC,
+            "value_template": "{{ value_json.warmup_seconds if value_json.warmup_seconds is not none else 'unavailable' }}",
+            "unit_of_measurement": "s",
+            "icon": "mdi:thermometer-chevron-up",
+            "state_class": "measurement",
+            "device": DEVICE_INFO
+        }
+    },
+    {
+        "id": "warmup_active",
+        "comp": "binary_sensor",
+        "cfg": {
+            "name": "Engine Warming Up",
+            "unique_id": "volvo_xc60_warmup_active",
+            "state_topic": STATE_TOPIC,
+            "value_template": "{{ 'ON' if value_json.warmup_active else 'OFF' }}",
+            "icon": "mdi:thermometer-alert",
+            "device": DEVICE_INFO
+        }
+    },
+    {
+        "id": "idle_seconds",
+        "comp": "sensor",
+        "cfg": {
+            "name": "Trip Idle Time",
+            "unique_id": "volvo_xc60_idle_seconds",
+            "state_topic": STATE_TOPIC,
+            "value_template": "{{ value_json.idle_seconds | round(0) }}",
+            "unit_of_measurement": "s",
+            "icon": "mdi:timer-pause",
+            "state_class": "total",
+            "device": DEVICE_INFO
+        }
+    },
+    {
+        "id": "idle_fuel_gal",
+        "comp": "sensor",
+        "cfg": {
+            "name": "Idle Fuel Wasted",
+            "unique_id": "volvo_xc60_idle_fuel_gal",
+            "state_topic": STATE_TOPIC,
+            "value_template": "{{ value_json.idle_fuel_gal | round(3) }}",
+            "unit_of_measurement": "gal",
+            "icon": "mdi:gas-station-off",
+            "state_class": "total",
+            "device": DEVICE_INFO
+        }
+    },
+    {
+        "id": "battery_status",
+        "comp": "sensor",
+        "cfg": {
+            "name": "Battery Health Status",
+            "unique_id": "volvo_xc60_battery_status",
+            "state_topic": STATE_TOPIC,
+            "value_template": "{{ value_json.battery_status if value_json.battery_status is not none else 'unavailable' }}",
+            "icon": "mdi:car-battery",
+            "device": DEVICE_INFO
+        }
+    },
+    {
+        "id": "voltage_baseline",
+        "comp": "sensor",
+        "cfg": {
+            "name": "Voltage Baseline (Cruise)",
+            "unique_id": "volvo_xc60_voltage_baseline",
+            "state_topic": STATE_TOPIC,
+            "value_template": "{{ value_json.voltage_baseline if value_json.voltage_baseline is not none else 'unavailable' }}",
+            "unit_of_measurement": "V",
+            "device_class": "voltage",
+            "state_class": "measurement",
+            "device": DEVICE_INFO
+        }
+    },
+    {
+        "id": "boost_baseline",
+        "comp": "sensor",
+        "cfg": {
+            "name": "Boost Baseline (3k RPM)",
+            "unique_id": "volvo_xc60_boost_baseline",
+            "state_topic": STATE_TOPIC,
+            "value_template": "{{ value_json.boost_baseline_psi if value_json.boost_baseline_psi is not none else 'unavailable' }}",
+            "unit_of_measurement": "psi",
+            "device_class": "pressure",
+            "state_class": "measurement",
+            "device": DEVICE_INFO
+        }
+    },
+    {
+        "id": "fuel_rail_status",
+        "comp": "sensor",
+        "cfg": {
+            "name": "Fuel Rail Stability",
+            "unique_id": "volvo_xc60_fuel_rail_status",
+            "state_topic": STATE_TOPIC,
+            "value_template": "{{ value_json.fuel_rail_status if value_json.fuel_rail_status is not none else 'unavailable' }}",
+            "icon": "mdi:pipe-valve",
+            "device": DEVICE_INFO
+        }
+    },
+    {
+        "id": "efficiency_band",
+        "comp": "sensor",
+        "cfg": {
+            "name": "Engine Efficiency Band",
+            "unique_id": "volvo_xc60_efficiency_band",
+            "state_topic": STATE_TOPIC,
+            "value_template": "{{ value_json.efficiency_band if value_json.efficiency_band is not none else 'unavailable' }}",
+            "icon": "mdi:speedometer-slow",
+            "device": DEVICE_INFO
+        }
+    },
+    {
+        "id": "engine_health_score",
+        "comp": "sensor",
+        "cfg": {
+            "name": "Engine Health Score",
+            "unique_id": "volvo_xc60_engine_health_score",
+            "state_topic": STATE_TOPIC,
+            "value_template": "{{ value_json.engine_health_score if value_json.engine_health_score is not none else 'unavailable' }}",
+            "unit_of_measurement": "%",
+            "icon": "mdi:heart-pulse",
+            "state_class": "measurement",
+            "device": DEVICE_INFO
+        }
+    },
+    {
+        "id": "cold_start_penalty",
+        "comp": "sensor",
+        "cfg": {
+            "name": "Cold Start Fuel Penalty",
+            "unique_id": "volvo_xc60_cold_start_penalty",
+            "state_topic": STATE_TOPIC,
+            "value_template": "{{ value_json.cold_start_fuel_penalty_pct if value_json.cold_start_fuel_penalty_pct is not none else 'unavailable' }}",
+            "unit_of_measurement": "%",
+            "icon": "mdi:snowflake",
+            "state_class": "measurement",
+            "device": DEVICE_INFO
+        }
     }
 ]
 
