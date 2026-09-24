@@ -32,3 +32,10 @@ spec:
                 name: car-telemetry
                 port:
                   name: http
+          - path: /api/telemetry/relay
+            pathType: Exact
+            backend:
+              service:
+                name: car-telemetry
+                port:
+                  name: http
