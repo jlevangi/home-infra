@@ -1,3 +1,6 @@
+import base64
+import binascii
+import hashlib
 import hmac
 import os
 import time
@@ -6,12 +9,38 @@ from typing import List
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from typing import Any
+
+ALLOWED_RELAY_ORIGINS = {
+    "http://192.168.4.1",
+    "http://esp32.local",
+    "http://car-telemetry.local",
+}
+
+
+def is_relay_origin(origin: str) -> bool:
+    if origin in ALLOWED_RELAY_ORIGINS:
+        return True
+    try:
+        hostname = origin.split("://", 1)[1].split(":", 1)[0].rstrip(".").lower()
+    except (IndexError, AttributeError):
+        return False
+    return hostname.endswith(".local") and hostname.startswith(("esp32", "car-telemetry"))
+
+
+class RelayCORSMiddleware(CORSMiddleware):
+    def __init__(self, app):
+        super().__init__(app, allow_origins=[], allow_methods=["POST", "OPTIONS"], allow_headers=["Authorization", "Content-Type"], allow_credentials=False)
+
+    def is_allowed_origin(self, origin: str) -> bool:
+        return is_relay_origin(origin)
 
 try:
     from .config import DB_PATH, STATIC_DIR
-    from .models import TelemetryPoint, RECORD_SIZE
+    from .models import TelemetryPoint, RelayTelemetryPoint, RECORD_SIZE
     from .database import init_db, store_telemetry_batch, fetch_history, fetch_latest_row
     from .processing import (
         sanitize_telemetry,
@@ -23,7 +52,7 @@ try:
     from .analytics import compute_analytics, reset_trip_analytics
 except ImportError:
     from config import DB_PATH, STATIC_DIR
-    from models import TelemetryPoint, RECORD_SIZE
+    from models import TelemetryPoint, RelayTelemetryPoint, RECORD_SIZE
     from database import init_db, store_telemetry_batch, fetch_history, fetch_latest_row
     from processing import (
         sanitize_telemetry,
@@ -106,6 +135,7 @@ app = FastAPI(
     version="2.3.0",
     lifespan=lifespan
 )
+app.add_middleware(RelayCORSMiddleware)
 
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -161,12 +191,81 @@ def ingest_telemetry(
 
     return {"status": "ok", "inserted": inserted}
 
+@app.post("/api/telemetry/relay")
+async def ingest_relay_telemetry(request: Request):
+    """Accept an opaque ESP32-signed batch relayed by an untrusted browser."""
+    global latest_state
+    try:
+        envelope: Any = await request.json()
+        device_id = envelope["device_id"]
+        boot_id = envelope["boot_id"]
+        first_sequence = int(envelope["first_sequence"])
+        payload_b64 = envelope["payload_b64"]
+        supplied_signature = envelope["signature"]
+    except (ValueError, TypeError, KeyError):
+        raise HTTPException(status_code=422, detail="invalid relay envelope")
+
+    if (not isinstance(device_id, str) or not 0 < len(device_id) <= 128
+            or not isinstance(boot_id, str) or not 0 < len(boot_id) <= 128
+            or not isinstance(payload_b64, str) or not 0 < len(payload_b64) <= 131072
+            or not isinstance(supplied_signature, str) or len(supplied_signature) != 64
+            or first_sequence < 0):
+        raise HTTPException(status_code=422, detail="invalid relay envelope")
+    if not INGEST_TOKEN:
+        raise HTTPException(status_code=503, detail="ingest authentication is not configured")
+
+    signed = f"{device_id}\n{boot_id}\n{first_sequence}\n{payload_b64}".encode()
+    expected = hmac.new(INGEST_TOKEN.encode(), signed, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(supplied_signature.lower(), expected):
+        raise HTTPException(status_code=401, detail="invalid relay signature")
+    try:
+        body = base64.b64decode(payload_b64, validate=True)
+    except (binascii.Error, ValueError):
+        raise HTTPException(status_code=422, detail="invalid relay payload")
+
+    records = unpack_binary_payload(body)
+    if not records:
+        return {"status": "empty", "inserted": 0, "duplicates": 0}
+    identified = [
+        RelayTelemetryPoint(**record.model_dump(), device_id=device_id,
+                            boot_id=boot_id, sequence=first_sequence + index)
+        for index, record in enumerate(records)
+    ]
+    inserted = store_telemetry_batch(identified, DB_PATH)
+    duplicates = len(identified) - inserted
+    if inserted:
+        latest_record = identified[-1]
+        derived = update_derived_state(latest_record)
+        analytics = compute_analytics(derived)
+        derived.update(analytics)
+        latest_state = derived
+        mqtt_bridge.publish_state(derived)
+
+    through_sequence = first_sequence + len(identified) - 1
+    receipt_text = f"ack\n{device_id}\n{boot_id}\n{through_sequence}".encode()
+    receipt_signature = hmac.new(INGEST_TOKEN.encode(), receipt_text, hashlib.sha256).hexdigest()
+    return {
+        "status": "ok",
+        "inserted": inserted,
+        "duplicates": duplicates,
+        "receipt": {
+            "device_id": device_id,
+            "boot_id": boot_id,
+            "through_sequence": through_sequence,
+            "signature": receipt_signature,
+        },
+    }
+
+
 @app.post("/api/telemetry/binary")
 async def ingest_binary_telemetry(
     request: Request,
     vehicle: str = "volvo",
     vin: str = "UNKNOWN",
     dtcs: str = "none",
+    device_id: str | None = None,
+    boot_id: str | None = None,
+    first_sequence: int | None = None,
     authorization: str | None = Header(default=None)
 ):
     global latest_state
@@ -178,6 +277,15 @@ async def ingest_binary_telemetry(
     records = unpack_binary_payload(body, vehicle=vehicle, vin=vin, dtcs=dtcs)
     if not records:
         return {"status": "invalid_payload", "inserted": 0, "bytes": len(body)}
+    identity_fields = (device_id, boot_id, first_sequence)
+    if any(value is not None for value in identity_fields):
+        if not device_id or not boot_id or first_sequence is None or first_sequence < 0:
+            raise HTTPException(status_code=422, detail="incomplete record identity")
+        records = [
+            RelayTelemetryPoint(**record.model_dump(), device_id=device_id,
+                                boot_id=boot_id, sequence=first_sequence + index)
+            for index, record in enumerate(records)
+        ]
 
     inserted = store_telemetry_batch(records, DB_PATH)
 

@@ -1,7 +1,7 @@
 import time
 import sqlite3
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Sequence
 try:
     from .config import DB_PATH
     from .models import TelemetryPoint
@@ -17,6 +17,7 @@ def init_db(db_path: Path = DB_PATH):
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS telemetry (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            record_id TEXT,
             timestamp REAL NOT NULL,
             vehicle TEXT NOT NULL,
             rpm REAL,
@@ -65,22 +66,25 @@ def init_db(db_path: Path = DB_PATH):
         ("afr", "REAL DEFAULT 14.7"),
         ("cat_temp_c", "REAL DEFAULT 0.0"),
         ("fuel_rail_bar", "REAL DEFAULT 0.0"),
-        ("fuel_status", "TEXT DEFAULT 'Off'")
+        ("fuel_status", "TEXT DEFAULT 'Off'"),
+        ("record_id", "TEXT")
     ]
     for col_name, col_def in new_cols:
         if col_name not in cols:
             cursor.execute(f"ALTER TABLE telemetry ADD COLUMN {col_name} {col_def}")
 
+    # Legacy binary rows remain nullable; only relay rows participate in deduplication.
+    cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_telemetry_record_id ON telemetry(record_id) WHERE record_id IS NOT NULL")
     conn.commit()
     conn.close()
 
-def store_telemetry_batch(records: List[TelemetryPoint], db_path: Path = DB_PATH, timestamp: Optional[float] = None) -> int:
+def store_telemetry_batch(records: Sequence[TelemetryPoint], db_path: Path = DB_PATH, timestamp: Optional[float] = None) -> int:
     if not records:
         return 0
     now = timestamp if timestamp is not None else time.time()
     rows = [
         (
-            now, r.vehicle, r.rpm, r.speed_kph, r.coolant_c,
+            getattr(r, "record_id", None), now, r.vehicle, r.rpm, r.speed_kph, r.coolant_c,
             r.load_pct, r.throttle_pct, r.voltage_v,
             r.iat_c, r.fuel_pct, r.map_kpa, r.maf_gps, r.oil_temp_c, r.runtime_s,
             1 if r.mil_on else 0, r.dtc_count, r.dtcs,
@@ -94,19 +98,20 @@ def store_telemetry_batch(records: List[TelemetryPoint], db_path: Path = DB_PATH
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.executemany("""
-        INSERT INTO telemetry (
-            timestamp, vehicle, rpm, speed_kph, coolant_c,
+        INSERT OR IGNORE INTO telemetry (
+            record_id, timestamp, vehicle, rpm, speed_kph, coolant_c,
             load_pct, throttle_pct, voltage_v,
             iat_c, fuel_pct, map_kpa, maf_gps, oil_temp_c, runtime_s,
             mil_on, dtc_count, dtcs, uptime,
             stft_pct, ltft_pct, timing_deg, baro_kpa, ambient_c,
             pedal_pct, mil_dist_km, smog_ready, vin,
             lambda_ratio, afr, cat_temp_c, fuel_rail_bar, fuel_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, rows)
+    inserted = cursor.rowcount
     conn.commit()
     conn.close()
-    return len(rows)
+    return inserted
 
 def fetch_history(vehicle: str = "volvo", limit: int = 100, db_path: Path = DB_PATH) -> List[dict]:
     if not db_path.exists():

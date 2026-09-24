@@ -1,6 +1,6 @@
 import struct
-from typing import Optional
-from pydantic import BaseModel
+from typing import List, Optional
+from pydantic import BaseModel, Field
 
 # Binary packet format V1 (29 bytes packed)
 BINARY_RECORD_FORMAT_V1 = "<IHBbBBHbBBHbHbbbBbBHB"
@@ -45,3 +45,15 @@ class TelemetryPoint(BaseModel):
     cat_temp_c: Optional[float] = None
     fuel_rail_bar: Optional[float] = None
     fuel_status: Optional[str] = None
+
+
+class RelayTelemetryPoint(TelemetryPoint):
+    """A browser-relayed point with a durable identity from the device spool."""
+
+    device_id: str = Field(..., min_length=1, max_length=128)
+    boot_id: str = Field(..., min_length=1, max_length=128)
+    sequence: int = Field(..., ge=0)
+
+    @property
+    def record_id(self) -> str:
+        return f"{self.device_id}:{self.boot_id}:{self.sequence}"
