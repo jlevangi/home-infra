@@ -13,7 +13,7 @@ data:
   FILE_STORAGE: "local"
   FILE_STORAGE_LOCAL_ROOT_DIR: "/var/lib/outline/data"
   FILE_STORAGE_UPLOAD_MAX_SIZE: "262144000"
-  FORCE_HTTPS: "true"
+  FORCE_HTTPS: "false"
   OIDC_AUTH_URI: "https://auth.levangie.org/realms/master/protocol/openid-connect/auth"
   OIDC_TOKEN_URI: "https://auth.levangie.org/realms/master/protocol/openid-connect/token"
   OIDC_USERINFO_URI: "https://auth.levangie.org/realms/master/protocol/openid-connect/userinfo"
