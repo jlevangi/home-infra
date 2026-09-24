@@ -139,7 +139,7 @@ FROM (
   FROM health_observations_raw
   WHERE source_id = %s
     AND metric_type = 'sleep_segment'
-    AND external_id ~ '^health_connect:[^:]+:sleep:[^:]+:stage:[0-9]+$'
+    AND external_id ~ '^(health_connect:[^:]+|samsung_health):sleep:[^:]+:stage:[0-9]+$'
     AND external_id NOT LIKE %s
   GROUP BY 1
   HAVING min(text_to_timestamptz_immutable(start_time)) < %s::timestamptz
@@ -158,7 +158,7 @@ USING (
   FROM health_observations_raw
   WHERE source_id = %s
     AND metric_type = 'sleep_segment'
-    AND external_id ~ '^health_connect:[^:]+:sleep:[^:]+:stage:[0-9]+$'
+    AND external_id ~ '^(health_connect:[^:]+|samsung_health):sleep:[^:]+:stage:[0-9]+$'
     AND external_id NOT LIKE %s
   GROUP BY 1
   HAVING min(text_to_timestamptz_immutable(start_time)) < %s::timestamptz

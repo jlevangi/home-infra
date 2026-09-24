@@ -320,3 +320,14 @@ def test_stale_same_session_replay_does_not_truncate_refined_session(monkeypatch
     db.ingest_health_connect("collector-1", [record("sleep", "sleep-1")])
 
     assert cursor.stale_prunes == []
+
+
+def test_sleep_overlap_regex_matches_samsung_and_health_connect():
+    import re
+    pattern = r"^(health_connect:[^:]+|samsung_health):sleep:[^:]+:stage:[0-9]+$"
+    assert re.search(pattern, "health_connect:com.google.android.apps.fitness:sleep:43b16f80:stage:1789441740000")
+    assert re.search(pattern, "samsung_health:sleep:000001a0-d1e9-9373-ea04-d056fb981b6f:stage:1790258850000")
+    assert not re.search(pattern, "health_sync:sleep:12345")
+    assert not re.search(pattern, "samsung_health:heart_rate:12345")
+    assert "samsung_health" in db._SLEEP_OVERLAP_CHECK_SQL
+    assert "samsung_health" in db._SLEEP_DEDUP_SQL
