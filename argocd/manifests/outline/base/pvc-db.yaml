@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: outline-db-pvc
+  namespace: outline
+  labels:
+    app: outline
+    component: db
+    recurring-job-group.longhorn.io/daily: "enabled"
+    recurring-job-group.longhorn.io/weekly: "enabled"
+    recurring-job-group.longhorn.io/hourly: "enabled"
+    recurring-job.longhorn.io/source: "enabled"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: longhorn-tank
