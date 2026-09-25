@@ -708,24 +708,23 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
-            - name: Car Telemetry Ingest
-              group: Infrastructure
-              url: http://car-telemetry.car-telemetry.svc.cluster.local:80/healthz
+            - name: Car Telemetry Ingest (Public)
+              group: External
+              url: https://car-ingest.levangie.dev/api/telemetry/binary
+              method: POST
               interval: 2m
               conditions:
-                - "[STATUS] == 200"
+                - "[STATUS] == 401"
                 - "[RESPONSE_TIME] < 5000"
-                - "[BODY].status == ok"
-                - "[BODY].mqtt_connected == true"
 
-            - name: Health Ingester
-              group: Infrastructure
-              url: http://health-ingester.health-archive.svc.cluster.local:80/healthz
+            - name: Health Ingester (Public)
+              group: External
+              url: https://health-ingester.levangie.dev/api/v1/health-connect/records:batch
+              method: POST
               interval: 2m
               conditions:
-                - "[STATUS] == 200"
+                - "[STATUS] == 401"
                 - "[RESPONSE_TIME] < 5000"
-                - "[BODY].status == ok"
 
   destination:
     server: https://kubernetes.default.svc
