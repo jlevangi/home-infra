@@ -21,9 +21,8 @@ data:
         - json
 
     server:
-      # secret_key signs image-proxy URLs and rate-limit cookies. Random per
-      # deployment; rotate by replacing the value below and restarting the pod.
-      secret_key: "23cd2c05c85ea6e9cba7cde688c74f457d6bd554bd7bb65ceead673bcf23c437"
+      # secret_key is injected via SEARXNG_SECRET environment variable from Vault kv/prod/searxng.
+      secret_key: "ultrasecretkey"
       base_url: "https://search.levangie.dev/"
       image_proxy: true
       limiter: false

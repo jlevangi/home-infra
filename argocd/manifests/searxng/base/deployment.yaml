@@ -20,7 +20,7 @@ spec:
         app.kubernetes.io/name: searxng
       annotations:
         # Restart pod when settings.yml changes.
-        checksum/config: "23cd2c05"
+        checksum/config: "ultrasecretkey"
     spec:
       containers:
         - name: gluetun
@@ -73,6 +73,11 @@ spec:
               value: "8080"
             - name: SEARXNG_BIND_ADDRESS
               value: "0.0.0.0"
+            - name: SEARXNG_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: searxng-secrets
+                  key: SEARXNG_SECRET
           ports:
             - name: searxng-http
               containerPort: 8080

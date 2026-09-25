@@ -148,7 +148,7 @@ metadata:
 type: Opaque
 data:
   email: YWRtaW5AbGV2YW5naWUub3Jn
-  api-token: MC45U3VucmZ3SUc2S1NlRWZtNnp5SXRtQktMVUNlclVyX2JvWHg0eA==
+  api-token: <REDACTED_CLOUDFLARE_API_TOKEN_BASE64>
 ```
 
 ### 2. Helm Commands Executed
