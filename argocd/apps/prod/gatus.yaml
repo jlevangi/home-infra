@@ -708,6 +708,16 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
+            - name: Car Telemetry Ingest
+              group: Infrastructure
+              url: http://car-telemetry.car-telemetry.svc.cluster.local:80/healthz
+              interval: 2m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+                - "[BODY].status == ok"
+                - "[BODY].mqtt_connected == true"
+
   destination:
     server: https://kubernetes.default.svc
     namespace: gatus
