@@ -718,6 +718,15 @@ spec:
                 - "[BODY].status == ok"
                 - "[BODY].mqtt_connected == true"
 
+            - name: Health Ingester
+              group: Infrastructure
+              url: http://health-ingester.health-archive.svc.cluster.local:80/healthz
+              interval: 2m
+              conditions:
+                - "[STATUS] == 200"
+                - "[RESPONSE_TIME] < 5000"
+                - "[BODY].status == ok"
+
   destination:
     server: https://kubernetes.default.svc
     namespace: gatus
