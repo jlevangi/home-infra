@@ -100,15 +100,6 @@ spec:
             description: >-
               The authenticated Health Connect collector has received no 'calories' rows for more than 36 hours.
 
-        - alert: HealthCollectorAuthenticationFailures
-          expr: increase(health_collector_auth_failures_total{job="health-ingester", namespace="health-archive"}[15m]) > 0
-          for: 5m
-          labels:
-            severity: warning
-          annotations:
-            summary: Health collector authentication failure
-            description: An authentication failure occurred for the Health Connect collector in the last 15 minutes.
-
         - alert: HealthCollectorRejectedRecords
           expr: sum(increase(health_collector_records_total{job="health-ingester", namespace="health-archive", outcome="rejected"}[15m])) > 0
           for: 5m
