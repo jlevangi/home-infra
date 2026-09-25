@@ -1,0 +1,19 @@
+# Ignored historical fingerprints (18 entries)
+41bc0b1e2dfba445b45b89ec174e4123159a594a:argocd/manifests/vikunja/base/external-secret.yaml:generic-api-key:19
+e2717bdeb50a152060f3763f169797bd1bb481e0:argocd/manifests/netbox/base/secret.yaml:generic-api-key:8
+3f41e6433f6288dd5621448f1dceb1545b8b7195:argocd/manifests/plausible/base/external-secret.yaml:generic-api-key:17
+a2ca91be7081a4a50e14439dfe312864889c557b:argocd/manifests/plausible/base/external-secret.yaml:generic-api-key:17
+a2ca91be7081a4a50e14439dfe312864889c557b:argocd/manifests/plausible/base/external-secret.yaml:generic-api-key:21
+a2ca91be7081a4a50e14439dfe312864889c557b:argocd/manifests/plausible/base/external-secret.yaml:generic-api-key:25
+ec8bf21a25b3f43ae364d0dc0234e29f7f38c372:scripts/rustdesk/install-linux.sh:generic-api-key:17
+ab2c43c5a843a7062c75a1f5b7f776a461d797dd:scripts/rustdesk/install-windows.ps1:generic-api-key:16
+d82fdf4c2491f4f72c29364359d0a22e6fd7f1d4:argocd/manifests/netlock-rmm/base/appsettings-console.json:generic-api-key:61
+50568ca10b3f74de0de0696692795df89abbedf1:argocd/manifests/netlock-rmm/base/external-secret-server-appsettings.yaml:generic-api-key:74
+d82fdf4c2491f4f72c29364359d0a22e6fd7f1d4:argocd/manifests/netlock-rmm/base/appsettings-server.json:generic-api-key:78
+50568ca10b3f74de0de0696692795df89abbedf1:argocd/manifests/netlock-rmm/base/external-secret-console-appsettings.yaml:generic-api-key:66
+1e1051a93533aa670d4ddd09fa8cff4e63fa610f:argocd/manifests/searxng/base/configmap.yaml:generic-api-key:26
+7373d975ad616cc48cbcdb87ac92c82c8ad92ca4:ansible/TRAEFIK_SSL_REMEDIATION.md:generic-api-key:151
+7373d975ad616cc48cbcdb87ac92c82c8ad92ca4:ansible/TRAEFIK_SSL_REMEDIATION.md:generic-api-key:151
+0237092479a858c40fee9a2b03657407d44de9c4:argocd/manifests/vaultwarden/base/external-secret.yaml:generic-api-key:16
+a0e081d162c54b682a6e822e9fe61d827d0c2ee9:ansible/TRAEFIK_SSL_REMEDIATION.md:generic-api-key:151
+a0e081d162c54b682a6e822e9fe61d827d0c2ee9:ansible/TRAEFIK_SSL_REMEDIATION.md:generic-api-key:151
