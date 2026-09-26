@@ -25,6 +25,13 @@ spec:
                 name: car-telemetry
                 port:
                   name: http
+          - path: /api/telemetry/diagnostics
+            pathType: Exact
+            backend:
+              service:
+                name: car-telemetry
+                port:
+                  name: http
           - path: /api/telemetry/binary
             pathType: Exact
             backend:

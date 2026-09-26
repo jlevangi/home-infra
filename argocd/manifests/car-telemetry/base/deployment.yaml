@@ -24,7 +24,7 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: car-telemetry
-          image: ghcr.io/jlevangi/car-telemetry:git-f783de4dbaf3b7c14685d60c33c380866043defd
+          image: ghcr.io/jlevangi/car-telemetry:git-2dabef950d4d1de08fb9e5dfea1910fa4740cbe5
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
