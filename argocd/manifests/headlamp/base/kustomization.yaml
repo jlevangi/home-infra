@@ -10,3 +10,10 @@ resources:
   - resource-quota.yaml
   - limit-range.yaml
   - external-secret.yaml
+
+configMapGenerator:
+  - name: headlamp-plugin-argocd
+    namespace: headlamp
+    files:
+      - plugins/argocd/main.js
+      - plugins/argocd/package.json

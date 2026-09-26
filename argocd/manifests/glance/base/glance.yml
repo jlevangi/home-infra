@@ -148,9 +148,6 @@ pages:
               - title: Immich
                 url: https://photos.levangie.org
                 icon: sh:immich
-              - title: Affine
-                url: https://affine.levangie.dev
-                icon: si:affine
 
           - type: monitor
             title: 🎬 Media

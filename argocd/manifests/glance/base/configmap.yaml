@@ -247,6 +247,9 @@ data:
           title: 🖥 Infrastructure & Monitoring
           cache: 2m
           sites:
+          - title: Headlamp
+            url: https://headlamp.levangie.dev
+            icon: di:headlamp
           - title: ArgoCD
             url: https://argocd.levangie.dev
             icon: si:argo
@@ -296,6 +299,7 @@ data:
           repositories:
           - glanceapp/glance
           - k3s-io/k3s
+          - kubernetes-sigs/headlamp
           - argoproj/argo-cd
           - longhorn/longhorn
           - grafana/grafana
