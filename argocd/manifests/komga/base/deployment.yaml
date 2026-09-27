@@ -61,6 +61,7 @@ spec:
               port: 25600
             initialDelaySeconds: 30
             periodSeconds: 10
+            timeoutSeconds: 5
             failureThreshold: 12
           livenessProbe:
             httpGet:
@@ -68,6 +69,7 @@ spec:
               port: 25600
             initialDelaySeconds: 120
             periodSeconds: 20
+            timeoutSeconds: 5
             failureThreshold: 6
       volumes:
         - name: config

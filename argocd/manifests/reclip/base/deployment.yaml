@@ -60,12 +60,15 @@ spec:
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /
               port: http
             initialDelaySeconds: 20
             periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 5
       volumes:
         - name: downloads
           nfs:
