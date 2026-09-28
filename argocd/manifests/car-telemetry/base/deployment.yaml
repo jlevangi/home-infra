@@ -24,7 +24,7 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: car-telemetry
-          image: ghcr.io/jlevangi/car-telemetry:git-1fa7809cca62dab370bc3bbfee43386c65277ca3
+          image: ghcr.io/jlevangi/car-telemetry:git-e1fa43184f321e6d6a902295d243271a08c59413
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
@@ -32,6 +32,8 @@ spec:
           env:
             - name: CAR_TELEMETRY_DB
               value: /data/telemetry.db
+            - name: GHOSTVECTOR_MQTT_DEVICE_ID
+              value: esp32-64188ad8cbb0
             - name: CAR_TELEMETRY_INGEST_TOKEN
               valueFrom:
                 secretKeyRef:

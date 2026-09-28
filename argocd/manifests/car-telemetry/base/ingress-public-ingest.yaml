@@ -40,7 +40,7 @@ spec:
                 name: car-telemetry
                 port:
                   name: http
-          - path: /api/telemetry/relay
+          - path: /api/device/claim
             pathType: Exact
             backend:
               service:
