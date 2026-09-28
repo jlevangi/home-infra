@@ -13,6 +13,7 @@ spec:
   tls:
     - hosts:
         - car-ingest.levangie.dev
+        - ghostvector.levangie.dev
       secretName: car-telemetry-public-ingest-tls
   rules:
     - host: car-ingest.levangie.dev
@@ -48,6 +49,16 @@ spec:
                   name: http
           - path: /api/telemetry/device-events
             pathType: Exact
+            backend:
+              service:
+                name: car-telemetry
+                port:
+                  name: http
+    - host: ghostvector.levangie.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
             backend:
               service:
                 name: car-telemetry
