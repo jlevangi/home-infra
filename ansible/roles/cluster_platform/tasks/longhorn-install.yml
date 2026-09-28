@@ -116,6 +116,7 @@
 - name: Install Longhorn (fresh installation only)
   ansible.builtin.shell: |
     KUBECONFIG={{ kubeconfig_path }} helm upgrade --install longhorn longhorn/longhorn \
+      --version 1.12.1 \
       --namespace longhorn-system \
       --create-namespace \
       --values /tmp/longhorn-values.yaml \
@@ -131,6 +132,7 @@
 - name: Update Longhorn configuration (existing installation)
   ansible.builtin.shell: |
     KUBECONFIG={{ kubeconfig_path }} helm upgrade longhorn longhorn/longhorn \
+      --version 1.12.1 \
       --namespace longhorn-system \
       --values /tmp/longhorn-values.yaml \
       --wait --timeout=600s
@@ -145,6 +147,7 @@
 - name: Repair broken Longhorn installation (missing Helm release or incomplete)
   ansible.builtin.shell: |
     KUBECONFIG={{ kubeconfig_path }} helm upgrade --install longhorn longhorn/longhorn \
+      --version 1.12.1 \
       --namespace longhorn-system \
       --values /tmp/longhorn-values.yaml \
       --wait --timeout=1200s
