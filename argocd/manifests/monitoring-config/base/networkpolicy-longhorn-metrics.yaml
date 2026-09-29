@@ -1,0 +1,25 @@
+# Longhorn 1.12 chart enables networkPolicies.restrictInternalTraffic by
+# default, which blocks Prometheus from scraping longhorn-manager :9500.
+# Additive allow: Prometheus pods only, metrics port only.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-longhorn-metrics
+  namespace: longhorn-system
+spec:
+  podSelector:
+    matchLabels:
+      app: longhorn-manager
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - protocol: TCP
+          port: 9500
