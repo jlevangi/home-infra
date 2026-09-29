@@ -88,6 +88,10 @@ spec:
               mountPath: /data/music
               subPath: music
               readOnly: true
+            - name: media
+              mountPath: /data/commercials
+              subPath: commercials
+              readOnly: true
       volumes:
         - name: config
           persistentVolumeClaim:
