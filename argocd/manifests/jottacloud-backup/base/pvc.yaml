@@ -5,6 +5,8 @@ metadata:
   namespace: jottacloud-backup
   labels:
     app.kubernetes.io/name: jottacloud-backup
+    # Scratch state only; no Longhorn backups. Source=PVC so the SC's daily/weekly selector is not synced.
+    recurring-job.longhorn.io/source: "enabled"
 spec:
   accessModes:
     - ReadWriteOnce
