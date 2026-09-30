@@ -1,7 +1,8 @@
 # Prometheus scrape target for the workstation llama-swap instance.
-# pierce-pc.levangie.org resolves to 172.20.23.28 (LAN); the host runs
-# llama-swap.exe with a metrics aggregator sidecar listening on :9090
-# that mirrors the script at argocd/manifests/llama-cpp/base/sidecar-exporter.py.
+# pierce-pc.levangie.org resolves to 172.20.23.28 (LAN). The Windows
+# llama-swap controller's shim (:9081, D:\local-llm\llama-swap-controller\
+# assets\llama-swap-shim.py) serves /metrics: llama-swap host/GPU metrics
+# plus each loaded llama-server's llamacpp:* metrics labelled by model.
 #
 # The static instance=workstation label lets the existing Grafana
 # 'llama-cpp' dashboard's $instance template variable auto-discover
@@ -20,6 +21,6 @@ spec:
   metricsPath: /metrics
   staticConfigs:
     - targets:
-        - pierce-pc.levangie.org:9090
+        - pierce-pc.levangie.org:9081
       labels:
         instance: workstation
