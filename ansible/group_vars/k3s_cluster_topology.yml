@@ -114,9 +114,8 @@ k3s_node_profiles:
   # Terraform: terraform/stacks/k3s/thinkcentre-{1,2}/prod/workers
   # 8GB hosts (6.7GiB usable): 4.5GiB VMs, 120G flash disk each. Deliberately
   # not tagged general-storage until RAM is upgraded (home-infra-1tre).
-  # allowScheduling: false keeps best-effort auto-balance from moving replicas
-  # onto these new zones the moment they join; flip it only as an approved,
-  # bounded replica placement change.
+  # Disk scheduling enabled after approved capacity/selector audit. Existing
+  # best-effort auto-balance may use these zones; general-storage stays excluded.
   # ---------------------------------------------------------------------------
   thinkcentre-worker:
     longhorn_node_tags: []
@@ -126,7 +125,7 @@ k3s_node_profiles:
         path: /mnt/longhorn-flash
         slot: scsi1
         tags: [flash]
-        allowScheduling: false
+        allowScheduling: true
 
   # ---------------------------------------------------------------------------
   # Prod control plane — k3s-prod-cp-{1,3,4}
