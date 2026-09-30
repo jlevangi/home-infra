@@ -18,7 +18,20 @@ patches:
         value: 1Gi
       - op: replace
         path: /spec/volumeName
-        value: bookstack-app-data-pv
+        value: bookstack-app-data-flash-pv
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+  - target:
+      kind: PersistentVolumeClaim
+      name: bookstack-db-data-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: bookstack-db-data-flash-pv
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
   - target:
       kind: Ingress
       name: bookstack-ingress
