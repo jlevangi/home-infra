@@ -45,7 +45,10 @@ patches:
     patch: |
       - op: replace
         path: /spec/volumeName
-        value: nzbget-gluetun-config-pv
+        value: nzbget-gluetun-config-flash-pv
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
   - target:
       kind: PersistentVolumeClaim
       name: qbittorrent-config-pvc
@@ -59,7 +62,10 @@ patches:
     patch: |
       - op: replace
         path: /spec/volumeName
-        value: nzbget-config-pv
+        value: nzbget-config-flash-pv
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
   - target:
       kind: PersistentVolumeClaim
       name: sonarr-config-pvc
