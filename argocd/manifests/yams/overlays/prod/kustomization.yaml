@@ -121,6 +121,16 @@ patches:
         path: /spec/storageClassName
         value: longhorn-flash
   - target:
+      kind: PersistentVolumeClaim
+      name: seerr-jellyfin-config-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: seerr-jellyfin-config-flash-pv
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+  - target:
       kind: Deployment
     patch: |
       - op: replace
