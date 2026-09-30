@@ -110,6 +110,25 @@ k3s_node_profiles:
         tags: [flash]
 
   # ---------------------------------------------------------------------------
+  # ThinkCentre M715q worker — k3s-prod-worker-{5,6}
+  # Terraform: terraform/stacks/k3s/thinkcentre-{1,2}/prod/workers
+  # 8GB hosts (6.7GiB usable): 4.5GiB VMs, 120G flash disk each. Deliberately
+  # not tagged general-storage until RAM is upgraded (home-infra-1tre).
+  # allowScheduling: false keeps best-effort auto-balance from moving replicas
+  # onto these new zones the moment they join; flip it only as an approved,
+  # bounded replica placement change.
+  # ---------------------------------------------------------------------------
+  thinkcentre-worker:
+    longhorn_node_tags: []
+    longhorn_manage_disks: true
+    longhorn_disks:
+      - name: default-disk-flash
+        path: /mnt/longhorn-flash
+        slot: scsi1
+        tags: [flash]
+        allowScheduling: false
+
+  # ---------------------------------------------------------------------------
   # Prod control plane — k3s-prod-cp-{1,3,4}
   # CP nodes are excluded from storage entirely (k3s_cluster_prod.yml sets
   # longhorn_exclude_master_from_storage: true, which disables scheduling at
@@ -148,6 +167,8 @@ k3s_node_profile:
   k3s-prod-worker-2: atlas-worker
   k3s-prod-worker-3: atlas-worker
   k3s-prod-worker-4: elitedesk-worker
+  k3s-prod-worker-5: thinkcentre-worker
+  k3s-prod-worker-6: thinkcentre-worker
   k3s-prod-worker-gpu-1: atlas-gpu-worker
 
 # =============================================================================
@@ -177,6 +198,8 @@ k3s_node_zone:
   k3s-prod-worker-2: atlas
   k3s-prod-worker-3: atlas
   k3s-prod-worker-4: elitedesk-1
+  k3s-prod-worker-5: thinkcentre-1
+  k3s-prod-worker-6: thinkcentre-2
   k3s-prod-worker-gpu-1: atlas
 
   # --- test ---

@@ -27,6 +27,10 @@ k3s_primary_master: "k3s-prod-cp-1"
 # -----------------------------------------------------------------------------
 longhorn_replica_count: 2
 longhorn_exclude_master_from_storage: true
+# Stop Longhorn auto-creating a default disk on a new node's OS root
+# filesystem (the worker-4 incident). Prod disks come only from the topology
+# file. Test/stage keep false: simple-node relies on the default disk.
+longhorn_create_default_disk_labeled_nodes: true
 longhorn_guaranteed_instance_manager_cpu: 12
 longhorn_default_node_selector: "general-storage"
 longhorn_media_node_selector: "media-storage"
