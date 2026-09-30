@@ -67,7 +67,10 @@ patches:
     patch: |
       - op: replace
         path: /spec/volumeName
-        value: radarr-config-pv
+        value: radarr-config-flash-pv
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
   - target:
       kind: PersistentVolumeClaim
       name: radarr4k-config-pvc
