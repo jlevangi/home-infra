@@ -55,7 +55,8 @@ class MigrationPlaybookTests(unittest.TestCase):
             "migration_source_pool in ['flash', 'tank', 'unselected']",
             "migration_target_pool in ['flash', 'tank']",
             "migration_target_pool == migration_source_pool or migration_allow_pool_change | bool",
-            "migration_target_storage_class == 'longhorn-one-replica-' ~ migration_target_pool",
+            "migration_target_replicas | string in ['1', '2']",
+            "migration_target_storage_class == ('longhorn-one-replica-' if migration_target_replicas | int == 1 else 'longhorn-') ~ migration_target_pool",
             "migration_target_disk_selector == migration_target_pool",
             "not migration_target_pv.startswith('lh-')",
             "not migration_target_volume.startswith('lh-')",
@@ -92,12 +93,68 @@ class MigrationPlaybookTests(unittest.TestCase):
         env["ANSIBLE_JINJA2_NATIVE"] = "true"
         return subprocess.run([
             "ansible-playbook", str(PLAYBOOK),
+            *(["--tags", "cutover"] if "migration_phase=cutover" in extra_vars else []),
             "-e", "target_env=test", "-e", "restore_namespace=fixture",
             "-e", "restore_pvc_name=data", "-e", "restore_backup_name=backup-1",
             "-e", "restore_child_app=fixture", "-e", "restore_root_app=root-test",
             "-e", "migration_phase=preflight-stop", "-e", "migration_skip_confirmation=true",
             "-e", f"migration_kubectl={fake}", *sum((["-e", value] for value in extra_vars), []),
         ], cwd=ROOT, env=env, text=True, capture_output=True, check=False)
+
+    def test_cutover_classifies_canonical_targets_without_mutation(self):
+        if subprocess.run(["sh", "-c", "command -v ansible-playbook"], capture_output=True).returncode:
+            self.skipTest("ansible-playbook unavailable")
+        source = {
+            "pvc": {"kind": "PersistentVolumeClaim", "metadata": {"name": "data", "namespace": "fixture"}, "spec": {"volumeName": "pv-data"}},
+            "pv": {"kind": "PersistentVolume", "metadata": {"name": "pv-data"}, "spec": {"claimRef": {"name": "data", "namespace": "fixture"}, "csi": {"driver": "driver.longhorn.io", "volumeHandle": "source"}}},
+            "volume": {"kind": "Volume", "metadata": {"name": "source", "namespace": "longhorn-system"}, "spec": {"size": "1073741824", "numberOfReplicas": 2, "nodeSelector": ["old-policy"]}},
+        }
+        helper = ROOT / "ansible/roles/k3s/files/restore-volume-contract.py"
+        captured = subprocess.run(["python3", str(helper), "capture-contract"], input=json.dumps(source), text=True, capture_output=True)
+        self.assertEqual(captured.returncode, 0, captured.stderr)
+        contract = json.loads(captured.stdout)
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            state = directory / "state.json"
+            state.write_text(json.dumps({"source": contract["source"], "storageContract": contract,
+                "selectedBackup": {"metadata": {"name": "backup-1"}, "status": {"state": "Completed", "volumeName": "source", "url": "nfs://nas/x?backup=backup-1&volume=source"}},
+                "backupVolume": {"metadata": {"name": "bv-1"}}}))
+            fake = directory / "kubectl"
+            fake.write_text(textwrap.dedent('''
+                #!/usr/bin/env python3
+                import json, os, sys
+                from pathlib import Path
+                argv = sys.argv[1:]
+                with open(os.environ["FAKE_KUBECTL_LOG"], "a") as stream:
+                    stream.write(json.dumps(argv) + "\\n")
+                fixture = json.loads(Path(__file__).with_name("fixture.json").read_text())
+                if "get" not in argv: sys.exit(64)
+                if "storageclass" in argv: print(json.dumps(fixture["sc"]))
+                elif "pvc" in argv: print(json.dumps(fixture["pvc"]))
+                elif "pv-data" in argv: print(json.dumps(fixture["pv"]))
+                elif "engines.longhorn.io" in argv: print('{"kind":"List","items":[]}')
+                elif "--ignore-not-found" in argv: pass
+                else: sys.exit(64)
+            ''').lstrip())
+            fake.chmod(0o755)
+            for pool, count, drift in (("flash", 1, False), ("tank", 1, False), ("flash", 2, False), ("tank", 2, False), ("flash", 2, True)):
+                with self.subTest(pool=pool, count=count, drift=drift):
+                    name = ("longhorn-one-replica-" if count == 1 else "longhorn-") + pool
+                    sc = {"kind": "StorageClass", "metadata": {"name": name}, "provisioner": "driver.longhorn.io",
+                          "parameters": {"numberOfReplicas": "1" if drift else str(count), "diskSelector": pool, "nodeSelector": "general-storage"}}
+                    (directory / "fixture.json").write_text(json.dumps({**source, "sc": sc}))
+                    log = directory / "kubectl.log"
+                    log.write_text("")
+                    result = self.run_playbook(fake, log, "migration_phase=cutover", "migration_classify_only=true",
+                        "migration_source_pool=" + pool, "migration_target_replicas=" + str(count),
+                        "migration_target_pv=pv-target", "migration_target_volume=target",
+                        "migration_integrity_command=true", "migration_state_file=" + str(state))
+                    output = result.stdout + result.stderr
+                    self.assertEqual(result.returncode, 2 if drift else 0, output)
+                    self.assertIn("replica count mismatch" if drift else "fresh-source", output)
+                    commands = [json.loads(line) for line in log.read_text().splitlines()]
+                    self.assertIn(["get", "storageclass", name, "-o", "json"], commands)
+                    self.assertTrue(all("get" in command for command in commands), commands)
 
     def test_fake_kubectl_early_failure_exits_nonzero_without_mutation(self):
         if subprocess.run(["sh", "-c", "command -v ansible-playbook"], capture_output=True).returncode:

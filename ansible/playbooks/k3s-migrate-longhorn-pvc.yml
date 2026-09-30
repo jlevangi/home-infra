@@ -415,7 +415,7 @@
     migration_source_pool: ''
     migration_target_pool: "{{ migration_source_pool }}"
     migration_allow_pool_change: false
-    migration_target_storage_class: "{{ 'longhorn-one-replica-' ~ migration_target_pool }}"
+    migration_target_storage_class: "{{ ('longhorn-one-replica-' if migration_target_replicas | int == 1 else 'longhorn-') ~ migration_target_pool }}"
     migration_target_disk_selector: "{{ migration_target_pool }}"
     migration_target_replicas: 1
     migration_state_file: ''
@@ -443,14 +443,13 @@
           - not migration_target_volume.startswith('lh-')
           - "'-migrated' not in migration_target_pv"
           - "'-migrated' not in migration_target_volume"
-          - migration_target_storage_class == 'longhorn-one-replica-' ~ migration_target_pool
+          - migration_target_replicas | string in ['1', '2']
+          - migration_target_storage_class == ('longhorn-one-replica-' if migration_target_replicas | int == 1 else 'longhorn-') ~ migration_target_pool
           - migration_target_disk_selector == migration_target_pool
-          - migration_target_storage_class in ['longhorn-one-replica-flash', 'longhorn-one-replica-tank']
-          - migration_target_replicas | int == 1
         fail_msg: >-
           Cutover requires exact env, namespace, PVC, child/root app, state file path,
           integrity command, explicit stable production identities, source/target pool,
-          one-replica target class/selector, and target_replicas=1. Pool changes require
+          matching flash/tank class/selector, and target_replicas=1 or 2. Pool changes require
           migration_allow_pool_change=true. Temporary-looking lh-* and *-migrated target
           identities are forbidden.
 
@@ -495,6 +494,12 @@
           - migration_classify_only | bool or migration_skip_confirmation | bool or migration_cutover_confirmation.user_input == 'CUTOVER ' ~ target_env ~ '/' ~ restore_namespace ~ '/' ~ restore_pvc_name
         fail_msg: Cutover confirmation did not exactly match.
 
+    - name: Fetch exact target StorageClass policy
+      ansible.builtin.command:
+        argv: ["{{ migration_kubectl }}", get, storageclass, "{{ migration_target_storage_class }}", -o, json]
+      register: migration_target_storage_class_raw
+      changed_when: false
+
     - name: Generate migration target resources from state contract
       ansible.builtin.shell:
         cmd: >-
@@ -506,7 +511,7 @@
           --target-replicas {{ migration_target_replicas | int }}
       args:
         executable: /bin/bash
-        stdin: "{{ {'state': migration_state} | to_json }}"
+        stdin: "{{ {'state': migration_state, 'storageClass': migration_target_storage_class_raw.stdout | from_json} | to_json }}"
       register: migration_resources_raw
       changed_when: false
     - name: Parse migration target resources
@@ -543,6 +548,7 @@
           --source-volume {{ migration_state_source.longhornVolumeName | quote }}
           --pv {{ migration_target_pv | quote }} --volume {{ migration_target_volume | quote }}
           --replicas {{ migration_target_replicas | int }} --disk-selector {{ migration_target_disk_selector | quote }}
+          --node-selector {{ migration_target_resources.volume.spec.nodeSelector | join(',') | quote }}
           --backup-volume {{ migration_state_backup_volume.metadata.name | quote }}
       args:
         executable: /bin/bash
@@ -722,6 +728,7 @@
               --volume {{ migration_target_volume | quote }}
               --replicas {{ migration_target_replicas | int }}
               --disk-selector {{ migration_target_disk_selector | quote }}
+              --node-selector {{ migration_target_resources.volume.spec.nodeSelector | join(',') | quote }}
               --backup-volume {{ migration_state_backup_volume.metadata.name | quote }}
           args:
             executable: /bin/bash

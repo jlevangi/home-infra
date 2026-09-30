@@ -166,7 +166,7 @@ class ContractTests(unittest.TestCase):
         argv = ("migration-resources", "--target-pv", "pv-target", "--target-volume", "lh-target",
                 "--target-storage-class", "longhorn-one-replica-tank", "--target-disk-selector", "tank",
                 "--target-replicas", "1")
-        out = self.ok(*argv, data={"state": state})
+        out = self.ok(*argv, data={"state": state, "storageClass": {"kind": "StorageClass", "metadata": {"name": "longhorn-one-replica-tank"}, "provisioner": "driver.longhorn.io", "parameters": {"numberOfReplicas": "1", "diskSelector": "tank"}}})
         self.assertEqual(out["pvc"]["spec"]["volumeName"], "pv-target")
         self.assertEqual(out["pv"]["spec"]["persistentVolumeReclaimPolicy"], "Retain")
         self.assertEqual(out["pv"]["spec"]["csi"]["volumeHandle"], "lh-target")
@@ -177,7 +177,57 @@ class ContractTests(unittest.TestCase):
         for bad_target in (("pv-data", "lh-target"), ("pv-target", "lh-1")):
             self.bad("migration-resources", "--target-pv", bad_target[0], "--target-volume", bad_target[1],
                      "--target-storage-class", "longhorn-one-replica-tank", "--target-disk-selector", "tank",
-                     "--target-replicas", "1", data={"state": state})
+                     "--target-replicas", "1", data={"state": state, "storageClass": {"kind": "StorageClass", "metadata": {"name": "longhorn-one-replica-tank"}, "provisioner": "driver.longhorn.io", "parameters": {"numberOfReplicas": "1", "diskSelector": "tank"}}})
+
+    def test_migration_resources_canonical_policy_and_retry_node_selector(self):
+        source = self.fixture()
+        source["volume"]["spec"]["nodeSelector"] = ["old-policy"]
+        contract = self.ok("capture-contract", data=source)
+        state = {"storageContract": contract,
+                 "selectedBackup": {"metadata": {"name": "backup-1"}, "status": {"state": "Completed", "volumeName": "lh-1", "url": "nfs://nas/x?backup=backup-1&volume=lh-1"}},
+                 "backupVolume": {"metadata": {"name": "bv-1"}}}
+        for pool in ("flash", "tank"):
+            for count in (1, 2):
+                name = ("longhorn-one-replica-" if count == 1 else "longhorn-") + pool
+                argv = ("migration-resources", "--target-pv", "pv-target", "--target-volume", "target",
+                        "--target-storage-class", name, "--target-disk-selector", pool,
+                        "--target-replicas", str(count))
+                sc = {"kind": "StorageClass", "metadata": {"name": name}, "provisioner": "driver.longhorn.io",
+                      "parameters": {"numberOfReplicas": str(count), "diskSelector": pool}}
+                for nodes in ("", "general-storage,gpu"):
+                    sc["parameters"]["nodeSelector"] = nodes
+                    data = {"state": state, "storageClass": sc}
+                    out = self.ok(*argv, data=data)
+                    self.assertEqual(out["volume"]["spec"]["numberOfReplicas"], count)
+                    self.assertEqual(out["volume"]["spec"]["nodeSelector"], nodes.split(",") if nodes else [])
+                    self.assertEqual(out["pvc"]["spec"]["storageClassName"], name)
+                    retained = json.loads(json.dumps(source["pv"]))
+                    retained["spec"]["persistentVolumeReclaimPolicy"] = "Retain"
+                    engine = {"kind": "EngineList", "items": [{"kind": "Engine", "metadata": {"name": "e"}, "spec": {"volumeName": "target", "backupVolume": "bv-1"}}]}
+                    retry = {"desired": out, "pvc": None, "sourcePv": retained, "targetPv": None,
+                             "targetVolume": json.loads(json.dumps(out["volume"])), "targetEngines": engine}
+                    check = ("cutover-state", "--namespace", "app", "--pvc", "data", "--source-pv", "pv-data",
+                             "--source-volume", "lh-1", "--pv", "pv-target", "--volume", "target",
+                             "--replicas", str(count), "--disk-selector", pool, "--node-selector", nodes,
+                             "--backup-volume", "bv-1")
+                    self.assertEqual(self.ok(*check, data=retry)["state"], "resume-create")
+                    retry["targetVolume"]["spec"]["nodeSelector"] = ["wrong"]
+                    self.bad(*check, data=retry)
+                    retry["pvc"] = json.loads(json.dumps(out["pvc"]))
+                    retry["pvc"]["status"] = {"phase": "Bound"}
+                    retry["targetPv"] = json.loads(json.dumps(out["pv"]))
+                    retry["targetPv"]["spec"]["claimRef"] = {"name": "data", "namespace": "app"}
+                    self.bad(*check, data=retry)
+                    retry["targetVolume"] = out["volume"]
+                    self.assertEqual(self.ok(*check, data=retry)["state"], "target-bound")
+                self.bad(*argv, data={"state": state})
+                bad = json.loads(json.dumps(sc)); bad["metadata"]["name"] = "wrong"
+                self.bad(*argv, data={"state": state, "storageClass": bad})
+                for key, wrong in (("numberOfReplicas", "3"), ("diskSelector", "other"), ("nodeSelector", "bad,,tag")):
+                    bad = json.loads(json.dumps(sc)); bad["parameters"][key] = wrong
+                    self.bad(*argv, data={"state": state, "storageClass": bad})
+                bad = json.loads(json.dumps(sc)); bad["provisioner"] = "other"
+                self.bad(*argv, data={"state": state, "storageClass": bad})
 
     def test_migration_resources_handles_pv_without_metadata(self):
         contract = self.ok("capture-contract", data=self.fixture())
@@ -189,7 +239,7 @@ class ContractTests(unittest.TestCase):
         argv = ("migration-resources", "--target-pv", "pv-target", "--target-volume", "lh-target",
                 "--target-storage-class", "longhorn-one-replica-tank", "--target-disk-selector", "tank",
                 "--target-replicas", "1")
-        out = self.ok(*argv, data={"state": state})
+        out = self.ok(*argv, data={"state": state, "storageClass": {"kind": "StorageClass", "metadata": {"name": "longhorn-one-replica-tank"}, "provisioner": "driver.longhorn.io", "parameters": {"numberOfReplicas": "1", "diskSelector": "tank"}}})
         self.assertEqual(out["pv"]["metadata"]["name"], "pv-target")
 
     def test_verify_target_binding_requires_exact_retain_contract(self):
@@ -217,7 +267,7 @@ class ContractTests(unittest.TestCase):
                  "backupVolume": {"metadata": {"name": "bv-1"}}}
         desired = self.ok("migration-resources", "--target-pv", "pv-target", "--target-volume", "lh-target",
                           "--target-storage-class", "longhorn-one-replica-tank", "--target-disk-selector", "tank",
-                          "--target-replicas", "1", data={"state": state})
+                          "--target-replicas", "1", data={"state": state, "storageClass": {"kind": "StorageClass", "metadata": {"name": "longhorn-one-replica-tank"}, "provisioner": "driver.longhorn.io", "parameters": {"numberOfReplicas": "1", "diskSelector": "tank"}}})
         argv = ("cutover-state", "--namespace", "app", "--pvc", "data", "--source-pv", "pv-data",
                 "--source-volume", "lh-1", "--pv", "pv-target", "--volume", "lh-target",
                 "--replicas", "1", "--disk-selector", "tank", "--backup-volume", "bv-1")

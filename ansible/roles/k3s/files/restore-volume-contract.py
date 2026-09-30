@@ -317,6 +317,21 @@ def migration_resources(data, args):
     target_volume = text(args.target_volume, "target Longhorn Volume name")
     target_storage_class = text(args.target_storage_class, "target StorageClass")
     target_selector = text(args.target_disk_selector, "target disk selector")
+    require(args.target_replicas in (1, 2), "target replicas must be 1 or 2")
+    require(target_selector in ("flash", "tank"), "target disk selector must be flash or tank")
+    expected_class = ("longhorn-one-replica-" if args.target_replicas == 1 else "longhorn-") + target_selector
+    require(target_storage_class == expected_class, "target StorageClass/count/selector mismatch")
+    sc = obj(data.get("storageClass"), "target StorageClass")
+    require(sc.get("kind") == "StorageClass", "target object is not a StorageClass")
+    sc_meta = obj(sc.get("metadata"), "target StorageClass metadata")
+    require(sc_meta.get("name") == target_storage_class, "target StorageClass identity mismatch")
+    require(sc.get("provisioner") == "driver.longhorn.io", "target StorageClass provisioner mismatch")
+    parameters = obj(sc.get("parameters"), "target StorageClass parameters")
+    require(parameters.get("numberOfReplicas") == str(args.target_replicas), "target StorageClass replica count mismatch")
+    require(parameters.get("diskSelector") == target_selector, "target StorageClass disk selector mismatch")
+    nodes = parameters.get("nodeSelector", "")
+    require(isinstance(nodes, str) and (not nodes or all(tag and tag.strip() == tag for tag in nodes.split(","))),
+            "target StorageClass node selector malformed")
     require(target_pv != source_pv, "target PV must differ from source PV")
     require(target_volume != source_volume, "target Longhorn Volume must differ from source Volume")
     require(backup_status.get("state") == "Completed", "selected backup is not Completed")
@@ -350,6 +365,7 @@ def migration_resources(data, args):
         labels["recurring-job-group.longhorn.io/hourly"] = "enabled"
     volume_spec["numberOfReplicas"] = args.target_replicas
     volume_spec["diskSelector"] = [target_selector]
+    volume_spec["nodeSelector"] = nodes.split(",") if nodes else []
     volume_spec["fromBackup"] = backup_url
     volume_spec.pop("nodeID", None)
     volume_spec.setdefault("backupTargetName", "default")
@@ -378,6 +394,9 @@ def verify_target_binding(data, args):
     require(pv_spec.get("persistentVolumeReclaimPolicy") == "Retain", "target PV is not Retain")
     require(volume_spec.get("numberOfReplicas") == args.replicas, "target replica count mismatch")
     require(volume_spec.get("diskSelector") == [args.disk_selector], "target disk selector mismatch")
+    if args.node_selector is not None:
+        require(volume_spec.get("nodeSelector", []) == (args.node_selector.split(",") if args.node_selector else []),
+                "target node selector mismatch")
     labels = obj(volume_meta.get("labels", {}), "target Volume labels")
     require(labels.get("backup-volume") == args.backup_volume, "target backup-volume label mismatch")
     return data
@@ -418,7 +437,7 @@ def cutover_state(data, args):
                 (want_meta.get("name"), want_meta.get("namespace")), "target Volume identity mismatch")
         require(obj(live_meta.get("labels", {}), "target Volume labels") ==
                 obj(want_meta.get("labels", {}), "desired Volume labels"), "target Volume labels mismatch")
-        for key in ("fromBackup", "numberOfReplicas", "diskSelector", "backupTargetName", "frontend", "size"):
+        for key in ("fromBackup", "numberOfReplicas", "diskSelector", "nodeSelector", "backupTargetName", "frontend", "size"):
             require(live_spec.get(key) == want_spec.get(key), f"target Volume {key} mismatch")
         target_engine = engine(target_engines, argparse.Namespace(volume=args.volume))
         _, _, engine_spec = resource({"engine": target_engine}, "engine", "Engine")
@@ -485,6 +504,7 @@ def parser():
     binding.add_argument("--volume", required=True)
     binding.add_argument("--replicas", required=True, type=int)
     binding.add_argument("--disk-selector", required=True)
+    binding.add_argument("--node-selector", default=None)
     binding.add_argument("--backup-volume", required=True)
     binding.set_defaults(handler=verify_target_binding)
     state = commands.add_parser("cutover-state", parents=[binding], add_help=False)

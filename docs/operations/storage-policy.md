@@ -103,6 +103,35 @@ Current policy expectations:
 4. Do not declare a migration wave complete until the storage-policy audit
    script passes for the PVCs in scope.
 
+### Fail-closed PVC cutover targets
+
+`ansible/playbooks/k3s-migrate-longhorn-pvc.yml` retains its N=1 default for
+existing callers. Select `migration_target_replicas=2` explicitly for canonical
+`longhorn-flash` or `longhorn-tank`; N=1 uses `longhorn-one-replica-{flash,tank}`.
+The class defaults from the requested replica count and target pool. An explicit
+class override must match that pair; compatibility aliases are not cutover targets.
+Changing tiers does not authorize reducing replicas: record the intended count
+and approval before running preflight-stop.
+
+Supply the recorded `migration_source_pool`; `migration_target_pool` defaults to
+it. Cross-pool moves require `migration_allow_pool_change=true`. Use stable,
+distinct target PV and Volume identities, the exact recovery state file, and an
+application-specific integrity command. Existing backup, source Retain,
+containment, acceptance, and post-cutover backup gates still apply.
+
+Before any destructive step, cutover reads the exact live target StorageClass
+and rejects a wrong provisioner, replica count, or disk selector. Its node
+selector is applied to the restored Volume and checked on retries, including
+when the class has no node selector (an obsolete source selector is not replayed).
+Do not clear an enforced target-class node selector manually.
+
+First run the cutover play with `--tags cutover` and
+`migration_classify_only=true` plus the intended inputs. This reads the class
+and exact source/target identities without mutation. Only proceed to cutover
+with the same approved inputs after classification succeeds. This check does
+not establish live capacity, physical-host redundancy, or application integrity;
+those remain operational preflight and acceptance requirements.
+
 ## Known Exceptions
 
 - Prometheus uses `longhorn-fast` despite being a TSDB. On `longhorn-tank`, its
