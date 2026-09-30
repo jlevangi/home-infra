@@ -113,7 +113,10 @@ patches:
     patch: |
       - op: replace
         path: /spec/volumeName
-        value: wizarr-config-pv
+        value: wizarr-config-flash-pv
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
   - target:
       kind: Deployment
     patch: |
