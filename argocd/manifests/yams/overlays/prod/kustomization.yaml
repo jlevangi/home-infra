@@ -91,7 +91,10 @@ patches:
     patch: |
       - op: replace
         path: /spec/volumeName
-        value: prowlarr-config-pv
+        value: prowlarr-config-flash-pv
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
   - target:
       kind: PersistentVolumeClaim
       name: wizarr-config-pvc
