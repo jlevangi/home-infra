@@ -124,12 +124,13 @@ resource "proxmox_vm_qemu" "worker" {
     cores   = 4
     sockets = 1
     # ponytail: "host" kernel-panics Debian 12 at init on the Ryzen 2200GE; generic v2 model boots.
-    type    = "x86-64-v2-AES"
+    type = "x86-64-v2-AES"
   }
 
-  memory  = 4608
-  balloon = 0
-  scsihw  = "virtio-scsi-pci"
+  vm_state = "running"
+  memory   = 4608
+  balloon  = 0
+  scsihw   = "virtio-scsi-pci"
 
   disk {
     format  = "raw"
