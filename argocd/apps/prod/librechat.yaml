@@ -57,6 +57,16 @@ spec:
               parameters: true
               sidePanel: true
               presets: true
+            modelSpecs:
+              enforce: false
+              prioritize: false
+              list:
+                - name: "9router-default"
+                  label: "9Router"
+                  default: true
+                  preset:
+                    endpoint: "9router"
+                    model: "agent-default"
             endpoints:
               custom:
                 # Points at models-shim, NOT at nine-router directly. The shim proxies
@@ -75,7 +85,7 @@ spec:
                 # or anywhere else. Add a model to config.yaml on pierce-pc and it shows
                 # up with the right context by itself.
                 - name: "9router"
-                  apiKey: "${NIN...EY}"
+                  apiKey: "${NINE_ROUTER_API_KEY}"
                   baseURL: "http://models-shim.9router.svc.cluster.local:8080/v1"
                   models:
                     default:
@@ -83,6 +93,16 @@ spec:
                     fetch: true
                   titleConvo: true
                   modelDisplayLabel: "9Router"
+                - name: "Pierce-PC"
+                  apiKey: "local"
+                  baseURL: "http://pierce-pc.levangie.org:9080/v1"
+                  models:
+                    # Required fallback; the selectable models are discovered dynamically.
+                    default:
+                      - "Qwen3.8-27B"
+                    fetch: true
+                  titleConvo: true
+                  modelDisplayLabel: "Pierce-PC"
                 - name: "OmniRoute"
                   apiKey: "${OMNIROUTE_API_KEY}"
                   baseURL: "http://omniroute.omniroute.svc.cluster.local:20128/v1"
