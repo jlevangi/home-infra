@@ -7,6 +7,16 @@ images:
     newTag: "edge-alpine"
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: actual-budget-data-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-d644a183-a991-4c4f-b7c4-a318d6abcf6d
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+  - target:
       kind: Ingress
       name: actual-budget-ingress
     patch: |
