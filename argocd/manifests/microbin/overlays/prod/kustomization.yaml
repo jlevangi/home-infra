@@ -13,7 +13,10 @@ patches:
     patch: |
       - op: replace
         path: /spec/volumeName
-        value: microbin-data-pv
+        value: pvc-373603c0-c49e-4ea6-af3d-feee6bdb76f2
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
   - target:
       kind: Ingress
       name: microbin-ingress
