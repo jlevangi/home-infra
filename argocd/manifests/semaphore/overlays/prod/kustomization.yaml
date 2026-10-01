@@ -4,6 +4,16 @@ resources:
   - ../../base
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: semaphore-data-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-be29aed4-6be4-4fb2-b5ae-5dc06a720ccb
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+  - target:
       kind: Ingress
       name: semaphore-ingress
     patch: |
