@@ -7,6 +7,16 @@ images:
     newTag: "2.7.1"
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: termix-data-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-d5108871-0697-4f9f-bbb0-43f8fdad24c8
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+  - target:
       kind: Ingress
       name: termix-ingress
     patch: |
