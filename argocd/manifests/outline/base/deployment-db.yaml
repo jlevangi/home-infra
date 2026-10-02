@@ -85,6 +85,9 @@ spec:
               memory: 256Mi
             limits:
               memory: 1024Mi
+          volumeMounts:
+            - name: db-data
+              mountPath: /var/lib/postgresql/data
       volumes:
         - name: db-data
           persistentVolumeClaim:
