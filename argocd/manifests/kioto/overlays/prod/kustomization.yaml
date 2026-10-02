@@ -4,6 +4,19 @@ resources:
   - ../../base
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: kioto-postgres-data-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-2456637b-d253-4792-b92c-bc398eed302f
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 1Gi
+  - target:
       kind: Ingress
       name: kioto-ingress
     patch: |-
