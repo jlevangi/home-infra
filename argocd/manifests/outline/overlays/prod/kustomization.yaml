@@ -2,3 +2,43 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../base
+patches:
+  - target:
+      kind: PersistentVolumeClaim
+      name: outline-data-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-16cc285c-d0dd-417a-9ac9-364dfb813b37
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 1Gi
+  - target:
+      kind: PersistentVolumeClaim
+      name: outline-db-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-48ecf8c3-8862-4889-856e-c71baf017f12
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 1Gi
+  - target:
+      kind: PersistentVolumeClaim
+      name: outline-redis-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-80c6efb6-b8e5-4586-89bb-708ad2165d1b
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 1Gi
