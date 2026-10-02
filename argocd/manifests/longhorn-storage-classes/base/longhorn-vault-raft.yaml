@@ -18,12 +18,11 @@ parameters:
   disableRevisionCounter: "true"
   fromBackup: ""
   fsType: ext4
-  # Vault runs 3 Raft voters with application-level replication. Keep each
-  # pod's Longhorn PV single-replica to avoid Longhorn rebuild storms causing
-  # Vault engine timeouts/reseals during node maintenance or disk churn.
-  diskSelector: tank
-  numberOfReplicas: "1"
-  replicaAutoBalance: disabled
+  # Vault runs 3 Raft voters with application-level replication. Flash keeps
+  # Raft fsync latency low; two replicas preserve per-member redundancy.
+  # Flash classes inherit cluster replica auto-balance (best-effort).
+  diskSelector: flash
+  numberOfReplicas: "2"
   recurringJobSelector: '[{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'
   staleReplicaTimeout: "30"
   unmapMarkSnapChainRemoved: ignored
