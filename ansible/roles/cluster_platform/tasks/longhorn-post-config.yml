@@ -56,8 +56,8 @@
       [ -n "$volume" ] || continue
       if [ -n "$pvc_namespace" ] && [ -n "$pvc_name" ]; then
         storage_class="$(KUBECONFIG={{ kubeconfig_path }} kubectl get pvc "$pvc_name" -n "$pvc_namespace" -o jsonpath='{.spec.storageClassName}' 2>/dev/null || true)"
-        # Vault Raft volumes intentionally use a dedicated single-replica
-        # StorageClass; Vault itself provides replication across 3 voters.
+        # Vault Raft volumes use a dedicated StorageClass (two-replica flash);
+        # Vault itself also replicates across 3 voters.
         [ "$storage_class" = "longhorn-vault-raft" ] && continue
       fi
       [ "$replicas" = "{{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}" ] || echo "$volume"
