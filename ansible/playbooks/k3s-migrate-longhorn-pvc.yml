@@ -13,6 +13,8 @@
     migration_extra_controllers: []
     migration_test_force_failure_after_stop: false
     argo_namespace: argocd
+    restore_extra_child_apps: []
+    migration_child_apps: "{{ [restore_child_app] + (restore_extra_child_apps | from_yaml if restore_extra_child_apps is string else restore_extra_child_apps) }}"
     longhorn_namespace: longhorn-system
 
   pre_tasks:
@@ -27,6 +29,9 @@
           - restore_pvc_name is match('^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$')
           - restore_child_app is defined
           - restore_child_app is match('^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$')
+          - migration_child_apps | reject('match', '^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$') | list | length == 0
+          - migration_child_apps | unique | length == migration_child_apps | length
+          - restore_root_app not in migration_child_apps
           - restore_root_app is defined
           - restore_root_app == 'root-' ~ target_env
           - migration_phase is defined
@@ -164,7 +169,7 @@
         cmd: >-
           python3 {{ migration_contract_helper | quote }} argo-apps
           --root-app {{ restore_root_app | quote }} --target-namespace {{ restore_namespace | quote }}
-          --child-app {{ restore_child_app | quote }}
+          {% for app in migration_child_apps %}--child-app {{ app | quote }} {% endfor %}
           {{ '--paused' if migration_prepaused | bool else '' }}
       args:
         executable: /bin/bash
@@ -177,9 +182,9 @@
         apps_by_name: "{{ dict(apps_contract.applications | map(attribute='metadata.name') | zip(apps_contract.applications)) }}"
       ansible.builtin.assert:
         that:
-          - apps_contract.pauseOrder == [restore_root_app, restore_child_app]
+          - apps_contract.pauseOrder == [restore_root_app] + (migration_child_apps | sort)
           - apps_by_name[restore_root_app].operation | default(None) == None
-          - apps_by_name[restore_child_app].operation | default(None) == None
+          - migration_child_apps | map('extract', apps_by_name) | selectattr('operation', 'defined') | list | length == 0
         fail_msg: Exact root/child Argo identities or active-operation gate failed.
 
     - name: Fetch workload resources in exact namespace
@@ -254,14 +259,16 @@
           ansible.builtin.pause: {seconds: 5}
         - name: Pause exact child Argo automated sync
           ansible.builtin.command:
-            argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", patch, application, "{{ restore_child_app }}", --type=json, -p, '[{"op":"remove","path":"/spec/syncPolicy/automated"}]']
+            argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", patch, application, "{{ item }}", --type=json, -p, '[{"op":"remove","path":"/spec/syncPolicy/automated"}]']
+          loop: "{{ migration_child_apps }}"
           when: not migration_prepaused | bool
         - name: Verify child automated sync absent
           ansible.builtin.command:
-            argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", get, application, "{{ restore_child_app }}", -o, 'jsonpath={.spec.syncPolicy.automated}']
+            argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", get, application, "{{ item }}", -o, 'jsonpath={.spec.syncPolicy.automated}']
+          loop: "{{ migration_child_apps }}"
           register: migration_child_automated
           changed_when: false
-        - ansible.builtin.assert: {that: "migration_child_automated.stdout == ''"}
+        - ansible.builtin.assert: {that: "migration_child_automated.results | map(attribute='stdout') | reject('equalto', '') | list | length == 0"}
         - name: Wait after child pause
           ansible.builtin.pause: {seconds: 5}
         - name: Suspend matching CronJobs
@@ -410,6 +417,8 @@
     migration_test_force_failure_after_restore: false
     migration_test_force_failure_after_integrity: false
     argo_namespace: argocd
+    restore_extra_child_apps: []
+    migration_child_apps: "{{ [restore_child_app] + (restore_extra_child_apps | from_yaml if restore_extra_child_apps is string else restore_extra_child_apps) }}"
     longhorn_namespace: longhorn-system
     migration_target_pv: ''
     migration_target_volume: ''
@@ -759,10 +768,12 @@
     - block:
         - name: Resume child Argo to run workload
           ansible.builtin.command:
-            argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", patch, application, "{{ restore_child_app }}", --type=merge, -p, '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}']
+            argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", patch, application, "{{ item }}", --type=merge, -p, '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}']
+          loop: "{{ migration_child_apps }}"
         - name: Wait for child Argo to sync
           ansible.builtin.command:
-            argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", get, application, "{{ restore_child_app }}", -o, 'jsonpath={.status.sync.status}']
+            argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", get, application, "{{ item }}", -o, 'jsonpath={.status.sync.status}']
+          loop: "{{ migration_child_apps }}"
           register: migration_child_sync
           until: migration_child_sync.stdout == 'Synced'
           retries: 60
@@ -889,7 +900,7 @@
         - name: Read root and child automated sync before containment
           ansible.builtin.command:
             argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", get, application, "{{ item }}", -o, 'jsonpath={.spec.syncPolicy.automated}']
-          loop: ["{{ restore_root_app }}", "{{ restore_child_app }}"]
+          loop: "{{ [restore_root_app] + migration_child_apps }}"
           register: migration_acceptance_argo_automated
           changed_when: false
         - name: Re-pause root then child Argo after acceptance failure
@@ -908,7 +919,7 @@
         - name: Verify root and child automated sync absent after containment
           ansible.builtin.command:
             argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", get, application, "{{ item }}", -o, 'jsonpath={.spec.syncPolicy.automated}']
-          loop: ["{{ restore_root_app }}", "{{ restore_child_app }}"]
+          loop: "{{ [restore_root_app] + migration_child_apps }}"
           register: migration_acceptance_argo_paused
           changed_when: false
           failed_when: migration_acceptance_argo_paused.stdout != ''
@@ -944,6 +955,8 @@
     migration_kubectl: kubectl
     migration_skip_confirmation: false
     argo_namespace: argocd
+    restore_extra_child_apps: []
+    migration_child_apps: "{{ [restore_child_app] + (restore_extra_child_apps | from_yaml if restore_extra_child_apps is string else restore_extra_child_apps) }}"
     longhorn_namespace: longhorn-system
     migration_state_file: ''
 
@@ -1014,7 +1027,8 @@
 
         - name: Resume child Argo
           ansible.builtin.command:
-            argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", patch, application, "{{ restore_child_app }}", --type=merge, -p, '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}']
+            argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", patch, application, "{{ item }}", --type=merge, -p, '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}']
+          loop: "{{ migration_child_apps }}"
         - name: Resume root Argo
           ansible.builtin.command:
             argv: ["{{ migration_kubectl }}", -n, "{{ argo_namespace }}", patch, application, "{{ restore_root_app }}", --type=merge, -p, '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}']

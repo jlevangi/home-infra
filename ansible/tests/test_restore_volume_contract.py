@@ -50,6 +50,15 @@ class ContractTests(unittest.TestCase):
         out = self.ok("argo-apps", "--root-app", "root", "--child-app", "grafana-pvc", "--target-namespace", "monitoring", data={"kind": "ApplicationList", "items": [root, child, other]})
         self.assertEqual(out["pauseOrder"], ["root", "grafana-pvc"])
 
+    def test_argo_multiple_exact_children_pause_root_first(self):
+        root = {"metadata": {"name": "root"}, "spec": {"syncPolicy": {"automated": {}}, "destination": {"namespace": "argocd"}}}
+        pvc = {"metadata": {"name": "grafana-pvc"}, "spec": {"syncPolicy": {"automated": {"prune": False}}, "destination": {"namespace": "monitoring"}}}
+        helm = {"metadata": {"name": "kube-prometheus-stack"}, "spec": {"syncPolicy": {"automated": {}}, "destination": {"namespace": "monitoring"}}}
+        other = {"metadata": {"name": "loki"}, "spec": {"syncPolicy": {"automated": {}}, "destination": {"namespace": "monitoring"}}}
+        out = self.ok("argo-apps", "--root-app", "root", "--child-app", "kube-prometheus-stack", "--child-app", "grafana-pvc", "--target-namespace", "monitoring", data={"kind": "ApplicationList", "items": [helm, other, pvc, root]})
+        self.assertEqual(out["pauseOrder"], ["root", "grafana-pvc", "kube-prometheus-stack"])
+        self.assertEqual(out["resumeOrder"], ["grafana-pvc", "kube-prometheus-stack", "root"])
+
     def test_argo_fails_closed(self):
         self.bad("argo-apps", "--root-app", "root", "--target-namespace", "x", data={"items": {}})
         self.bad("argo-apps", "--root-app", "root", "--target-namespace", "x", data={"kind": "ApplicationList", "items": [{"metadata": {"name": "root"}, "spec": {"syncPolicy": {"automated": None}}}]})

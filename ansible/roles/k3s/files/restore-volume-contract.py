@@ -63,7 +63,7 @@ def argo_apps(data, args):
             obj(sync["automated"], "application.spec.syncPolicy.automated")
         relevant = name == args.root_app or (
             destination.get("namespace") in targets
-            and (not args.child_app or name == args.child_app)
+            and (not args.child_app or name in args.child_app)
         )
         if relevant and (automated_present or args.paused):
             require(name not in selected, f"duplicate application {name}")
@@ -468,7 +468,7 @@ def parser():
     commands = result.add_subparsers(dest="command", required=True)
     argo = commands.add_parser("argo-apps")
     argo.add_argument("--root-app", required=True)
-    argo.add_argument("--child-app")
+    argo.add_argument("--child-app", action="append")
     argo.add_argument("--target-namespace", action="append", required=True)
     argo.add_argument("--paused", action="store_true")
     argo.set_defaults(handler=argo_apps)
