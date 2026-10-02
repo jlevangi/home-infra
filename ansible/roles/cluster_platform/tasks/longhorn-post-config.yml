@@ -105,7 +105,7 @@
       📊 Longhorn Replica Count Adjustment:
       Target replica count: {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}
       Based on: min({{ platform_cluster_node_count | default(0) | int }} cluster nodes, 3)
-      Replica auto-balance target: {{ longhorn_replica_auto_balance | default('best-effort') }}
+      Replica auto-balance target: tank=disabled, other={{ longhorn_replica_auto_balance | default('best-effort') }}
 
       {% if volume_count.stdout | int == 0 %}
       ℹ️  No existing volumes found - new volumes will use correct replica count
