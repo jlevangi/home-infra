@@ -5,8 +5,11 @@ resources:
 patches:
   - target:
       kind: PersistentVolumeClaim
-      name: kube-prometheus-stack-grafana
+      name: kube-prometheus-stack-grafana-rdn
     patch: |
       - op: add
         path: /spec/volumeName
-        value: kube-prometheus-stack-grafana
+        value: pvc-fed126cd-f481-417a-ab45-ded51277ab02
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
