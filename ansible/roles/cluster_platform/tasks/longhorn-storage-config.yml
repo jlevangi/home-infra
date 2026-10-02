@@ -102,6 +102,11 @@
 # persistence.defaultClass is set to false (see longhorn-values.yaml.j2) so
 # the helm-managed longhorn-storageclass ConfigMap no longer auto-applies the
 # default SC and won't fight ArgoCD. See home-infra-btv.
+- name: Remove legacy Helm StorageClass creator now owned by GitOps
+  ansible.builtin.shell: |
+    KUBECONFIG={{ kubeconfig_path }} kubectl delete configmap longhorn-storageclass -n longhorn-system --ignore-not-found
+  register: legacy_storageclass_cleanup
+  changed_when: "'deleted' in legacy_storageclass_cleanup.stdout"
 
 - name: Wait for API server before BackupTarget update
   pause:
