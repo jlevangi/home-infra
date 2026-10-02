@@ -4,6 +4,32 @@ resources:
   - ../../base
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: karakeep-data-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-e170c8c2-f635-4e95-9263-b37c4cc1a8ad
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 1Gi
+  - target:
+      kind: PersistentVolumeClaim
+      name: karakeep-meilisearch-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-dd9760c1-52e1-46a4-891a-098f9690ccfa
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 1Gi
+  - target:
       kind: Ingress
       name: karakeep-ingress
     patch: |-
