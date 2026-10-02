@@ -38,6 +38,14 @@ healthy PVC just to switch between those two names.
 4. Atlas flash capacity is a shared physical mirror behind all four prod
    workers. Judge flash pressure from the Atlas per-drive Grafana panels, not
    from guest-side `/proc/diskstats`.
+5. A PVC only protects data that is written to it. Every stateful workload must
+   mount its PVC in the **main** container at the image's real data path. An
+   init-only mount or a wrong path leaves data on the container layer: the app
+   still works, backups "succeed" with an empty volume, and a restart deletes
+   everything (see `docs/post-mortems/2026-10-02-outline-postgres-ephemeral-pgdata.md`).
+   Verify on deploy and before any scale-down: `df -P <data path>` in the pod
+   shows `/dev/longhorn/...` (not `overlay`), and a marker written to the
+   database survives a pod delete.
 
 ## Decision Table
 
