@@ -11,6 +11,26 @@ images:
     newTag: "17-3.5"
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: geopulse-app-data-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-680e9dc2-c02f-4460-aebc-282dd3f986fe
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+  - target:
+      kind: PersistentVolumeClaim
+      name: geopulse-postgres-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-981e40ab-c8b2-4638-9898-2f6ff258ae36
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+  - target:
       kind: Ingress
       name: geopulse-ingress
     patch: |
