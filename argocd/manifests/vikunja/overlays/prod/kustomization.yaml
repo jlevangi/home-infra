@@ -5,3 +5,17 @@ resources:
 labels:
   - pairs:
       environment: prod
+patches:
+  - target:
+      kind: PersistentVolumeClaim
+      name: vikunja-postgres
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-4b203bf4-cd80-4bce-9069-f0591e5917ad
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 1Gi
