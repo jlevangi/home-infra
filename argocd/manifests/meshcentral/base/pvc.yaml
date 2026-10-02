@@ -14,5 +14,5 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 10Gi
-  storageClassName: longhorn-tank
+      storage: 1Gi
+  storageClassName: longhorn-flash

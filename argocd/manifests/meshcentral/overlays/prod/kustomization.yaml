@@ -3,6 +3,13 @@ kind: Kustomization
 resources:
   - ../../base
 patches:
+  - target:
+      kind: PersistentVolumeClaim
+      name: meshcentral-data-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-9d0cd906-e0f6-4d7a-838b-6dd15672aea6
   # Route internal clients to MeshCentral via the Caddy reverse proxy
   # (caddy.levangie.dev -> 172.20.20.3), the same TLS front-door external agents use.
   # MeshCentral runs in TlsOffload mode and pins the Caddy (ZeroSSL) cert hash via
