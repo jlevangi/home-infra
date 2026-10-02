@@ -21,4 +21,5 @@ parameters:
   dataEngine: v1
   backupTargetName: default
   diskSelector: tank
+  replicaAutoBalance: disabled
   recurringJobSelector: '[{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'

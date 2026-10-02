@@ -23,7 +23,7 @@ parameters:
   # Vault engine timeouts/reseals during node maintenance or disk churn.
   diskSelector: tank
   numberOfReplicas: "1"
-  replicaAutoBalance: best-effort
+  replicaAutoBalance: disabled
   recurringJobSelector: '[{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'
   staleReplicaTimeout: "30"
   unmapMarkSnapChainRemoved: ignored
