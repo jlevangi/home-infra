@@ -33,8 +33,6 @@ longhorn_exclude_master_from_storage: true
 longhorn_create_default_disk_labeled_nodes: true
 longhorn_guaranteed_instance_manager_cpu: 12
 longhorn_default_node_selector: "general-storage"
-longhorn_media_node_selector: "media-storage"
-longhorn_media_storage_class_name: "longhorn-media"
 
 # -----------------------------------------------------------------------------
 # CONTROL-PLANE NODE TAINT

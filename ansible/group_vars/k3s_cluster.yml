@@ -246,8 +246,6 @@ longhorn_storage_reserved_percentage_for_default_disk: 5
 # disk still has more than 80 GiB physically available.
 longhorn_storage_over_provisioning_percentage: 225
 longhorn_default_node_selector: ""
-longhorn_media_node_selector: ""
-longhorn_media_storage_class_name: "longhorn-media"
 longhorn_ui_ingress_enabled: true
 longhorn_ui_app_url: "https://longhorn.{{ environment_domain }}"
 longhorn_validation_mode: "auto"  # auto skips the test PVC when healthy volumes already exist

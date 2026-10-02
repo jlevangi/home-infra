@@ -7,17 +7,16 @@ ArgoCD-managed Longhorn StorageClasses for the prod cluster.
 | SC | Purpose |
 |---|---|
 | `longhorn` | Default 2-replica class, pinned to flash. |
-| `longhorn-general` | Compatibility alias for `longhorn`. |
 | `longhorn-flash` | Canonical explicit flash tier for latency-sensitive state. |
 | `longhorn-fast` | Compatibility alias for `longhorn-flash`. |
 | `longhorn-tank` | Canonical tank tier for capacity/archive workloads. |
-| `longhorn-steady` | Legacy alias for `longhorn-tank`. |
 | `longhorn-redundant` | Canonical higher-redundancy class for singleton state. |
-| `longhorn-singleton` | Legacy alias for `longhorn-redundant`. |
 | `longhorn-vault-raft` | Vault raft only. Single replica on tank. |
 
-`longhorn-media` is currently still Ansible-managed (no cross-pool concern;
-pre-dates this work).
+Unused `longhorn-general`, `longhorn-singleton`, `longhorn-steady`, and
+`longhorn-media` were retired after checking live PVC/PV references. Ansible
+no longer creates media classes. Keep `longhorn-static`: it is Longhorn's
+configured recovery/import class, even when no current PVC uses it.
 
 ## Why ArgoCD owns these now
 
@@ -38,8 +37,7 @@ The current manifests keep canonical names plus compatibility aliases in paralle
 
 - Canonical names used by new manifests: `longhorn`, `longhorn-flash`,
   `longhorn-tank`, `longhorn-redundant`, `longhorn-vault-raft`
-- Compatibility aliases kept for bound PVCs: `longhorn-general`,
-  `longhorn-fast`, `longhorn-steady`, `longhorn-singleton`
+- Compatibility alias kept for bound PVCs: `longhorn-fast`
 
 The default `longhorn` class has two replicas and `diskSelector: flash`.
 Capacity/archive workloads must explicitly select `longhorn-tank`; tank is not

@@ -102,59 +102,6 @@
 # persistence.defaultClass is set to false (see longhorn-values.yaml.j2) so
 # the helm-managed longhorn-storageclass ConfigMap no longer auto-applies the
 # default SC and won't fight ArgoCD. See home-infra-btv.
-#
-# longhorn-media remains Ansible-managed for now — it's conditional on
-# longhorn_media_node_selector and has no cross-pool concern; revisit if it
-# grows beyond a single-cluster use case.
-
-- name: Build Longhorn media StorageClass manifest
-  set_fact:
-    longhorn_media_storageclass_manifest: |
-      kind: StorageClass
-      apiVersion: storage.k8s.io/v1
-      metadata:
-        name: {{ longhorn_media_storage_class_name | default('longhorn-media') }}
-      provisioner: driver.longhorn.io
-      allowVolumeExpansion: true
-      reclaimPolicy: "Delete"
-      volumeBindingMode: Immediate
-      parameters:
-        numberOfReplicas: "{{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}"
-        replicaAutoBalance: "{{ longhorn_replica_auto_balance | default('best-effort') }}"
-        staleReplicaTimeout: "30"
-        fromBackup: ""
-        fsType: "ext4"
-        dataLocality: "best-effort"
-        unmapMarkSnapChainRemoved: "ignored"
-        disableRevisionCounter: "true"
-        dataEngine: "v1"
-        backupTargetName: "default"
-        recurringJobSelector: '[{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'
-        nodeSelector: "{{ longhorn_media_node_selector }}"
-  when: longhorn_media_node_selector | default('') | length > 0
-
-- name: Create or update Longhorn media StorageClass
-  ansible.builtin.shell: |
-    KUBECONFIG={{ kubeconfig_path }} kubectl apply -f - <<'EOF'
-    {{ longhorn_media_storageclass_manifest }}
-    EOF
-  register: media_storageclass_update_result
-  failed_when: false
-  when: longhorn_media_node_selector | default('') | length > 0
-
-- name: Display StorageClass update result
-  debug:
-    msg: |
-      🔧 Longhorn StorageClass Update:
-      ℹ️  longhorn / longhorn-flash / longhorn-tank are now managed by ArgoCD
-         (argocd/manifests/longhorn-storage-classes/) — see home-infra-btv.
-      {% if longhorn_media_node_selector | default('') | length > 0 %}
-      {% if media_storageclass_update_result.rc == 0 %}
-      ✅ Successfully applied {{ longhorn_media_storage_class_name | default('longhorn-media') }} for nodeSelector={{ longhorn_media_node_selector }}
-      {% else %}
-      ⚠️  Media StorageClass update failed: {{ media_storageclass_update_result.stderr | default('Unknown error') }}
-      {% endif %}
-      {% endif %}
 
 - name: Wait for API server before BackupTarget update
   pause:
