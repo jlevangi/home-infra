@@ -55,6 +55,16 @@ patches:
       - op: add
         path: /spec/volumeName
         value: tracearr-data-pv
+  - target:
+      kind: PersistentVolumeClaim
+      name: tunarr-config-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-cbadd6d3-d511-498c-b7a4-0a3079ba0266
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
 images:
   - name: lscr.io/linuxserver/jellyfin
     newTag: "12.0ubu2604-ls48"
