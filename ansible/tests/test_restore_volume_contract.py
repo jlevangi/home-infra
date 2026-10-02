@@ -43,6 +43,13 @@ class ContractTests(unittest.TestCase):
         out = self.ok("argo-apps", "--root-app", "root", "--target-namespace", "target", "--paused", data={"kind": "ApplicationList", "items": [child, root]})
         self.assertEqual(out["applications"], [root, child])
 
+    def test_argo_exact_child_in_shared_namespace(self):
+        root = {"metadata": {"name": "root"}, "spec": {"syncPolicy": {"automated": {}}, "destination": {"namespace": "argocd"}}}
+        child = {"metadata": {"name": "grafana-pvc"}, "spec": {"syncPolicy": {"automated": {}}, "destination": {"namespace": "monitoring"}}}
+        other = {"metadata": {"name": "loki"}, "spec": {"syncPolicy": {"automated": {}}, "destination": {"namespace": "monitoring"}}}
+        out = self.ok("argo-apps", "--root-app", "root", "--child-app", "grafana-pvc", "--target-namespace", "monitoring", data={"kind": "ApplicationList", "items": [root, child, other]})
+        self.assertEqual(out["pauseOrder"], ["root", "grafana-pvc"])
+
     def test_argo_fails_closed(self):
         self.bad("argo-apps", "--root-app", "root", "--target-namespace", "x", data={"items": {}})
         self.bad("argo-apps", "--root-app", "root", "--target-namespace", "x", data={"kind": "ApplicationList", "items": [{"metadata": {"name": "root"}, "spec": {"syncPolicy": {"automated": None}}}]})
