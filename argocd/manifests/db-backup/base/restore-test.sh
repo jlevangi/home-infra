@@ -30,11 +30,14 @@ for nsdir in "$SRC"/*/; do
   log "restore $ns $(basename "$f")"
   case $ENGINE in
     postgres)
-      user_dbs="select datname from pg_database where datname not in ('postgres','template0','template1')"
-      for d in $(q -c "$user_dbs"); do q -c "drop database \"$d\" with (force)" >/dev/null; done
+      # Reset to a pristine server: drop every DB except templates, recreate
+      # `postgres` (some apps, e.g. firecrawl/supabase, keep tables there).
+      tq() { psql -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 -tA -d template1 "$@"; }
+      for d in $(tq -c "select datname from pg_database where not datistemplate"); do tq -c "drop database \"$d\" with (force)" >/dev/null; done
+      tq -c "create database postgres" >/dev/null
       # pg_dumpall output recreates roles too; existing-role errors are expected noise
       zcat "$f" | psql -h 127.0.0.1 -U postgres -q -o /dev/null postgres > /tmp/err 2>&1
-      n=0; for d in $(q -c "$user_dbs"); do
+      n=0; for d in $(tq -c "select datname from pg_database where not datistemplate"); do
         n=$(( n + $(q -d "$d" -c "select count(*) from pg_tables where schemaname not in ('pg_catalog','information_schema')") )); done ;;
     mariadb)
       sys="'mysql','information_schema','performance_schema','sys'"

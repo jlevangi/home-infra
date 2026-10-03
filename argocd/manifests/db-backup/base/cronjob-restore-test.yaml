@@ -35,7 +35,7 @@ spec:
             command:
             - sh
             - -c
-            - docker-entrypoint.sh postgres -c fsync=off -c full_page_writes=off & sh /scripts/restore-test.sh postgres; rc=$?; echo $rc > /result/rc; exit $rc
+            - docker-entrypoint.sh postgres -c fsync=off -c full_page_writes=off -c log_min_messages=fatal -c log_min_error_statement=panic >/dev/null 2>&1 & sh /scripts/restore-test.sh postgres; rc=$?; echo $rc > /result/rc; exit $rc
             env:
             - name: POSTGRES_HOST_AUTH_METHOD
               value: trust
@@ -129,7 +129,7 @@ spec:
             command:
             - sh
             - -c
-            - docker-entrypoint.sh mariadbd & sh /scripts/restore-test.sh mariadb; rc=$?; echo $rc > /result/rc; exit $rc
+            - docker-entrypoint.sh mariadbd >/dev/null 2>&1 & sh /scripts/restore-test.sh mariadb; rc=$?; echo $rc > /result/rc; exit $rc
             env:
             - name: MARIADB_ALLOW_EMPTY_ROOT_PASSWORD
               value: '1'
