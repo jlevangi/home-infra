@@ -12,6 +12,11 @@ labels:
   - pairs: { environment: prod }
     includeSelectors: true
 patches:
+  - target: { kind: PersistentVolumeClaim, name: everlyera-postgres-pvc }
+    patch: |
+      - { op: add, path: /spec/volumeName, value: pvc-3a6d8ac5-a6a1-44bd-a8b6-e9cb78be842b }
+      - { op: replace, path: /spec/storageClassName, value: longhorn-flash }
+      - { op: replace, path: /spec/resources/requests/storage, value: 1Gi }
   - target: { kind: Ingress, name: everlyera-ingress }
     patch: |
       - { op: add, path: /metadata/annotations/traefik.ingress.kubernetes.io~1router.middlewares, value: "everlyera-everlyera-redirect-https@kubernetescrd" }
