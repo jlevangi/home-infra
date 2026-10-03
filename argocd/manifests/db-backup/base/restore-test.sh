@@ -19,10 +19,14 @@ log() { echo "$(date -u +%H:%M:%S) $*"; }
 : > /tmp/ok; : > /tmp/failed
 
 ping /start
-kubectl delete ns -l "$SEL" --wait=true >/dev/null 2>&1   # leftovers from a killed run
-trap 'kubectl delete ns -l "$SEL" --wait=false >/dev/null 2>&1' EXIT
+# clean only our own leftovers, so a scoped run never kills a concurrent one
+sel="$SEL${NS:+,backup.levangie.dev/source=$NS}"
+kubectl delete ns -l "$sel" --wait=true >/dev/null 2>&1   # leftovers from a killed run
+trap 'kubectl delete ns -l "$sel" --wait=false >/dev/null 2>&1' EXIT
 
-targets=$(kubectl get deployments,statefulsets -A -l backup.levangie.dev/engine \
+# NS=<namespace> limits a run to one namespace (pre/post-migration checks).
+scope=${NS:+-n $NS}
+targets=$(kubectl get deployments,statefulsets ${scope:--A} -l backup.levangie.dev/engine \
   -o jsonpath='{range .items[*]}{.metadata.namespace} {.metadata.labels.backup\.levangie\.dev/engine} {.spec.replicas} {.spec.template.spec.containers[0].image}{"\n"}{end}')
 
 test_one() {  # ns engine image dumpfile -> prints "restored/expected"; non-zero = fail
@@ -33,7 +37,7 @@ test_one() {  # ns engine image dumpfile -> prints "restored/expected"; non-zero
     mongodb)   env='[{"name":"ALLOW_EMPTY_PASSWORD","value":"yes"}]'; args='' ;;
     surrealdb) env='[]'; args='"args":["start","--user","root","--pass","root","memory"],' ;;
   esac
-  kubectl create ns "$t" >/dev/null && kubectl label ns "$t" "$SEL" >/dev/null || return 1
+  kubectl create ns "$t" >/dev/null && kubectl label ns "$t" "$SEL" "backup.levangie.dev/source=$ns" >/dev/null || return 1
   kubectl -n "$t" apply -f - >/dev/null <<EOF || return 1
 {"apiVersion":"v1","kind":"Pod","metadata":{"name":"db"},
  "spec":{"restartPolicy":"Never","automountServiceAccountToken":false,
