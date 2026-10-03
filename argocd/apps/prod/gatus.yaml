@@ -444,15 +444,6 @@ spec:
                 - "[RESPONSE_TIME] < 5000"
                 - "[BODY] == ok"
 
-            - name: Plex
-              group: Media
-              url: https://plex.levangie.dev/identity
-              interval: 5m
-              conditions:
-                - "[STATUS] == 200"
-                - "[RESPONSE_TIME] < 5000"
-                - "[BODY] == pat(*MediaContainer*)"
-
             - name: Jellyfin
               group: Media
               url: https://jellyfin.levangie.org/health
