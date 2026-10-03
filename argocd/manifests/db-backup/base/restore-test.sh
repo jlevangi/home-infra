@@ -3,12 +3,13 @@
 #   1. create namespace restore-test-<ns>
 #   2. start a throwaway DB pod from the SOURCE workload's own image, so
 #      versions and extensions (pgvecto.rs, PostGIS, supabase) match
-#   3. stream the newest dump from the NAS into it with kubectl exec
+#   3. mount the dump folder from the NAS read-only into it and restore from
+#      the file (streaming large dumps over `kubectl exec -i` can hang at EOF)
 #   4. require the restored table count to match the dump; mongodb must
 #      restore >0 documents with 0 failed
 #   5. delete the namespace
 # New databases need no change here: label the workload and it gets tested.
-# The pod has no volumes and lives only as long as its namespace.
+# The pod lives only as long as its namespace; data stays in its own container.
 set -u
 SRC=${SRC:-/dumps}
 HC=${HC_URL:-}
@@ -36,11 +37,14 @@ test_one() {  # ns engine image dumpfile -> prints "restored/expected"; non-zero
   kubectl -n "$t" apply -f - >/dev/null <<EOF || return 1
 {"apiVersion":"v1","kind":"Pod","metadata":{"name":"db"},
  "spec":{"restartPolicy":"Never","automountServiceAccountToken":false,
+  "volumes":[{"name":"dump","nfs":{"server":"172.20.20.5","path":"/volume1/k3s-storage/db-dumps/$ns","readOnly":true}}],
   "containers":[{"name":"db","image":"$image",$args"env":$env,
+   "volumeMounts":[{"name":"dump","mountPath":"/dump","readOnly":true}],
    "resources":{"requests":{"cpu":"250m","memory":"512Mi"},"limits":{"memory":"4Gi"}}}]}}
 EOF
   kubectl -n "$t" wait --for=condition=Ready pod/db --timeout=600s >/dev/null || return 1
-  x() { kubectl -n "$t" exec -i db -- sh -c "$1"; }
+  x() { kubectl -n "$t" exec db -- sh -c "$1"; }
+  d=/dump/$(basename "$f")
   # wait for the server (not the entrypoint's init-time temp server) to accept TCP
   case $engine in
     postgres)  ready='pg_isready -q -h 127.0.0.1 -U postgres' ;;
@@ -55,16 +59,16 @@ EOF
   done
   case $engine in
     postgres)
-      zcat "$f" | x 'psql -q -o /dev/null -h 127.0.0.1 -U postgres postgres' >/dev/null 2>/tmp/err
+      x "zcat $d | psql -q -o /dev/null -h 127.0.0.1 -U postgres postgres" >/dev/null 2>/tmp/err
       n=$(x 'for d in $(psql -h 127.0.0.1 -U postgres -tAc "select datname from pg_database where not datistemplate"); do
                psql -h 127.0.0.1 -U postgres -d "$d" -tAc "select count(*) from pg_tables where schemaname not in ('"'pg_catalog','information_schema'"')"; done' | awk '{s+=$1} END {print s+0}')
       want=$(zcat "$f" | grep -c '^CREATE TABLE ') ;;
     mariadb)
-      zcat "$f" | x 'mariadb -h 127.0.0.1 -uroot' 2>/tmp/err
+      x "zcat $d | mariadb -h 127.0.0.1 -uroot" 2>/tmp/err
       n=$(x "mariadb -h 127.0.0.1 -uroot -N -e \"select count(*) from information_schema.tables where table_schema not in ('mysql','information_schema','performance_schema','sys')\"")
       want=$(zcat "$f" | grep -c '^CREATE TABLE ') ;;
     mongodb)
-      zcat "$f" | x 'mongorestore --archive' 2>/tmp/err
+      x "zcat $d | mongorestore --archive" 2>/tmp/err
       n=$(sed -n 's/.* \([0-9]*\) document(s) restored successfully.*/\1/p' /tmp/err | tail -1)
       bad=$(sed -n 's/.* \([0-9]*\) document(s) failed to restore.*/\1/p' /tmp/err | tail -1)
       want=$(( ${n:-0} + ${bad:-1} )) ;;
@@ -77,7 +81,7 @@ EOF
   [ "${n:-0}" -ge 1 ] && [ "${n:-0}" -ge "$want" ]
 }
 
-# fd 3: `kubectl exec -i` inside the loop must not eat the target list on stdin
+# fd 3: kubectl inside the loop must not eat the target list on stdin
 while read -r ns engine replicas image <&3; do
   [ -n "$ns" ] || continue
   [ "${replicas:-1}" = 0 ] && { log "skip $ns (scaled to 0)"; continue; }
