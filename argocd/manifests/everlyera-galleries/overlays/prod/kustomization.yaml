@@ -8,6 +8,19 @@ labels:
 patches:
   - target:
       kind: PersistentVolumeClaim
+      name: everlyera-gallery-model-cache-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-a4cbad7a-1ada-43c4-8d35-74ea35aba461
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 2Gi
+  - target:
+      kind: PersistentVolumeClaim
       name: everlyera-gallery-db-pvc
     patch: |
       - op: add
