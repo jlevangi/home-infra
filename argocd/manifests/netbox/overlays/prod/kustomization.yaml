@@ -6,3 +6,17 @@ labels:
   - pairs:
       environment: prod
     includeSelectors: true
+patches:
+  - target:
+      kind: PersistentVolumeClaim
+      name: netbox-postgres-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-1e1035ce-03be-4da1-8e75-8b1c17881493
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 1Gi
