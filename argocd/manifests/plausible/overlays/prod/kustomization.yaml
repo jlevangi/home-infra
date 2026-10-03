@@ -11,6 +11,19 @@ images:
     newTag: v3.2.1
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: plausible-postgres-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-dd7a06d3-0c9c-47a4-90c7-059c346ae3bd
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 1Gi
+  - target:
       kind: Ingress
       name: plausible-ingress
     patch: |
