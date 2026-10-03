@@ -9,6 +9,19 @@ images:
     newTag: "16.14"
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: n8n-postgres-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-9594b81f-65a2-4563-98c4-42fea26e698e
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 2Gi
+  - target:
       kind: Ingress
       name: n8n-ingress
     patch: |
