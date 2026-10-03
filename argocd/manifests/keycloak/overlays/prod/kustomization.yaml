@@ -9,6 +9,19 @@ images:
     newTag: "16"
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: keycloak-db-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-4a4c60e9-8291-4ef0-a1e6-3a7207fc869e
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 1Gi
+  - target:
       kind: Ingress
       name: keycloak-ingress
     patch: |
