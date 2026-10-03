@@ -7,3 +7,17 @@ images:
     newTag: v1.160.0
   - name: postgres
     newTag: "16"
+patches:
+  - target:
+      kind: PersistentVolumeClaim
+      name: matrix-postgres-data
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-bf409570-8d12-45f4-a123-491e8815b2ef
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 1Gi
