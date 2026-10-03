@@ -60,11 +60,11 @@ spec:
             existingSecret: sparkyfitness-appdb
           persistence:
             backup:
-              size: 5Gi
-              storageClass: longhorn-tank
+              size: 1Gi
+              storageClass: longhorn-flash
             uploads:
-              size: 10Gi
-              storageClass: longhorn-tank
+              size: 1Gi
+              storageClass: longhorn-flash
           resources:
             requests:
               cpu: 100m
@@ -98,8 +98,8 @@ spec:
           standalone:
             persistence:
               enabled: true
-              size: 10Gi
-              storageClass: longhorn-tank
+              size: 1Gi
+              storageClass: longhorn-flash
             resources:
               requests:
                 cpu: 100m
@@ -114,8 +114,8 @@ spec:
           enabled: true
           schedule: "0 4 * * *"
           persistence:
-            size: 10Gi
-            storageClass: longhorn-tank
+            size: 1Gi
+            storageClass: longhorn-flash
           retention:
             days: 7
             weeks: 5
