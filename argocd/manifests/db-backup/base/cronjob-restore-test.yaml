@@ -1,188 +1,80 @@
-# Weekly restore tests (Sunday, after the 02:00 dump). One CronJob per engine.
-# Container `db` starts a throwaway server and runs restore-test.sh; container
-# `report` (kubectl image, has curl) waits for /result and pings Healthchecks.
+# Weekly restore test (Sunday 04:00 UTC, after the 02:00 dump). One Job tests
+# every labelled database: each gets its own throwaway namespace
+# restore-test-<ns>, running the source's own image. See restore-test.sh.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: db-restore-test-postgres
+  name: db-restore-test
   namespace: db-backup
   labels:
     app.kubernetes.io/name: db-backup
 spec:
-  schedule: 0 4 * * 0
+  schedule: "0 4 * * 0"
   timeZone: Etc/UTC
   concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
   successfulJobsHistoryLimit: 2
   failedJobsHistoryLimit: 2
   jobTemplate:
     spec:
       backoffLimit: 0
-      activeDeadlineSeconds: 10800
+      activeDeadlineSeconds: 14400
       template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: db-backup
         spec:
+          serviceAccountName: db-restore-test
           restartPolicy: Never
-          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 0
+            seccompProfile:
+              type: RuntimeDefault
           affinity:
             nodeAffinity:
               requiredDuringSchedulingIgnoredDuringExecution:
                 nodeSelectorTerms:
-                - matchExpressions:
-                  - key: node-role.kubernetes.io/control-plane
-                    operator: DoesNotExist
+                  - matchExpressions:
+                      - key: node-role.kubernetes.io/control-plane
+                        operator: DoesNotExist
           containers:
-          - name: db
-            image: postgres:18.3-trixie
-            command:
-            - sh
-            - -c
-            - docker-entrypoint.sh postgres -c fsync=off -c full_page_writes=off -c log_min_messages=fatal -c log_min_error_statement=panic >/dev/null 2>&1 & sh /scripts/restore-test.sh postgres; rc=$?; echo $rc > /result/rc; exit $rc
-            env:
-            - name: POSTGRES_HOST_AUTH_METHOD
-              value: trust
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
-            resources:
-              requests:
-                cpu: 250m
-                memory: 512Mi
-              limits:
-                memory: 2Gi
-            volumeMounts:
-            - name: scripts
-              mountPath: /scripts
-            - name: dumps
-              mountPath: /dumps
-              readOnly: true
-            - name: result
-              mountPath: /result
-            - name: data
-              mountPath: /var/lib/postgresql/data
-          - name: report
-            image: bitnami/kubectl@sha256:9e369df7ab3386b736d162348f167bcc02cb4ba3f5203e9151be854437d6e0af
-            command:
-            - sh
-            - -c
-            - |
-              HC=https://healthchecks.levangie.dev/ping/8067efeb-bd57-4c0c-a699-fff31a64ec0b
-              curl -fsS --max-time 20 --retry 3 "$HC/start" -o /dev/null || true
-              until [ -f /result/rc ]; do sleep 10; done
-              rc=$(cat /result/rc); msg=$(cat /result/msg 2>/dev/null || echo "no result message")
-              [ "$rc" = 0 ] && sfx="" || sfx=/fail
-              curl -fsS --max-time 20 --retry 3 "$HC$sfx" --data-binary "$msg" -o /dev/null || true
-              echo "$msg"; exit "$rc"
-            resources:
-              requests:
-                cpu: 10m
-                memory: 16Mi
-              limits:
-                memory: 64Mi
-            volumeMounts:
-            - name: result
-              mountPath: /result
+            - name: test
+              image: bitnami/kubectl@sha256:9e369df7ab3386b736d162348f167bcc02cb4ba3f5203e9151be854437d6e0af
+              command: [/bin/sh, /scripts/restore-test.sh]
+              env:
+                - name: SRC
+                  value: /dumps
+                - name: HC_URL
+                  value: https://healthchecks.levangie.dev/ping/8067efeb-bd57-4c0c-a699-fff31a64ec0b
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 64Mi
+                limits:
+                  memory: 256Mi
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                - name: dumps
+                  mountPath: /dumps
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
           volumes:
-          - name: scripts
-            configMap:
-              name: db-restore-test-script
-          - name: dumps
-            nfs:
-              server: 172.20.20.5
-              path: /volume1/k3s-storage/db-dumps
-              readOnly: true
-          - name: result
-            emptyDir:
-              sizeLimit: 1Mi
-          - name: data
-            emptyDir:
-              sizeLimit: 30Gi
----
-apiVersion: batch/v1
-kind: CronJob
-metadata:
-  name: db-restore-test-mariadb
-  namespace: db-backup
-  labels:
-    app.kubernetes.io/name: db-backup
-spec:
-  schedule: 30 3 * * 0
-  timeZone: Etc/UTC
-  concurrencyPolicy: Forbid
-  successfulJobsHistoryLimit: 2
-  failedJobsHistoryLimit: 2
-  jobTemplate:
-    spec:
-      backoffLimit: 0
-      activeDeadlineSeconds: 3600
-      template:
-        spec:
-          restartPolicy: Never
-          automountServiceAccountToken: false
-          affinity:
-            nodeAffinity:
-              requiredDuringSchedulingIgnoredDuringExecution:
-                nodeSelectorTerms:
-                - matchExpressions:
-                  - key: node-role.kubernetes.io/control-plane
-                    operator: DoesNotExist
-          containers:
-          - name: db
-            image: mariadb:12.3.2
-            command:
-            - sh
-            - -c
-            - docker-entrypoint.sh mariadbd >/dev/null 2>&1 & sh /scripts/restore-test.sh mariadb; rc=$?; echo $rc > /result/rc; exit $rc
-            env:
-            - name: MARIADB_ALLOW_EMPTY_ROOT_PASSWORD
-              value: '1'
-            resources:
-              requests:
-                cpu: 100m
-                memory: 256Mi
-              limits:
-                memory: 1Gi
-            volumeMounts:
             - name: scripts
-              mountPath: /scripts
+              configMap:
+                name: db-restore-test-script
             - name: dumps
-              mountPath: /dumps
-              readOnly: true
-            - name: result
-              mountPath: /result
-            - name: data
-              mountPath: /var/lib/mysql
-          - name: report
-            image: bitnami/kubectl@sha256:9e369df7ab3386b736d162348f167bcc02cb4ba3f5203e9151be854437d6e0af
-            command:
-            - sh
-            - -c
-            - |
-              HC=https://healthchecks.levangie.dev/ping/8067efeb-bd57-4c0c-a699-fff31a64ec0b
-              curl -fsS --max-time 20 --retry 3 "$HC/start" -o /dev/null || true
-              until [ -f /result/rc ]; do sleep 10; done
-              rc=$(cat /result/rc); msg=$(cat /result/msg 2>/dev/null || echo "no result message")
-              [ "$rc" = 0 ] && sfx="" || sfx=/fail
-              curl -fsS --max-time 20 --retry 3 "$HC$sfx" --data-binary "$msg" -o /dev/null || true
-              echo "$msg"; exit "$rc"
-            resources:
-              requests:
-                cpu: 10m
-                memory: 16Mi
-              limits:
-                memory: 64Mi
-            volumeMounts:
-            - name: result
-              mountPath: /result
-          volumes:
-          - name: scripts
-            configMap:
-              name: db-restore-test-script
-          - name: dumps
-            nfs:
-              server: 172.20.20.5
-              path: /volume1/k3s-storage/db-dumps
-              readOnly: true
-          - name: result
-            emptyDir:
-              sizeLimit: 1Mi
-          - name: data
-            emptyDir:
-              sizeLimit: 2Gi
+              nfs:
+                server: 172.20.20.5
+                path: /volume1/k3s-storage/db-dumps
+                readOnly: true
+            - name: tmp
+              emptyDir:
+                sizeLimit: 64Mi
