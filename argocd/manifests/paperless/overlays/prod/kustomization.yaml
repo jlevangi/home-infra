@@ -56,10 +56,13 @@ patches:
     patch: |
       - op: replace
         path: /spec/resources/requests/storage
-        value: 5Gi
+        value: 1Gi
       - op: replace
         path: /spec/volumeName
-        value: paperless-db-pv
+        value: pvc-675e5a74-2bf0-41a0-a3f9-76eb3919892f
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
   - target:
       kind: PersistentVolumeClaim
       name: paperless-redis-pvc
