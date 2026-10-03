@@ -15,5 +15,5 @@ spec:
   resources:
     requests:
       storage: 5Gi
-  storageClassName: longhorn-redundant
+  storageClassName: longhorn-flash
   volumeMode: Filesystem
