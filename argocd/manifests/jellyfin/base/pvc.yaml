@@ -20,4 +20,4 @@ spec:
   resources:
     requests:
       storage: 80Gi
-  storageClassName: longhorn-redundant
+  storageClassName: longhorn-flash
