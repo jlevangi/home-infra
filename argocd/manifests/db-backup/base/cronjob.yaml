@@ -1,0 +1,77 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: db-dumps
+  namespace: db-backup
+  labels:
+    app.kubernetes.io/name: db-backup
+spec:
+  # 02:00 UTC: before Jottacloud (03:00) ships k3s-storage off-site, and before
+  # the Longhorn daily backup (06:00).
+  schedule: "0 2 * * *"
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 10800
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: db-backup
+        spec:
+          serviceAccountName: db-dump
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 0
+            seccompProfile:
+              type: RuntimeDefault
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: node-role.kubernetes.io/control-plane
+                        operator: DoesNotExist
+          containers:
+            - name: dump
+              image: bitnami/kubectl@sha256:9e369df7ab3386b736d162348f167bcc02cb4ba3f5203e9151be854437d6e0af
+              command: [/bin/sh, /scripts/db-dump.sh]
+              env:
+                - name: DEST
+                  value: /dumps
+                - name: HC_URL
+                  value: https://healthchecks.levangie.dev/ping/de73efc4-2651-4ffe-98a2-d2c52c99c63f
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  memory: 256Mi
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                - name: dumps
+                  mountPath: /dumps
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: scripts
+              configMap:
+                name: db-dump-script
+            - name: dumps
+              nfs:
+                server: 172.20.20.5
+                path: /volume1/k3s-storage/db-dumps
+            - name: tmp
+              emptyDir:
+                sizeLimit: 64Mi

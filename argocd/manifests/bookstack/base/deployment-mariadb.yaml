@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: bookstack-mariadb
+  labels:
+    backup.levangie.dev/engine: mariadb
   namespace: bookstack
 spec:
   replicas: 1

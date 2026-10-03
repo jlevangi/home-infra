@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
+    backup.levangie.dev/engine: postgres
     environment: staging
   name: gk-postgres
 spec:

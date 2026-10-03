@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: netbox-postgres
+  labels:
+    backup.levangie.dev/engine: postgres
   namespace: netbox
 spec:
   replicas: 1

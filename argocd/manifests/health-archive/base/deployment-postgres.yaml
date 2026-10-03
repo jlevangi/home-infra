@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: health-postgres
+  labels:
+    backup.levangie.dev/engine: postgres
   namespace: health-archive
 spec:
   replicas: 1

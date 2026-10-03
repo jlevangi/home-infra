@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: keycloak-postgres
+  labels:
+    backup.levangie.dev/engine: postgres
   namespace: keycloak
 spec:
   replicas: 1

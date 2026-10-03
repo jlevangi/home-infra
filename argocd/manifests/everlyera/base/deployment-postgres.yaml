@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: everlyera-postgres
   namespace: everlyera
-  labels: { app: everlyera-postgres, component: database }
+  labels: { app: everlyera-postgres, component: database, backup.levangie.dev/engine: postgres }
 spec:
   replicas: 1
   strategy: { type: Recreate }

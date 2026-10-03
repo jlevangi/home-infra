@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: vikunja-postgres
+  labels:
+    backup.levangie.dev/engine: postgres
   namespace: vikunja
   annotations:
     argocd.argoproj.io/sync-wave: "-1"

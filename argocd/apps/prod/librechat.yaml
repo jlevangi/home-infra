@@ -149,6 +149,8 @@ spec:
 
         mongodb:
           enabled: true
+          commonLabels:
+            backup.levangie.dev/engine: mongodb
           image:
             registry: docker.io
             repository: bitnamilegacy/mongodb

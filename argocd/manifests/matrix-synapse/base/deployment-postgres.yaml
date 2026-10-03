@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: matrix-postgres
+  labels:
+    backup.levangie.dev/engine: postgres
   namespace: matrix-synapse
 spec:
   replicas: 1

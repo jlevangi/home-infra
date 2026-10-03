@@ -87,6 +87,8 @@ spec:
 
         postgresql:
           enabled: true
+          commonLabels:
+            backup.levangie.dev/engine: postgres
           image:
             tag: 18.3-trixie
           auth:

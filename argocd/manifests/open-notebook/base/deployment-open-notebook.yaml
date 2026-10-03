@@ -6,6 +6,8 @@ metadata:
   labels:
     app: open-notebook
     app.kubernetes.io/name: open-notebook
+    # SurrealDB image has no shell; db-backup runs the HTTP export from this pod
+    backup.levangie.dev/engine: surrealdb
 spec:
   replicas: 1
   strategy:

@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: immich-postgres
+  labels:
+    backup.levangie.dev/engine: postgres
   namespace: immich
 spec:
   replicas: 1
