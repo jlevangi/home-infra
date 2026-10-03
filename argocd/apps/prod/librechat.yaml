@@ -162,8 +162,8 @@ spec:
             - LibreChat
           persistence:
             enabled: true
-            storageClass: longhorn-tank
-            size: 8Gi
+            storageClass: longhorn-flash
+            size: 2Gi
             labels:
               recurring-job-group.longhorn.io/hourly: "enabled"
               recurring-job-group.longhorn.io/daily: "enabled"
