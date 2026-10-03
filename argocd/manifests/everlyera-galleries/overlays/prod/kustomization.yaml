@@ -7,6 +7,19 @@ labels:
       environment: prod
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: everlyera-gallery-db-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-3609b2f2-eee3-4e1d-a2ed-5bc3652f88f0
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 2Gi
+  - target:
       kind: Ingress
       name: everlyera-gallery-ingress
     patch: |
