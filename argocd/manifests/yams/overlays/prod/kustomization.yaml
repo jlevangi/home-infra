@@ -149,6 +149,14 @@ patches:
         path: /spec/replicas
         value: 1
   - target:
+      kind: Deployment
+      name: seerr
+    patch: |
+      # Plex-backed Seerr retired 2026-10-03; requests migrated to seerr-jellyfin. Config PVC kept.
+      - op: replace
+        path: /spec/replicas
+        value: 0
+  - target:
       kind: Ingress
     patch: |
       - op: add

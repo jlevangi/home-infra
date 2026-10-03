@@ -371,9 +371,9 @@ spec:
                 - "[STATUS] == 200"
                 - "[RESPONSE_TIME] < 5000"
 
-            - name: Seerr
+            - name: Jellyseerr
               group: Media
-              url: https://request.levangie.dev
+              url: https://request.levangie.dev/api/v1/status
               interval: 5m
               conditions:
                 - "[STATUS] == 200"

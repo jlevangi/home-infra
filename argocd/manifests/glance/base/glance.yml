@@ -157,7 +157,7 @@ pages:
                 url: https://jellyfin.levangie.org
                 icon: sh:jellyfin
               - title: Jellyseerr
-                url: https://jellyseerr.levangie.dev
+                url: https://request.levangie.dev
                 icon: sh:jellyseerr
               - title: Sonarr
                 url: https://sonarr.levangie.dev
