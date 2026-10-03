@@ -12,3 +12,16 @@ resources:
 - ingress-gk-studio.yaml
 patches:
 - path: patch-web-app-env.yaml
+- target:
+    kind: PersistentVolumeClaim
+    name: gk-postgres-pvc
+  patch: |
+    - op: add
+      path: /spec/volumeName
+      value: pvc-4e28daa2-f7ff-4073-8914-bc37bde5919e
+    - op: replace
+      path: /spec/storageClassName
+      value: longhorn-flash
+    - op: replace
+      path: /spec/resources/requests/storage
+      value: 1Gi
