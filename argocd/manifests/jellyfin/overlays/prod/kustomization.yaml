@@ -65,6 +65,13 @@ patches:
       - op: replace
         path: /spec/storageClassName
         value: longhorn-flash
+  - target:
+      kind: PersistentVolumeClaim
+      name: jellyfin-config-pvc-rdn
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-0c9de445-6956-4fb9-95e7-07f82f69943c
 images:
   - name: lscr.io/linuxserver/jellyfin
     newTag: "12.0ubu2604-ls48"
