@@ -42,10 +42,12 @@ Outline data loss in `docs/post-mortems/2026-10-02-outline-postgres-ephemeral-pg
   trailer). Workloads scaled to 0 are skipped. Retention: 7 days, plus Sunday
   dumps for 4 weeks, plus 1st-of-month dumps for about 3 months. Jottacloud
   ships `k3s-storage` off-site at 03:00.
-- **Weekly** `db-restore-test-postgres` / `-mariadb` (Sunday): restore the newest
-  dump of each database into a throwaway server and require at least one user
-  table. Fewer tables than the dump declares is logged as `PART` (extensions like
-  pgvecto.rs/PostGIS are missing from the plain test image).
+- **Weekly** `db-backup/db-restore-test` (Sunday 04:00 UTC): for every labelled
+  database, create namespace `restore-test-<ns>`, start a throwaway pod from the
+  **source workload's own image** (so versions and extensions match), restore the
+  newest dump from the NAS, require the table count (MongoDB: document count,
+  0 failed) to match the dump, then delete the namespace. All four engines are
+  covered. New databases need no change: the label is enough.
 - **Monitoring:** Healthchecks `db-dumps-nightly` and `db-restore-test-weekly`.
   A failed run lists the failing namespaces in the ping body.
 - **Excluded:** Plausible ClickHouse (analytics, large).
