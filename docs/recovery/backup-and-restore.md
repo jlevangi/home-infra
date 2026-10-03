@@ -24,6 +24,43 @@ The intended configuration pattern is:
 - `stage`: `enable_longhorn_backup: false`
 - `test`: `enable_longhorn_backup: false`
 
+## Logical Database Dumps (second layer)
+
+Longhorn backs up blocks. It cannot tell an empty volume from a full one, so
+databases also get nightly logical dumps (app `db-backup`, added after the
+Outline data loss in `docs/post-mortems/2026-10-02-outline-postgres-ephemeral-pgdata.md`).
+
+- **Opt in:** add the label `backup.levangie.dev/engine: postgres|mariadb|mongodb|surrealdb`
+  to the database Deployment/StatefulSet **metadata** labels. Do not put it on the
+  pod template: that would restart the database. Helm charts: `commonLabels`.
+  SurrealDB has no shell, so the label goes on the app Deployment that holds the
+  `SURREAL_*` env (`open-notebook`).
+- **Nightly** `db-backup/db-dumps` (02:00 UTC): `kubectl exec` runs the database's
+  own dump tool with its in-pod credentials. Output:
+  `172.20.20.5:/volume1/k3s-storage/db-dumps/<namespace>/<UTC stamp>.<engine>.gz`.
+  Each dump must pass `gzip -t` plus a content check (tables present, completion
+  trailer). Workloads scaled to 0 are skipped. Retention: 7 days, plus Sunday
+  dumps for 4 weeks, plus 1st-of-month dumps for about 3 months. Jottacloud
+  ships `k3s-storage` off-site at 03:00.
+- **Weekly** `db-restore-test-postgres` / `-mariadb` (Sunday): restore the newest
+  dump of each database into a throwaway server and require at least one user
+  table. Fewer tables than the dump declares is logged as `PART` (extensions like
+  pgvecto.rs/PostGIS are missing from the plain test image).
+- **Monitoring:** Healthchecks `db-dumps-nightly` and `db-restore-test-weekly`.
+  A failed run lists the failing namespaces in the ping body.
+- **Excluded:** Plausible ClickHouse (analytics, large).
+
+Restore one database by hand:
+
+```bash
+# Postgres (pg_dumpall output; recreates roles + databases)
+zcat <dump>.postgres.gz | kubectl -n <ns> exec -i deploy/<db> -- psql -U <user> postgres
+# MariaDB
+zcat <dump>.mariadb.gz | kubectl -n <ns> exec -i deploy/<db> -- sh -c 'mariadb -u"$MARIADB_USER" -p"$MARIADB_PASSWORD"'
+# MongoDB
+zcat <dump>.mongodb.gz | kubectl -n <ns> exec -i deploy/<db> -- mongorestore --archive --drop
+```
+
 ## Quick Commands
 
 ### List available backups
