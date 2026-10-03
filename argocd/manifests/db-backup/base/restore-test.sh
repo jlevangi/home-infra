@@ -70,8 +70,8 @@ EOF
       want=$(zcat "$f" | grep -c '^CREATE TABLE ') ;;
     mongodb)
       x "zcat $d | mongorestore --archive" 2>/tmp/err
-      n=$(sed -n 's/.* \([0-9]*\) document(s) restored successfully.*/\1/p' /tmp/err | tail -1)
-      bad=$(sed -n 's/.* \([0-9]*\) document(s) failed to restore.*/\1/p' /tmp/err | tail -1)
+      n=$(grep -o '[0-9]* document(s) restored' /tmp/err | tail -1 | cut -d' ' -f1)
+      bad=$(grep -o '[0-9]* document(s) failed' /tmp/err | tail -1 | cut -d' ' -f1)
       want=$(( ${n:-0} + ${bad:-1} )) ;;
     surrealdb)
       zcat "$f" | $s/import --data-binary @- -o /dev/null 2>/tmp/err
