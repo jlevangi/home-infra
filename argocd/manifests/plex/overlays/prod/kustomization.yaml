@@ -14,10 +14,10 @@ patches:
       kind: Deployment
       name: plex
     patch: |
-      # Trial closure of Plex (2026-10-03): scaled to 0, config PVC kept.
+      # Temporarily running for one-way watched-history migration; return to 0 afterwards.
       - op: replace
         path: /spec/replicas
-        value: 0
+        value: 1
       - op: add
         path: /spec/template/spec/runtimeClassName
         value: nvidia
