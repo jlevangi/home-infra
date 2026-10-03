@@ -22,6 +22,19 @@ images:
 patches:
   - target:
       kind: PersistentVolumeClaim
+      name: paperless-media-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-f0a7f619-e49f-40a9-ae7c-dc5af00422e1
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 1Gi
+  - target:
+      kind: PersistentVolumeClaim
       name: paperless-data-pvc
     patch: |
       - op: replace
@@ -30,16 +43,6 @@ patches:
       - op: replace
         path: /spec/volumeName
         value: paperless-data-pv
-  - target:
-      kind: PersistentVolumeClaim
-      name: paperless-media-pvc
-    patch: |
-      - op: replace
-        path: /spec/resources/requests/storage
-        value: 10Gi
-      - op: replace
-        path: /spec/volumeName
-        value: paperless-media-pv
   - target:
       kind: PersistentVolumeClaim
       name: paperless-export-pvc
