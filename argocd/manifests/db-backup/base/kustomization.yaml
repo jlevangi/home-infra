@@ -4,8 +4,13 @@ resources:
   - namespace.yaml
   - rbac.yaml
   - cronjob.yaml
+  - cronjob-restore-test.yaml
 configMapGenerator:
   - name: db-dump-script
     namespace: db-backup
     files:
       - db-dump.sh
+  - name: db-restore-test-script
+    namespace: db-backup
+    files:
+      - restore-test.sh

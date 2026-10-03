@@ -19,13 +19,13 @@ log() { echo "$(date -u +%H:%M:%S) $*"; }
 
 ping /start
 targets=$(kubectl get deployments,statefulsets -A -l backup.levangie.dev/engine \
-  -o jsonpath='{range .items[*]}{.metadata.namespace} {.kind}/{.metadata.name} {.metadata.labels.backup\.levangie\.dev/engine}{"\n"}{end}')
+  -o jsonpath='{range .items[*]}{.metadata.namespace} {.kind}/{.metadata.name} {.metadata.labels.backup\.levangie\.dev/engine} {.spec.replicas}{"\n"}{end}')
 [ -n "$targets" ] || { ping /fail "no labelled database workloads found"; exit 1; }
 
 dump_cmd() {  # shell run inside the db container; writes the gzip stream to stdout
   case $1 in
     postgres)  echo 'export PGPASSWORD="${POSTGRES_PASSWORD:-}"; pg_dumpall -U "${POSTGRES_USER:-postgres}" | gzip -c' ;;
-    mariadb)   echo 'U=${MARIADB_USER:-$MYSQL_USER}; P=${MARIADB_PASSWORD:-$MYSQL_PASSWORD}; D=${MARIADB_DATABASE:-$MYSQL_DATABASE}; mariadb-dump --single-transaction --routines --triggers -u"$U" -p"$P" --databases "$D" | gzip -c' ;;
+    mariadb)   echo 'U=${MARIADB_USER:-$MYSQL_USER}; P=${MARIADB_PASSWORD:-$MYSQL_PASSWORD}; D=${MARIADB_DATABASE:-$MYSQL_DATABASE}; mariadb-dump --single-transaction --triggers -u"$U" -p"$P" --databases "$D" | gzip -c' ;;
     mongodb)   echo 'mongodump --archive --quiet | gzip -c' ;;
     # SurrealDB image has no shell; run the HTTP export from the app pod instead
     surrealdb) echo 'python3 -c "import os,sys,base64,urllib.request as u;e=os.environ;r=u.Request(e[\"SURREAL_URL\"].replace(\"ws://\",\"http://\").replace(\"/rpc\",\"/export\"),headers={\"Authorization\":\"Basic \"+base64.b64encode((e[\"SURREAL_USER\"]+\":\"+e[\"SURREAL_PASSWORD\"]).encode()).decode(),\"surreal-ns\":e[\"SURREAL_NAMESPACE\"],\"surreal-db\":e[\"SURREAL_DATABASE\"],\"Accept\":\"application/octet-stream\"});sys.stdout.buffer.write(u.urlopen(r,timeout=600).read())" | gzip -c' ;;
@@ -40,8 +40,11 @@ content_ok() {  # proves real data, not an empty or truncated dump
   esac
 }
 
-echo "$targets" | while read -r ns pod engine; do
+echo "$targets" | while read -r ns pod engine replicas; do
   [ -n "$ns" ] || continue
+  # Scaled-to-0 workloads (e.g. parked staging) have nothing running to dump;
+  # their last good dump stays on disk under retention.
+  [ "${replicas:-1}" = 0 ] && { log "skip $ns/$pod (scaled to 0)"; continue; }
   mkdir -p "$DEST/$ns"
   out="$DEST/$ns/$STAMP.$engine.gz"; tmp="$out.partial"
   cmd=$(dump_cmd "$engine")
