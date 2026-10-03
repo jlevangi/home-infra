@@ -5,3 +5,30 @@ resources:
 labels:
   - pairs:
       environment: prod
+patches:
+  - target:
+      kind: PersistentVolumeClaim
+      name: surrealdb-data-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-dbc91ae0-88c2-4419-98c3-723f80ec5b3c
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 2Gi
+  - target:
+      kind: PersistentVolumeClaim
+      name: open-notebook-data-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-60fe212f-40af-4d9e-a7cc-70869a90217a
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 1Gi
