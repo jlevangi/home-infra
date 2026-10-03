@@ -10,3 +10,17 @@ resources:
   - ingress.yaml
   - resource-quota.yaml
   - limit-range.yaml
+patches:
+  - target:
+      kind: PersistentVolumeClaim
+      name: komga-config-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-615f8458-56dd-471b-aa6d-455465ddc10a
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 1Gi
