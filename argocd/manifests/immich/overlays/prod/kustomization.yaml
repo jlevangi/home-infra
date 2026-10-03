@@ -8,6 +8,19 @@ images:
 patches:
   - target:
       kind: PersistentVolumeClaim
+      name: immich-model-cache-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-6e73b9b6-470e-4358-8836-7d15500144ef
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 2Gi
+  - target:
+      kind: PersistentVolumeClaim
       name: immich-db-pvc
     patch: |
       - op: replace
