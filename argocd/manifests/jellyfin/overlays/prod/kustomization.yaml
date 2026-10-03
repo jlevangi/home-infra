@@ -4,6 +4,19 @@ resources:
   - ../../base
 patches:
   - target:
+      kind: PersistentVolumeClaim
+      name: tunarr-config-pvc
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-2557c922-8400-4fa2-8a36-82137289e5e0
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 2Gi
+  - target:
       kind: Ingress
       name: jellyfin-ingress
     patch: |
@@ -55,16 +68,6 @@ patches:
       - op: add
         path: /spec/volumeName
         value: tracearr-data-pv
-  - target:
-      kind: PersistentVolumeClaim
-      name: tunarr-config-pvc
-    patch: |
-      - op: add
-        path: /spec/volumeName
-        value: pvc-cbadd6d3-d511-498c-b7a4-0a3079ba0266
-      - op: replace
-        path: /spec/storageClassName
-        value: longhorn-flash
   - target:
       kind: PersistentVolumeClaim
       name: jellyfin-config-pvc-rdn
