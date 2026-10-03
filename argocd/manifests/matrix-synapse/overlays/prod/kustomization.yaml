@@ -10,6 +10,19 @@ images:
 patches:
   - target:
       kind: PersistentVolumeClaim
+      name: matrix-synapse-data
+    patch: |
+      - op: add
+        path: /spec/volumeName
+        value: pvc-f49cbe71-6089-442b-9194-935ab61c4d86
+      - op: replace
+        path: /spec/storageClassName
+        value: longhorn-flash
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 2Gi
+  - target:
+      kind: PersistentVolumeClaim
       name: matrix-postgres-data
     patch: |
       - op: add
