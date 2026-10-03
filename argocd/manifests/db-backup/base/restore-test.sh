@@ -49,7 +49,8 @@ EOF
   case $engine in
     postgres)  ready='pg_isready -q -h 127.0.0.1 -U postgres' ;;
     mariadb)   ready='mariadb-admin -h 127.0.0.1 -uroot ping --silent' ;;
-    mongodb)   ready='mongosh --quiet --eval 1' ;;
+    # bitnami runs a ~2s setup server first; uptime>=5 means the real one
+    mongodb)   ready='mongosh --quiet --eval "quit(db.serverStatus().uptime >= 5 ? 0 : 1)"' ;;
     surrealdb) ip=$(kubectl -n "$t" get pod db -o jsonpath='{.status.podIP}')
                ready=''; s="curl -fsS --max-time 600 -u root:root -H surreal-ns:rt -H surreal-db:rt -H Accept:application/json http://$ip:8000" ;;
   esac
