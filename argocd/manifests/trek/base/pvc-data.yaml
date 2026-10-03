@@ -13,7 +13,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: longhorn-redundant
+  storageClassName: longhorn-flash
   resources:
     requests:
       storage: 1Gi
