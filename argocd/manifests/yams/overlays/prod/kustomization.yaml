@@ -157,6 +157,14 @@ patches:
         path: /spec/replicas
         value: 0
   - target:
+      kind: Deployment
+      name: jellyplex-watched
+    patch: |
+      # One-way watched-history migration complete; Plex is retired.
+      - op: replace
+        path: /spec/replicas
+        value: 0
+  - target:
       kind: Ingress
     patch: |
       - op: add

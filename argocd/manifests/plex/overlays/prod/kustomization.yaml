@@ -14,10 +14,10 @@ patches:
       kind: Deployment
       name: plex
     patch: |
-      # Temporarily running for one-way watched-history migration; return to 0 afterwards.
+      # Watched-history migration complete; config PVC retained for rollback.
       - op: replace
         path: /spec/replicas
-        value: 1
+        value: 0
       - op: add
         path: /spec/template/spec/runtimeClassName
         value: nvidia
