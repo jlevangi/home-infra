@@ -64,12 +64,6 @@ spec:
             - name: prod-node-1-icmp
               url: 172.20.20.101
               module: icmp
-            - name: prod-node-2-icmp
-              url: 172.20.20.102
-              module: icmp
-            - name: prod-node-3-icmp
-              url: 172.20.20.103
-              module: icmp
             - name: nas-icmp
               url: 172.20.20.5
               module: icmp

@@ -36,7 +36,7 @@ spec:
               value: "factorio"
             # For hostPort apps, use A record with node IP
             - name: DNS_IP
-              value: "172.20.20.102"
+              value: "172.20.20.204"  # factorio LoadBalancer IP (MetalLB)
           command: ["/bin/sh", "-c"]
           args:
             - |
