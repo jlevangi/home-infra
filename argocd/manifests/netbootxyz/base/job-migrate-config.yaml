@@ -12,7 +12,7 @@ spec:
     spec:
       restartPolicy: OnFailure
       nodeSelector:
-        kubernetes.io/hostname: k3s-prod-worker-2
+        kubernetes.io/hostname: k3s-prod-worker-1
       containers:
         - name: migrate-config
           image: busybox:1.36

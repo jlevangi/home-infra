@@ -6,7 +6,7 @@ images:
   - name: ghcr.io/netbootxyz/netbootxyz
     newTag: "0.7.6-nbxyz23"
 patches:
-  # Pin to a specific node for stable hostPort TFTP access
+  # Pin to a specific node for stable hostPort TFTP access (worker-2 retired 2026-10-03)
   - target:
       kind: Deployment
       name: netbootxyz
@@ -14,7 +14,7 @@ patches:
       - op: add
         path: /spec/template/spec/nodeSelector
         value:
-          kubernetes.io/hostname: k3s-prod-worker-2
+          kubernetes.io/hostname: k3s-prod-worker-1
   - target:
       kind: PersistentVolumeClaim
       name: netbootxyz-data-pvc
