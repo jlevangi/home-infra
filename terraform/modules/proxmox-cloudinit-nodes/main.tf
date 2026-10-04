@@ -19,16 +19,17 @@ resource "proxmox_vm_qemu" "this" {
 
   agent              = 1
   os_type            = "cloud-init"
-  start_at_node_boot = var.start_at_node_boot
+  start_at_node_boot = coalesce(try(var.node_overrides[tostring(count.index)].start_at_node_boot, null), var.start_at_node_boot)
+  vm_state           = coalesce(try(var.node_overrides[tostring(count.index)].vm_state, null), "running")
 
   cpu {
-    cores   = var.cpu_cores
+    cores   = coalesce(try(var.node_overrides[tostring(count.index)].cpu_cores, null), var.cpu_cores)
     sockets = var.cpu_sockets
     type    = var.cpu_type
     numa    = var.cpu_numa
   }
 
-  memory   = var.memory
+  memory   = coalesce(try(var.node_overrides[tostring(count.index)].memory, null), var.memory)
   balloon  = var.balloon
   scsihw   = var.scsihw
   bootdisk = var.bootdisk

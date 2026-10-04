@@ -166,9 +166,9 @@ variable "flash_disk_storage" {
 }
 
 variable "flash_disk_size" {
-  description = "Current flash-backed Longhorn disk size."
+  description = "Surviving worker flash-backed Longhorn disk size; retired disks remain unchanged."
   type        = string
-  default     = "100G"
+  default     = "300G"
 }
 
 variable "ip_base" {
@@ -206,6 +206,7 @@ module "nodes" {
 
   vm_name_prefix    = var.vm_name_prefix
   vm_count          = var.vm_count
+  node_overrides    = local.atlas_worker_overrides
   vm_ids            = var.vm_ids
   target_nodes      = var.proxmox_hosts
   template_name     = var.template_name

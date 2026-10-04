@@ -163,8 +163,6 @@ k3s_node_profile:
   k3s-prod-cp-3: control-plane
   k3s-prod-cp-4: control-plane
   k3s-prod-worker-1: atlas-worker
-  k3s-prod-worker-2: atlas-worker
-  k3s-prod-worker-3: atlas-worker
   k3s-prod-worker-4: elitedesk-worker
   k3s-prod-worker-5: thinkcentre-worker
   k3s-prod-worker-6: thinkcentre-worker
@@ -194,8 +192,6 @@ k3s_node_zone:
   k3s-prod-cp-3: dellssf
   k3s-prod-cp-4: elitedesk-1
   k3s-prod-worker-1: atlas
-  k3s-prod-worker-2: atlas
-  k3s-prod-worker-3: atlas
   k3s-prod-worker-4: elitedesk-1
   k3s-prod-worker-5: thinkcentre-1
   k3s-prod-worker-6: thinkcentre-2

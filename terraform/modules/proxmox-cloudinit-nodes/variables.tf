@@ -1,3 +1,14 @@
+variable "node_overrides" {
+  description = "Per-index VM shape/state overrides for retained nodes."
+  type = map(object({
+    cpu_cores          = optional(number)
+    memory             = optional(number)
+    start_at_node_boot = optional(bool)
+    vm_state           = optional(string)
+  }))
+  default = {}
+}
+
 variable "vm_name_prefix" {
   description = "Hostname prefix; VMs are named <vm_name_prefix>-<index>."
   type        = string
