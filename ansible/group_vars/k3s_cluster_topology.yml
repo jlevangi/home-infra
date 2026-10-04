@@ -42,19 +42,17 @@ k3s_node_profiles:
   atlas-worker:
     # Absorbs former workers 2/3; podCIDR is /24 so 250 is the practical ceiling.
     k3s_kubelet_max_pods: 250
-    longhorn_node_tags:
-      - general-storage
-      - media-storage
+    longhorn_node_tags: []
     longhorn_manage_disks: true
     longhorn_disks:
       - name: default-disk-flash
         path: /mnt/longhorn-flash
         slot: scsi3
-        tags: [flash, general-storage]
+        tags: [flash]
       - name: default-disk-tank
         path: /mnt/longhorn-tank
         slot: scsi2
-        tags: [general-storage, tank]
+        tags: [tank]
 
   # ---------------------------------------------------------------------------
   # Atlas GPU worker — k3s-prod-worker-gpu-1
@@ -71,14 +69,7 @@ k3s_node_profiles:
     # General workloads are allowed here deliberately. The GPU node was
     # originally tainted media-only, but the taint was removed when two Atlas
     # workers were retired; future installs must preserve that untainted state.
-    # general-storage is deliberate, not leftover drift. The GPU node was
-    # originally media-only, but with two of the four Atlas workers being
-    # retired it has to carry general replicas as well — otherwise there are
-    # too few general-storage nodes left to satisfy replica anti-affinity.
-    # Confirmed 2026-08-17.
-    longhorn_node_tags:
-      - general-storage
-      - media-storage
+    longhorn_node_tags: []
     longhorn_manage_disks: true
     longhorn_disks:
       # Stable by-id path matters more here than elsewhere: Longhorn CSI iSCSI
@@ -87,7 +78,7 @@ k3s_node_profiles:
       - name: default-tank-disk
         path: /var/lib/longhorn
         slot: scsi1
-        tags: [general-storage, tank]
+        tags: [tank]
     # Dedicated tank-backed ext4 disk for local LLM model files, surfaced to
     # Kubernetes through the llama-cpp static local PV. This is HDD-backed
     # capacity storage, not the constrained SSD-backed flash pool.
@@ -97,14 +88,10 @@ k3s_node_profiles:
   # ---------------------------------------------------------------------------
   # elitedesk-1 worker — k3s-prod-worker-4
   # Terraform: terraform/stacks/k3s/elitedesk-1/prod/workers
-  # Single 200G data disk; no tank tier. Deliberately NOT media-storage: with
-  # no tank disk, a multi-replica media volume landing here puts its replica on
-  # flash. That is exactly how /mnt/longhorn-flash hit 95% on 2026-08-16, when
-  # jellyfin, plex and plausible replicas together held 154G of 176G.
+  # Single 200G data disk; no tank tier.
   # ---------------------------------------------------------------------------
   elitedesk-worker:
-    longhorn_node_tags:
-      - general-storage
+    longhorn_node_tags: []
     longhorn_manage_disks: true
     longhorn_disks:
       - name: default-disk-flash
@@ -115,10 +102,7 @@ k3s_node_profiles:
   # ---------------------------------------------------------------------------
   # ThinkCentre M715q worker — k3s-prod-worker-{5,6}
   # Terraform: terraform/stacks/k3s/thinkcentre-{1,2}/prod/workers
-  # 8GB hosts (6.7GiB usable): 4.5GiB VMs, 120G flash disk each. Deliberately
-  # not tagged general-storage until RAM is upgraded (home-infra-1tre).
-  # Disk scheduling enabled after approved capacity/selector audit. Existing
-  # best-effort auto-balance may use these zones; general-storage stays excluded.
+  # 8GB hosts (6.7GiB usable): 4.5GiB VMs, 120G flash disk each.
   # ---------------------------------------------------------------------------
   thinkcentre-worker:
     longhorn_node_tags: []

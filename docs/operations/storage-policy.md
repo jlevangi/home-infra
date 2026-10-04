@@ -16,7 +16,6 @@ The policy recognizes these intent-based StorageClass names:
 | `longhorn-redundant` | `longhorn-singleton` | Single-pod state with no app-layer HA |
 | `longhorn-vault-raft` | none | Vault raft members only |
 | `longhorn-one-replica-flash` | none | Explicit opt-in, backup-restorable state pinned to flash |
-| `longhorn-media` | none | Media workloads that must follow `media-storage` nodes |
 
 During the cleanup, both names may exist in the cluster at the same time. The
 important distinction is behavioral, not cosmetic: `longhorn` and
@@ -55,7 +54,6 @@ healthy PVC just to switch between those two names.
 | Latency-sensitive state | The workload benefits from low latency or uses SQLite/small-file metadata | `longhorn-flash` | 2 | daily + weekly | Canonical explicit flash tier. `longhorn-fast` is a compatibility alias. |
 | Single-pod, no app-layer HA | One pod owns the state and would fail hard on a single-replica fault | `longhorn-redundant` | 2 | daily + weekly | Flash-pinned singleton config or SQLite state such as Grafana, Jellyfin config, or Plex config. |
 | Catch-all | The app has no capacity/archive requirement | `longhorn` | 2 | daily + weekly | Default flash-backed choice. Select tank explicitly; it is not an automatic spillover tier. |
-| Media on the GPU worker | The PVC must follow media/transcoding workloads onto `media-storage` nodes | `longhorn-media` | 3 | daily + weekly | Use only when node placement is the requirement. |
 | Pure local static data | The data should stay on a host-local path and not on Longhorn | static PV | n/a | n/a | Example: large model files that should not consume Longhorn replicas. |
 
 The heavy-writer threshold above is intentionally conservative because Atlas's
