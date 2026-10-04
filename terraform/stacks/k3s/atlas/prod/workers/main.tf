@@ -84,13 +84,13 @@ variable "vm_name_prefix" {
 variable "vm_count" {
   description = "Number of worker VMs."
   type        = number
-  default     = 3
+  default     = 1
 }
 
 variable "vm_ids" {
   description = "Fixed Proxmox VMIDs for worker VMs."
   type        = list(number)
-  default     = [101, 103, 105]
+  default     = [101]
 }
 
 variable "template_name" {
