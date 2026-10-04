@@ -13,9 +13,11 @@ spec:
     metadata:
       labels: { app: everlyera-minio, component: object-storage }
     spec:
+      imagePullSecrets:
+        - name: everlyera-media-ghcr
       containers:
         - name: minio
-          image: minio/minio:RELEASE.2025-01-20T14-49-07Z-cpuv1
+          image: ghcr.io/jlevangi/home-infra-minio:RELEASE.2025-10-15T17-29-55Z@sha256:0983e92f97f1cbd338bbaffcb96fab24fe85b9d6dc9f3ff50e09ebc4f6821664
           args: ["server", "/data", "--console-address", ":9001"]
           ports:
             - { name: s3, containerPort: 9000 }

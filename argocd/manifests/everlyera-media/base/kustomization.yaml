@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - external-secret.yaml
+  - external-secret-ghcr.yaml
   - configmap-minio-policy.yaml
   - pvc-minio.yaml
   - deployment-minio.yaml
