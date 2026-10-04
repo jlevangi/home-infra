@@ -23,7 +23,7 @@ EPUB, which is why PDFs land here as readable reflowable text.
 
 | Mount | Backing | Purpose |
 |-------|---------|---------|
-| `/config` | Longhorn PVC `calibre-web-config-pvc` (`longhorn-fast`, daily+weekly backup) | `app.db` — settings, users, **and the OIDC configuration** |
+| `/config` | Longhorn PVC `calibre-web-config-pvc` (`longhorn-flash`, daily+weekly backup) | `app.db` — settings, users, **and the OIDC configuration** |
 | `/calibre-library` | NFS `/volume1/media/calibre/library` | The Calibre library: `metadata.db` + book files |
 | `/cwa-book-ingest` | NFS `/volume1/media/calibre/ingest` | Drop zone; **files here are deleted after import** |
 | `/books-readonly` | NFS `/volume1/media/books` (read-only) | The pre-existing hand-organised tree, mounted so it can be copied from but never restructured or deleted |

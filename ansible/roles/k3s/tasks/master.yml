@@ -171,3 +171,22 @@
     mode: '0644'
     remote_src: yes
   become: yes
+
+# Longhorn is the only default StorageClass. K3s re-applies local-storage.yaml
+# (local-path, is-default-class=true) on every start unless a .skip file exists;
+# the .skip keeps the provisioner/class as-is and stops the reapply.
+- name: Stop K3s reapplying the local-path default StorageClass
+  copy:
+    content: ""
+    dest: /var/lib/rancher/k3s/server/manifests/local-storage.yaml.skip
+    force: no
+    mode: '0644'
+  become: yes
+
+- name: Unset local-path as default StorageClass
+  command: >-
+    k3s kubectl annotate storageclass local-path
+    storageclass.kubernetes.io/is-default-class=false --overwrite
+  become: yes
+  run_once: true
+  changed_when: false

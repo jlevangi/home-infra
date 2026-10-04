@@ -144,7 +144,7 @@ spec:
                   # to 41 minutes and made rule evaluations time out. Keep it
                   # explicitly flash-pinned; changing this immutable template
                   # requires controlled PVC backup/recreation/restore.
-                  storageClassName: longhorn-fast
+                  storageClassName: longhorn-flash
                   accessModes: ["ReadWriteOnce"]
                   resources:
                     requests:

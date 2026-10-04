@@ -45,15 +45,12 @@ spec:
         singleBinary:
           replicas: 1
           persistence:
-            # The Loki PVC has diskSelector=["tank"] patched at runtime
-            # (2026-05-31 incident — continuous log writes were starving
-            # shared Atlas flash IOPS). The "right" value below is
-            # longhorn-tank, but StatefulSet volumeClaimTemplates is
-            # immutable post-creation and ArgoCD can't apply the change
-            # to the live object. The chart value stayed longhorn until
-            # the PVC is recreated under home-infra-wdy; the runtime
-            # patch carries the actual placement.
-            storageClass: longhorn-tank
+            # Flash since 2026-10-04. Was tank after the 2026-05-31 Atlas
+            # flash IOPS incident, but tank exists only on Atlas, so both
+            # replicas shared one host. Flash now spans 4 hosts. The live
+            # PVC was relabelled in place; the StatefulSet template is
+            # immutable (see ignoreDifferences below).
+            storageClass: longhorn-flash
             accessModes:
               - ReadWriteOnce
             size: 20Gi
@@ -127,8 +124,7 @@ spec:
   ignoreDifferences:
     # volumeClaimTemplates is immutable post-creation; live StatefulSet
     # still has storageClass: longhorn-steady from the original PVC
-    # provisioner.  The chart declares longhorn-tank but the runtime PVC
-    # already uses longhorn-tank via manual patch.
+    # provisioner. The live PVC is longhorn-flash (relabelled in place).
     - group: apps
       kind: StatefulSet
       name: loki

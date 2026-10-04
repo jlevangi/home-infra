@@ -11,12 +11,11 @@ The policy recognizes these intent-based StorageClass names:
 | Canonical name | Legacy name | Purpose |
 | --- | --- | --- |
 | `longhorn` | `longhorn-general` | Default 2-replica storage pinned to flash |
-| `longhorn-flash` | `longhorn-fast` | Explicit flash tier for latency-sensitive state |
+| `longhorn-flash` | `longhorn-fast` (retired) | Explicit flash tier for latency-sensitive state |
 | `longhorn-tank` | `longhorn-steady` | Explicit tank tier for capacity/archive workloads |
 | `longhorn-redundant` | `longhorn-singleton` | Single-pod state with no app-layer HA |
 | `longhorn-vault-raft` | none | Vault raft members only |
 | `longhorn-one-replica-flash` | none | Explicit opt-in, backup-restorable state pinned to flash |
-| `longhorn-one-replica-tank` | none | Explicit opt-in, backup-restorable state pinned to tank |
 | `longhorn-media` | none | Media workloads that must follow `media-storage` nodes |
 
 During the cleanup, both names may exist in the cluster at the same time. The
@@ -69,16 +68,17 @@ it as `longhorn-tank` even if its absolute IOPS or throughput is lower.
 1. Start with `longhorn` (the flash-backed default). `longhorn-general` is a
    compatibility alias, not a required migration target.
 2. Use `longhorn-tank` only when capacity/archive characteristics outweigh
-   latency. Tank is explicit and never the default spillover tier.
+   latency. Tank is explicit and never the default spillover tier. Tank disks
+   exist only on Atlas, so both replicas of a tank volume share one physical
+   host; keep anything that matters on flash.
 3. Use `longhorn-flash` when declaring the physical flash tier explicitly.
-   `longhorn-fast` is a compatibility alias; do not recreate a healthy PVC only
-   to switch between those two names.
+   `longhorn-fast` was retired 2026-10-04; its PVCs were relabelled in place.
 4. Use `longhorn-redundant` when the workload is a singleton and the app
    cannot self-heal from losing one replica.
 5. Use `longhorn-vault-raft` only for Vault raft members. Do not generalize its
    single-replica pattern to other apps without an explicit design review.
-6. `longhorn-one-replica-flash` and `longhorn-one-replica-tank` are explicit,
-   opt-in backup-restorable tiers. They require documented RPO/RTO, an
+6. `longhorn-one-replica-flash` is an explicit,
+   opt-in backup-restorable tier. They require documented RPO/RTO, an
    application-specific integrity command, a fresh exact backup, and the
    fail-closed one-PVC migration workflow. They never change existing PVCs.
 
@@ -142,7 +142,7 @@ those remain operational preflight and acceptance requirements.
 
 ## Known Exceptions
 
-- Prometheus uses `longhorn-fast` despite being a TSDB. On `longhorn-tank`, its
+- Prometheus uses `longhorn-flash` despite being a TSDB. On `longhorn-tank`, its
   disk reached 97% I/O busy, write latency reached 852 ms, and a two-hour TSDB
   block write took 41 minutes. This caused repeated rule-query timeouts and
   `PrometheusMissingRuleEvaluations`. Keep its PVC flash-pinned unless later

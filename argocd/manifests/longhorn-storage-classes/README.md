@@ -6,15 +6,15 @@ ArgoCD-managed Longhorn StorageClasses for the prod cluster.
 
 | SC | Purpose |
 |---|---|
-| `longhorn` | Default 2-replica class, pinned to flash. |
+| `longhorn` | Default 2-replica class, pinned to flash, any flash node. |
 | `longhorn-flash` | Canonical explicit flash tier for latency-sensitive state. |
-| `longhorn-fast` | Compatibility alias for `longhorn-flash`. |
 | `longhorn-tank` | Canonical tank tier for capacity/archive workloads. |
 | `longhorn-redundant` | Canonical higher-redundancy class for singleton state. |
-| `longhorn-vault-raft` | Vault raft only. Single replica on tank. |
+| `longhorn-vault-raft` | Vault raft only. 2 replicas on flash. |
+| `longhorn-one-replica-flash` | Opt-in single replica on flash, backup-restorable. |
 
-Unused `longhorn-general`, `longhorn-singleton`, `longhorn-steady`, and
-`longhorn-media` were retired after checking live PVC/PV references. Ansible
+Unused `longhorn-general`, `longhorn-singleton`, `longhorn-steady`,
+`longhorn-media`, `longhorn-fast`, and `longhorn-one-replica-tank` were retired after checking live PVC/PV references. Ansible
 no longer creates media classes. Keep `longhorn-static`: it is Longhorn's
 configured recovery/import class, even when no current PVC uses it.
 
@@ -33,19 +33,20 @@ ownership:
 
 ## Current state
 
-The current manifests keep canonical names plus compatibility aliases in parallel:
+Classes: `longhorn`, `longhorn-flash`, `longhorn-tank`, `longhorn-redundant`
+(retire once Plex is gone, home-infra-9wvm), `longhorn-vault-raft`,
+`longhorn-one-replica-flash`.
 
-- Canonical names used by new manifests: `longhorn`, `longhorn-flash`,
-  `longhorn-tank`, `longhorn-redundant`, `longhorn-vault-raft`
-- Compatibility alias kept for bound PVCs: `longhorn-fast`
+Tank disks exist only on Atlas, so a 2-replica tank volume has both replicas
+on one physical host. Prefer flash for anything that matters.
 
 The default `longhorn` class has two replicas and `diskSelector: flash`.
 Capacity/archive workloads must explicitly select `longhorn-tank`; tank is not
 automatic spillover for normal app state. Existing volumes retain their current
 placement until individually reconciled.
 
-Only `longhorn` is marked default. Alias objects can be retired after bound PVC
-migrations complete.
+Only `longhorn` is marked default. K3s `local-path` is un-defaulted by the
+ansible k3s role (`local-storage.yaml.skip` + annotation).
 
 ## Adding a new env
 

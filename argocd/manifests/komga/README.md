@@ -6,7 +6,7 @@ Comics / manga / ebook server at `komga.levangie.dev`.
 
 | Mount | Source | Mode |
 |-------|--------|------|
-| `/config` | `komga-config-pvc` (Longhorn `longhorn-fast`, 10Gi) | rw |
+| `/config` | `komga-config-pvc` (Longhorn `longhorn-flash`, 10Gi) | rw |
 | `/data/comics` | NFS `172.20.20.5:/volume1/media` subPath `comics` | rw |
 | `/data/books` | NFS `172.20.20.5:/volume1/media` subPath `books` | **ro** |
 

@@ -9,7 +9,7 @@ spec:
   resources:
     requests:
       storage: 2Gi
-  storageClassName: longhorn-one-replica-tank
+  storageClassName: longhorn-flash
   volumeName: hoarder-data-prod-pv
 ---
 apiVersion: v1
@@ -23,5 +23,5 @@ spec:
   resources:
     requests:
       storage: 1Gi
-  storageClassName: longhorn-one-replica-tank
+  storageClassName: longhorn-flash
   volumeName: hoarder-meilisearch-pv

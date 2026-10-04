@@ -49,5 +49,4 @@ parameters:
   dataEngine: v1
   backupTargetName: default
   diskSelector: flash
-  nodeSelector: general-storage
   recurringJobSelector: '[{"name":"daily","isGroup":true},{"name":"weekly","isGroup":true}]'
