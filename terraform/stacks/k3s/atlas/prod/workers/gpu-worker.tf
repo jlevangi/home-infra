@@ -128,9 +128,10 @@ resource "proxmox_vm_qemu" "gpu_worker" {
     format     = "raw"
     replicate  = true
     slot       = "scsi0"
-    size       = var.os_disk_size
-    type       = "disk"
-    storage    = var.gpu_worker_vm_storage
+    # GPU worker hosts most image-heavy pods; 80G filled with containerd images (2026-10-03).
+    size    = "200G"
+    type    = "disk"
+    storage = var.gpu_worker_vm_storage
   }
 
   disk {
