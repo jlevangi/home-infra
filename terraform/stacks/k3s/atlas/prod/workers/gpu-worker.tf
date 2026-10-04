@@ -95,6 +95,7 @@ resource "proxmox_vm_qemu" "gpu_worker" {
   agent              = 1
   os_type            = "cloud-init"
   start_at_node_boot = true
+  vm_state           = "running"
   bios               = "ovmf"
   machine            = "q35"
 
