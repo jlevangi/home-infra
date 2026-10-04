@@ -40,6 +40,8 @@ k3s_node_profiles:
   # volume can keep one replica on flash and one on tank.
   # ---------------------------------------------------------------------------
   atlas-worker:
+    # Absorbs former workers 2/3; podCIDR is /24 so 250 is the practical ceiling.
+    k3s_kubelet_max_pods: 250
     longhorn_node_tags:
       - general-storage
       - media-storage
@@ -63,6 +65,7 @@ k3s_node_profiles:
   # ---------------------------------------------------------------------------
   atlas-gpu-worker:
     nvidia_gpu_worker: true
+    k3s_kubelet_max_pods: 250
     k3s_agent_args:
       - "--node-label=accelerator=nvidia"
     # General workloads are allowed here deliberately. The GPU node was
@@ -273,6 +276,7 @@ longhorn_manage_disks: "{{ k3s_node_config.longhorn_manage_disks | default(false
 longhorn_disks: "{{ k3s_node_config.longhorn_disks | default([]) }}"
 nvidia_gpu_worker: "{{ k3s_node_config.nvidia_gpu_worker | default(false) }}"
 k3s_agent_args: "{{ k3s_node_config.k3s_agent_args | default([]) }}"
+k3s_kubelet_max_pods: "{{ k3s_node_config.k3s_kubelet_max_pods | default('') }}"
 llm_model_mount_path: "{{ k3s_node_config.llm_model_mount_path | default('') }}"
 llm_model_disk_device: >-
   {{

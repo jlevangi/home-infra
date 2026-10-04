@@ -20,6 +20,7 @@ k3s_server_args:
   - "--kube-apiserver-arg=oidc-groups-claim=groups"
 
 k3s_agent_args: []
+k3s_kubelet_max_pods: ""
 
 # Load balancer configuration (for future HA setup)
 load_balancer_ip: ""  # Set this for HA deployment with load balancer

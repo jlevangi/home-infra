@@ -132,6 +132,33 @@
     var: k3s_worker_install.stdout_lines
   when: k3s_worker_install is defined and not k3s_worker_install.skipped|default(false)
 
+# ponytail: only max-pods is managed here; extend the drop-in if more kubelet args are needed.
+- name: Ensure K3s config drop-in directory exists
+  file:
+    path: /etc/rancher/k3s/config.yaml.d
+    state: directory
+    mode: '0755'
+  become: yes
+  when: k3s_kubelet_max_pods | string | length > 0
+
+- name: Configure kubelet max-pods drop-in
+  copy:
+    dest: /etc/rancher/k3s/config.yaml.d/50-max-pods.yaml
+    content: |
+      kubelet-arg:
+        - "max-pods={{ k3s_kubelet_max_pods }}"
+    mode: '0600'
+  register: k3s_max_pods_config
+  become: yes
+  when: k3s_kubelet_max_pods | string | length > 0
+
+- name: Restart K3s agent after kubelet config change (KillMode=process keeps pods running)
+  systemd:
+    name: k3s-agent
+    state: restarted
+  become: yes
+  when: k3s_max_pods_config is changed
+
 - name: Verify K3s agent service is running
   systemd:
     name: k3s-agent
