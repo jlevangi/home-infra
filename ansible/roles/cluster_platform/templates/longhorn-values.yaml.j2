@@ -2,6 +2,7 @@ global:
   tolerations: {{ longhorn_global_tolerations_json }}
 
 defaultSettings:
+  allowRecurringJobWhileVolumeDetached: {{ longhorn_allow_recurring_job_while_volume_detached | default(false) | bool | string | lower }}
   taintToleration: '{{ longhorn_taint_toleration_value }}'
   defaultReplicaCount: {{ longhorn_replica_count | default(calculated_replica_count | default(3)) }}
   storageReservedPercentageForDefaultDisk: {{ longhorn_storage_reserved_percentage_for_default_disk | default(5) }}

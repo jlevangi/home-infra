@@ -25,6 +25,8 @@ k3s_primary_master: "k3s-prod-cp-1"
 # All workers live on a single Proxmox host, so 3-way replication adds no
 # hardware redundancy beyond 2-way; backups (NFS) cover host-level loss.
 # -----------------------------------------------------------------------------
+# Back up idle CronJob PVCs even when their consumers finish before backup time.
+longhorn_allow_recurring_job_while_volume_detached: true
 longhorn_replica_count: 2
 longhorn_exclude_master_from_storage: true
 # Stop Longhorn auto-creating a default disk on a new node's OS root

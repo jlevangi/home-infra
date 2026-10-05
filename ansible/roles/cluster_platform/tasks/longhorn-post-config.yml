@@ -265,7 +265,7 @@
     ---
     # Returns freed blocks to Longhorn; runs before backup-weekly. Reuses the
     # weekly group because every Longhorn volume already carries that label.
-    # Detached volumes are skipped (allow-recurring-job-while-volume-detached=false).
+    # Detached volumes run recurring jobs only when the cluster setting permits it.
     apiVersion: longhorn.io/v1beta2
     kind: RecurringJob
     metadata:
