@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gitea-recovery
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitea-data
+  namespace: gitea-recovery
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: restore
+  namespace: gitea-recovery
+spec:
+  restartPolicy: Never
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+  containers:
+    - name: restore
+      image: docker.gitea.com/gitea@sha256:c168e7ccb767164793a67e1e874639488260795567337452b06292d1515bea12
+      imagePullPolicy: Never
+      command: [sh, -c, 'sleep infinity']
+      volumeMounts:
+        - name: data
+          mountPath: /var/lib/gitea
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: gitea-data

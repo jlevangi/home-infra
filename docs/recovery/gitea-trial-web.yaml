@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea
+  namespace: gitea-recovery
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gitea-trial
+  template:
+    metadata:
+      labels:
+        app: gitea-trial
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: gitea
+          image: docker.gitea.com/gitea@sha256:c168e7ccb767164793a67e1e874639488260795567337452b06292d1515bea12
+          imagePullPolicy: Never
+          command: [sh, -ec]
+          args:
+            - |
+              test -s /var/lib/gitea/config/app.ini
+              test -s /var/lib/gitea/config/secret_key
+              /usr/local/bin/docker-setup.sh
+              exec gitea web --config /var/lib/gitea/config/app.ini
+          env:
+            - {name: GITEA_APP_INI, value: /var/lib/gitea/config/app.ini}
+            - {name: GITEA__server__ROOT_URL, value: 'http://127.0.0.1:13000/'}
+            - {name: GITEA__server__DOMAIN, value: '127.0.0.1'}
+            - {name: GITEA__server__HTTP_ADDR, value: '0.0.0.0'}
+            - {name: GITEA__server__HTTP_PORT, value: '3000'}
+            - {name: GITEA__server__DISABLE_SSH, value: 'true'}
+            - {name: GITEA__server__START_SSH_SERVER, value: 'false'}
+            - {name: GITEA__security__INSTALL_LOCK, value: 'true'}
+            - {name: GITEA__security__DISABLE_WEBHOOKS, value: 'true'}
+            - {name: GITEA__service__DISABLE_REGISTRATION, value: 'true'}
+            - {name: GITEA__service__ENABLE_NOTIFY_MAIL, value: 'false'}
+            - {name: GITEA__oauth2_client__ENABLE_AUTO_REGISTRATION, value: 'false'}
+            - {name: GITEA__repository__DISABLE_MIGRATIONS, value: 'true'}
+            - {name: GITEA__actions__ENABLED, value: 'false'}
+            - {name: GITEA__mirror__ENABLED, value: 'false'}
+            - {name: GITEA__mailer__ENABLED, value: 'false'}
+            - {name: GITEA__cron.update_checker__ENABLED, value: 'false'}
+          ports:
+            - {containerPort: 3000}
+          readinessProbe:
+            httpGet: {path: /api/healthz, port: 3000}
+            initialDelaySeconds: 5
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/gitea}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: gitea-data}
