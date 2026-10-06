@@ -18,7 +18,8 @@ data:
     \          drop:\n            - ALL\n        resources:\n          requests:\n\
     \            cpu: 250m\n            memory: 512Mi\n            ephemeral-storage:\
     \ 1Gi\n          limits:\n            cpu: '2'\n            memory: 2Gi\n    \
-    \        ephemeral-storage: 4Gi\n      - name: $services\n        securityContext:\n\
+    \        ephemeral-storage: 4Gi\n        volumeMounts:\n        - name: act\n\
+    \          mountPath: /run/act\n      - name: $services\n        securityContext:\n\
     \          allowPrivilegeEscalation: false\n          capabilities:\n        \
     \    drop:\n            - ALL\n        resources:\n          limits:\n       \
     \     cpu: 500m\n            memory: 512Mi\n            ephemeral-storage: 1Gi\n\

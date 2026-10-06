@@ -14,7 +14,7 @@ spec:
       labels:
         app: gitea-runner
       annotations:
-        gitea.levangie.dev/config-revision: artifact-pilot-1
+        gitea.levangie.dev/config-revision: artifact-pilot-2
     spec:
       serviceAccountName: gitea-runner
       terminationGracePeriodSeconds: 180
