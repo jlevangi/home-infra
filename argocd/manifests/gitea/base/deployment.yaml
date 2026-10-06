@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea
+  labels:
+    app: gitea
+    app.kubernetes.io/name: gitea
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gitea
+  template:
+    metadata:
+      labels:
+        app: gitea
+        app.kubernetes.io/name: gitea
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: gitea
+          image: docker.gitea.com/gitea:28.0.0-rootless@sha256:c168e7ccb767164793a67e1e874639488260795567337452b06292d1515bea12
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          # INSTALL_LOCK alone would use Gitea's insecure fallback SECRET_KEY.
+          # Generate once, without printing it; app.ini/internal token persist here too.
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              umask 077
+              mkdir -p /var/lib/gitea/config
+              if [ ! -s /var/lib/gitea/config/secret_key ]; then
+                gitea generate secret SECRET_KEY > /var/lib/gitea/config/secret_key.tmp
+                test -s /var/lib/gitea/config/secret_key.tmp
+                mv /var/lib/gitea/config/secret_key.tmp /var/lib/gitea/config/secret_key
+              fi
+              exec /usr/bin/dumb-init -- /usr/local/bin/docker-entrypoint.sh
+          envFrom:
+            - configMapRef:
+                name: gitea-config
+          ports:
+            - name: http
+              containerPort: 3000
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/gitea
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /api/healthz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          # Upstream warns against restarting on DB/cache health failures or migrations.
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 120
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: gitea-data-pvc

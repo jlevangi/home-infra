@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitea-config
+data:
+  # Rootless config and generated secrets share the data PVC; never use the installer.
+  GITEA_APP_INI: /var/lib/gitea/config/app.ini
+  GITEA__database__DB_TYPE: sqlite3
+  GITEA__database__PATH: /var/lib/gitea/data/gitea.db
+  GITEA__server__APP_DATA_PATH: /var/lib/gitea
+  GITEA__repository__ROOT: /var/lib/gitea/git/repositories
+  GITEA__server__ROOT_URL: https://git.levangie.dev/
+  GITEA__server__DOMAIN: git.levangie.dev
+  GITEA__server__PROTOCOL: http
+  GITEA__server__HTTP_PORT: "3000"
+  GITEA__server__DISABLE_SSH: "true"
+  GITEA__server__START_SSH_SERVER: "false"
+  GITEA__security__INSTALL_LOCK: "true"
+  GITEA__security__SECRET_KEY_URI: file:/var/lib/gitea/config/secret_key
+  GITEA__security__DISABLE_WEBHOOKS: "true"
+  GITEA__service__DISABLE_REGISTRATION: "true"
+  GITEA__service__REQUIRE_SIGNIN_VIEW: "true"
+  GITEA__service__ENABLE_NOTIFY_MAIL: "false"
+  GITEA__repository__DEFAULT_PRIVATE: private
+  GITEA__repository__FORCE_PRIVATE: "true"
+  GITEA__repository__DISABLE_MIGRATIONS: "true"
+  # Pilot has no runners, mirrors, webhooks, SMTP, remote avatars or update checks.
+  GITEA__actions__ENABLED: "false"
+  GITEA__mirror__ENABLED: "false"
+  GITEA__mailer__ENABLED: "false"
+  GITEA__picture__DISABLE_GRAVATAR: "true"
+  GITEA__picture__ENABLE_FEDERATED_AVATAR: "false"
+  GITEA__cron.update_checker__ENABLED: "false"
