@@ -5,7 +5,9 @@ Gitea replica, SQLite and repositories on a 10Gi `longhorn-flash` PVC.
 
 Standard Traefik HTTPS ingress serves `https://git.levangie.dev` with automatic
 internal Technitium DNS. No public DNS or tunnel route is configured. SSH, signup,
-installer and runners remain disabled. Operator checks can also use port-forwarding:
+installer remain disabled. Actions is enabled for a repository-scoped, unprivileged
+native Kubernetes runner pilot; GitHub remains authoritative. Operator checks can
+also use port-forwarding:
 
 ```bash
 python3 argocd/manifests/gitea/verify.py

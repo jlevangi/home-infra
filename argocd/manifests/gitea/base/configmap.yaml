@@ -29,8 +29,8 @@ data:
   GITEA__repository__DEFAULT_PRIVATE: private
   GITEA__repository__FORCE_PRIVATE: "true"
   GITEA__repository__DISABLE_MIGRATIONS: "true"
-  # Pilot has no runners, mirrors, webhooks, SMTP, remote avatars or update checks.
-  GITEA__actions__ENABLED: "false"
+  # Actions is limited to a repository-scoped disposable runner pilot.
+  GITEA__actions__ENABLED: "true"
   GITEA__mirror__ENABLED: "false"
   GITEA__mailer__ENABLED: "false"
   GITEA__picture__DISABLE_GRAVATAR: "true"

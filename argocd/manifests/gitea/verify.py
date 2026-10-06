@@ -41,7 +41,8 @@ assert config['GITEA__security__SECRET_KEY_URI'] == 'file:/var/lib/gitea/config/
 assert config['GITEA__database__PATH'].startswith('/var/lib/gitea/')
 for section, key in [('security', 'INSTALL_LOCK'), ('security', 'DISABLE_WEBHOOKS'), ('service', 'DISABLE_REGISTRATION'), ('service', 'REQUIRE_SIGNIN_VIEW'), ('repository', 'FORCE_PRIVATE'), ('repository', 'DISABLE_MIGRATIONS'), ('server', 'DISABLE_SSH'), ('picture', 'DISABLE_GRAVATAR')]:
     assert config[f'GITEA__{section}__{key}'] == 'true'
-for section in ('actions', 'mirror', 'mailer', 'cron.update_checker'):
+assert config['GITEA__actions__ENABLED'] == 'true'
+for section in ('mirror', 'mailer', 'cron.update_checker'):
     assert config[f'GITEA__{section}__ENABLED'] == 'false'
 service = by_kind['Service']['spec']
 assert service['type'] == 'ClusterIP'
