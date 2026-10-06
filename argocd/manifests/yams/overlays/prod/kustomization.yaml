@@ -170,6 +170,15 @@ patches:
       - op: add
         path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
         value: "k3s-prod.levangie.dev"
+  - target:
+      kind: Deployment
+      name: (sonarr|radarr|radarr4k)
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/volumeMounts/-
+        value:
+          name: media
+          mountPath: /data
 labels:
   - pairs:
       environment: prod
