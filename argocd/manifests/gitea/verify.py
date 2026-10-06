@@ -8,10 +8,10 @@ import yaml
 repo = Path(__file__).resolve().parents[3]
 render = subprocess.check_output(['kubectl', 'kustomize', str(repo / 'argocd/manifests/gitea/overlays/prod')], text=True)
 objects = list(yaml.safe_load_all(render))
-assert len(objects) == 5
+assert len(objects) == 6
 by_kind = {o['kind']: o for o in objects}
-assert len(by_kind) == 5
-assert 'Ingress' not in by_kind and 'Middleware' not in by_kind
+assert len(by_kind) == 6
+assert by_kind['Ingress']['metadata']['annotations']['external-dns.alpha.kubernetes.io/target'] == 'k3s-prod.levangie.dev'
 for o in objects:
     assert o['metadata']['labels']['environment'] == 'prod'
     if o['kind'] != 'Namespace':
@@ -51,4 +51,4 @@ app = yaml.safe_load((repo / 'argocd/apps/prod/gitea.yaml').read_text())
 assert app['spec']['source']['repoURL'] == 'git@github.com:jlevangi/home-infra.git'
 assert app['spec']['source']['path'] == 'argocd/manifests/gitea/overlays/prod'
 assert not any(o['kind'] in ('Secret', 'Job', 'CronJob', 'StatefulSet') for o in objects)
-print('PASS: 5 rendered resources; single replica/Recreate; main-container PVC; SQLite; backup labels; rootless digest; locked installer/signup; disabled outbound automation; ClusterIP without ingress or SSH; GitHub source.')
+print('PASS: 6 rendered resources; single replica/Recreate; persistent SQLite; backup labels; rootless digest; locked installer/signup; HTTPS ingress with internal auto DNS; GitHub source.')
