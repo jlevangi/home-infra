@@ -1,0 +1,13 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gitea-runner-job-pods
+  namespace: gitea-runner
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: gitea-runner-job-pods
+subjects:
+- kind: ServiceAccount
+  name: gitea-runner
+  namespace: gitea-runner

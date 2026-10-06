@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: gitea-runner-defaults
+  namespace: gitea-runner
+spec:
+  limits:
+  - type: Container
+    defaultRequest:
+      cpu: 100m
+      memory: 256Mi
+      ephemeral-storage: 512Mi
+    default:
+      cpu: '1'
+      memory: 1Gi
+      ephemeral-storage: 2Gi

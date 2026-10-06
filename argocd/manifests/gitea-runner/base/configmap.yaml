@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitea-runner-config
+  namespace: gitea-runner
+data:
+  config.yaml: "log:\n  level: info\nrunner:\n  file: /data/.runner\n  capacity: 1\n\
+    \  timeout: 15m\n  shutdown_timeout: 2m\n  fetch_timeout: 5s\n  fetch_interval:\
+    \ 2s\n  workdir_cleanup_age: 1h\n  labels:\n    - pilot-k8s:kubernetes://docker.gitea.com/runner-images@sha256:0e62e56b382ebf485bff1e51a05cbe27c708545a2e91425467fd31eb3e249521\n\
+    cache:\n  enabled: false\ncontainer:\n  privileged: false\n  valid_volumes: []\n\
+    kubernetes:\n  namespace: gitea-runner\n  pod_template:\n    spec:\n      automountServiceAccountToken:\
+    \ false\n      enableServiceLinks: false\n      securityContext:\n        runAsNonRoot:\
+    \ true\n        runAsUser: 1001\n        runAsGroup: 1001\n        fsGroup: 1001\n\
+    \        seccompProfile:\n          type: RuntimeDefault\n      containers:\n\
+    \        - name: job\n          securityContext:\n            allowPrivilegeEscalation:\
+    \ false\n            readOnlyRootFilesystem: false\n            capabilities:\n\
+    \              drop: [\"ALL\"]\n          resources:\n            requests:\n\
+    \              cpu: 250m\n              memory: 512Mi\n              ephemeral-storage:\
+    \ 1Gi\n            limits:\n              cpu: \"2\"\n              memory: 2Gi\n\
+    \              ephemeral-storage: 4Gi\n        - name: $services\n          securityContext:\n\
+    \            allowPrivilegeEscalation: false\n            capabilities:\n    \
+    \          drop: [\"ALL\"]\n          resources:\n            limits:\n      \
+    \        cpu: 500m\n              memory: 512Mi\n              ephemeral-storage:\
+    \ 1Gi\n      volumes:\n        - name: workspace\n          emptyDir:\n      \
+    \      sizeLimit: 2Gi\n        - name: act\n          emptyDir:\n            sizeLimit:\
+    \ 1Gi\n"

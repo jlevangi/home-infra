@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: gitea-runner
+  namespace: gitea-runner
+spec:
+  serviceName: gitea-runner
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitea-runner
+  template:
+    metadata:
+      labels:
+        app: gitea-runner
+    spec:
+      serviceAccountName: gitea-runner
+      terminationGracePeriodSeconds: 180
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: runner
+        image: docker.gitea.com/runner@sha256:131ff842ec12453108f1c1a454031c325d3c95e4af459979a2e303e12d99c98c
+        env:
+        - name: GITEA_INSTANCE_URL
+          value: https://git.levangie.dev
+        - name: CONFIG_FILE
+          value: /config/config.yaml
+        - name: GITEA_RUNNER_NAME
+          value: k3s-prod-native-pilot
+        - name: GITEA_RUNNER_REGISTRATION_TOKEN_FILE
+          value: /secrets/token
+        - name: GITEA_MAX_REG_ATTEMPTS
+          value: '12'
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+            ephemeral-storage: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+            ephemeral-storage: 256Mi
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: tmp
+          mountPath: /tmp
+        - name: config
+          mountPath: /config
+          readOnly: true
+        - name: registration
+          mountPath: /secrets
+          readOnly: true
+      volumes:
+      - name: tmp
+        emptyDir:
+          sizeLimit: 64Mi
+      - name: config
+        configMap:
+          name: gitea-runner-config
+      - name: registration
+        secret:
+          secretName: gitea-runner-registration
+          defaultMode: 288
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      storageClassName: longhorn
+      resources:
+        requests:
+          storage: 128Mi

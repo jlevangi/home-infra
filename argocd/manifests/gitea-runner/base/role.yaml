@@ -1,0 +1,35 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gitea-runner-job-pods
+  namespace: gitea-runner
+rules:
+- apiGroups:
+  - ''
+  resources:
+  - pods
+  verbs:
+  - create
+  - get
+  - list
+  - delete
+- apiGroups:
+  - ''
+  resources:
+  - pods/exec
+  verbs:
+  - create
+  - get
+- apiGroups:
+  - ''
+  resources:
+  - pods/log
+  verbs:
+  - get
+- apiGroups:
+  - ''
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
