@@ -12,7 +12,7 @@ assert s['securityContext']['runAsNonRoot']
 assert not any('hostPath' in v for v in s['volumes'])
 assert not s['containers'][0]['securityContext']['allowPrivilegeEscalation']
 c=yaml.safe_load(b['ConfigMap']['data']['config.yaml'])
-assert c['runner']['capacity']==1 and c['cache']['enabled'] is False
+assert c['runner']['capacity']==1 and c['cache']['enabled'] is True
 j=c['kubernetes']['pod_template']['spec']
 assert j['automountServiceAccountToken'] is False
 assert j['securityContext']['runAsNonRoot'] and j['securityContext']['runAsUser']==1001

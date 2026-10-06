@@ -57,3 +57,34 @@ spec:
     ports:
     - protocol: TCP
       port: 6443
+  - to:
+    - ipBlock:
+        cidr: 140.82.112.0/20
+    - ipBlock:
+        cidr: 185.199.108.0/22
+    - ipBlock:
+        cidr: 185.199.108.0/24
+    - ipBlock:
+        cidr: 185.199.109.0/24
+    - ipBlock:
+        cidr: 185.199.110.0/24
+    - ipBlock:
+        cidr: 185.199.111.0/24
+    ports:
+    - protocol: TCP
+      port: 443
+  - to:
+    - podSelector:
+        matchLabels:
+          app: gitea-runner
+    ports:
+    - protocol: TCP
+      port: 8088
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/managed-by: gitea-runner
+    ports:
+    - protocol: TCP
+      port: 8088

@@ -13,6 +13,8 @@ spec:
     metadata:
       labels:
         app: gitea-runner
+      annotations:
+        gitea.levangie.dev/config-revision: artifact-pilot-1
     spec:
       serviceAccountName: gitea-runner
       terminationGracePeriodSeconds: 180
