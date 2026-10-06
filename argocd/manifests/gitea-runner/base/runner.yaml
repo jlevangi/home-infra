@@ -116,6 +116,21 @@ spec:
       ports:
         - protocol: TCP
           port: 443
+    # Service DNAT can be evaluated against Traefik's pod and target port.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+      ports:
+        - protocol: TCP
+          port: 8443
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 8000
     - to:
         - ipBlock:
             cidr: 172.20.20.104/32
