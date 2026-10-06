@@ -8,9 +8,9 @@ import yaml
 repo = Path(__file__).resolve().parents[3]
 render = subprocess.check_output(['kubectl', 'kustomize', str(repo / 'argocd/manifests/gitea/overlays/prod')], text=True)
 objects = list(yaml.safe_load_all(render))
-assert len(objects) == 6
+assert len(objects) == 7
 by_kind = {o['kind']: o for o in objects}
-assert len(by_kind) == 6
+assert len(by_kind) == 7
 assert by_kind['Ingress']['metadata']['annotations']['external-dns.alpha.kubernetes.io/target'] == 'k3s-prod.levangie.dev'
 for o in objects:
     assert o['metadata']['labels']['environment'] == 'prod'
@@ -51,4 +51,15 @@ app = yaml.safe_load((repo / 'argocd/apps/prod/gitea.yaml').read_text())
 assert app['spec']['source']['repoURL'] == 'git@github.com:jlevangi/home-infra.git'
 assert app['spec']['source']['path'] == 'argocd/manifests/gitea/overlays/prod'
 assert not any(o['kind'] in ('Secret', 'Job', 'CronJob', 'StatefulSet') for o in objects)
-print('PASS: 6 rendered resources; single replica/Recreate; persistent SQLite; backup labels; rootless digest; locked installer/signup; HTTPS ingress with internal auto DNS; GitHub source.')
+assert config['GITEA__oauth2_client__ENABLE_AUTO_REGISTRATION'] == 'true'
+assert config['GITEA__oauth2_client__ACCOUNT_LINKING'] == 'disabled'
+assert config['GITEA__service__ALLOW_ONLY_INTERNAL_REGISTRATION'] == 'false'
+external = by_kind['ExternalSecret']['spec']
+assert external['secretStoreRef'] == {'name': 'vault-kv', 'kind': 'ClusterSecretStore'}
+assert external['data'] == [{'secretKey': 'OIDC_CLIENT_SECRET', 'remoteRef': {'key': 'prod/gitea', 'property': 'OIDC_CLIENT_SECRET'}}]
+assert container['env'][0]['valueFrom']['secretKeyRef'] == {'name': 'gitea-secrets', 'key': 'OIDC_CLIENT_SECRET'}
+bootstrap = container['args'][0]
+for flag in ('add-oauth', 'update-oauth', '--required-claim-name groups', '--required-claim-value Gitea-users', '--group-claim-name groups', '--admin-group Gitea-admins'):
+    assert flag in bootstrap
+subprocess.run(['sh', '-n'], input=bootstrap, text=True, check=True)
+print('PASS: 7 rendered resources; persistent rootless pilot; locked manual signup; Vault ESO reference; native role-gated OIDC bootstrap; shell syntax; GitHub source.')

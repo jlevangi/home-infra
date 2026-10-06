@@ -19,6 +19,11 @@ data:
   GITEA__security__SECRET_KEY_URI: file:/var/lib/gitea/config/secret_key
   GITEA__security__DISABLE_WEBHOOKS: "true"
   GITEA__service__DISABLE_REGISTRATION: "true"
+  # OIDC provisioning is separate from manual signup in Gitea v28.
+  GITEA__service__ALLOW_ONLY_INTERNAL_REGISTRATION: "false"
+  GITEA__oauth2_client__ENABLE_AUTO_REGISTRATION: "true"
+  GITEA__oauth2_client__USERNAME: preferred_username
+  GITEA__oauth2_client__ACCOUNT_LINKING: disabled
   GITEA__service__REQUIRE_SIGNIN_VIEW: "true"
   GITEA__service__ENABLE_NOTIFY_MAIL: "false"
   GITEA__repository__DEFAULT_PRIVATE: private

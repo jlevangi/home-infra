@@ -4,6 +4,7 @@ namespace: gitea
 resources:
   - namespace.yaml
   - configmap.yaml
+  - external-secret.yaml
   - pvc.yaml
   - deployment.yaml
   - service.yaml

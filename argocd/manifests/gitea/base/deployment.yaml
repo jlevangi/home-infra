@@ -48,7 +48,32 @@ spec:
                 test -s /var/lib/gitea/config/secret_key.tmp
                 mv /var/lib/gitea/config/secret_key.tmp /var/lib/gitea/config/secret_key
               fi
-              exec /usr/bin/dumb-init -- /usr/local/bin/docker-entrypoint.sh
+              /usr/local/bin/docker-setup.sh
+              gitea migrate --config "$GITEA_APP_INI"
+              sources=$(gitea admin auth list --config "$GITEA_APP_INI")
+              ids=$(printf '%s\n' "$sources" | while read -r id name rest; do
+                if [ "$name" = Keycloak ]; then printf '%s\n' "$id"; fi
+              done)
+              case "$ids" in
+                '') set -- add-oauth ;;
+                *[!0-9]*) printf '%s\n' 'Ambiguous Keycloak auth sources; refusing bootstrap' >&2; exit 1 ;;
+                *) set -- update-oauth --id "$ids" ;;
+              esac
+              gitea admin auth "$@" --config "$GITEA_APP_INI" \
+                --name Keycloak --provider openidConnect --key gitea \
+                --secret "$OIDC_CLIENT_SECRET" \
+                --auto-discover-url https://auth.levangie.org/realms/master/.well-known/openid-configuration \
+                --scopes profile --scopes email \
+                --required-claim-name groups --required-claim-value Gitea-users \
+                --group-claim-name groups --admin-group Gitea-admins
+              unset OIDC_CLIENT_SECRET
+              exec /usr/bin/dumb-init -- gitea web --config "$GITEA_APP_INI"
+          env:
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-secrets
+                  key: OIDC_CLIENT_SECRET
           envFrom:
             - configMapRef:
                 name: gitea-config
