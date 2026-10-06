@@ -1,0 +1,132 @@
+---
+# Standalone recovery: no shared tokens, OIDC, platform roles or production mounts.
+- name: Bootstrap isolated recovery K3s
+  hosts: gitea_recovery
+  become: true
+  tasks:
+    - name: Wait for cloud-init
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+    - name: Check isolation tooling
+      ansible.builtin.stat:
+        path: /usr/sbin/nft
+      register: nft_binary
+    - name: Install isolation tooling
+      ansible.builtin.apt:
+        name: nftables
+        update_cache: true
+      when: not nft_binary.stat.exists
+    - name: Create K3s config directory
+      ansible.builtin.file:
+        path: /etc/rancher/k3s
+        state: directory
+        mode: '0700'
+    - name: Configure independent SQLite server
+      ansible.builtin.copy:
+        dest: /etc/rancher/k3s/config.yaml
+        mode: '0600'
+        content: |
+          write-kubeconfig-mode: "0600"
+          tls-san: ["172.20.21.124"]
+          disable: [traefik, servicelb, metrics-server]
+    - name: Install pinned K3s
+      ansible.builtin.shell: curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.34.1+k3s1 sh -s - server
+      args:
+        creates: /usr/local/bin/k3s
+    - name: Wait for schedulable server
+      ansible.builtin.command: k3s kubectl wait node/gitea-recovery-1 --for=condition=Ready --timeout=180s
+      register: server_ready
+      until: server_ready.rc == 0
+      retries: 12
+      delay: 5
+      changed_when: false
+    - name: Cache exact recovery image before isolation
+      ansible.builtin.shell: >-
+        k3s crictl inspecti docker.gitea.com/gitea@sha256:c168e7ccb767164793a67e1e874639488260795567337452b06292d1515bea12 >/dev/null 2>&1 ||
+        k3s crictl pull docker.gitea.com/gitea:28.0.0-rootless@sha256:c168e7ccb767164793a67e1e874639488260795567337452b06292d1515bea12
+      changed_when: false
+    - name: Install persistent isolation rules
+      ansible.builtin.copy:
+        dest: /etc/recovery-isolation.nft
+        mode: '0600'
+        content: |
+          # Only this disposable guest is managed by this ruleset.
+          table inet recovery {
+            chain input {
+              type filter hook input priority -10; policy drop;
+              iifname "lo" accept
+              ct state established,related accept
+              ip saddr { 10.42.0.0/16, 10.43.0.0/16 } accept
+              ip saddr 172.20.23.94 tcp dport { 22, 6443 } accept
+            }
+            chain output {
+              type filter hook output priority -10; policy drop;
+              oifname "lo" accept
+              ct state established,related accept
+              ip daddr { 172.20.21.124, 10.42.0.0/16, 10.43.0.0/16 } accept
+            }
+            chain forward {
+              type filter hook forward priority -10; policy drop;
+              ct state established,related accept
+              ip daddr { 172.20.21.124, 10.42.0.0/16, 10.43.0.0/16 } accept
+            }
+          }
+    - name: Validate isolation rules
+      ansible.builtin.command: nft --check --file /etc/recovery-isolation.nft
+      changed_when: false
+    - name: Install independent isolation unit
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/recovery-isolation.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Recovery guest egress isolation
+          Before=k3s.service
+          After=network-pre.target
+          [Service]
+          Type=oneshot
+          RemainAfterExit=yes
+          ExecStart=/usr/sbin/nft -f /etc/recovery-isolation.nft
+          ExecStop=/usr/sbin/nft delete table inet recovery
+          [Install]
+          WantedBy=multi-user.target
+    - name: Enable isolation before any restored app starts
+      ansible.builtin.systemd:
+        name: recovery-isolation
+        daemon_reload: true
+        enabled: true
+        state: restarted
+    - name: Verify external TCP egress is blocked
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -c
+          - |
+            import socket
+            for host, port in [('172.20.20.104', 6443), ('1.1.1.1', 443)]:
+                try:
+                    connection = socket.create_connection((host, port), timeout=3)
+                except OSError:
+                    continue
+                connection.close()
+                raise SystemExit('External egress unexpectedly permitted')
+            print('Production API and internet TCP egress blocked')
+      changed_when: false
+    - name: Fetch private separate kubeconfig
+      ansible.builtin.fetch:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: /home/pierce/.kube/gitea-recovery.yaml
+        flat: true
+    - name: Set private controller kubeconfig endpoint and permissions
+      delegate_to: localhost
+      become: false
+      ansible.builtin.replace:
+        path: /home/pierce/.kube/gitea-recovery.yaml
+        regexp: 'https://127\.0\.0\.1:6443'
+        replace: 'https://172.20.21.124:6443'
+    - name: Restrict controller kubeconfig permissions
+      delegate_to: localhost
+      become: false
+      ansible.builtin.file:
+        path: /home/pierce/.kube/gitea-recovery.yaml
+        mode: '0600'
