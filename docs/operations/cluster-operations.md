@@ -64,6 +64,59 @@ Use `all-infra` for a fresh cluster when you want to apply them in order.
 
 ## Cluster Maintenance
 
+### K3s binary upgrades
+
+`update-k3s-nodes.sh` updates guest packages; it does **not** upgrade K3s.
+Use `ansible/playbooks/maintenance/upgrade-k3s-binary.yml` with one explicit
+`upgrade_node`, exact `upgrade_from` / `upgrade_version`, and a verified release
+SHA-256. Never use bootstrap/component deployment to upgrade binaries. Upgrade
+one minor at a time; servers before workers. Production pins in
+`ansible/group_vars/k3s_cluster_prod.yml` (`k3s_prod_node_versions`) must match
+live per-node versions so a redeploy can never downgrade a node.
+
+Preflight (once per wave): off-cluster etcd snapshot + server token, fresh native
+Vault Raft snapshot (`vault operator raft snapshot save`) copied off-cluster,
+verified unseal-share custody, all volumes healthy, worker disks below Longhorn
+disk-pressure threshold.
+
+Worker procedure (one node at a time):
+
+1. Gate: 3 Vault voters unsealed with equal Raft indexes; Vault PDB allows 1;
+   every attached volume has a RW replica off the target node;
+   `node-drain-policy=block-if-contains-last-replica`.
+2. `kubectl cordon`, then `kubectl drain --ignore-daemonsets
+   --delete-emptydir-data --timeout=...`. Never `--force` or
+   `--disable-eviction`.
+3. Run the binary playbook for that host only. Wait Ready at the new version,
+   then uncordon.
+4. Before the next node: all volumes rebuilt to healthy, Vault voters caught up,
+   ArgoCD apps unchanged from baseline, no kernel I/O/ext4/journal errors, and
+   at least 180 s of observed I/O progress.
+
+Expected during a drain (not a failure): the drained node's instance manager
+stops, so its own replicas show `ERR` and volumes show Degraded until the node
+returns and they rebuild; a Vault voter reschedules and is unsealed by the
+auto-recovery CronJob. Stop instead on: an `ERR` replica on any *other* node, a
+volume losing its last RW replica or becoming Faulted, Vault below quorum for
+more than 5 minutes, kernel storage errors, or I/O with no completion progress.
+
+Lessons (2026-10-06):
+
+- Never restart the K3s agent in place on a worker with live Longhorn engines.
+  Kubernetes 1.31 changed the container hash, so the kubelet restarts every
+  container, including the instance manager. On worker-1 this hung `fsfreeze`,
+  aborted ext4 journals and needed a forced VM power cycle. Drain first.
+- A process in D-state for a few seconds during a journal commit is normal;
+  judge a stall by I/O completion counters and app progress over at least
+  120-180 s.
+- Longhorn disk-pressure auto-balance only moves replicas between disks on the
+  *same* node. A full single-disk worker needs a manual create-before-retire
+  replica relocation (temporarily raise replica count, wait for RW on the
+  target, then retire the source).
+- Do not quiesce consumers just because a replica is on the target node. Only
+  engines on that node matter; remote engines keep running on surviving
+  replicas.
+
 ### Graceful shutdown and power-on
 
 ```bash

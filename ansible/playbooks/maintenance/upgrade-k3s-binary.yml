@@ -1,0 +1,41 @@
+---
+# Binary-only upgrade: preserves service arguments, environment and config.
+# Caller must verify backup, quorum and Longhorn gates before each node.
+- name: Upgrade one explicitly selected K3s node
+  hosts: "{{ upgrade_node }}"
+  become: true
+  gather_facts: false
+  serial: 1
+  any_errors_fatal: true
+  tasks:
+    - name: Require an exact node and sequential minor version
+      ansible.builtin.assert:
+        that:
+          - upgrade_node in groups['k3s_cluster_prod']
+          - ansible_play_hosts_all | length == 1
+          - upgrade_version is match('^v1\.[0-9]+\.[0-9]+\+k3s[0-9]+$')
+    - name: Read installed version
+      ansible.builtin.command: /usr/local/bin/k3s --version
+      register: installed
+      changed_when: false
+    - name: Verify expected source version and single minor increment
+      ansible.builtin.assert:
+        that:
+          - "('k3s version ' + upgrade_from + ' ') in installed.stdout"
+          - upgrade_version.split('.')[1] | int == (upgrade_from.split('.')[1] | int) + 1
+    - name: Install checksum-verified binary staged by operator
+      ansible.builtin.copy:
+        src: "{{ upgrade_binary }}"
+        dest: /usr/local/bin/k3s
+        owner: root
+        group: root
+        mode: '0755'
+    - name: Restart only the K3s service
+      ansible.builtin.systemd:
+        name: "{{ 'k3s' if inventory_hostname in groups['k3s_cluster_prod_master'] else 'k3s-agent' }}"
+        state: restarted
+    - name: Verify running binary
+      ansible.builtin.command: /usr/local/bin/k3s --version
+      register: upgraded
+      changed_when: false
+      failed_when: "('k3s version ' + upgrade_version + ' ') not in upgraded.stdout"
