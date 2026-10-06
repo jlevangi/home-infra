@@ -39,6 +39,8 @@ spec:
           value: /secrets/token
         - name: GITEA_MAX_REG_ATTEMPTS
           value: '12'
+        - name: HOME
+          value: /data
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
