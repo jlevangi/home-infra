@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitea-runner
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: git@github.com:jlevangi/home-infra.git
+    targetRevision: main
+    path: argocd/manifests/gitea-runner/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gitea-runner
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

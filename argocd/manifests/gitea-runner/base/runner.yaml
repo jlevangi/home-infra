@@ -1,0 +1,303 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gitea-runner
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gitea-runner
+  namespace: gitea-runner
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gitea-runner-job-pods
+  namespace: gitea-runner
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["create", "get", "list", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create", "get"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gitea-runner-job-pods
+  namespace: gitea-runner
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: gitea-runner-job-pods
+subjects:
+  - kind: ServiceAccount
+    name: gitea-runner
+    namespace: gitea-runner
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: gitea-runner-pilot
+  namespace: gitea-runner
+spec:
+  hard:
+    pods: "3"
+    requests.cpu: "2"
+    requests.memory: 3Gi
+    limits.cpu: "3"
+    limits.memory: 5Gi
+    requests.ephemeral-storage: 8Gi
+    limits.ephemeral-storage: 12Gi
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: gitea-runner-defaults
+  namespace: gitea-runner
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        cpu: 100m
+        memory: 256Mi
+        ephemeral-storage: 512Mi
+      default:
+        cpu: "1"
+        memory: 1Gi
+        ephemeral-storage: 2Gi
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gitea-runner-egress
+  namespace: gitea-runner
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: gitea
+          podSelector:
+            matchLabels:
+              app: gitea
+      ports:
+        - protocol: TCP
+          port: 3000
+    - to:
+        - ipBlock:
+            cidr: 172.20.20.200/32
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: 172.20.20.104/32
+        - ipBlock:
+            cidr: 172.20.20.106/32
+        - ipBlock:
+            cidr: 172.20.20.111/32
+      ports:
+        - protocol: TCP
+          port: 6443
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: gitea-runner-registration
+  namespace: gitea-runner
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: vault-kv
+    kind: ClusterSecretStore
+  target:
+    name: gitea-runner-registration
+    creationPolicy: Owner
+  data:
+    - secretKey: token
+      remoteRef:
+        key: prod/gitea-runner
+        property: REGISTRATION_TOKEN
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitea-runner-config
+  namespace: gitea-runner
+data:
+  config.yaml: |
+    log:
+      level: info
+    runner:
+      file: /data/.runner
+      capacity: 1
+      timeout: 15m
+      shutdown_timeout: 2m
+      fetch_timeout: 5s
+      fetch_interval: 2s
+      workdir_cleanup_age: 1h
+      labels:
+        - pilot-k8s:kubernetes://docker.gitea.com/runner-images@sha256:0e62e56b382ebf485bff1e51a05cbe27c708545a2e91425467fd31eb3e249521
+    cache:
+      enabled: false
+    container:
+      privileged: false
+      valid_volumes: []
+    kubernetes:
+      namespace: gitea-runner
+      pod_template:
+        spec:
+          automountServiceAccountToken: false
+          enableServiceLinks: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 1001
+            fsGroup: 1001
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: job
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: false
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 512Mi
+                  ephemeral-storage: 1Gi
+                limits:
+                  cpu: "2"
+                  memory: 2Gi
+                  ephemeral-storage: 4Gi
+            - name: $services
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+                  ephemeral-storage: 1Gi
+          volumes:
+            - name: workspace
+              emptyDir:
+                sizeLimit: 2Gi
+            - name: act
+              emptyDir:
+                sizeLimit: 1Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: gitea-runner
+  namespace: gitea-runner
+spec:
+  serviceName: gitea-runner
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitea-runner
+  template:
+    metadata:
+      labels:
+        app: gitea-runner
+    spec:
+      serviceAccountName: gitea-runner
+      terminationGracePeriodSeconds: 180
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: runner
+          image: docker.gitea.com/runner@sha256:131ff842ec12453108f1c1a454031c325d3c95e4af459979a2e303e12d99c98c
+          env:
+            - name: GITEA_INSTANCE_URL
+              value: https://git.levangie.dev
+            - name: CONFIG_FILE
+              value: /config/config.yaml
+            - name: GITEA_RUNNER_NAME
+              value: k3s-prod-native-pilot
+            - name: GITEA_RUNNER_REGISTRATION_TOKEN_FILE
+              value: /secrets/token
+            - name: GITEA_MAX_REG_ATTEMPTS
+              value: "12"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+              ephemeral-storage: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+              ephemeral-storage: 256Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: registration
+              mountPath: /secrets
+              readOnly: true
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+        - name: config
+          configMap:
+            name: gitea-runner-config
+        - name: registration
+          secret:
+            secretName: gitea-runner-registration
+            defaultMode: 0400
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: longhorn
+        resources:
+          requests:
+            storage: 128Mi
