@@ -81,15 +81,24 @@ resource "proxmox_vm_qemu" "cp" {
   agent              = 1
   os_type            = "cloud-init"
   start_at_node_boot = true
+  vm_state           = "running"
+  automatic_reboot   = false
+
+  startup_shutdown {
+    order            = 2
+    shutdown_timeout = -1
+    startup_delay    = -1
+  }
 
   cpu {
     cores   = 4
     sockets = 1
     type    = "host"
+    numa    = true
   }
 
-  memory  = 8192
-  balloon = 8192
+  memory  = 4096
+  balloon = 0
   scsihw  = "virtio-scsi-pci"
 
   disk {
@@ -100,13 +109,13 @@ resource "proxmox_vm_qemu" "cp" {
   }
 
   disk {
-    discard    = true
-    format     = "raw"
-    replicate  = false
-    slot       = "scsi0"
-    size       = "40G"
-    type       = "disk"
-    storage    = var.vm_storage
+    discard   = true
+    format    = "raw"
+    replicate = false
+    slot      = "scsi0"
+    size      = "40G"
+    type      = "disk"
+    storage   = var.vm_storage
   }
 
   network {
@@ -139,6 +148,8 @@ resource "proxmox_vm_qemu" "cp" {
       bootdisk,
       clone,
       disk,
+      # Imported state uses the nested disk representation; preserve live disks.
+      disks,
       full_clone,
       network,
     ]

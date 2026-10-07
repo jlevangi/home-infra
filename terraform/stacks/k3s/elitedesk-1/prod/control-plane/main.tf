@@ -76,6 +76,14 @@ resource "proxmox_vm_qemu" "cp" {
   agent              = 1
   os_type            = "cloud-init"
   start_at_node_boot = true
+  vm_state           = "running"
+  automatic_reboot   = false
+
+  startup_shutdown {
+    order            = -1
+    shutdown_timeout = -1
+    startup_delay    = -1
+  }
 
   cpu {
     cores   = 4
@@ -83,8 +91,8 @@ resource "proxmox_vm_qemu" "cp" {
     type    = "host"
   }
 
-  memory  = 8192
-  balloon = 8192
+  memory  = 4096
+  balloon = 0
   scsihw  = "virtio-scsi-pci"
 
   disk {

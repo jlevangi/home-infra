@@ -124,15 +124,15 @@ variable "cpu_cores" {
 }
 
 variable "memory" {
-  description = "Memory in MB."
+  description = "Memory in MB; 4096 target is pending a controlled restart on cp-1."
   type        = number
-  default     = 8192
+  default     = 4096
 }
 
 variable "balloon" {
-  description = "Balloon memory in MB."
+  description = "Ballooning disabled for the control plane."
   type        = number
-  default     = 8192
+  default     = 0
 }
 
 variable "os_disk_size" {
@@ -194,6 +194,8 @@ module "nodes" {
   nameserver     = var.nameserver
   search_domain  = var.search_domain
   ssh_key        = var.ssh_key
-  ci_user        = var.ci_user
-  ci_password    = var.ci_password
+  # Existing cp-1 was provisioned with pierce; preserve its login metadata.
+  ci_user       = "pierce"
+  startup_order = 2
+  ci_password   = var.ci_password
 }

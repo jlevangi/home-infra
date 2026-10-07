@@ -119,6 +119,12 @@ resource "proxmox_vm_qemu" "worker" {
   agent              = 1
   os_type            = "cloud-init"
   start_at_node_boot = true
+  vm_state           = "running"
+
+  serial {
+    id   = 0
+    type = "socket"
+  }
 
   cpu {
     cores   = 12
