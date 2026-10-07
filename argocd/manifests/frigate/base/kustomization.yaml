@@ -8,7 +8,11 @@ resources:
   - service.yaml
   - deployment.yaml
   - ingress.yaml
+  - frigate-networkpolicy.yaml
 configMapGenerator:
   - name: frigate-config
     files:
       - config.yml
+  - name: frigate-oauth2-proxy-alpha
+    files:
+      - alpha.yaml=oauth2-proxy-alpha.yaml

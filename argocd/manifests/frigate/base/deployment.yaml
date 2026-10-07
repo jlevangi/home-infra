@@ -14,10 +14,68 @@ spec:
     metadata:
       labels:
         app: frigate
+        frigate.levangie.dev/proxy: "true"
     spec:
       nodeSelector:
         homelab.levangie.dev/compute-tier: performance
       containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.3
+          imagePullPolicy: IfNotPresent
+          args:
+            - --alpha-config=/etc/oauth2-proxy/alpha.yaml
+            - --email-domain=*
+            - --redirect-url=https://frigate.levangie.dev/oauth2/callback
+            - --reverse-proxy=true
+            - --cookie-secure=true
+            - --cookie-samesite=lax
+            - --cookie-domain=frigate.levangie.dev
+            - --whitelist-domain=frigate.levangie.dev
+            - --skip-provider-button=true
+          env:
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: frigate-secrets
+                  key: OIDC_CLIENT_SECRET
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: frigate-secrets
+                  key: OAUTH2_PROXY_COOKIE_SECRET
+            - name: FRIGATE_PROXY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: frigate-secrets
+                  key: FRIGATE_PROXY_SECRET
+          ports:
+            - name: proxy-http
+              containerPort: 4180
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: proxy-http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: proxy-http
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 5
+          volumeMounts:
+            - name: alpha-config
+              mountPath: /etc/oauth2-proxy
+              readOnly: true
         - name: frigate
           image: ghcr.io/blakeblackshear/frigate:0.18.0@sha256:9678a83a76e4730ac7d9ea7428370e32ae656d6b312aaad30d6c69f3fef14d35
           imagePullPolicy: IfNotPresent
@@ -32,6 +90,11 @@ spec:
                 secretKeyRef:
                   name: frigate-secrets
                   key: FRIGATE_MQTT_PASSWORD
+            - name: FRIGATE_PROXY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: frigate-secrets
+                  key: FRIGATE_PROXY_SECRET
             - name: TZ
               value: America/New_York
           ports:
@@ -79,6 +142,9 @@ spec:
             - name: cache
               mountPath: /tmp/cache
       volumes:
+        - name: alpha-config
+          configMap:
+            name: frigate-oauth2-proxy-alpha
         - name: config-data
           persistentVolumeClaim:
             claimName: frigate-config

@@ -18,9 +18,9 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: frigate
+                name: frigate-oauth2-proxy
                 port:
-                  number: 8971
+                  number: 4180
   tls:
     - hosts:
         - frigate.levangie.dev

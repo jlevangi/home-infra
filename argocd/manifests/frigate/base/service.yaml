@@ -7,7 +7,7 @@ spec:
   selector:
     app: frigate
   ports:
-    - name: authenticated
-      port: 8971
-      targetPort: 8971
+    - name: proxy-http
+      port: 4180
+      targetPort: proxy-http
       protocol: TCP

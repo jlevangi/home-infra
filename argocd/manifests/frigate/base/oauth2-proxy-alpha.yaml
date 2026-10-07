@@ -1,0 +1,33 @@
+server:
+  bindAddress: 0.0.0.0:4180
+upstreamConfig:
+  upstreams:
+    - id: frigate
+      path: /
+      uri: http://127.0.0.1:8971
+providers:
+  - id: keycloak
+    provider: keycloak-oidc
+    clientID: frigate
+    clientSecret: ${OIDC_CLIENT_SECRET}
+    additionalClaims:
+      - frigate_roles
+    keycloakConfig:
+      roles:
+        - frigate:frigate-admin
+    oidcConfig:
+      issuerURL: https://auth.levangie.org/realms/master
+      userIDClaim: preferred_username
+injectRequestHeaders:
+  - name: X-Forwarded-User
+    values:
+      - claimSource:
+          claim: user
+  - name: X-Forwarded-Groups
+    values:
+      - claimSource:
+          claim: frigate_roles
+  - name: X-Proxy-Secret
+    values:
+      - secretSource:
+          fromEnv: FRIGATE_PROXY_SECRET

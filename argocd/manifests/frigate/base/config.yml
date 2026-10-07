@@ -29,6 +29,21 @@ cameras:
       enabled: true
       fps: 5
 
+auth:
+  enabled: false
+
+proxy:
+  auth_secret: "{FRIGATE_PROXY_SECRET}"
+  default_role: viewer
+  header_map:
+    user: x-forwarded-user
+    role: x-forwarded-groups
+    role_map:
+      admin:
+        - frigate-admin
+      viewer:
+        - frigate-viewer
+
 record:
   enabled: true
   continuous:

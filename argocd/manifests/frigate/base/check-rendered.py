@@ -15,7 +15,7 @@ for expected in (
     "subPath: frigate",
     "sizeLimit: 256Mi",
     "sizeLimit: 1Gi",
-    "port: 8971",
+    "containerPort: 8971",
     "tls:\n      enabled: false\n\n    mqtt:",
     "property: FRIGATE_MQTT_USER",
     "property: FRIGATE_MQTT_PASSWORD",
@@ -28,4 +28,28 @@ for expected in (
     assert expected in rendered, f"rendered manifests missing {expected!r}"
 assert "${FRIGATE_MQTT_USER}" not in rendered and "${FRIGATE_MQTT_PASSWORD}" not in rendered
 assert "nvidia.com/gpu" not in rendered and "runtimeClassName: nvidia" not in rendered
-print("ok: rendered Frigate image, single-Recreate placement, secrets, PVC/NFS/tmpfs, private service, and ingress validated")
+for expected in (
+    "name: frigate-oauth2-proxy-alpha-",
+    "uri: http://127.0.0.1:8971",
+    "frigate_roles",
+    "frigate-admin",
+    "X-Proxy-Secret",
+    "auth_secret: \"{FRIGATE_PROXY_SECRET}\"",
+    "frigate.levangie.dev/proxy: \"true\"",
+    "additionalClaims:\n          - frigate_roles",
+    "name: alpha-config\n      - name: config-data\n        persistentVolumeClaim:\n          claimName: frigate-config",
+    "containerPort: 4180",
+    "containerPort: 8971",
+    "port: 4180\n    protocol: TCP\n    targetPort: proxy-http",
+    "name: frigate-oauth2-proxy\n            port:\n              number: 4180",
+):
+    assert expected in rendered, f"rendered manifests missing {expected!r}"
+assert "name: frigate-oauth2-proxy\n  namespace: frigate\nspec:" not in rendered, "standalone proxy resources must not render"
+assert "app: frigate-oauth2-proxy" not in rendered, "standalone proxy selector must not render"
+assert "containerPort: 5000" not in rendered, "Frigate 5000 must not be exposed as a container port"
+assert "port: 8971\n    protocol: TCP" not in rendered, "Service must not expose Frigate 8971"
+assert "property: OIDC_CLIENT_SECRET" in rendered
+assert "property: OAUTH2_PROXY_COOKIE_SECRET" in rendered
+assert "property: FRIGATE_PROXY_SECRET" in rendered
+assert "ipBlock:" not in rendered, "No node-IP bypass allowances are permitted"
+print("ok: rendered Frigate baseline, OAuth2 proxy, secret references, and ingress validated")
