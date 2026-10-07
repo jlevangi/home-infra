@@ -6,9 +6,18 @@ metadata:
   name: default
   namespace: traefik-system
 spec:
+{% if traefik_cert_manager_enabled | default(false) %}
+  defaultCertificate:
+    secretName: wildcard-levangie-dev-tls
+  certificates:
+{% for secret_name in traefik_managed_tls_secrets | default(['wildcard-levangie-dev-tls']) %}
+    - secretName: "{{ secret_name }}"
+{% endfor %}
+{% else %}
   defaultGeneratedCert:
     resolver: letsencrypt
     domain:
       main: "{{ traefik_wildcard_domain | default('*.' + environment_domain) }}"
       sans:
         - "{{ environment_domain }}"
+{% endif %}

@@ -1,0 +1,78 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-levangie-dev
+  namespace: traefik-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  secretName: wildcard-levangie-dev-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.levangie.dev"
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-levangie-org
+  namespace: traefik-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  secretName: wildcard-levangie-org-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.levangie.org"
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: everlyera
+  namespace: traefik-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  secretName: everlyera-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - everlyera.com
+    - www.everlyera.com
+    - gallery.everlyera.com
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: gambleking
+  namespace: traefik-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  secretName: gambleking-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - gambleking.app
+    - staging.gambleking.app
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kayleewatkins
+  namespace: traefik-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  secretName: kayleewatkins-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - kayleewatkins.com
+    - www.kayleewatkins.com

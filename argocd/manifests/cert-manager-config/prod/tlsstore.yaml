@@ -1,0 +1,16 @@
+apiVersion: traefik.io/v1alpha1
+kind: TLSStore
+metadata:
+  name: default
+  namespace: traefik-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  defaultCertificate:
+    secretName: wildcard-levangie-dev-tls
+  certificates:
+    - secretName: wildcard-levangie-dev-tls
+    - secretName: wildcard-levangie-org-tls
+    - secretName: everlyera-tls
+    - secretName: gambleking-tls
+    - secretName: kayleewatkins-tls

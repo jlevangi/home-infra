@@ -1,5 +1,5 @@
 ---
-# Traefik 2 Installation
+# Traefik 3 Installation
 # This provides advanced ingress controller with SSL support
 
 - name: Check Traefik service health
@@ -114,7 +114,7 @@
     - traefik_acme_dns_provider == 'cloudflare'
     - traefik_needs_deployment | default(true)
 
-- name: Install Traefik 2 using Helm
+- name: Install Traefik 3 using Helm
   shell: |
     export KUBECONFIG={{ kubeconfig_path }}
     echo "Installing Traefik with SSL support..."

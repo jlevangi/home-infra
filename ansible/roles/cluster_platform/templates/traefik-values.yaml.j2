@@ -4,7 +4,7 @@ global:
   sendAnonymousUsage: false
 
 deployment:
-  replicas: 1
+  replicas: {{ traefik_replicas | default(1) }}
 {% if traefik_acme_enabled | default(false) %}
   initContainers:
     - name: acme-init
@@ -33,6 +33,21 @@ deployment:
     options:
       - name: ndots
         value: "{{ traefik_dns_ndots | default('2') }}"
+{% endif %}
+
+{% if (traefik_replicas | default(1) | int) > 1 %}
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: traefik
+            app.kubernetes.io/instance: traefik-traefik-system
+        topologyKey: kubernetes.io/hostname
 {% endif %}
 
 service:
@@ -103,7 +118,7 @@ additionalArguments:
   - "--certificatesresolvers.letsencrypt.acme.email={{ traefik_acme_email | default('admin@levangie.dev') }}"
   - "--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json"
   - "--certificatesresolvers.letsencrypt.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"
-{% else %}
+{% elif not (traefik_cert_manager_enabled | default(false)) %}
   - "--providers.file.directory=/data/dynamic"
   - "--providers.file.watch=true"
 {% endif %}
