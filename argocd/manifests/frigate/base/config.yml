@@ -30,7 +30,7 @@ cameras:
       fps: 5
 
 auth:
-  enabled: false
+  enabled: true
 
 proxy:
   auth_secret: "{FRIGATE_PROXY_SECRET}"
