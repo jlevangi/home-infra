@@ -91,7 +91,7 @@ resource "proxmox_vm_qemu" "cp" {
     type    = "host"
   }
 
-  memory  = 4096
+  memory  = 8192
   balloon = 0
   scsihw  = "virtio-scsi-pci"
 
