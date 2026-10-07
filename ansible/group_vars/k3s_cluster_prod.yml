@@ -11,9 +11,9 @@ cluster_environment: "prod"
 # Resolve here because deployment vars_files override inventory host variables.
 k3s_version: "{{ k3s_prod_node_versions[inventory_hostname] }}"
 k3s_prod_node_versions:
-  k3s-prod-cp-1: "v1.33.13+k3s2"
-  k3s-prod-cp-3: "v1.33.13+k3s2"
-  k3s-prod-cp-4: "v1.33.13+k3s2"
+  k3s-prod-cp-1: "v1.34.12+k3s1"
+  k3s-prod-cp-3: "v1.34.12+k3s1"
+  k3s-prod-cp-4: "v1.34.12+k3s1"
   k3s-prod-worker-1: "v1.33.13+k3s2"
   k3s-prod-worker-4: "v1.33.13+k3s2"
   k3s-prod-worker-5: "v1.33.13+k3s2"
