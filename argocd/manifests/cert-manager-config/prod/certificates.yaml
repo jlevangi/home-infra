@@ -10,6 +10,10 @@ spec:
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
+  privateKey:
+    algorithm: RSA
+    size: 4096
+    rotationPolicy: Never
   dnsNames:
     - "*.levangie.dev"
 ---
@@ -25,6 +29,10 @@ spec:
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
+  privateKey:
+    algorithm: RSA
+    size: 4096
+    rotationPolicy: Never
   dnsNames:
     - "*.levangie.org"
 ---
@@ -40,6 +48,10 @@ spec:
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
+  privateKey:
+    algorithm: RSA
+    size: 4096
+    rotationPolicy: Never
   dnsNames:
     - everlyera.com
     - www.everlyera.com
@@ -57,6 +69,10 @@ spec:
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
+  privateKey:
+    algorithm: RSA
+    size: 4096
+    rotationPolicy: Never
   dnsNames:
     - gambleking.app
     - staging.gambleking.app
@@ -73,6 +89,10 @@ spec:
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
+  privateKey:
+    algorithm: RSA
+    size: 2048
+    rotationPolicy: Never
   dnsNames:
     - kayleewatkins.com
     - www.kayleewatkins.com
