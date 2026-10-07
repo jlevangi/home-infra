@@ -5,6 +5,7 @@ metadata:
   namespace: frigate
 spec:
   type: LoadBalancer
+  externalTrafficPolicy: Local
   selector:
     app: frigate
   ports:
