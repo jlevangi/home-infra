@@ -124,9 +124,9 @@ variable "cpu_cores" {
 }
 
 variable "memory" {
-  description = "Memory in MB; 4096 target is pending a controlled restart on cp-1."
+  description = "Memory in MB. 4096 starved cp-1 (k3s-server + etcd) into a hang on 2026-10-07."
   type        = number
-  default     = 4096
+  default     = 8192
 }
 
 variable "balloon" {
