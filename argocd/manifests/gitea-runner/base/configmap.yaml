@@ -9,7 +9,7 @@ data:
     \ 2s\n  workdir_cleanup_age: 1h\n  labels:\n  - pilot-k8s:kubernetes://docker.gitea.com/runner-images@sha256:0e62e56b382ebf485bff1e51a05cbe27c708545a2e91425467fd31eb3e249521\n\
     cache:\n  enabled: true\n  dir: /data/cache\n  port: 8088\n  retention: 24h\n\
     \  size_limit: 64MiB\ncontainer:\n  privileged: false\n  valid_volumes: []\nkubernetes:\n\
-    \  namespace: gitea-runner\n  pod_template:\n    spec:\n      automountServiceAccountToken:\
+    \  namespace: gitea-runner\n  pod_template:\n    spec:\n      nodeSelector:\n        homelab.levangie.dev/compute-tier: performance\n      automountServiceAccountToken:\
     \ false\n      enableServiceLinks: false\n      securityContext:\n        runAsNonRoot:\
     \ true\n        runAsUser: 1001\n        runAsGroup: 1001\n        fsGroup: 1001\n\
     \        seccompProfile:\n          type: RuntimeDefault\n      containers:\n\

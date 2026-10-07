@@ -1,0 +1,22 @@
+---
+- name: Reconcile compute-tier labels from node profiles
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../group_vars/k3s_cluster_topology.yml
+  tasks:
+    - name: Label profiled compute workers
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --context
+          - "{{ kube_context }}"
+          - label
+          - node
+          - "{{ item.key }}"
+          - "homelab.levangie.dev/compute-tier={{ k3s_node_profiles[item.value].compute_tier }}"
+          - --overwrite
+      loop: "{{ k3s_node_profile | dict2items }}"
+      when: k3s_node_profiles[item.value].compute_tier is defined
+      register: compute_label
+      changed_when: "'not labeled' not in compute_label.stdout"

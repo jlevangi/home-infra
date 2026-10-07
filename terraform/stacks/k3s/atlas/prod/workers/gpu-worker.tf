@@ -96,6 +96,7 @@ resource "proxmox_vm_qemu" "gpu_worker" {
   os_type            = "cloud-init"
   start_at_node_boot = true
   vm_state           = "running"
+  automatic_reboot   = false
   bios               = "ovmf"
   machine            = "q35"
 
@@ -153,6 +154,17 @@ resource "proxmox_vm_qemu" "gpu_worker" {
     storage   = var.gpu_worker_llm_disk_storage
   }
 
+  disk {
+    discard    = true
+    emulatessd = true
+    format     = "raw"
+    replicate  = false
+    slot       = "scsi3"
+    size       = "100G"
+    type       = "disk"
+    storage    = "flash"
+  }
+
   pci {
     id     = 0
     raw_id = var.gpu_worker_pci_address
@@ -190,9 +202,12 @@ resource "proxmox_vm_qemu" "gpu_worker" {
 
   lifecycle {
     ignore_changes = [
-      balloon,
       bootdisk,
-      disk,
+      # Preserve existing live disks; manage the additive scsi3 flash disk.
+      disk[0],
+      disk[1],
+      disk[2],
+      disk[3],
       network,
     ]
     replace_triggered_by = []
