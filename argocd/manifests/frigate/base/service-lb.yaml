@@ -10,6 +10,6 @@ spec:
     app: frigate
   ports:
     - name: api
-      port: 8971
-      targetPort: authenticated
+      port: 5000
+      targetPort: 5000
       protocol: TCP

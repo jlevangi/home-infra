@@ -102,6 +102,9 @@ spec:
             - name: authenticated
               containerPort: 8971
               protocol: TCP
+            - name: api
+              containerPort: 5000
+              protocol: TCP
           resources:
             requests:
               cpu: 500m
