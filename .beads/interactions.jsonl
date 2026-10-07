@@ -343,3 +343,4 @@
 {"id":"int-44bfc128380d03b35aebcf159d62835c","kind":"field_change","created_at":"2026-10-07T18:31:30.491076852Z","actor":"jlevangi","issue_id":"home-infra-h4i3","extra":{"field":"status","new_value":"in_progress","old_value":"blocked"}}
 {"id":"int-f810413773a018c244dd9a1f02f1f394","kind":"field_change","created_at":"2026-10-07T18:56:49.187571098Z","actor":"jlevangi","issue_id":"home-infra-h4i3","extra":{"field":"status","new_value":"blocked","old_value":"in_progress"}}
 {"id":"int-0bc3b9dc47aaf282ac1cfe96164b942b","kind":"field_change","created_at":"2026-10-07T20:59:32.346209285Z","actor":"jlevangi","issue_id":"home-infra-h4i3","extra":{"field":"status","new_value":"closed","old_value":"blocked"}}
+{"id":"int-3ebee79685a284c8b17e54882a5ae5e7","kind":"field_change","created_at":"2026-10-07T23:34:35.625099117Z","actor":"jlevangi","issue_id":"home-infra-ki9l","extra":{"field":"priority","new_value":"1","old_value":"2"}}
