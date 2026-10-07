@@ -22,6 +22,23 @@ important distinction is behavioral, not cosmetic: `longhorn` and
 `longhorn-general` are equivalent general-purpose classes. Do not recreate a
 healthy PVC just to switch between those two names.
 
+## Production flash-only application policy (2026-10-07)
+
+All current application volumes use flash. `longhorn` remains flash-pinned with
+2 replicas; tank is not a spillover target. New tank application placement
+requires a separately approved capacity exception, including for heavy writers.
+The retained `longhorn-tank` class does not authorize its use by default.
+
+The approved legacy-volume repair moved 12 tank-backed volumes online, serially,
+without recreating claims: completed backup, flash selector, temporary third
+copy with per-volume balancing disabled, verified RW replacement on a different
+physical host from the retained copy, exact tank-copy retirement, then restoration
+to 2 replicas and the original balancing setting. Existing claims already used
+flash-intent classes; correcting their old empty selectors is an explicit
+exception to the recreation rule below, not a general automatic migration.
+Evidence is private under `/home/pierce/backups/flash-moves-20261007/`.
+Future selector changes still do not migrate existing replicas automatically.
+
 ## Non-Negotiables
 
 1. StorageClass decides placement and replica count. Existing PVCs do not pick
@@ -50,16 +67,15 @@ healthy PVC just to switch between those two names.
 | App class | Use when | StorageClass | Replicas | Backup labels | Notes |
 | --- | --- | --- | --- | --- | --- |
 | Vault raft member | A pod is already part of an app-level consensus set | `longhorn-vault-raft` | 1 | hourly + daily + weekly | Vault gets HA from raft, not from Longhorn replicas. Keep the PVC single-replica. |
-| Heavy continuous writer | The workload is a database, TSDB, or log store, or normal load shows sustained write pressure above about 200 write IOPS or 5 MiB/s at the 95th percentile | `longhorn-tank` | 2 | hourly + daily + weekly | Use for PostgreSQL, MongoDB, and similar steady writers. Loki may skip hourly if log-history loss is acceptable. Prometheus is a measured exception documented below. |
+| Heavy continuous writer | Database, TSDB, or log store | `longhorn-flash` | 2 | hourly + daily + weekly | Flash is the current application default, including steady writers. Tank requires a separately approved capacity exception. |
 | Latency-sensitive state | The workload benefits from low latency or uses SQLite/small-file metadata | `longhorn-flash` | 2 | daily + weekly | Canonical explicit flash tier. `longhorn-fast` is a compatibility alias. |
 | Single-pod, no app-layer HA | One pod owns the state and would fail hard on a single-replica fault | `longhorn-redundant` | 2 | daily + weekly | Flash-pinned singleton config or SQLite state such as Grafana, Jellyfin config, or Plex config. |
 | Catch-all | The app has no capacity/archive requirement | `longhorn` | 2 | daily + weekly | Default flash-backed choice. Select tank explicitly; it is not an automatic spillover tier. |
 | Pure local static data | The data should stay on a host-local path and not on Longhorn | static PV | n/a | n/a | Example: large model files that should not consume Longhorn replicas. |
 
-The heavy-writer threshold above is intentionally conservative because Atlas's
-flash pool is shared across all workers. If the per-drive Grafana panels show a
-candidate workload pushing the flash mirror toward sustained saturation, classify
-it as `longhorn-tank` even if its absolute IOPS or throughput is lower.
+Monitor sustained write pressure and rebuild headroom on flash. Saturation is a
+capacity-planning signal, not permission to move a workload to tank automatically.
+Any tank exception requires measured capacity evidence and explicit approval.
 
 ## Class Selection Rules
 
