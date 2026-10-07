@@ -41,7 +41,7 @@ for expected in (
     "containerPort: 4180",
     "containerPort: 8971",
     "port: 4180\n    protocol: TCP\n    targetPort: proxy-http",
-    "name: frigate-oauth2-proxy\n            port:\n              number: 4180",
+    "name: frigate\n            port:\n              number: 4180",
 ):
     assert expected in rendered, f"rendered manifests missing {expected!r}"
 assert "name: frigate-oauth2-proxy\n  namespace: frigate\nspec:" not in rendered, "standalone proxy resources must not render"
