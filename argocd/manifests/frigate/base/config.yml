@@ -1,0 +1,42 @@
+tls:
+  enabled: false
+
+mqtt:
+  host: 172.20.20.21
+  port: 1883
+  user: "{FRIGATE_MQTT_USER}"
+  password: "{FRIGATE_MQTT_PASSWORD}"
+
+detectors:
+  cpu1:
+    type: cpu
+    num_threads: 3
+
+go2rtc:
+  streams:
+    pi3cam: rtsp://pi3cam.levangie.org:8554/stream
+
+cameras:
+  pi3cam:
+    ffmpeg:
+      inputs:
+        - path: rtsp://127.0.0.1:8554/pi3cam
+          input_args: preset-rtsp-restream
+          roles:
+            - detect
+            - record
+    detect:
+      fps: 5
+
+record:
+  enabled: true
+  continuous:
+    days: 1
+  alerts:
+    retain:
+      days: 1
+      mode: all
+  detections:
+    retain:
+      days: 1
+      mode: all

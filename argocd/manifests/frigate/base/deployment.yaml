@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frigate
+  namespace: frigate
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: frigate
+  template:
+    metadata:
+      labels:
+        app: frigate
+    spec:
+      nodeSelector:
+        homelab.levangie.dev/compute-tier: performance
+      containers:
+        - name: frigate
+          image: ghcr.io/blakeblackshear/frigate:0.18.0@sha256:9678a83a76e4730ac7d9ea7428370e32ae656d6b312aaad30d6c69f3fef14d35
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: FRIGATE_MQTT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: frigate-secrets
+                  key: FRIGATE_MQTT_USER
+            - name: FRIGATE_MQTT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: frigate-secrets
+                  key: FRIGATE_MQTT_PASSWORD
+            - name: TZ
+              value: America/New_York
+          ports:
+            - name: authenticated
+              containerPort: 8971
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              cpu: "4"
+              memory: 4Gi
+          startupProbe:
+            httpGet:
+              path: /api/version
+              port: 5000
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /api/version
+              port: 5000
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/version
+              port: 5000
+            periodSeconds: 30
+            timeoutSeconds: 10
+          volumeMounts:
+            - name: config-data
+              mountPath: /config
+            - name: config
+              mountPath: /config/config.yml
+              subPath: config.yml
+              readOnly: true
+            - name: media
+              mountPath: /media/frigate
+              subPath: frigate
+            - name: shm
+              mountPath: /dev/shm
+            - name: cache
+              mountPath: /tmp/cache
+      volumes:
+        - name: config-data
+          persistentVolumeClaim:
+            claimName: frigate-config
+        - name: config
+          configMap:
+            name: frigate-config
+        - name: media
+          nfs:
+            server: 172.20.20.5
+            path: /volume1/surveillance
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 256Mi
+        - name: cache
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi
