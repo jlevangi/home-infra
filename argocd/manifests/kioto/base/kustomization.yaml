@@ -10,4 +10,5 @@ resources:
   - service.yaml
   - deployment-postgres.yaml
   - deployment.yaml
+  - cronjob-spotify-sync.yaml
   - ingress.yaml

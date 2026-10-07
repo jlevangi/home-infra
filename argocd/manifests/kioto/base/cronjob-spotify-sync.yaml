@@ -1,0 +1,51 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: kioto-spotify-sync
+  namespace: kioto
+spec:
+  schedule: "*/15 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: OnFailure
+          enableServiceLinks: false
+          containers:
+            - name: spotify-sync
+              image: jlevangie/spotify-history-tracker:main-f8d7306@sha256:065cbc49e4f77ba651608c21d3a24faf5be624111a1ca01c4d4ca4d19ed256c3
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: KOITO_URL
+                  value: http://kioto:4110
+                - name: SPOTIFY_CLIENT_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: kioto-secrets
+                      key: SPOTIFY_CLIENT_ID
+                - name: SPOTIFY_CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: kioto-secrets
+                      key: SPOTIFY_CLIENT_SECRET
+                - name: SPOTIFY_REFRESH_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: kioto-secrets
+                      key: SPOTIFY_REFRESH_TOKEN
+                - name: KOITO_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: kioto-secrets
+                      key: KOITO_API_KEY
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  memory: 128Mi
