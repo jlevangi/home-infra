@@ -85,7 +85,7 @@ k3s_node_profiles:
         path: /mnt/longhorn-flash
         slot: scsi3
         tags: [flash]
-        allowScheduling: false
+        allowScheduling: true
     # Dedicated tank-backed ext4 disk for local LLM model files, surfaced to
     # Kubernetes through the llama-cpp static local PV. This is HDD-backed
     # capacity storage, not the constrained SSD-backed flash pool.
