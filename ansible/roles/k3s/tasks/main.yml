@@ -55,6 +55,9 @@
   include_tasks: worker.yml
   when: inventory_hostname in groups[worker_group]
 
+- name: Include image pull tuning and embedded registry mirror
+  include_tasks: image-pulls.yml
+
 - name: Include post-installation configuration
   include_tasks: post-install.yml
   when: inventory_hostname in groups[master_group]

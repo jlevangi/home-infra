@@ -1,0 +1,68 @@
+---
+# Faster image pulls on every node:
+#   - Parallel kubelet pulls. The default (serializeImagePulls) pulls one image
+#     at a time, so a node that receives dozens of rescheduled pods during a
+#     drain queues them single-file for many minutes.
+#   - k3s embedded registry mirror (Spegel). Nodes share their cached images
+#     peer-to-peer over the LAN and only fall back to the upstream registry
+#     when no node has the image. Enabled cluster-wide by `embedded-registry`
+#     on the servers; every node opts registries in via registries.yaml.
+
+- name: Ensure K3s config drop-in directory exists
+  file:
+    path: "{{ k3s_config_dir }}/config.yaml.d"
+    state: directory
+    mode: '0755'
+  become: yes
+
+# kubelet-arg+ appends to kubelet-arg set elsewhere (e.g. 50-max-pods.yaml)
+# instead of replacing it. maxParallelImagePulls has no CLI flag (config-file
+# only) — passing it as a kubelet-arg makes the kubelet refuse to start.
+- name: Configure parallel kubelet image pulls
+  copy:
+    dest: "{{ k3s_config_dir }}/config.yaml.d/60-image-pulls.yaml"
+    content: |
+      kubelet-arg+:
+        - "serialize-image-pulls=false"
+    mode: '0600'
+  register: k3s_image_pulls_config
+  become: yes
+
+- name: Enable embedded registry mirror on servers
+  copy:
+    dest: "{{ k3s_config_dir }}/config.yaml.d/60-embedded-registry.yaml"
+    content: |
+      embedded-registry: true
+    mode: '0600'
+  register: k3s_embedded_registry_config
+  become: yes
+  when: inventory_hostname in groups[master_group]
+
+- name: Mirror all registries through the embedded registry
+  copy:
+    dest: "{{ k3s_config_dir }}/registries.yaml"
+    content: |
+      mirrors:
+        "*":
+    mode: '0600'
+  register: k3s_registries_config
+  become: yes
+
+- name: Restart K3s after image pull config change (KillMode=process keeps pods running)
+  systemd:
+    name: "{{ 'k3s' if inventory_hostname in groups[master_group] else 'k3s-agent' }}"
+    state: restarted
+  become: yes
+  when: >-
+    k3s_image_pulls_config is changed or
+    k3s_embedded_registry_config is changed or
+    k3s_registries_config is changed
+
+- name: Wait for K3s API server after restart
+  wait_for:
+    port: 6443
+    host: "{{ ansible_default_ipv4.address }}"
+    timeout: 120
+  when:
+    - inventory_hostname in groups[master_group]
+    - k3s_image_pulls_config is changed or k3s_embedded_registry_config is changed or k3s_registries_config is changed
