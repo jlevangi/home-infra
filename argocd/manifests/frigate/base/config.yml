@@ -26,6 +26,7 @@ cameras:
             - detect
             - record
     detect:
+      enabled: true
       fps: 5
 
 record:
