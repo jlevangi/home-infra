@@ -11,3 +11,5 @@ data:
   PGID: "100"
   TZ: "America/New_York"
   CWA_PORT_OVERRIDE: "8083"
+  # Files arrive from another NFS client; inotify cannot observe those writes.
+  NETWORK_SHARE_MODE: "true"
