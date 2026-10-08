@@ -24,6 +24,25 @@ The intended configuration pattern is:
 - `stage`: `enable_longhorn_backup: false`
 - `test`: `enable_longhorn_backup: false`
 
+## Jottacloud off-site mirror
+
+`jottacloud-backup` runs daily at 03:00 UTC with two Job retries and an
+18-hour total deadline across all attempts. `concurrencyPolicy: Forbid`
+prevents overlapping scheduled runs; a deadline failure still waits for the
+next schedule. Check Job completion and the Healthchecks success ping separately.
+
+The script uses `rclone sync`: unchanged files are skipped, while changed files
+are transferred in full (file-level incremental transfer, not block-level delta).
+The destination is a rolling mirror, not an independently versioned archive:
+`--delete-during` propagates source deletions and `--delete-excluded` removes
+excluded destination files. Do not change exclusions or run manual syncs without
+reviewing their deletion impact.
+
+NAS mounts are read-only. `k3s-storage` uses the newest matching NAS snapshot;
+other roots use live exports. Missing or unreadable roots fail the script, but
+that check does not detect an unexpectedly empty or wrong readable export.
+Successful sync does not establish restore integrity or recovery of older copies.
+
 ## Logical Database Dumps (second layer)
 
 Longhorn backs up blocks. It cannot tell an empty volume from a full one, so
