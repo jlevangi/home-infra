@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: calibre-web
+  name: shelfmark
   namespace: argocd
   labels:
     app.kubernetes.io/part-of: books
@@ -12,10 +12,10 @@ spec:
   source:
     repoURL: git@github.com:jlevangi/home-infra.git
     targetRevision: main
-    path: argocd/manifests/calibre-web/base
+    path: argocd/manifests/shelfmark/base
   destination:
     server: https://kubernetes.default.svc
-    namespace: calibre-web
+    namespace: shelfmark
   syncPolicy:
     automated:
       prune: true

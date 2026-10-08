@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: books
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    app.kubernetes.io/name: books
+    app.kubernetes.io/part-of: books
+spec:
+  description: Ebook acquisition, reading, and audiobook listening
+  sourceRepos:
+    - git@github.com:jlevangi/home-infra.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: calibre-web
+    - server: https://kubernetes.default.svc
+      namespace: shelfmark
+    - server: https://kubernetes.default.svc
+      namespace: audiobookshelf
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
