@@ -37,9 +37,11 @@ spec:
               port: 80
             initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /
               port: 80
             initialDelaySeconds: 30
             periodSeconds: 20
+            timeoutSeconds: 5

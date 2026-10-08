@@ -41,12 +41,14 @@ spec:
               port: lapi
             initialDelaySeconds: 30
             periodSeconds: 15
+            timeoutSeconds: 5
           readinessProbe:
             httpGet:
               path: /health
               port: lapi
             initialDelaySeconds: 10
             periodSeconds: 5
+            timeoutSeconds: 5
           resources:
             requests:
               memory: 128Mi

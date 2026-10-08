@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: librechat-meilisearch-probe-patcher
+  namespace: librechat
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: librechat-meilisearch-probe-patcher
+  namespace: librechat
+rules:
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    resourceNames: ["librechat-meilisearch"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: librechat-meilisearch-probe-patcher
+  namespace: librechat
+subjects:
+  - kind: ServiceAccount
+    name: librechat-meilisearch-probe-patcher
+    namespace: librechat
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: librechat-meilisearch-probe-patcher
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: librechat-meilisearch-probe-patch
+  namespace: librechat
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded,BeforeHookCreation
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 300
+  template:
+    spec:
+      restartPolicy: Never
+      serviceAccountName: librechat-meilisearch-probe-patcher
+      containers:
+        - name: patch
+          image: bitnami/kubectl@sha256:9e369df7ab3386b736d162348f167bcc02cb4ba3f5203e9151be854437d6e0af
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              until kubectl get statefulset librechat-meilisearch >/dev/null 2>&1; do sleep 5; done
+              kubectl patch statefulset librechat-meilisearch --type=strategic -p '{"spec":{"template":{"spec":{"containers":[{"name":"meilisearch","startupProbe":{"timeoutSeconds":5},"readinessProbe":{"timeoutSeconds":5},"livenessProbe":{"timeoutSeconds":5}}]}}}}'

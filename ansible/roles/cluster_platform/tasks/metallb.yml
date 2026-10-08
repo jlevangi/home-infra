@@ -152,6 +152,25 @@
   when: 
     - metallb_needs_deployment
 
+- name: Set MetalLB FRR startup probe timeout
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig={{ kubeconfig_path }}
+      - -n
+      - metallb-system
+      - patch
+      - daemonset
+      - metallb-speaker
+      - --type=strategic
+      - -p
+      - '{"spec":{"template":{"spec":{"containers":[{"name":"frr","startupProbe":{"timeoutSeconds":5}}]}}}}'
+  register: metallb_frr_probe_patch
+  changed_when: metallb_frr_probe_patch.rc == 0 and 'patched' in metallb_frr_probe_patch.stdout
+  retries: 5
+  delay: 10
+  until: metallb_frr_probe_patch is not failed
+
 - name: Check if MetalLB IP address pool exists
   shell: |
     kubectl --kubeconfig={{ kubeconfig_path }} get ipaddresspool default-pool -n metallb-system

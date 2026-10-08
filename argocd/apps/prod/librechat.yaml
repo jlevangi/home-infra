@@ -7,198 +7,205 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
-  source:
-    repoURL: ghcr.io/danny-avila/librechat-chart
-    chart: librechat
-    targetRevision: 2.0.7
-    helm:
-      values: |
-        replicaCount: 1
+  sources:
+    - repoURL: ghcr.io/danny-avila/librechat-chart
+      chart: librechat
+      targetRevision: 2.0.7
+      helm:
+        values: |
+          livenessProbe:
+            timeoutSeconds: 5
+          readinessProbe:
+            timeoutSeconds: 5
+          replicaCount: 1
 
-        global:
-          librechat:
-            existingSecretName: librechat-credentials-env
-            existingSecretApiKey: OPENAI_API_KEY
+          global:
+            librechat:
+              existingSecretName: librechat-credentials-env
+              existingSecretApiKey: OPENAI_API_KEY
 
-        image:
-          registry: ghcr.io
-          repository: danny-avila/librechat
-          tag: v0.8.7
-          pullPolicy: IfNotPresent
-
-        updateStrategy:
-          type: Recreate
-
-        librechat:
-          existingSecretName: librechat-credentials-env
-          imageVolume:
-            enabled: true
-            size: 10G
-            accessModes: ReadWriteOnce
-            storageClassName: longhorn
-          configEnv:
-            ALLOW_EMAIL_LOGIN: "true"
-            ALLOW_REGISTRATION: "true"
-            ALLOW_SOCIAL_LOGIN: "true"
-            DEBUG_LOGGING: "false"
-            DOMAIN_CLIENT: "https://librechat.levangie.dev"
-            DOMAIN_SERVER: "https://librechat.levangie.dev"
-            OPENID_ISSUER: "https://auth.levangie.org/realms/master"
-            OPENID_CLIENT_ID: "librechat"
-            OPENID_CALLBACK_URL: "/oauth/openid/callback"
-            OPENID_SCOPE: "openid profile email"
-            OPENID_BUTTON_LABEL: "Sign in with Keycloak"
-          configYamlContent: |
-            version: 1.3.13
-            cache: true
-            interface:
-              endpointsMenu: true
-              modelSelect: true
-              parameters: true
-              sidePanel: true
-              presets: true
-            modelSpecs:
-              enforce: false
-              prioritize: false
-              list:
-                - name: "9router-default"
-                  label: "9Router"
-                  default: true
-                  preset:
-                    endpoint: "9router"
-                    model: "agent-default"
-            endpoints:
-              custom:
-                # Points at models-shim, NOT at nine-router directly. The shim proxies
-                # everything through to 9router untouched - RTK, combos and fallback all
-                # still apply - and only rewrites GET /v1/models on the way back.
-                #
-                # It has to exist because LibreChat derives each model's context window
-                # automatically, but only when every model object carries id + pricing +
-                # context_length. 9router never emits `pricing`, and reports a generic
-                # default context for custom OpenAI-compatible endpoints, so LibreChat's
-                # parse failed on the whole list and it guessed (~28k usable). The shim
-                # fills both fields, taking local models' real context from llama-swap's
-                # own config.yaml --ctx-size.
-                #
-                # Net effect: no model names, aliases or context numbers configured here
-                # or anywhere else. Add a model to config.yaml on pierce-pc and it shows
-                # up with the right context by itself.
-                - name: "9router"
-                  apiKey: "${NINE_ROUTER_API_KEY}"
-                  baseURL: "http://models-shim.9router.svc.cluster.local:8080/v1"
-                  models:
-                    default:
-                      - "agent-default"
-                    fetch: true
-                  titleConvo: true
-                  modelDisplayLabel: "9Router"
-                - name: "Pierce-PC"
-                  apiKey: "local"
-                  baseURL: "http://pierce-pc.levangie.org:9080/v1"
-                  models:
-                    # Required fallback; the selectable models are discovered dynamically.
-                    default:
-                      - "Qwen3.8-27B"
-                    fetch: true
-                  titleConvo: true
-                  modelDisplayLabel: "Pierce-PC"
-                - name: "OmniRoute"
-                  apiKey: "${OMNIROUTE_API_KEY}"
-                  baseURL: "http://omniroute.omniroute.svc.cluster.local:20128/v1"
-                  models:
-                    default:
-                      - "pc-llama-swap/Qwen3.8-27B"
-                    fetch: true
-                  titleConvo: true
-                  modelDisplayLabel: "OmniRoute"
-                - name: "hermes-agent"
-                  apiKey: "${HERMES_API_KEY}"
-                  baseURL: "http://172.20.23.94:8642/v1"
-                  models:
-                    default:
-                      - "hermes-agent"
-                    fetch: true
-                  titleConvo: true
-                  modelDisplayLabel: "Hermes Agent"
-          resources:
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: 1000m
-              memory: 1Gi
-
-        service:
-          type: ClusterIP
-          port: 3080
-          targetPort: 3080
-          containerPort: 3080
-
-        ingress:
-          enabled: true
-          className: traefik
-          annotations:
-            traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-            external-dns.alpha.kubernetes.io/target: k3s-prod.levangie.dev
-          hosts:
-            - host: librechat.levangie.dev
-              paths:
-                - path: /
-                  pathType: Prefix
-
-        mongodb:
-          enabled: true
-          commonLabels:
-            backup.levangie.dev/engine: mongodb
           image:
-            registry: docker.io
-            repository: bitnamilegacy/mongodb
+            registry: ghcr.io
+            repository: danny-avila/librechat
+            tag: v0.8.7
+            pullPolicy: IfNotPresent
+
           updateStrategy:
             type: Recreate
-          auth:
-            enabled: false
-          databases:
-            - LibreChat
-          persistence:
+
+          librechat:
+            existingSecretName: librechat-credentials-env
+            imageVolume:
+              enabled: true
+              size: 10G
+              accessModes: ReadWriteOnce
+              storageClassName: longhorn
+            configEnv:
+              ALLOW_EMAIL_LOGIN: "true"
+              ALLOW_REGISTRATION: "true"
+              ALLOW_SOCIAL_LOGIN: "true"
+              DEBUG_LOGGING: "false"
+              DOMAIN_CLIENT: "https://librechat.levangie.dev"
+              DOMAIN_SERVER: "https://librechat.levangie.dev"
+              OPENID_ISSUER: "https://auth.levangie.org/realms/master"
+              OPENID_CLIENT_ID: "librechat"
+              OPENID_CALLBACK_URL: "/oauth/openid/callback"
+              OPENID_SCOPE: "openid profile email"
+              OPENID_BUTTON_LABEL: "Sign in with Keycloak"
+            configYamlContent: |
+              version: 1.3.13
+              cache: true
+              interface:
+                endpointsMenu: true
+                modelSelect: true
+                parameters: true
+                sidePanel: true
+                presets: true
+              modelSpecs:
+                enforce: false
+                prioritize: false
+                list:
+                  - name: "9router-default"
+                    label: "9Router"
+                    default: true
+                    preset:
+                      endpoint: "9router"
+                      model: "agent-default"
+              endpoints:
+                custom:
+                  # Points at models-shim, NOT at nine-router directly. The shim proxies
+                  # everything through to 9router untouched - RTK, combos and fallback all
+                  # still apply - and only rewrites GET /v1/models on the way back.
+                  #
+                  # It has to exist because LibreChat derives each model's context window
+                  # automatically, but only when every model object carries id + pricing +
+                  # context_length. 9router never emits `pricing`, and reports a generic
+                  # default context for custom OpenAI-compatible endpoints, so LibreChat's
+                  # parse failed on the whole list and it guessed (~28k usable). The shim
+                  # fills both fields, taking local models' real context from llama-swap's
+                  # own config.yaml --ctx-size.
+                  #
+                  # Net effect: no model names, aliases or context numbers configured here
+                  # or anywhere else. Add a model to config.yaml on pierce-pc and it shows
+                  # up with the right context by itself.
+                  - name: "9router"
+                    apiKey: "${NINE_ROUTER_API_KEY}"
+                    baseURL: "http://models-shim.9router.svc.cluster.local:8080/v1"
+                    models:
+                      default:
+                        - "agent-default"
+                      fetch: true
+                    titleConvo: true
+                    modelDisplayLabel: "9Router"
+                  - name: "Pierce-PC"
+                    apiKey: "local"
+                    baseURL: "http://pierce-pc.levangie.org:9080/v1"
+                    models:
+                      # Required fallback; the selectable models are discovered dynamically.
+                      default:
+                        - "Qwen3.8-27B"
+                      fetch: true
+                    titleConvo: true
+                    modelDisplayLabel: "Pierce-PC"
+                  - name: "OmniRoute"
+                    apiKey: "${OMNIROUTE_API_KEY}"
+                    baseURL: "http://omniroute.omniroute.svc.cluster.local:20128/v1"
+                    models:
+                      default:
+                        - "pc-llama-swap/Qwen3.8-27B"
+                      fetch: true
+                    titleConvo: true
+                    modelDisplayLabel: "OmniRoute"
+                  - name: "hermes-agent"
+                    apiKey: "${HERMES_API_KEY}"
+                    baseURL: "http://172.20.23.94:8642/v1"
+                    models:
+                      default:
+                        - "hermes-agent"
+                      fetch: true
+                    titleConvo: true
+                    modelDisplayLabel: "Hermes Agent"
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                cpu: 1000m
+                memory: 1Gi
+
+          service:
+            type: ClusterIP
+            port: 3080
+            targetPort: 3080
+            containerPort: 3080
+
+          ingress:
             enabled: true
-            storageClass: longhorn-flash
-            size: 2Gi
-            labels:
-              recurring-job-group.longhorn.io/hourly: "enabled"
+            className: traefik
+            annotations:
+              traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+              external-dns.alpha.kubernetes.io/target: k3s-prod.levangie.dev
+            hosts:
+              - host: librechat.levangie.dev
+                paths:
+                  - path: /
+                    pathType: Prefix
+
+          mongodb:
+            enabled: true
+            commonLabels:
+              backup.levangie.dev/engine: mongodb
+            image:
+              registry: docker.io
+              repository: bitnamilegacy/mongodb
+            updateStrategy:
+              type: Recreate
+            auth:
+              enabled: false
+            databases:
+              - LibreChat
+            persistence:
+              enabled: true
+              storageClass: longhorn-flash
+              size: 2Gi
+              labels:
+                recurring-job-group.longhorn.io/hourly: "enabled"
+                recurring-job-group.longhorn.io/daily: "enabled"
+                recurring-job-group.longhorn.io/weekly: "enabled"
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                memory: 1Gi
+
+          meilisearch:
+            enabled: true
+            customLabels:
               recurring-job-group.longhorn.io/daily: "enabled"
               recurring-job-group.longhorn.io/weekly: "enabled"
-          resources:
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              memory: 1Gi
+            persistence:
+              enabled: true
+              storageClass: longhorn
+              size: 5Gi
+            auth:
+              existingMasterKeySecret: librechat-credentials-env
+            resources:
+              requests:
+                cpu: 50m
+                memory: 128Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi
 
-        meilisearch:
-          enabled: true
-          customLabels:
-            recurring-job-group.longhorn.io/daily: "enabled"
-            recurring-job-group.longhorn.io/weekly: "enabled"
-          persistence:
-            enabled: true
-            storageClass: longhorn
-            size: 5Gi
-          auth:
-            existingMasterKeySecret: librechat-credentials-env
-          resources:
-            requests:
-              cpu: 50m
-              memory: 128Mi
-            limits:
-              cpu: 500m
-              memory: 512Mi
+          redis:
+            enabled: false
 
-        redis:
-          enabled: false
-
-        librechat-rag-api:
-          enabled: false
+          librechat-rag-api:
+            enabled: false
+    - repoURL: git@github.com:jlevangi/home-infra.git
+      targetRevision: main
+      path: argocd/manifests/librechat-probe-override
   destination:
     server: https://kubernetes.default.svc
     namespace: librechat
@@ -224,6 +231,13 @@ spec:
       jsonPointers:
         - /spec/storageClassName
         - /spec/volumeName
+    - group: apps
+      kind: StatefulSet
+      name: librechat-meilisearch
+      jsonPointers:
+        - /spec/template/spec/containers/0/livenessProbe/timeoutSeconds
+        - /spec/template/spec/containers/0/readinessProbe/timeoutSeconds
+        - /spec/template/spec/containers/0/startupProbe/timeoutSeconds
   syncPolicy:
     automated:
       prune: true

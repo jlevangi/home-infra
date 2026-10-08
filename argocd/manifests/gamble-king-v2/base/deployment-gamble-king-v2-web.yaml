@@ -36,6 +36,7 @@ spec:
           httpGet:
             path: /healthz
             port: http
+          timeoutSeconds: 5
         name: web
         ports:
         - containerPort: 3000
@@ -44,6 +45,7 @@ spec:
           httpGet:
             path: /healthz
             port: http
+          timeoutSeconds: 5
         resources:
           limits:
             cpu: 200m

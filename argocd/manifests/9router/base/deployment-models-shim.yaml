@@ -84,11 +84,13 @@ spec:
               port: http
             initialDelaySeconds: 3
             periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
             tcpSocket:
               port: http
             initialDelaySeconds: 10
             periodSeconds: 20
+            timeoutSeconds: 5
             failureThreshold: 3
           securityContext:
             runAsNonRoot: true

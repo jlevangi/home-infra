@@ -18,6 +18,10 @@ spec:
         deploymentMode: SingleBinary
 
         loki:
+          livenessProbe:
+            timeoutSeconds: 5
+          readinessProbe:
+            timeoutSeconds: 5
           auth_enabled: false
           commonConfig:
             replication_factor: 1
@@ -114,6 +118,12 @@ spec:
             enabled: true
 
         lokiCanary:
+          enabled: false
+        sidecar:
+          readinessProbe:
+            timeoutSeconds: 5
+          livenessProbe:
+            timeoutSeconds: 5
           enabled: false
 
         test:

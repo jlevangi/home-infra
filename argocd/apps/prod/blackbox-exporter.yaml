@@ -25,6 +25,11 @@ spec:
             drop: ["ALL"]
             add: ["NET_RAW"]
 
+        livenessProbe:
+          timeoutSeconds: 5
+        readinessProbe:
+          timeoutSeconds: 5
+
         resources:
           requests:
             cpu: 25m

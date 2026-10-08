@@ -49,10 +49,12 @@ spec:
             tcpSocket: { port: postgres }
             initialDelaySeconds: 10
             periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
             tcpSocket: { port: postgres }
             initialDelaySeconds: 20
             periodSeconds: 20
+            timeoutSeconds: 5
           resources:
             requests: { cpu: 250m, memory: 512Mi }
             limits: { cpu: "1", memory: 2Gi }

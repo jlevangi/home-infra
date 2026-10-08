@@ -28,10 +28,12 @@ spec:
             tcpSocket: { port: http }
             initialDelaySeconds: 15
             periodSeconds: 15
+            timeoutSeconds: 5
           livenessProbe:
             tcpSocket: { port: http }
             initialDelaySeconds: 30
             periodSeconds: 20
+            timeoutSeconds: 5
           resources:
             requests: { cpu: 250m, memory: 1Gi }
             limits: { cpu: "2", memory: 4Gi }

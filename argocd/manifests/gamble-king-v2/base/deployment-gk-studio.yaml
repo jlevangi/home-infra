@@ -80,6 +80,7 @@ spec:
           httpGet:
             path: /api/platform/profile
             port: http
+          timeoutSeconds: 5
         resources:
           limits:
             cpu: 500m

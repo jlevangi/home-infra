@@ -156,3 +156,25 @@
     - longhorn_helm_check.rc != 0
     - longhorn_install_result is not defined
   register: longhorn_repair_result
+
+# Longhorn 1.12.1 hardcodes manager readiness fields in its chart template.
+# Patch only the manager pod template and limit unavailability during its roll.
+# Engine and instance-manager pods remain untouched.
+- name: Set Longhorn manager readiness timeout
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig={{ kubeconfig_path }}
+      - -n
+      - longhorn-system
+      - patch
+      - daemonset
+      - longhorn-manager
+      - --type=strategic
+      - -p
+      - '{"spec":{"updateStrategy":{"rollingUpdate":{"maxUnavailable":1}},"template":{"spec":{"containers":[{"name":"longhorn-manager","readinessProbe":{"timeoutSeconds":5}}]}}}}'
+  register: longhorn_manager_probe_patch
+  changed_when: longhorn_manager_probe_patch.rc == 0 and 'patched' in longhorn_manager_probe_patch.stdout
+  retries: 5
+  delay: 10
+  until: longhorn_manager_probe_patch is not failed

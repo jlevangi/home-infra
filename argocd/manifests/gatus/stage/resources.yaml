@@ -1,0 +1,238 @@
+---
+# Source: gatus/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gatus
+  namespace: gatus
+  labels:
+    helm.sh/chart: gatus-3.4.6
+    app.kubernetes.io/name: gatus
+    app.kubernetes.io/instance: gatus
+    app.kubernetes.io/version: "v5.35.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.yaml: |
+    endpoints:
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Infrastructure
+      interval: 5m
+      name: ArgoCD
+      url: https://argocd.stage.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      group: Infrastructure
+      interval: 5m
+      name: Longhorn
+      url: https://longhorn.stage.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Monitoring
+      interval: 5m
+      name: Grafana
+      url: https://grafana.stage.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      group: Monitoring
+      interval: 2m
+      name: Prometheus
+      url: http://prometheus-prometheus.monitoring.svc.cluster.local:9090/-/healthy
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Bookstack
+      url: https://bookstack.stage.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Vaultwarden
+      url: https://vw.stage.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: PocketID
+      url: https://pocketid.stage.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Microbin
+      url: https://bin.stage.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Paperless
+      url: https://paperless.stage.levangie.dev
+    metrics: true
+    storage:
+      path: /data/data.db
+      type: sqlite
+
+---
+# Source: gatus/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gatus
+  namespace: gatus
+  labels:
+    helm.sh/chart: gatus-3.4.6
+    app.kubernetes.io/name: gatus
+    app.kubernetes.io/instance: gatus
+    app.kubernetes.io/version: "v5.35.0"
+    app.kubernetes.io/managed-by: Helm
+  finalizers:
+    - kubernetes.io/pvc-protection
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "1Gi"
+  storageClassName: longhorn
+---
+# Source: gatus/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: gatus
+  namespace: gatus
+  labels:
+    helm.sh/chart: gatus-3.4.6
+    app.kubernetes.io/name: gatus
+    app.kubernetes.io/instance: gatus
+    app.kubernetes.io/version: "v5.35.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: gatus
+    app.kubernetes.io/instance: gatus
+
+---
+# Source: gatus/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gatus
+  namespace: gatus
+  labels:
+    helm.sh/chart: gatus-3.4.6
+    app.kubernetes.io/name: gatus
+    app.kubernetes.io/instance: gatus
+    app.kubernetes.io/version: "v5.35.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gatus
+      app.kubernetes.io/instance: gatus
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gatus
+        app.kubernetes.io/instance: gatus
+      annotations:
+        checksum/config: 0bc277cd22b2cf713e5d1f708a21438b6de5f03c6bd1882c52d41c215ef2a739
+    spec:
+      
+      serviceAccountName: default
+      automountServiceAccountToken: false
+      securityContext:
+        fsGroup: 65534
+      containers:
+        - name: gatus
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsGroup: 65534
+            runAsNonRoot: true
+            runAsUser: 65534
+          image: "twinproduction/gatus:v5.35.0"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: gatus
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            timeoutSeconds: 5
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+          volumeMounts:
+            - name: gatus-config
+              mountPath: /config
+              readOnly: true
+            - name: gatus-data
+              mountPath: /data
+      volumes:
+        - name: gatus-config
+          configMap:
+            name: gatus
+        - name: gatus-data
+          persistentVolumeClaim:
+            claimName: gatus
+
+---
+# Source: gatus/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gatus
+  namespace: gatus
+  labels:
+    helm.sh/chart: gatus-3.4.6
+    app.kubernetes.io/name: gatus
+    app.kubernetes.io/instance: gatus
+    app.kubernetes.io/version: "v5.35.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    external-dns.alpha.kubernetes.io/target: "k3s-stage.levangie.dev"
+    traefik.ingress.kubernetes.io/router.entrypoints: "web,websecure"
+spec:
+  ingressClassName: "traefik"
+  rules:
+    - host: status.stage.levangie.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gatus
+                port:
+                  number: 80

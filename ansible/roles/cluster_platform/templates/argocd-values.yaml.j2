@@ -108,6 +108,8 @@ repoServer:
 # ArgoCD Application Controller configuration
 controller:
   replicas: {{ argocd_controller_replicas | default(1) }}
+  readinessProbe:
+    timeoutSeconds: 5
 
   resources:
     limits:

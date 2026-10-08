@@ -18,6 +18,10 @@ spec:
         # so the default TLS verification fails. This skips it.
         args:
           - --kubelet-insecure-tls
+        livenessProbe:
+          timeoutSeconds: 5
+        readinessProbe:
+          timeoutSeconds: 5
         resources:
           requests:
             cpu: 50m

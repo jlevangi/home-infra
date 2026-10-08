@@ -92,12 +92,14 @@ spec:
               port: 8080
             initialDelaySeconds: 10
             periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /healthz
               port: 8080
             initialDelaySeconds: 30
             periodSeconds: 30
+            timeoutSeconds: 5
             failureThreshold: 5
           resources:
             requests:

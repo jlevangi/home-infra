@@ -35,6 +35,15 @@ Use this runbook for normal day-2 Kubernetes operations: switching context, depl
 
 If you use the shell helpers, source `scripts/k3s/helpers/k3s-shell-functions.sh` from your shell profile.
 
+## Probe timeout floor
+
+Application readiness, liveness, and startup probes with one- or two-second
+timeouts (including Kubernetes' omitted one-second default) use five seconds.
+Existing timeouts of three seconds or more, probe periods, and failure thresholds
+remain unchanged. Configure chart-generated probes through the owning chart values.
+Changing a probe rolls its controller; deploy in scoped waves and verify readiness
+and actual health endpoints. A timeout warning is not proof of an application outage.
+
 ## Component Deployment
 
 ### Common commands

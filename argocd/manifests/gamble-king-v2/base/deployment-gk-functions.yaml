@@ -67,6 +67,7 @@ spec:
           periodSeconds: 10
           tcpSocket:
             port: http
+          timeoutSeconds: 5
         resources:
           limits:
             cpu: 500m

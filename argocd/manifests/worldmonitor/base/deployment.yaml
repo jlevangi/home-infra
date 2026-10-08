@@ -72,12 +72,14 @@ spec:
               port: http
             initialDelaySeconds: 15
             periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /api/sidecar-health
               port: http
             initialDelaySeconds: 30
             periodSeconds: 20
+            timeoutSeconds: 5
         - name: ais-relay
           image: ghcr.io/jlevangi/home-infra-worldmonitor-relay:v2.10.0
           imagePullPolicy: IfNotPresent
@@ -113,12 +115,14 @@ spec:
               port: 3004
             initialDelaySeconds: 10
             periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /health
               port: 3004
             initialDelaySeconds: 20
             periodSeconds: 20
+            timeoutSeconds: 5
         - name: redis
           image: redis:7-alpine
           imagePullPolicy: IfNotPresent

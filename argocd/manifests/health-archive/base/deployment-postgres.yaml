@@ -43,6 +43,7 @@ spec:
                 - health_archive
             initialDelaySeconds: 15
             periodSeconds: 10
+            timeoutSeconds: 5
           readinessProbe:
             exec:
               command:
@@ -53,6 +54,7 @@ spec:
                 - health_archive
             initialDelaySeconds: 5
             periodSeconds: 5
+            timeoutSeconds: 5
           resources:
             requests:
               cpu: 250m

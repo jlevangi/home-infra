@@ -20,6 +20,10 @@ spec:
         replicaCount: 2
         webhook:
           replicaCount: 2
+          livenessProbe:
+            timeoutSeconds: 5
+          readinessProbe:
+            timeoutSeconds: 5
         cainjector:
           replicaCount: 2
   destination:

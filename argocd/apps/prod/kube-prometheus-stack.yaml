@@ -250,6 +250,10 @@ spec:
               operator: Equal
               value: nvidia
               effect: NoSchedule
+          livenessProbe:
+            timeoutSeconds: 5
+          readinessProbe:
+            timeoutSeconds: 5
           resources:
             requests:
               cpu: 50m
@@ -257,6 +261,12 @@ spec:
             limits:
               cpu: 200m
               memory: 128Mi
+        prometheusOperator:
+          enabled: true
+          livenessProbe:
+            timeoutSeconds: 5
+          readinessProbe:
+            timeoutSeconds: 5
 
         kube-state-metrics:
           resources:

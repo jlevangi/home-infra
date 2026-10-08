@@ -31,10 +31,12 @@ spec:
             httpGet:
               path: /api/v1/forwardAuth
               port: 8080
+            timeoutSeconds: 5
           readinessProbe:
             httpGet:
               path: /api/v1/forwardAuth
               port: 8080
+            timeoutSeconds: 5
           resources:
             requests:
               memory: 64Mi

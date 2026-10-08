@@ -751,6 +751,7 @@ spec:
               port: http
             periodSeconds: 10
             failureThreshold: 18
+            timeoutSeconds: 5
           readinessProbe:
             tcpSocket:
               port: http

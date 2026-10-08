@@ -234,6 +234,27 @@
       }}
   when: not (skip_infra_install | default(false) | bool)
 
+# K3s's packaged CoreDNS manifest sets both probe timeouts to 1s.
+- name: Read CoreDNS probe timeouts
+  command: >-
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get deployment coredns
+    -n kube-system
+    -o jsonpath={.spec.template.spec.containers[?(@.name=="coredns")].livenessProbe.timeoutSeconds},{.spec.template.spec.containers[?(@.name=="coredns")].readinessProbe.timeoutSeconds}
+  become: yes
+  register: coredns_probe_timeouts
+  changed_when: false
+  retries: 5
+  delay: 10
+  until: coredns_probe_timeouts.rc == 0
+
+- name: Set CoreDNS probe timeouts
+  command: >-
+    kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml patch deployment coredns
+    -n kube-system --type=strategic
+    -p '{"spec":{"template":{"spec":{"containers":[{"name":"coredns","livenessProbe":{"timeoutSeconds":5},"readinessProbe":{"timeoutSeconds":5}}]}}}}'
+  become: yes
+  when: coredns_probe_timeouts.stdout != '5,5'
+
 # Configure CoreDNS to use the internal DNS resolver for upstream lookups.
 # Tight-memory test VMs can cause the k3s API server to flap briefly under
 # load, so wait for port 6443 and retry the kubectl calls instead of letting

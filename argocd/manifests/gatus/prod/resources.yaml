@@ -1,0 +1,739 @@
+---
+# Source: gatus/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gatus
+  namespace: gatus
+  labels:
+    helm.sh/chart: gatus-3.4.6
+    app.kubernetes.io/name: gatus
+    app.kubernetes.io/instance: gatus
+    app.kubernetes.io/version: "v5.35.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.yaml: |
+    endpoints:
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Infrastructure
+      interval: 5m
+      name: ArgoCD
+      url: https://argocd.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      group: Infrastructure
+      interval: 5m
+      name: Longhorn
+      url: https://longhorn.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      - '[BODY].issuer == https://auth.levangie.org/realms/master'
+      group: Infrastructure
+      interval: 5m
+      name: Keycloak
+      url: https://auth.levangie.org/realms/master/.well-known/openid-configuration
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Infrastructure
+      interval: 5m
+      name: Vault
+      url: https://vault.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Infrastructure
+      interval: 5m
+      name: OAuth2 Proxy
+      url: https://oauth.levangie.dev/ping
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Infrastructure
+      interval: 5m
+      name: Headlamp
+      url: https://headlamp.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Infrastructure
+      interval: 5m
+      name: MeshCentral
+      url: https://mesh.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      group: Infrastructure
+      interval: 2m
+      name: CrowdSec LAPI
+      url: http://crowdsec-lapi.crowdsec.svc.cluster.local:8080/health
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      - '[BODY].postgres == ok'
+      - '[BODY].clickhouse == ok'
+      group: Applications
+      interval: 5m
+      name: Plausible
+      url: https://plausible.levangie.dev/api/health
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Kaylee Watkins
+      url: https://kayleewatkins.com
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Business
+      interval: 5m
+      name: Everly Era
+      url: https://everlyera.com
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Monitoring
+      interval: 5m
+      name: Grafana
+      url: https://grafana.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      group: Monitoring
+      interval: 2m
+      name: Prometheus
+      url: http://prometheus-prometheus.monitoring.svc.cluster.local:9090/-/healthy
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Bookstack
+      url: https://bookstack.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Alist
+      url: https://alist.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Vaultwarden
+      url: https://vw.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: PocketID
+      url: https://pocketid.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: BoxBox
+      url: https://box.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Actual Budget
+      url: https://budget.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Microbin
+      url: https://bin.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Paperless
+      url: https://paperless.levangie.dev
+    - client:
+        ignore-redirect: true
+      conditions:
+      - '[STATUS] == 302'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Paperless GPT
+      url: https://paperless-gpt.levangie.dev
+    - conditions:
+      - '[CONNECTED] == true'
+      group: Applications
+      interval: 5m
+      name: Factorio
+      url: tcp://factorio.levangie.dev:27015
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: IT Tools
+      url: https://ittools.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Linkding
+      url: https://linkding.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Ntfy
+      url: https://ntfy.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: PairDrop
+      url: https://pairdrop.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Wallos
+      url: https://wallos.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Immich
+      url: https://photos.levangie.org
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Immich Power Tools
+      url: https://immich-tools.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Memos
+      url: https://memos.levangie.org
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Netboot.xyz
+      url: https://netboot.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: 3D Print Calc
+      url: https://3dprintcalc.levangie.org
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Change Detection
+      url: https://changedetection.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Karakeep
+      url: https://karakeep.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Note Mark
+      url: https://notemark.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Kioto
+      url: https://koito.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Firefox
+      url: https://firefox.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: SearXNG
+      url: https://search.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Media
+      interval: 5m
+      name: Tautulli
+      url: https://tautulli.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Media
+      interval: 5m
+      name: Jellyseerr
+      url: https://request.levangie.dev/api/v1/status
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Media
+      interval: 5m
+      name: Sonarr
+      url: https://sonarr.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Media
+      interval: 5m
+      name: Radarr
+      url: https://radarr.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Media
+      interval: 5m
+      name: Radarr 4K
+      url: https://radarr4k.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Media
+      interval: 5m
+      name: Bazarr
+      url: https://bazarr.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Media
+      interval: 5m
+      name: Prowlarr
+      url: https://prowlarr.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Media
+      interval: 5m
+      name: qBittorrent
+      url: https://qbittorrent.levangie.dev
+    - conditions:
+      - '[STATUS] == any(200, 401)'
+      - '[RESPONSE_TIME] < 5000'
+      group: Media
+      interval: 5m
+      name: NZBGet
+      url: https://nzbget.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      - '[BODY] == ok'
+      group: Media
+      interval: 5m
+      name: Jellyfin Invite
+      url: https://join.levangie.dev/healthz
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      - '[BODY] == Healthy'
+      group: Media
+      interval: 5m
+      name: Jellyfin
+      url: https://jellyfin.levangie.org/health
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      - '[BODY].status == ok'
+      - '[BODY].db == true'
+      - '[BODY].redis == true'
+      group: Media
+      interval: 5m
+      name: Tracearr
+      url: https://tracearr.levangie.org/health
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      - '[BODY].status == UP'
+      group: Media
+      interval: 5m
+      name: Komga
+      url: https://komga.levangie.dev/actuator/health
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Media
+      interval: 5m
+      name: Calibre-Web
+      url: https://calibre.levangie.dev/login
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Infrastructure
+      interval: 2m
+      name: 9router
+      url: https://9router.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Agent Browser
+      url: https://browser.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Firecrawl
+      url: https://firecrawl.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: GeoPulse
+      url: https://geopulse.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: World Monitor
+      url: https://worldmonitor.levangie.dev/api/sidecar-health
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: yt-dlp WebUI
+      url: https://ytdl.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: TREK
+      url: https://trek.levangie.dev/api/health
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: ReClip
+      url: https://reclip.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Monitoring
+      interval: 2m
+      name: Healthchecks
+      url: https://healthchecks.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: n8n
+      url: https://n8n.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Infrastructure
+      interval: 2m
+      name: Semaphore
+      url: https://semaphore.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      - '[BODY].auth.openid_connect.enabled == true'
+      group: Applications
+      interval: 5m
+      name: Vikunja
+      url: https://vikunja.levangie.dev/api/v1/info
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: SparkyFitness
+      url: https://fitness.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: LibreChat
+      url: https://librechat.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Omniroute
+      url: https://omniroute.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Glance
+      url: https://glance.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: MyIP
+      url: https://myip.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Gamble King
+      url: https://gambleking.app
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Gamble King V2 Staging
+      url: https://staging.gambleking.app
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Everly Era Galleries
+      url: https://gallery.everlyera.com
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Media
+      interval: 5m
+      name: FlareSolverr
+      url: https://flaresolverr.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Media
+      interval: 5m
+      name: Swiparr
+      url: https://swipe.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Pingvin Share
+      url: https://share.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Media
+      interval: 5m
+      name: LazyDJ
+      url: https://lazydj.levangie.org
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Open Notebook
+      url: https://notebook.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Termix
+      url: https://termix.levangie.dev
+    - conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      group: Applications
+      interval: 5m
+      name: Matrix Synapse
+      url: https://matrix.levangie.dev/_matrix/client/versions
+    - conditions:
+      - '[STATUS] == 401'
+      - '[RESPONSE_TIME] < 5000'
+      group: External
+      interval: 2m
+      method: POST
+      name: Car Telemetry Ingest (Public)
+      url: https://car-ingest.levangie.dev/api/telemetry/binary
+    - conditions:
+      - '[STATUS] == 401'
+      - '[RESPONSE_TIME] < 5000'
+      group: External
+      interval: 2m
+      method: POST
+      name: Health Ingester (Public)
+      url: https://health-ingester.levangie.dev/api/v1/health-connect/records:batch
+    metrics: true
+    storage:
+      path: /data/data.db
+      type: sqlite
+
+---
+# Source: gatus/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: gatus
+  namespace: gatus
+  labels:
+    helm.sh/chart: gatus-3.4.6
+    app.kubernetes.io/name: gatus
+    app.kubernetes.io/instance: gatus
+    app.kubernetes.io/version: "v5.35.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: gatus
+    app.kubernetes.io/instance: gatus
+
+---
+# Source: gatus/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gatus
+  namespace: gatus
+  labels:
+    helm.sh/chart: gatus-3.4.6
+    app.kubernetes.io/name: gatus
+    app.kubernetes.io/instance: gatus
+    app.kubernetes.io/version: "v5.35.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gatus
+      app.kubernetes.io/instance: gatus
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gatus
+        app.kubernetes.io/instance: gatus
+      annotations:
+        checksum/config: cc27d5f591664890843f06db081ac8465109f6b7956153cde5cb2280eb83454e
+    spec:
+      
+      serviceAccountName: default
+      automountServiceAccountToken: false
+      securityContext:
+        fsGroup: 65534
+      containers:
+        - name: gatus
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsGroup: 65534
+            runAsNonRoot: true
+            runAsUser: 65534
+          image: "twinproduction/gatus:v5.35.0"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: gatus
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            timeoutSeconds: 5
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+          volumeMounts:
+            - name: gatus-config
+              mountPath: /config
+              readOnly: true
+            - name: gatus-data
+              mountPath: /data
+      volumes:
+        - name: gatus-config
+          configMap:
+            name: gatus
+        - name: gatus-data
+          persistentVolumeClaim:
+            claimName: gatus
+
+---
+# Source: gatus/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gatus
+  namespace: gatus
+  labels:
+    helm.sh/chart: gatus-3.4.6
+    app.kubernetes.io/name: gatus
+    app.kubernetes.io/instance: gatus
+    app.kubernetes.io/version: "v5.35.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    external-dns.alpha.kubernetes.io/target: "k3s-prod.levangie.dev"
+    traefik.ingress.kubernetes.io/router.entrypoints: "web,websecure"
+spec:
+  ingressClassName: "traefik"
+  rules:
+    - host: status.levangie.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gatus
+                port:
+                  number: 80
