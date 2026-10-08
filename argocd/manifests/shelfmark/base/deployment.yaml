@@ -43,9 +43,11 @@ spec:
                   name: shelfmark-credentials
                   key: OIDC_CLIENT_SECRET
             - name: OIDC_AUTO_PROVISION
-              value: "false"
+              value: "true"
             - name: OIDC_USE_ADMIN_GROUP
-              value: "false"
+              value: "true"
+            - name: OIDC_ADMIN_GROUP
+              value: "shelfmark-admin"
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
