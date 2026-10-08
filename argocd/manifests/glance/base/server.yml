@@ -47,6 +47,18 @@ columns:
           - title: Plausible
             url: https://plausible.levangie.dev
             icon: si:plausible
+          - title: NetBox
+            url: https://netbox.levangie.dev
+            icon: sh:netbox
+          - title: Keycloak
+            url: https://auth.levangie.org
+            icon: si:keycloak
+          - title: Gitea
+            url: https://git.levangie.dev
+            icon: si:gitea
+          - title: PocketID
+            url: https://pocketid.levangie.dev
+            icon: mdi:shield-account
       - type: dns-stats
         title: DNS Stats
         service: technitium

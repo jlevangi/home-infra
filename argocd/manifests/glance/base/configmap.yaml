@@ -133,6 +133,46 @@ data:
           - title: Immich
             url: https://photos.levangie.org
             icon: sh:immich
+          - title: Actual Budget
+            url: https://budget.levangie.dev
+            icon: sh:actual-budget
+          - title: Outline
+            url: https://outline.levangie.dev
+            icon: sh:outline
+          - title: Open Notebook
+            url: https://notebook.levangie.dev
+            icon: di:open-notebook
+          - title: Note Mark
+            url: https://notemark.levangie.dev
+            icon: mdi:note-edit-outline
+          - title: Vikunja
+            url: https://vikunja.levangie.dev
+            icon: sh:vikunja
+          - title: Microbin
+            url: https://bin.levangie.dev
+            icon: sh:microbin
+          - title: Pingvin Share
+            url: https://share.levangie.dev
+            icon: sh:pingvin-share
+        - type: monitor
+          title: 📚 Books & Audio
+          cache: 2m
+          sites:
+          - title: Audiobookshelf
+            url: https://audiobooks.levangie.dev
+            icon: sh:audiobookshelf
+          - title: Calibre-Web
+            url: https://calibre.levangie.dev
+            icon: sh:calibre-web
+          - title: Shelfmark
+            url: https://shelfmark.levangie.dev
+            icon: mdi:book-arrow-down
+          - title: Komga
+            url: https://komga.levangie.dev
+            icon: sh:komga
+          - title: Koito
+            url: https://koito.levangie.dev
+            icon: mdi:headphones
         - type: monitor
           title: 🎬 Media
           cache: 2m
@@ -166,6 +206,15 @@ data:
             icon: sh:tautulli
           - title: Swiparr
             url: https://swipe.levangie.dev
+          - title: Tunarr
+            url: https://tunarr.levangie.dev
+            icon: sh:tunarr
+          - title: yt-dlp
+            url: https://ytdl.levangie.dev
+            icon: sh:youtube-dl
+          - title: Frigate
+            url: https://frigate.levangie.dev
+            icon: sh:frigate
         - type: monitor
           title: 🤖 AI & Automation
           cache: 2m
@@ -182,6 +231,15 @@ data:
           - title: 9Router
             url: https://9router.levangie.dev
             icon: mdi:router-wireless
+          - title: OmniRoute
+            url: https://omniroute.levangie.dev
+            icon: mdi:routes
+          - title: Agent Browser
+            url: https://browser.levangie.dev
+            icon: mdi:robot
+          - title: Firecrawl
+            url: https://firecrawl.levangie.dev
+            icon: mdi:spider-web
         - type: monitor
           title: 🔧 Utilities & Remote Access
           cache: 2m
@@ -288,6 +346,18 @@ data:
           - title: Plausible
             url: https://plausible.levangie.dev
             icon: si:plausible
+          - title: NetBox
+            url: https://netbox.levangie.dev
+            icon: sh:netbox
+          - title: Keycloak
+            url: https://auth.levangie.org
+            icon: si:keycloak
+          - title: Gitea
+            url: https://git.levangie.dev
+            icon: si:gitea
+          - title: PocketID
+            url: https://pocketid.levangie.dev
+            icon: mdi:shield-account
         - type: dns-stats
           title: DNS Stats
           service: technitium
