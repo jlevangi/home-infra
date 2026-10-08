@@ -32,7 +32,20 @@ spec:
                 name: shelfmark-credentials
           env:
             - name: AUTH_METHOD
-              value: builtin
+              value: oidc
+            - name: OIDC_DISCOVERY_URL
+              value: https://auth.levangie.org/realms/master/.well-known/openid-configuration
+            - name: OIDC_CLIENT_ID
+              value: shelfmark
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: shelfmark-credentials
+                  key: OIDC_CLIENT_SECRET
+            - name: OIDC_AUTO_PROVISION
+              value: "false"
+            - name: OIDC_USE_ADMIN_GROUP
+              value: "false"
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
