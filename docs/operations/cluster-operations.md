@@ -43,6 +43,7 @@ Existing timeouts of three seconds or more, probe periods, and failure threshold
 remain unchanged. Configure chart-generated probes through the owning chart values.
 Changing a probe rolls its controller; deploy in scoped waves and verify readiness
 and actual health endpoints. A timeout warning is not proof of an application outage.
+Readiness-only rollouts for Deployments backed by RWO PVCs use `strategy.type: Recreate` so the replacement waits until the old pod releases the volume.
 
 ## Component Deployment
 
