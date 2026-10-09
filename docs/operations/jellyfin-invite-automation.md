@@ -41,6 +41,7 @@ Expected Vault keys at `kv/prod/jellyfin-invite`:
 - `KEYCLOAK_CLIENT_ID`
 - `KEYCLOAK_CLIENT_SECRET`
 - `KEYCLOAK_GROUP_ID`
+- `KEYCLOAK_ADMIN_SUBJECTS` (comma-separated Keycloak user IDs allowed into `/invite`)
 - `GHCR_USERNAME`
 - `GHCR_TOKEN`
 

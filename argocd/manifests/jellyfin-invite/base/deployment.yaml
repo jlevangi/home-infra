@@ -50,7 +50,10 @@ spec:
             - name: REQUESTS_URL
               value: https://request.levangie.dev
             - name: KEYCLOAK_ADMIN_SUBJECTS
-              value: acc9e37a-1138-414d-b274-5a0ef97afe4b # Keycloak user "pierce"
+              valueFrom:
+                secretKeyRef:
+                  name: jellyfin-invite-secrets
+                  key: KEYCLOAK_ADMIN_SUBJECTS
             - name: ADMIN_TOKEN
               valueFrom:
                 secretKeyRef:
