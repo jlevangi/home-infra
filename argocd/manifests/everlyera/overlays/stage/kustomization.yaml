@@ -1,8 +1,8 @@
 # DORMANT: kept ready to spin up, scaled to zero while staging runs on Cloudflare
 # Workers (everlyera-staging.pierce.workers.dev, D1 + R2).
 #
-# To bring it back, delete the two replica patches below. The Postgres PVC starts
-# empty; the last staging data is Longhorn backup `final-stage-pg-20261004`.
+# To bring it back, delete the two replica patches below. The Postgres PVC is
+# restored from Longhorn backup `final-stage-pg-20261004`.
 # `staging.everlyera.com` resolves to this ingress only through the internal
 # Technitium zone.
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -28,6 +28,7 @@ patches:
       - { op: replace, path: /spec/replicas, value: 0 }
   - target: { kind: PersistentVolumeClaim, name: everlyera-postgres-pvc }
     patch: |
+      - { op: add, path: /spec/volumeName, value: everlyera-stage-pg-restored-20261009 }
       - { op: remove, path: /metadata/labels/recurring-job-group.longhorn.io~1hourly }
       - { op: remove, path: /metadata/labels/recurring-job-group.longhorn.io~1daily }
       - { op: remove, path: /metadata/labels/recurring-job-group.longhorn.io~1weekly }
