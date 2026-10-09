@@ -4,10 +4,6 @@ terraform {
       source  = "cloudflare/cloudflare"
       version = "= 5.27.0"
     }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "= 3.3.0"
-    }
   }
 }
 
@@ -24,19 +20,6 @@ variable "account_id" {
 }
 
 locals {
-  legacy_tunnel_hosts = [for route in local.static_ingress : route.hostname]
-  exposure_annotation = "cloudflare-tunnel.levangie.dev/exposure"
-  ingresses           = flatten([for ns in data.kubernetes_resources.ingresses : ns.objects])
-  ingress_hosts = flatten([
-    for ingress in local.ingresses : [
-      for rule in try(ingress.spec.rules, []) : {
-        name     = "${ingress.metadata.namespace}/${ingress.metadata.name}"
-        host     = try(rule.host, "")
-        exposure = try(ingress.metadata.annotations[local.exposure_annotation], "unset")
-      }
-    ]
-  ])
-  exposure_hosts = toset([for rule in local.ingress_hosts : rule.host if rule.exposure == "external"])
   static_ingress = [
     { hostname = "tunnel-test.levangie.dev", service = "hello_world" },
     { hostname = "hass.levangie.org", service = "https://caddy", origin_request = { http_host_header = "hass.levangie.org", origin_server_name = "hass.levangie.org" } },
@@ -88,31 +71,6 @@ locals {
 provider "cloudflare" {
   api_token = var.cloudflare_api_token
 }
-provider "kubernetes" {}
-
-# Every Ingress in the cluster; ArgoCD has already rendered and applied them.
-# kubernetes_resources cannot list across namespaces (provider issue #2849), so read each namespace.
-data "kubernetes_resources" "namespaces" {
-  api_version = "v1"
-  kind        = "Namespace"
-}
-
-data "kubernetes_resources" "ingresses" {
-  for_each    = toset([for ns in data.kubernetes_resources.namespaces.objects : ns.metadata.name])
-  api_version = "networking.k8s.io/v1"
-  kind        = "Ingress"
-  namespace   = each.key
-}
-
-resource "cloudflare_dns_record" "exposure" {
-  for_each = local.exposure_hosts
-  zone_id  = "2a78e16b4af72edb6058ea4127aee9cd"
-  name     = each.key
-  content  = "e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com"
-  type     = "CNAME"
-  proxied  = true
-  ttl      = 1
-}
 
 resource "cloudflare_dns_record" "tunnel_test" {
   zone_id = "2a78e16b4af72edb6058ea4127aee9cd"
@@ -128,42 +86,13 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "maurice_config" {
   tunnel_id  = "e163e2bb-e184-41aa-a96b-eb1dbdb99418"
 
   config = {
+    # Explicit routes win; any other levangie.dev host that external-dns points at the tunnel goes to Traefik.
     ingress = concat(
       local.static_ingress,
-      [for host in sort(local.exposure_hosts) : {
-        hostname = host
-        service  = "https://k3s-prod.levangie.dev"
-        origin_request = {
-          no_tls_verify      = false
-          http_host_header   = host
-          origin_server_name = host
-        }
-      }],
-      [{ service = "http_status:404" }],
+      [
+        { hostname = "*.levangie.dev", service = "https://k3s-prod.levangie.dev", origin_request = { match_sn_ito_host = true } },
+        { service = "http_status:404" },
+      ],
     )
-  }
-
-  lifecycle {
-    precondition {
-      condition     = length(local.ingresses) > 0
-      error_message = "Read zero Ingresses from the cluster; refusing to unpublish every annotated host."
-    }
-    precondition {
-      condition     = alltrue([for rule in local.ingress_hosts : contains(["external", "internal", "unset"], rule.exposure)])
-      error_message = "Invalid ${local.exposure_annotation} value on: ${join(", ", distinct([for rule in local.ingress_hosts : rule.name if !contains(["external", "internal", "unset"], rule.exposure)]))}"
-    }
-    precondition {
-      condition     = alltrue([for host in local.exposure_hosts : can(regex("^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+levangie\\.dev$", host))])
-      error_message = "External hosts must be explicit hosts under levangie.dev."
-    }
-    precondition {
-      condition     = alltrue([for rule in local.ingress_hosts : !contains(local.legacy_tunnel_hosts, rule.host) if rule.exposure != "unset"])
-      error_message = "Annotated host is a legacy static route; migrate it out of local.static_ingress first."
-    }
-    # A tunnel route publishes the whole hostname, so every Ingress sharing it must agree.
-    precondition {
-      condition     = alltrue([for rule in local.ingress_hosts : rule.exposure == "external" if contains(local.exposure_hosts, rule.host)])
-      error_message = "Host is external on one Ingress but not on another: ${join(", ", distinct([for rule in local.ingress_hosts : rule.host if contains(local.exposure_hosts, rule.host) && rule.exposure != "external"]))}"
-    }
   }
 }

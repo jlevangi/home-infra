@@ -1,0 +1,64 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-dns-cloudflare
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://kubernetes-sigs.github.io/external-dns/
+    chart: external-dns
+    targetRevision: 1.21.1
+    helm:
+      values: |
+        fullnameOverride: external-dns-cloudflare
+
+        # Publishes an Ingress host publicly only when it opts in. The Maurice
+        # tunnel's static *.levangie.dev rule then routes it to Traefik.
+        sources:
+          - ingress
+        annotationFilter: cloudflare-tunnel.levangie.dev/exposure=external
+
+        # sync deletes records on unpublish; the TXT owner limits that to records this instance created.
+        policy: sync
+        registry: txt
+        txtOwnerId: k3s-prod-cloudflare-tunnel
+        txtPrefix: _edns.
+
+        domainFilters:
+          - levangie.dev
+
+        logLevel: info
+
+        extraArgs:
+          - --zone-id-filter=2a78e16b4af72edb6058ea4127aee9cd
+          - --cloudflare-proxied
+          - --default-targets=e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com
+          - --force-default-targets
+
+        provider:
+          name: cloudflare
+
+        env:
+          - name: CF_API_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: cloudflare-exposure-secrets
+                key: CLOUDFLARE_API_TOKEN
+
+        resources:
+          requests:
+            cpu: 25m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cloudflare-exposure
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

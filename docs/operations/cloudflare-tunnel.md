@@ -11,7 +11,8 @@ The planned `k3s-prod-gitops` local-tunnel migration is separate future work. Th
 | Concern | Owner |
 |---|---|
 | Existing tunnel identity and connector | Existing Cloudflare/LXC operations |
-| Remote ingress configuration and approved DNS | Terraform |
+| Remote ingress configuration (legacy routes + `*.levangie.dev` wildcard) | Terraform |
+| Public DNS for annotated Ingresses | `external-dns-cloudflare` (ArgoCD app) |
 | API token | Vault + External Secrets Operator |
 | Public exposure decision | Per-Ingress `cloudflare-tunnel.levangie.dev/exposure: external` annotation (opt-in), plus the static legacy list in `main.tf` |
 
@@ -39,33 +40,31 @@ To expose a Kubernetes application publicly:
      annotations:
        cloudflare-tunnel.levangie.dev/exposure: external
    ```
-2. Ensure the host has a valid TLS certificate (Traefik requires it; the tunnel verifies it via `origin_server_name` matching the host).
+2. Ensure the host has a valid TLS certificate on Traefik. The wildcard route verifies it (`matchSNItoHost`), and Cloudflare's universal edge certificate only covers single-level names such as `app.levangie.dev`.
 
-The `cloudflare-exposure-reconcile` CronJob runs `terraform apply` every 15 minutes. Terraform reads live Ingresses from the cluster with a read-only ServiceAccount (`list` on namespaces and Ingresses). ArgoCD has already rendered and applied them, so the stack never re-renders Helm or Kustomize sources.
+`external-dns-cloudflare` watches Ingresses with that annotation and keeps a proxied CNAME to `e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com` for each host. Maurice has one static rule, `*.levangie.dev → https://k3s-prod.levangie.dev`, placed after the explicit legacy routes, so Traefik routes the request by Host. The DNS record is the only switch; the tunnel config does not change per app.
 
-- **Whole-hostname publication**: a tunnel route exposes every path on a host. If any Ingress for a host is `external`, every Ingress sharing that host must be `external`, or the apply fails.
-- **Removal**: change the annotation to `internal` or remove it. The next run deletes the DNS record and tunnel route.
-- **Guards** (apply fails, nothing changes): zero Ingresses read, invalid annotation value, external host outside `levangie.dev`, annotation on a legacy static host, missing remote state.
-- **Origin**: generated routes use `https://k3s-prod.levangie.dev` with Host/SNI set to the hostname and TLS verification on. The host needs a valid certificate on Traefik first.
+- **Latency**: external-dns runs every minute.
+- **Removal**: change the annotation to `internal` or remove it. The record is deleted on the next run (`policy: sync`). Only records with this instance's TXT owner (`k3s-prod-cloudflare-tunnel`, prefix `_edns.`) are ever deleted, so legacy records are safe.
+- **Whole-hostname publication**: a tunnel route exposes every path on a host. Do not annotate a host that also carries internal-only paths.
+- **Targets**: `--force-default-targets` points every record at the tunnel, even on Ingresses that set `external-dns.alpha.kubernetes.io/target` for Technitium.
 - **No Cloudflare Access**: publishing adds no Access policy. The application's own authentication is the only gate.
-- **State**: R2 bucket `home-infra-terraform-state`, key `cloudflare/tunnel/terraform.tfstate`, with lockfile locking so manual and automated applies cannot overlap.
+- **IP allowlists do not apply**: tunnel traffic reaches Traefik from the connector's LAN address, so source-IP allowlists treat public visitors as internal.
+- **Wildcard caveat**: any proxied CNAME to the tunnel under `levangie.dev`, including one added by hand in the dashboard, now reaches Traefik.
 
-> **Note**: Static legacy routes (e.g., `hass`, `auth`) live in `local.static_ingress` in `main.tf` and are never changed by the annotation. To move one to annotation ownership, delete it from `static_ingress` and add the annotation in the same change.
+> **Note**: Static legacy routes (e.g., `hass`, `auth`) live in `local.static_ingress` in `main.tf`. Explicit routes match before the wildcard. To move one to annotation ownership, delete its route and its hand-made DNS record, then add the annotation.
 
-### Manual Reconciliation
-
-If you need changes applied faster than the 15-minute schedule:
+### Troubleshooting
 
 ```bash
-kubectl create job --from=cronjob/cloudflare-exposure-reconcile -n cloudflare-exposure manual-reconcile
-kubectl logs -f job/manual-reconcile -n cloudflare-exposure
+kubectl -n cloudflare-exposure logs deploy/external-dns-cloudflare
 ```
 
-If a run fails, read the Job log first: the precondition message names the offending Ingress or host. Otherwise check the R2 lock and token validity. The token needs Tunnel Edit, DNS Edit, Zone Read and R2 read/edit; the R2 S3 key is the token ID and the S3 secret is SHA-256(token).
+The token needs DNS Edit on `levangie.dev` (it currently reuses `prod/cloudflare-iac`).
 
 ## Direct Management
 
-Retrieve the token from Vault `prod/cloudflare-iac` without echoing it. Terraform also needs a kubeconfig whose current context is `k3s-prod`.
+Terraform manages only the tunnel configuration and the `tunnel-test` record. Retrieve the token from Vault `prod/cloudflare-iac` without echoing it. State is in R2 bucket `home-infra-terraform-state`, key `cloudflare/tunnel/terraform.tfstate`; the S3 key is the token ID and the secret is SHA-256(token).
 
 ```bash
 cd terraform/stacks/cloudflare/tunnel
