@@ -126,7 +126,7 @@ resource "proxmox_vm_qemu" "cp" {
   }
 
   ipconfig0    = "ip=172.20.20.106/22,gw=172.20.20.1"
-  nameserver   = "172.20.20.4"
+  nameserver   = "172.20.20.4,172.20.20.5"
   searchdomain = "local"
 
   sshkeys    = var.ssh_key

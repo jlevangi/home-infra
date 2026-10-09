@@ -5,6 +5,37 @@
   register: resolved_status
   failed_when: false
 
+# Keep a separate override: cloud-init owns 50-cloud-init.yaml.
+- name: Configure redundant node DNS without restarting networking
+  tags: [dns]
+  become: yes
+  block:
+    - name: Persist internal DNS servers in Netplan
+      copy:
+        dest: /etc/netplan/99-internal-dns.yaml
+        mode: '0600'
+        content: |
+          network:
+            version: 2
+            ethernets:
+              {{ ansible_default_ipv4.interface }}:
+                nameservers:
+                  addresses: {{ coredns_upstream_nameservers | to_json }}
+      register: node_dns_config
+
+    - name: Generate network configuration without applying link changes
+      command: netplan generate
+      when: node_dns_config.changed
+
+    - name: Read active node DNS servers
+      command: resolvectl dns {{ ansible_default_ipv4.interface }}
+      register: node_dns_servers
+      changed_when: false
+
+    - name: Update active DNS servers without restarting the network
+      command: resolvectl dns {{ ansible_default_ipv4.interface }} {{ coredns_upstream_nameservers | join(' ') }}
+      when: (coredns_upstream_nameservers | join(' ')) not in node_dns_servers.stdout
+
 - name: Update package cache
   apt:
     update_cache: yes

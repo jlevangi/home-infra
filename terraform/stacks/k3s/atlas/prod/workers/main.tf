@@ -192,7 +192,7 @@ variable "gateway" {
 variable "nameserver" {
   description = "DNS nameserver."
   type        = string
-  default     = "172.20.20.4"
+  default     = "172.20.20.4,172.20.20.5"
 }
 
 variable "search_domain" {

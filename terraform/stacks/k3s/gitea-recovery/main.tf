@@ -51,7 +51,7 @@ module "nodes" {
   ip_offset          = 4
   subnet_mask        = "22"
   gateway            = "172.20.20.1"
-  nameserver         = "172.20.20.4"
+  nameserver         = "172.20.20.4,172.20.20.5"
   search_domain      = "local"
   ssh_key            = var.ssh_key
   ci_user            = "ansible"

@@ -102,6 +102,7 @@ traefik_dns_ndots: "2"
 # split-horizon/internal records the same way cluster nodes do.
 coredns_upstream_nameservers:
   - "172.20.20.4"
+  - "172.20.20.5"
 
 # -----------------------------------------------------------------------------
 # DNS INFRASTRUCTURE
