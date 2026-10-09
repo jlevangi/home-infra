@@ -54,6 +54,8 @@ To expose a Kubernetes application publicly:
 
 > **Note**: Static legacy routes (e.g., `hass`, `auth`) live in `local.static_ingress` in `main.tf`. Explicit routes match before the wildcard. To move one to annotation ownership, delete its route and its hand-made DNS record, then add the annotation.
 
+Verified 2026-10-09 with a canary Ingress (`exposure-test.levangie.dev`, also carrying `external-dns.alpha.kubernetes.io/target: k3s-prod.levangie.dev`): external-dns created a proxied CNAME to the tunnel (the forced default target won) plus its owner TXT; public HTTPS returned the canary through the wildcard route with origin TLS verified. Setting the annotation to `internal` removed both records (about 3 minutes) and public HTTPS returned 530. Tunnel config and all other zone records were unchanged throughout.
+
 ### Troubleshooting
 
 ```bash
