@@ -43,7 +43,6 @@ spec:
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 3
-  suspend: true
   jobTemplate:
     spec:
       backoffLimit: 0
