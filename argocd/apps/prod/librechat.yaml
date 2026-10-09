@@ -7,12 +7,12 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
-  sources:
-    - repoURL: ghcr.io/danny-avila/librechat-chart
-      chart: librechat
-      targetRevision: 2.0.7
-      helm:
-        values: |
+  source:
+    repoURL: ghcr.io/danny-avila/librechat-chart
+    chart: librechat
+    targetRevision: 2.0.7
+    helm:
+      values: |
           livenessProbe:
             timeoutSeconds: 5
           readinessProbe:
@@ -203,9 +203,6 @@ spec:
 
           librechat-rag-api:
             enabled: false
-    - repoURL: git@github.com:jlevangi/home-infra.git
-      targetRevision: main
-      path: argocd/manifests/librechat-probe-override
   destination:
     server: https://kubernetes.default.svc
     namespace: librechat
@@ -231,13 +228,6 @@ spec:
       jsonPointers:
         - /spec/storageClassName
         - /spec/volumeName
-    - group: apps
-      kind: StatefulSet
-      name: librechat-meilisearch
-      jsonPointers:
-        - /spec/template/spec/containers/0/livenessProbe/timeoutSeconds
-        - /spec/template/spec/containers/0/readinessProbe/timeoutSeconds
-        - /spec/template/spec/containers/0/startupProbe/timeoutSeconds
   syncPolicy:
     automated:
       prune: true
