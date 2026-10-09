@@ -48,6 +48,13 @@ _COLLECTOR_RUN_RETENTION_SQL = """WITH expired AS (
 )
 DELETE FROM collector_sync_runs
 WHERE request_id IN (SELECT request_id FROM expired)"""
+_RECORD_KEY_SQL = "external_id >= %s AND external_id < %s"
+
+
+def _record_key_params(source_id: int, original_type: str, key: str) -> tuple:
+    return source_id, original_type, key, key + ";", key
+
+
 
 
 def _record_collector_run(cur, metadata: dict) -> None:
@@ -319,7 +326,7 @@ def _ingest_collector_revision(cur, identity: str, record: dict, rows: list[dict
     source_id = source_row["id"] if isinstance(source_row, dict) else source_row[0]
     original_type = rows[0]["original_type"] if rows else hc_types.original_type_for(record["recordType"])
     if not current:
-        cur.execute("SELECT * FROM health_observations_raw WHERE source_id = %s AND original_type = %s AND raw_payload_json::jsonb ->> 'key' = %s", (source_id, original_type, key))
+        cur.execute("SELECT * FROM health_observations_raw WHERE source_id = %s AND original_type = %s AND (" + _RECORD_KEY_SQL + ") AND raw_payload_json::jsonb ->> 'key' = %s", _record_key_params(source_id, original_type, key))
         baseline_rows = cur.fetchall()
         if baseline_rows:
             baseline_by_record = {}
@@ -339,7 +346,7 @@ def _ingest_collector_revision(cur, identity: str, record: dict, rows: list[dict
             # Preserve mixed legacy children above, then normalize the current
             # projection to the most recently modified complete snapshot.
             baseline_projection = expand_health_connect_record(baseline_record)
-            cur.execute("DELETE FROM health_observations_raw WHERE source_id = %s AND original_type = %s AND raw_payload_json::jsonb ->> 'key' = %s", (source_id, original_type, key))
+            cur.execute("DELETE FROM health_observations_raw WHERE source_id = %s AND original_type = %s AND (" + _RECORD_KEY_SQL + ") AND raw_payload_json::jsonb ->> 'key' = %s", _record_key_params(source_id, original_type, key))
             for old_row in baseline_projection:
                 cur.execute(_OBSERVATION_SQL, (source_id, old_row["metric_type"], old_row["original_type"], old_row["start_time"], old_row["end_time"], old_row["value_numeric"], old_row["value_text"], old_row["unit"], old_row["source_name"], old_row["device_name"], old_row["external_id"], old_row["raw_payload_json"]))
                 cur.fetchone()
@@ -376,9 +383,9 @@ def _ingest_collector_revision(cur, identity: str, record: dict, rows: list[dict
 
     # Delete only rows for this logical record. Other records/imports may share the source.
     cur.execute(
-        "DELETE FROM health_observations_raw WHERE source_id = %s AND original_type = %s "
+        "DELETE FROM health_observations_raw WHERE source_id = %s AND original_type = %s AND (" + _RECORD_KEY_SQL + ") "
         "AND raw_payload_json::jsonb ->> 'key' = %s",
-        (source_id, rows[0]["original_type"] if rows else hc_types.original_type_for(record["recordType"]), key),
+        _record_key_params(source_id, rows[0]["original_type"] if rows else hc_types.original_type_for(record["recordType"]), key),
     )
     cur.execute(
         "INSERT INTO health_connect_record_current (collector_identity, record_key, source_id, content_hash, provider_modified_at) "

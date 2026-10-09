@@ -403,7 +403,11 @@ def test_empty_corrected_record_is_stored_as_revision(monkeypatch):
 
     assert result["accepted"] == ["empty-correction"]
     assert len(cursor.revisions) == 2
-    assert any("raw_payload_json::jsonb ->> 'key' = %s" in sql for sql, _ in cursor.executions)
+    deletes = [(sql, params) for sql, params in cursor.executions if sql.lstrip().startswith("DELETE FROM health_observations_raw")]
+    assert deletes
+    assert all("external_id >= %s AND external_id < %s" in sql for sql, _ in deletes)
+    assert all(params[-3:] == ("empty-correction", "empty-correction;", "empty-correction") for _, params in deletes)
+
 
 
 def test_postgres_revision_smoke_when_database_configured():
@@ -444,12 +448,45 @@ def test_postgres_revision_smoke_when_database_configured():
         monkeypatch.undo()
         _cleanup_smoke(dsn)
 
+def test_revision_smoke_delete_preserves_adjacent_record_key_when_database_configured():
+    import os
+    import psycopg
+    import pytest
+
+    if not os.environ.get("HEALTH_INGESTER_SMOKE_DSN"):
+        pytest.skip("set HEALTH_INGESTER_SMOKE_DSN to a disposable migrated PostgreSQL database")
+    dsn = os.environ["HEALTH_INGESTER_SMOKE_DSN"]
+    identity = '["smoke-collector","com.example.health"]'
+    key = "smoke-boundary"
+    _cleanup_smoke(dsn, identity, key)
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(db, "connect", lambda: psycopg.connect(dsn, row_factory=__import__("psycopg.rows", fromlist=["dict_row"]).dict_row))
+    try:
+        original = record("steps", key)
+        original["lastModifiedTime"] = "2026-08-10T12:00:00Z"
+        assert db.ingest_health_connect({"collector_id": "smoke-collector"}, [original])["accepted"] == [key]
+        with psycopg.connect(dsn) as conn, conn.cursor() as cur:
+            cur.execute("INSERT INTO health_observations_raw (source_id, metric_type, original_type, start_time, end_time, value_numeric, value_text, unit, source_name, device_name, external_id, raw_payload_json) SELECT source_id, metric_type, original_type, start_time, end_time, value_numeric, value_text, unit, source_name, device_name, external_id || ';adjacent', jsonb_set(raw_payload_json::jsonb, '{key}', to_jsonb(%s::text)) FROM health_observations_raw WHERE external_id = %s", (key + ";adjacent", key))
+            conn.commit()
+        corrected = record("steps", key)
+        corrected["payload"]["count"] = 99
+        corrected["lastModifiedTime"] = "2026-08-10T12:01:00Z"
+        assert db.ingest_health_connect({"collector_id": "smoke-collector"}, [corrected])["accepted"] == [key]
+        with psycopg.connect(dsn) as conn, conn.cursor() as cur:
+            cur.execute("SELECT count(*) FROM health_observations_raw WHERE external_id = %s", (key + ";adjacent",))
+            assert cur.fetchone()[0] == 1
+            cur.execute("SELECT count(*) FROM health_observations_raw WHERE external_id = %s", (key,))
+            assert cur.fetchone()[0] == 1
+    finally:
+        monkeypatch.undo()
+        _cleanup_smoke(dsn, identity, key)
+
 
 def _cleanup_smoke(dsn: str, identity: str = '["smoke-collector","com.example.health"]', key: str = "smoke-key") -> None:
     import psycopg
     with psycopg.connect(dsn) as conn, conn.cursor() as cur:
         for table in ("health_connect_record_current", "health_connect_record_revisions"):
             cur.execute(f"DELETE FROM {table} WHERE collector_identity = %s", (identity,))
-        cur.execute("DELETE FROM health_observations_raw WHERE external_id = %s", (key,))
+        cur.execute("DELETE FROM health_observations_raw WHERE external_id = %s OR external_id = %s", (key, key + ";adjacent"))
         cur.execute("DELETE FROM health_sources WHERE source_system = %s AND external_source_id = %s", (db.HEALTH_CONNECT_SOURCE_SYSTEM, identity))
         conn.commit()
