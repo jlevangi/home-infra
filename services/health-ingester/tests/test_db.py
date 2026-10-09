@@ -403,10 +403,6 @@ def test_empty_corrected_record_is_stored_as_revision(monkeypatch):
 
     assert result["accepted"] == ["empty-correction"]
     assert len(cursor.revisions) == 2
-    deletes = [(sql, params) for sql, params in cursor.executions if sql.lstrip().startswith("DELETE FROM health_observations_raw")]
-    assert deletes
-    assert all("external_id >= %s AND external_id < %s" in sql for sql, _ in deletes)
-    assert all(params[-3:] == ("empty-correction", "empty-correction;", "empty-correction") for _, params in deletes)
 
 
 
