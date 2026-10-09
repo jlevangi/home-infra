@@ -51,8 +51,8 @@ spec:
                       verification = json.load(response)
                   if verification.get("success") is not True or not verification.get("result", {}).get("id"):
                       raise SystemExit("Cloudflare API token verification failed")
-                  print("AWS_ACCESS_KEY_ID=" + verification["result"]["id"])
-                  print("AWS_SECRET_ACCESS_KEY=" + hashlib.sha256(token.encode()).hexdigest())
+                  print("export AWS_ACCESS_KEY_ID=" + verification["result"]["id"])
+                  print("export AWS_SECRET_ACCESS_KEY=" + hashlib.sha256(token.encode()).hexdigest())
                   PY
                   . "$work/r2.env"
                   export AWS_EC2_METADATA_DISABLED=true TF_VAR_cloudflare_api_token="$CLOUDFLARE_API_TOKEN"
