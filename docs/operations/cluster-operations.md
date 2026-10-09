@@ -41,6 +41,9 @@ Application readiness, liveness, and startup probes with one- or two-second
 timeouts (including Kubernetes' omitted one-second default) use five seconds.
 Existing timeouts of three seconds or more, probe periods, and failure thresholds
 remain unchanged. Configure chart-generated probes through the owning chart values.
+Meilisearch retains its chart-default probe timeouts: the installed chart does
+not expose timeout overrides, and a dedicated patch Job is not justified for
+intermittent warnings.
 Changing a probe rolls its controller; deploy in scoped waves and verify readiness
 and actual health endpoints. A timeout warning is not proof of an application outage.
 Readiness-only rollouts for Deployments backed by RWO PVCs use `strategy.type: Recreate` so the replacement waits until the old pod releases the volume.
