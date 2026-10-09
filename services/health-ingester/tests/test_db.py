@@ -80,6 +80,8 @@ class FakeCursor:
         self.fail_external = fail_external
         self.executions = []
         self.deleted_sessions = []
+        self.revisions = {}
+        self.current = {}
 
     def __enter__(self):
         return self
@@ -90,18 +92,30 @@ class FakeCursor:
     def execute(self, sql, params=None):
         self.executions.append((sql, params))
         stripped = sql.strip()
-        if stripped.startswith("INSERT INTO health_sources"):
+        if stripped.startswith("SELECT content_hash, provider_modified_at"):
+            self.last = self.current.get((params[0], params[1]))
+        elif stripped.startswith("SELECT count(*) AS revisions"):
+            seen = [k for k in self.revisions if k[:3] == (params[0], params[1], params[2])]
+            self.last = {"revisions": len(seen), "latest": max((self.revisions[k][4] for k in seen if self.revisions[k][4]), default=None)}
+        elif stripped.startswith("INSERT INTO health_connect_record_revisions"):
+            self.revisions[(params[0], params[1], params[2], params[4])] = params
+            self.last = None
+        elif stripped.startswith("INSERT INTO health_connect_record_current"):
+            self.current[(params[0], params[1])] = {"content_hash": params[3], "provider_modified_at": params[4], "source_id": params[2]}
+            self.last = None
+        elif stripped.startswith("SELECT id FROM health_sources"):
+            self.last = {"id": 1}
+        elif stripped.startswith("UPDATE health_connect_record_current"):
+            self.current[(params[1], params[2])]["provider_modified_at"] = params[0]
+            self.last = None
+        elif stripped.startswith("INSERT INTO health_sources"):
             key = (params[0], params[1], params[4])
             self.sources.setdefault(key, len(self.sources) + 1)
             self.last = {"id": self.sources[key]}
-        elif stripped.startswith("SELECT id FROM health_sources"):
-            # Return a fake source id for sleep dedup lookup
-            self.last = {"id": 1}
-        elif stripped.startswith("SELECT count(*) AS better_existing"):
-            # No better existing session by default
-            self.last = {"better_existing": 0}
         elif stripped.startswith("DELETE FROM health_observations_raw"):
-            # Track deleted session keys for test assertions
+            self.deleted_sessions.append(sql)
+            self.last = None
+        elif stripped.startswith("DELETE FROM"):
             self.deleted_sessions.append(sql)
             self.last = None
         elif stripped.startswith("INSERT INTO health_observations_raw"):
@@ -114,11 +128,17 @@ class FakeCursor:
             else:
                 self.observations.add(key)
                 self.last = {"id": len(self.observations)}
+        elif stripped.startswith("SELECT count(*) AS better_existing"):
+            self.last = {"better_existing": 0}
+        elif stripped.startswith("SELECT count(*) AS stage_count"):
+            self.last = {"stage_count": 0}
         else:
             self.last = None
 
     def fetchone(self):
         return self.last
+    def fetchall(self):
+        return []
 
 
 class FakeConnection:
@@ -331,3 +351,105 @@ def test_sleep_overlap_regex_matches_samsung_and_health_connect():
     assert not re.search(pattern, "samsung_health:heart_rate:12345")
     assert "samsung_health" in db._SLEEP_OVERLAP_CHECK_SQL
     assert "samsung_health" in db._SLEEP_DEDUP_SQL
+
+
+def test_collector_correction_replaces_projection_and_preserves_each_revision(monkeypatch):
+    cursor = FakeCursor()
+    monkeypatch.setattr(db, "connect", lambda: FakeConnection(cursor))
+    original = record("heart_rate", "same-key")
+    corrected = record("heart_rate", "same-key")
+    corrected["payload"]["samples"][0]["beatsPerMinute"] = 99
+    replayed = record("heart_rate", "same-key")
+
+    first = db.ingest_health_connect(batch_metadata(), [original])
+    second = db.ingest_health_connect(batch_metadata(), [corrected])
+    third = db.ingest_health_connect(batch_metadata(), [replayed])
+
+    assert first["accepted"] == ["same-key"]
+    assert second["accepted"] == ["same-key"]
+    assert third["duplicates"] == ["same-key"]
+    assert len(cursor.revisions) == 2
+
+
+def test_provider_timestamp_rejects_stale_replay_and_accepts_aba_newer(monkeypatch):
+    cursor = FakeCursor()
+    monkeypatch.setattr(db, "connect", lambda: FakeConnection(cursor))
+    a = record("steps", "steps-revised")
+    a["lastModifiedTime"] = "2026-08-10T12:00:00Z"
+    b = record("steps", "steps-revised")
+    b["payload"]["count"] = 99
+    b["lastModifiedTime"] = "2026-08-10T12:01:00Z"
+    stale_a = {**a, "lastModifiedTime": "2026-08-10T12:00:00Z"}
+    newer_a = {**a, "lastModifiedTime": "2026-08-10T12:02:00Z"}
+
+    results = [db.ingest_health_connect(batch_metadata(), [item]) for item in (a, b, stale_a, newer_a)]
+
+    assert results[0]["accepted"] == ["steps-revised"]
+    assert results[1]["accepted"] == ["steps-revised"]
+    assert results[2]["duplicates"] == ["steps-revised"]
+    assert results[3]["accepted"] == ["steps-revised"]
+    assert len(cursor.revisions) == 3
+
+
+def test_empty_corrected_record_is_stored_as_revision(monkeypatch):
+    cursor = FakeCursor()
+    monkeypatch.setattr(db, "connect", lambda: FakeConnection(cursor))
+    first = record("heart_rate", "empty-correction")
+    empty = record("heart_rate", "empty-correction")
+    empty["payload"]["samples"] = []
+
+    db.ingest_health_connect(batch_metadata(), [first])
+    result = db.ingest_health_connect(batch_metadata(), [empty])
+
+    assert result["accepted"] == ["empty-correction"]
+    assert len(cursor.revisions) == 2
+    assert any("raw_payload_json::jsonb ->> 'key' = %s" in sql for sql, _ in cursor.executions)
+
+
+def test_postgres_revision_smoke_when_database_configured():
+    import os
+    import psycopg
+    import pytest
+
+    if not os.environ.get("HEALTH_INGESTER_SMOKE_DSN"):
+        pytest.skip("set HEALTH_INGESTER_SMOKE_DSN to a disposable migrated PostgreSQL database")
+    dsn = os.environ["HEALTH_INGESTER_SMOKE_DSN"]
+    _cleanup_smoke(dsn)
+    monkeypatch = __import__("pytest").MonkeyPatch()
+    monkeypatch.setattr(db, "connect", lambda: psycopg.connect(dsn, row_factory=__import__("psycopg.rows", fromlist=["dict_row"]).dict_row))
+    try:
+        a = record("steps", "smoke-key")
+        a["lastModifiedTime"] = "2026-08-10T12:00:00Z"
+        b = record("steps", "smoke-key")
+        b["payload"]["count"] = 27
+        b["lastModifiedTime"] = "2026-08-10T12:01:00Z"
+        assert db.ingest_health_connect({"collector_id": "smoke-collector"}, [a])["accepted"] == ["smoke-key"]
+        assert db.ingest_health_connect({"collector_id": "smoke-collector"}, [b])["accepted"] == ["smoke-key"]
+        replay = {**a, "collectedAt": "2026-08-10T13:00:00Z"}
+        assert db.ingest_health_connect({"collector_id": "smoke-collector"}, [replay])["duplicates"] == ["smoke-key"]
+        fresh = record("steps", "smoke-key")
+        fresh["payload"]["count"] = 55
+        fresh["lastModifiedTime"] = "2026-08-10T12:03:00Z"
+        assert db.ingest_health_connect({"collector_id": "smoke-collector"}, [fresh])["accepted"] == ["smoke-key"]
+        with psycopg.connect(dsn) as conn, conn.cursor() as cur:
+            cur.execute("SELECT count(*) FROM health_connect_record_revisions WHERE collector_identity = %s AND record_key = %s", ('["smoke-collector","com.example.health"]', "smoke-key"))
+            assert cur.fetchone()[0] == 3
+            cur.execute("SELECT canonical_record->'collectedAt' FROM health_connect_record_revisions WHERE collector_identity = %s AND record_key = %s ORDER BY revision_id", ('["smoke-collector","com.example.health"]', "smoke-key"))
+            assert [row[0] for row in cur.fetchall()] == ["2026-08-10T12:00:00Z", "2026-08-10T12:00:00Z", "2026-08-10T12:00:00Z"]
+            cur.execute("SELECT provider_modified_at FROM health_connect_record_current WHERE collector_identity = %s AND record_key = %s", ('["smoke-collector","com.example.health"]', "smoke-key"))
+            assert cur.fetchone()[0].isoformat() == "2026-08-10T12:03:00+00:00"
+            cur.execute("SELECT value_numeric FROM health_observations_raw o JOIN health_sources s ON s.id = o.source_id WHERE s.external_source_id = %s AND o.external_id = %s", ('["smoke-collector","com.example.health"]', "smoke-key"))
+            assert cur.fetchone()[0] == 55
+    finally:
+        monkeypatch.undo()
+        _cleanup_smoke(dsn)
+
+
+def _cleanup_smoke(dsn: str, identity: str = '["smoke-collector","com.example.health"]', key: str = "smoke-key") -> None:
+    import psycopg
+    with psycopg.connect(dsn) as conn, conn.cursor() as cur:
+        for table in ("health_connect_record_current", "health_connect_record_revisions"):
+            cur.execute(f"DELETE FROM {table} WHERE collector_identity = %s", (identity,))
+        cur.execute("DELETE FROM health_observations_raw WHERE external_id = %s", (key,))
+        cur.execute("DELETE FROM health_sources WHERE source_system = %s AND external_source_id = %s", (db.HEALTH_CONNECT_SOURCE_SYSTEM, identity))
+        conn.commit()

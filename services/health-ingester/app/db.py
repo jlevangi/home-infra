@@ -9,9 +9,11 @@ from __future__ import annotations
 
 import json
 import os
-
+import hashlib
+from datetime import datetime, timezone
 import psycopg
 from psycopg.rows import dict_row
+from . import hc_types
 from .health_connect import expand_health_connect_record
 
 SOURCE_SYSTEM = "health_sync"
@@ -291,6 +293,106 @@ def _collector_identity(collector_id: str, origin_package: str) -> str:
     return json.dumps([collector_id, origin_package], separators=(",", ":"))
 
 
+def _canonical_collector_record(record: dict) -> tuple[str, str, datetime | None]:
+    content = {key: value for key, value in record.items() if key not in {"collectedAt", "lastModifiedTime"}}
+    encoded = json.dumps(content, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    digest = hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+    modified = record.get("lastModifiedTime")
+    provider_modified_at = datetime.fromisoformat(modified.replace("Z", "+00:00")) if modified else None
+    return json.dumps(record, ensure_ascii=False, separators=(",", ":"), sort_keys=True), digest, provider_modified_at
+
+
+def _ingest_collector_revision(cur, identity: str, record: dict, rows: list[dict]) -> tuple[str, int]:
+    encoded, digest, modified = _canonical_collector_record(record)
+    key = record["key"]
+    cur.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (json.dumps([identity, key], separators=(",", ":")),))
+    cur.execute(
+        "SELECT content_hash, provider_modified_at, source_id FROM health_connect_record_current "
+        "WHERE collector_identity = %s AND record_key = %s FOR UPDATE",
+        (identity, key),
+    )
+    current = cur.fetchone()
+    source_id = current["source_id"] if current else None
+    source_name = f"Health Connect Direct / {record['originPackage']}"
+    cur.execute(_SOURCE_SQL, (HEALTH_CONNECT_SOURCE_SYSTEM, source_name, "android_health_connect", (record.get("device") or {}).get("model"), identity, "{}"))
+    source_row = cur.fetchone()
+    source_id = source_row["id"] if isinstance(source_row, dict) else source_row[0]
+    original_type = rows[0]["original_type"] if rows else hc_types.original_type_for(record["recordType"])
+    if not current:
+        cur.execute("SELECT * FROM health_observations_raw WHERE source_id = %s AND original_type = %s AND raw_payload_json::jsonb ->> 'key' = %s", (source_id, original_type, key))
+        baseline_rows = cur.fetchall()
+        if baseline_rows:
+            baseline_by_record = {}
+            for child in baseline_rows:
+                baseline_by_record.setdefault(child["raw_payload_json"], []).append(dict(child))
+            for raw_record, children in baseline_by_record.items():
+                legacy_record = json.loads(raw_record)
+                _, legacy_hash, legacy_modified = _canonical_collector_record(legacy_record)
+                cur.execute("INSERT INTO health_connect_record_revisions (collector_identity, record_key, content_hash, provider_modified_at, latest_provider_modified_at, canonical_record, observation_rows, became_current) VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, false)", (identity, key, legacy_hash, legacy_modified, legacy_modified, json.dumps(legacy_record), json.dumps(children)))
+                current = {"content_hash": legacy_hash, "provider_modified_at": legacy_modified, "source_id": source_id}
+            latest_baseline = max(baseline_by_record, key=lambda raw: _canonical_collector_record(json.loads(raw))[2] or datetime.min.replace(tzinfo=timezone.utc))
+            baseline_record = json.loads(latest_baseline)
+            _, baseline_hash, baseline_modified = _canonical_collector_record(baseline_record)
+            cur.execute("INSERT INTO health_connect_record_current (collector_identity, record_key, source_id, content_hash, provider_modified_at) VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING", (identity, key, source_id, baseline_hash, baseline_modified))
+            cur.execute("SELECT content_hash, provider_modified_at, source_id FROM health_connect_record_current WHERE collector_identity = %s AND record_key = %s FOR UPDATE", (identity, key))
+            current = cur.fetchone()
+            # Preserve mixed legacy children above, then normalize the current
+            # projection to the most recently modified complete snapshot.
+            baseline_projection = expand_health_connect_record(baseline_record)
+            cur.execute("DELETE FROM health_observations_raw WHERE source_id = %s AND original_type = %s AND raw_payload_json::jsonb ->> 'key' = %s", (source_id, original_type, key))
+            for old_row in baseline_projection:
+                cur.execute(_OBSERVATION_SQL, (source_id, old_row["metric_type"], old_row["original_type"], old_row["start_time"], old_row["end_time"], old_row["value_numeric"], old_row["value_text"], old_row["unit"], old_row["source_name"], old_row["device_name"], old_row["external_id"], old_row["raw_payload_json"]))
+                cur.fetchone()
+    if current and digest == current["content_hash"]:
+        if modified and (current["provider_modified_at"] is None or modified > current["provider_modified_at"]):
+            cur.execute("UPDATE health_connect_record_current SET provider_modified_at = %s WHERE collector_identity = %s AND record_key = %s", (modified, identity, key))
+            cur.execute("UPDATE health_connect_record_revisions SET latest_provider_modified_at = GREATEST(COALESCE(latest_provider_modified_at, %s), %s) WHERE collector_identity = %s AND record_key = %s AND content_hash = %s", (modified, modified, identity, key, digest))
+        return "duplicate", source_id
+
+
+    cur.execute(
+        "SELECT count(*) AS revisions, max(latest_provider_modified_at) AS latest FROM health_connect_record_revisions "
+        "WHERE collector_identity = %s AND record_key = %s AND content_hash = %s",
+        (identity, key, digest),
+    )
+    seen = cur.fetchone()
+    if seen["revisions"]:
+        if modified is None or (seen["latest"] is not None and modified <= seen["latest"]):
+            return "duplicate", source_id
+
+    stale = bool(current and modified and current["provider_modified_at"] and modified < current["provider_modified_at"])
+    source_name = f"Health Connect Direct / {record['originPackage']}"
+    cur.execute(_SOURCE_SQL, (HEALTH_CONNECT_SOURCE_SYSTEM, source_name, "android_health_connect", (record.get("device") or {}).get("model"), identity, "{}"))
+    source_row = cur.fetchone()
+    source_id = source_row["id"] if isinstance(source_row, dict) else source_row[0]
+    cur.execute(
+        "INSERT INTO health_connect_record_revisions "
+        "(collector_identity, record_key, content_hash, provider_modified_at, latest_provider_modified_at, canonical_record, observation_rows, became_current) "
+        "VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s)",
+        (identity, key, digest, modified, modified, json.dumps(record, ensure_ascii=False, separators=(",", ":"), sort_keys=True), json.dumps(rows, ensure_ascii=False, separators=(",", ":")), not stale),
+    )
+    if stale:
+        return "duplicate", source_id
+
+    # Delete only rows for this logical record. Other records/imports may share the source.
+    cur.execute(
+        "DELETE FROM health_observations_raw WHERE source_id = %s AND original_type = %s "
+        "AND raw_payload_json::jsonb ->> 'key' = %s",
+        (source_id, rows[0]["original_type"] if rows else hc_types.original_type_for(record["recordType"]), key),
+    )
+    cur.execute(
+        "INSERT INTO health_connect_record_current (collector_identity, record_key, source_id, content_hash, provider_modified_at) "
+        "VALUES (%s, %s, %s, %s, %s) ON CONFLICT (collector_identity, record_key) DO UPDATE SET "
+        "source_id = EXCLUDED.source_id, content_hash = EXCLUDED.content_hash, provider_modified_at = COALESCE(EXCLUDED.provider_modified_at, health_connect_record_current.provider_modified_at)",
+        (identity, key, source_id, digest, modified),
+    )
+    inserted = 0
+    for row in rows:
+        cur.execute(_OBSERVATION_SQL, (source_id, row["metric_type"], row["original_type"], row["start_time"], row["end_time"], row["value_numeric"], row["value_text"], row["unit"], row["source_name"], row["device_name"], row["external_id"], row["raw_payload_json"]))
+        if cur.fetchone() is not None:
+            inserted += 1
+    return "accepted", inserted
+
 def ingest_health_connect(metadata: dict | str, records: list[dict]) -> dict:
     accepted, duplicates, rejected = [], [], []
     is_batch = isinstance(metadata, dict)
@@ -300,11 +402,24 @@ def ingest_health_connect(metadata: dict | str, records: list[dict]) -> dict:
         }
     collector_id = metadata["collector_id"]
     with connect() as conn, conn.cursor() as cur:
+        if is_batch:
+            sources = sorted({_collector_identity(collector_id, r["originPackage"]) for r in records})
+            for source_identity in sources:
+                cur.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (source_identity,))
+            locks = sorted({json.dumps([_collector_identity(collector_id, r["originPackage"]), r["key"]], separators=(",", ":")) for r in records})
+            for lock_key in locks:
+                cur.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (lock_key,))
         for record in records:
             savepoint = f"health_connect_record_{len(accepted) + len(duplicates) + len(rejected)}"
             try:
                 cur.execute(f"SAVEPOINT {savepoint}")
                 rows = expand_health_connect_record(record)
+                identity = _collector_identity(collector_id, record["originPackage"])
+                if is_batch:
+                    outcome, _ = _ingest_collector_revision(cur, identity, record, rows)
+                    (accepted if outcome == "accepted" else duplicates).append(record["key"])
+                    cur.execute(f"RELEASE SAVEPOINT {savepoint}")
+                    continue
 
                 # Zepp supersession guard: when a sleep session arrives that
                 # overlaps an existing session on the same wake_date, either:

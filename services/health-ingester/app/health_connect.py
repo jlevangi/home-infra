@@ -136,6 +136,8 @@ def _validate(record: Any) -> None:
         # it transient makes the collector hold the records and retry instead.
         raise ValueError("transient_unknown_record_type")
     start, end = _time(record["startTime"]), _time(record["endTime"])
+    if record.get("lastModifiedTime") is not None:
+        _time(record["lastModifiedTime"])
     _time(record["collectedAt"])
     if end < start:
         raise ValueError("end_before_start")

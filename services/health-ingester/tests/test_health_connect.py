@@ -147,3 +147,15 @@ def test_collector_batch_metadata_caps_untrusted_origin_cardinality():
     metadata = collector_batch_metadata(body, "run", datetime.now(timezone.utc))
     assert len(metadata["origin_counts"]) == 33
     assert metadata["origin_counts"]["other"] == 8
+
+def test_optional_last_modified_time_must_be_offset_aware():
+    value = record()
+    value["lastModifiedTime"] = "2026-08-10T12:00:00"
+    valid, rejected = validate_batch(envelope([value]))
+    assert valid == []
+    assert rejected[0]["code"] == "invalid_timestamp"
+
+    value["lastModifiedTime"] = "2026-08-10T12:00:00Z"
+    valid, rejected = validate_batch(envelope([value]))
+    assert len(valid) == 1
+    assert rejected == []
