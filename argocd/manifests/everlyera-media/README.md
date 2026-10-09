@@ -1,14 +1,17 @@
 # Everly Era — shared media namespace
 
-One MinIO and one imgproxy serving the Everly Era website (`everlyera` namespace).
+One MinIO and one imgproxy serving the Everly Era website.
 
 | Resource | Consumer |
 | --- | --- |
 | bucket `everlyera-media` | namespace `everlyera` (production) |
-| `everlyera-imgproxy:8080` | `everlyera` web pods (server-side `/img/*`) |
+| bucket `everlyera-media-stage` | namespace `everlyera-stage` (dormant, scaled to 0) |
+| `everlyera-imgproxy:8080` | both |
 
-Payload's `s3Storage` plugin deletes the S3 object when the media document is deleted, so
-any future second environment must use its own bucket via `S3_BUCKET`, never share this one.
+**Two buckets, not one.** Payload's `s3Storage` plugin deletes the S3 object when the
+media document is deleted, so a shared bucket would let a stage cleanup delete a live
+production image. Isolation comes from each environment's `S3_BUCKET`; one S3 identity is
+granted access to both.
 
 `base/external-secret.yaml` reads the MinIO, S3, and imgproxy material directly from
 `kv/prod/everlyera`, deliberately: the `IMGPROXY_KEY`/`IMGPROXY_SALT` and

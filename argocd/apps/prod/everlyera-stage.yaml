@@ -1,10 +1,10 @@
-# Shared media namespace for Everly Era: one MinIO (buckets `everlyera-media` and
-# `everlyera-media-stage`) plus one imgproxy, consumed by `everlyera` and the dormant
-# `everlyera-stage`. See argocd/manifests/everlyera-media/README.md.
+# Dormant Everly Era k3s staging. Both Deployments are scaled to 0 in
+# argocd/manifests/everlyera/overlays/stage; drop those two replica patches to
+# bring it back. Active staging currently runs on Cloudflare Workers.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: everlyera-media
+  name: everlyera-stage
   namespace: argocd
   labels:
     app.kubernetes.io/part-of: everlyera
@@ -15,17 +15,17 @@ spec:
   source:
     repoURL: git@github.com:jlevangi/home-infra.git
     targetRevision: main
-    path: argocd/manifests/everlyera-media/overlays/prod
+    path: argocd/manifests/everlyera/overlays/stage
   destination:
     server: https://kubernetes.default.svc
-    namespace: everlyera-media
+    namespace: everlyera-stage
   syncPolicy:
     managedNamespaceMetadata:
       labels:
-        app.kubernetes.io/name: everlyera-media
+        app.kubernetes.io/name: everlyera-stage
         app.kubernetes.io/part-of: everlyera
         app.kubernetes.io/managed-by: argocd
-        environment: prod
+        environment: stage
     automated:
       prune: true
       selfHeal: true
