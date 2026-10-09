@@ -42,7 +42,7 @@ To expose a Kubernetes application publicly:
    ```
 2. Ensure the host has a valid TLS certificate on Traefik. The wildcard route verifies it (`matchSNItoHost`), and Cloudflare's universal edge certificate only covers single-level names such as `app.levangie.dev`.
 
-`external-dns-cloudflare` watches Ingresses with that annotation and keeps a proxied CNAME to `e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com` for each host. Maurice has one static rule, `*.levangie.dev → https://k3s-prod.levangie.dev`, placed after the explicit legacy routes, so Traefik routes the request by Host. The DNS record is the only switch; the tunnel config does not change per app.
+`external-dns-cloudflare` watches annotated Ingresses in `levangie.dev`, `levangie.org` and `everlyera.com` and keeps a proxied CNAME to `e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com` for each host. Maurice has static wildcard rules for all three domains pointing to `https://k3s-prod.levangie.dev`, placed after the explicit legacy routes, so Traefik routes the request by Host. The DNS record is the only switch; the tunnel config does not change per app.
 
 - **Latency**: external-dns runs every minute.
 - **Removal**: change the annotation to `internal` or remove it. The record is deleted on the next run (`policy: sync`). Only records with this instance's TXT owner (`k3s-prod-cloudflare-tunnel`, prefix `_edns.`) are ever deleted, so legacy records are safe.
@@ -50,11 +50,13 @@ To expose a Kubernetes application publicly:
 - **Targets**: `--force-default-targets` points every record at the tunnel, even on Ingresses that set `external-dns.alpha.kubernetes.io/target` for Technitium.
 - **No Cloudflare Access**: publishing adds no Access policy. The application's own authentication is the only gate.
 - **IP allowlists do not apply**: tunnel traffic reaches Traefik from the connector's LAN address, so source-IP allowlists treat public visitors as internal.
-- **Wildcard caveat**: any proxied CNAME to the tunnel under `levangie.dev`, including one added by hand in the dashboard, now reaches Traefik.
+- **Wildcard caveat**: any proxied CNAME to Maurice under one of the three domains, including one added by hand in the dashboard, now reaches Traefik.
 
 > **Note**: Static legacy routes (e.g., `hass`, `auth`) live in `local.static_ingress` in `main.tf`. Explicit routes match before the wildcard. To move one to annotation ownership, delete its route and its hand-made DNS record, then add the annotation.
 
 Verified 2026-10-09 with a canary Ingress (`exposure-test.levangie.dev`, also carrying `external-dns.alpha.kubernetes.io/target: k3s-prod.levangie.dev`): external-dns created a proxied CNAME to the tunnel (the forced default target won) plus its owner TXT; public HTTPS returned the canary through the wildcard route with origin TLS verified. Setting the annotation to `internal` removed both records (about 3 minutes) and public HTTPS returned 530. Tunnel config and all other zone records were unchanged throughout.
+
+Also verified `levangie.org` public canary HTTPS and DNS creation/deletion in both `levangie.org` and `everlyera.com`. Everly Era's origin certificate covers only `everlyera.com`, `www.everlyera.com` and `gallery.everlyera.com`; other names need their own certificate before HTTPS works. Deleted nine explicitly approved old `.org` CNAMEs pointing to a different tunnel, not Maurice; rollback records are saved locally at `/tmp/cloudflare-org-dns-rollback.json` (0600).
 
 ### Troubleshooting
 
