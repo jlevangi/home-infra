@@ -46,10 +46,14 @@ def generate(rendered, legacy_hosts):
             raise ValueError(f"{name}: marked Ingress must have host rules")
         for rule in rules:
             if not isinstance(rule, dict):
-                raise ValueError(f"{name}: Ingress rule must be a mapping")
+                if exposure:
+                    raise ValueError(f"{name}: Ingress rule must be a mapping")
+                continue
             host = rule.get("host")
             if not isinstance(host, str) or not DOMAIN.fullmatch(host):
-                raise ValueError(f"{name}: invalid Ingress host {host!r}")
+                if exposure:
+                    raise ValueError(f"{name}: invalid Ingress host {host!r}")
+                continue
             prior = exposures.setdefault(host, exposure)
             if prior != exposure and "external" in (prior, exposure):
                 raise ValueError(f"{name}: conflicting exposure annotations for host {host}")
