@@ -1,0 +1,83 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cloudflare-exposure-reconcile
+  namespace: cloudflare-exposure
+spec:
+  schedule: "*/15 * * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  suspend: true
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 900
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: false
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: reconcile
+              image: hashicorp/terraform:1.10.5
+              imagePullPolicy: IfNotPresent
+              command: ["/bin/sh", "-ec"]
+              args:
+                - |
+                  apk add --no-cache git python3 py3-yaml helm curl coreutils >/dev/null
+                  KUBECTL_VERSION=v1.34.1
+                  curl -fsSLo /tmp/kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+                  curl -fsSLo /tmp/kubectl.sha256 "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256"
+                  echo "$(cat /tmp/kubectl.sha256)  /tmp/kubectl" | sha256sum -c - >/dev/null
+                  install -m 0755 /tmp/kubectl /usr/local/bin/kubectl
+                  work="$(mktemp -d)"
+                  trap 'rm -rf "$work"' EXIT
+                  git clone --quiet --depth 1 --branch main https://github.com/jlevangi/home-infra.git "$work/repo"
+                  cd "$work/repo"
+                  python3 scripts/cloudflare/render_enabled_prod_apps.py --apps argocd/apps/prod --output "$work/rendered"
+                  python3 scripts/cloudflare/generate_exposure.py --input-dir "$work/rendered" --terraform terraform/stacks/cloudflare/tunnel/main.tf --output "$work/exposure.tfvars.json" --report "$work/report.json" --origin https://k3s-prod.levangie.dev
+                  cd terraform/stacks/cloudflare/tunnel
+                  export TF_DATA_DIR="$work/terraform-data"
+                  cloudflare_api_token="$CLOUDFLARE_API_TOKEN" python3 - <<'PY' >"$work/r2.env"
+                  import hashlib, json, os, urllib.request
+                  token = os.environ["cloudflare_api_token"]
+                  request = urllib.request.Request("https://api.cloudflare.com/client/v4/user/tokens/verify", headers={"Authorization": f"Bearer {token}"})
+                  with urllib.request.urlopen(request, timeout=15) as response:
+                      verification = json.load(response)
+                  if verification.get("success") is not True or not verification.get("result", {}).get("id"):
+                      raise SystemExit("Cloudflare API token verification failed")
+                  print("AWS_ACCESS_KEY_ID=" + verification["result"]["id"])
+                  print("AWS_SECRET_ACCESS_KEY=" + hashlib.sha256(token.encode()).hexdigest())
+                  PY
+                  . "$work/r2.env"
+                  export AWS_EC2_METADATA_DISABLED=true TF_VAR_cloudflare_api_token="$CLOUDFLARE_API_TOKEN"
+                  terraform init -input=false -reconfigure
+                  state="$(terraform state list)"
+                  printf '%s\n' "$state" | grep -Fx 'cloudflare_zero_trust_tunnel_cloudflared_config.maurice_config' >/dev/null
+                  printf '%s\n' "$state" | grep -Fx 'cloudflare_dns_record.tunnel_test' >/dev/null
+                  terraform apply -input=false -auto-approve -var-file="$work/exposure.tfvars.json"
+                  cat "$work/report.json"
+              envFrom:
+                - secretRef:
+                    name: cloudflare-exposure-secrets
+              env:
+                - name: TF_IN_AUTOMATION
+                  value: "true"
+                - name: TF_CLI_ARGS
+                  value: "-no-color"
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: "1"
+                  memory: 1Gi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
