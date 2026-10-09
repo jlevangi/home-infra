@@ -13,9 +13,9 @@ The planned `k3s-prod-gitops` local-tunnel migration is separate future work. Th
 | Existing tunnel identity and connector | Existing Cloudflare/LXC operations |
 | Remote ingress configuration and approved DNS | Terraform |
 | API token | Vault + External Secrets Operator |
-| Public exposure decision | Reviewed route allowlist |
+| Public exposure decision | Per-Ingress `cloudflare-tunnel.levangie.dev/exposure: external` annotation (opt-in), plus the static legacy list in `main.tf` |
 
-A Kubernetes Ingress does not imply public exposure. Never derive public routes from all cluster Ingress hosts.
+An Ingress without the annotation is never published.
 
 ## Current inventory
 
@@ -41,13 +41,16 @@ To expose a Kubernetes application publicly:
    ```
 2. Ensure the host has a valid TLS certificate (Traefik requires it; the tunnel verifies it via `origin_server_name` matching the host).
 
-A CronJob (`cloudflare-exposure-reconcile`) runs every 15 minutes, rendering enabled prod applications, discovering this annotation, and updating Cloudflare via Terraform using the R2 state backend.
+The `cloudflare-exposure-reconcile` CronJob runs `terraform apply` every 15 minutes. Terraform reads live Ingresses from the cluster with a read-only ServiceAccount (`list` on namespaces and Ingresses). ArgoCD has already rendered and applied them, so the stack never re-renders Helm or Kustomize sources.
 
-- **Hostnames must be exact**: No path-based isolation; marking one path `external` publishes the whole hostname.
-- **Removal**: Change the annotation to `internal` (or remove it entirely) and the 15-minute reconciliation will delete the DNS record and tunnel route.
-- **State locking**: Uses Cloudflare R2 (`home-infra-terraform-state`) to prevent concurrent manual and automated applies.
+- **Whole-hostname publication**: a tunnel route exposes every path on a host. If any Ingress for a host is `external`, every Ingress sharing that host must be `external`, or the apply fails.
+- **Removal**: change the annotation to `internal` or remove it. The next run deletes the DNS record and tunnel route.
+- **Guards** (apply fails, nothing changes): zero Ingresses read, invalid annotation value, external host outside `levangie.dev`, annotation on a legacy static host, missing remote state.
+- **Origin**: generated routes use `https://k3s-prod.levangie.dev` with Host/SNI set to the hostname and TLS verification on. The host needs a valid certificate on Traefik first.
+- **No Cloudflare Access**: publishing adds no Access policy. The application's own authentication is the only gate.
+- **State**: R2 bucket `home-infra-terraform-state`, key `cloudflare/tunnel/terraform.tfstate`, with lockfile locking so manual and automated applies cannot overlap.
 
-> **Note**: Static legacy routes (e.g., `hass`, `auth`) are explicitly owned in `terraform/stacks/cloudflare/tunnel/main.tf` and are not automatically deleted. New generated routes cannot conflict with them.
+> **Note**: Static legacy routes (e.g., `hass`, `auth`) live in `local.static_ingress` in `main.tf` and are never changed by the annotation. To move one to annotation ownership, delete it from `static_ingress` and add the annotation in the same change.
 
 ### Manual Reconciliation
 
@@ -58,21 +61,17 @@ kubectl create job --from=cronjob/cloudflare-exposure-reconcile -n cloudflare-ex
 kubectl logs -f job/manual-reconcile -n cloudflare-exposure
 ```
 
-If the tunnel is stuck or the CronJob fails, check R2 backend lock state and API token validity (requires Tunnel Edit, DNS Edit, Zone Read, and Worker R2 read/edit permissions). S3 access keys are derived from the same token.
+If a run fails, read the Job log first: the precondition message names the offending Ingress or host. Otherwise check the R2 lock and token validity. The token needs Tunnel Edit, DNS Edit, Zone Read and R2 read/edit; the R2 S3 key is the token ID and the S3 secret is SHA-256(token).
 
 ## Direct Management
 
-To run Terraform manually, retrieve the token from Vault `prod/cloudflare-iac`. The R2 backend handles state.
+Retrieve the token from Vault `prod/cloudflare-iac` without echoing it. Terraform also needs a kubeconfig whose current context is `k3s-prod`.
 
 ```bash
-export CLOUDFLARE_API_TOKEN="..."
 cd terraform/stacks/cloudflare/tunnel
-
-# Derive AWS credentials for R2 lockfile from the Cloudflare token:
-export AWS_ACCESS_KEY_ID=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" https://api.cloudflare.com/client/v4/user/tokens/verify | jq -r .result.id)
-export AWS_SECRET_ACCESS_KEY=$(echo -n "$CLOUDFLARE_API_TOKEN" | sha256sum | awk '{print $1}')
-export TF_VAR_cloudflare_api_token=$CLOUDFLARE_API_TOKEN
-
+export TF_VAR_cloudflare_api_token="$CLOUDFLARE_API_TOKEN"
+export AWS_ACCESS_KEY_ID=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" https://api.cloudflare.com/client/v4/user/tokens/verify | jq -r .result.id)
+export AWS_SECRET_ACCESS_KEY=$(printf %s "$CLOUDFLARE_API_TOKEN" | sha256sum | cut -d' ' -f1)
 terraform init
 terraform plan
 ```

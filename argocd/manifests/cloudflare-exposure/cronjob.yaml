@@ -1,3 +1,34 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cloudflare-exposure
+  namespace: cloudflare-exposure
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cloudflare-exposure-ingress-reader
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["list"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cloudflare-exposure-ingress-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cloudflare-exposure-ingress-reader
+subjects:
+  - kind: ServiceAccount
+    name: cloudflare-exposure
+    namespace: cloudflare-exposure
+---
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -6,66 +37,47 @@ metadata:
 spec:
   schedule: "*/15 * * * *"
   concurrencyPolicy: Forbid
-  startingDeadlineSeconds: 300
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 3
   suspend: true
   jobTemplate:
     spec:
-      backoffLimit: 1
-      activeDeadlineSeconds: 900
-      ttlSecondsAfterFinished: 86400
+      backoffLimit: 0
+      activeDeadlineSeconds: 600
       template:
         spec:
+          serviceAccountName: cloudflare-exposure
           restartPolicy: Never
           securityContext:
-            runAsNonRoot: false
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
             seccompProfile:
               type: RuntimeDefault
           containers:
             - name: reconcile
-              image: hashicorp/terraform:1.10.5
-              imagePullPolicy: IfNotPresent
-              command: ["/bin/sh", "-ec"]
+              image: hashicorp/terraform:1.15.7@sha256:40e61a86763083ea987ded0ffa15f6d75e0df48ed16275811f949b3ecbcd8aae
+              command: ["/bin/sh", "-euc"]
               args:
                 - |
-                  apk add --no-cache git python3 py3-yaml helm curl coreutils >/dev/null
-                  KUBECTL_VERSION=v1.34.1
-                  curl -fsSLo /tmp/kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
-                  curl -fsSLo /tmp/kubectl.sha256 "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256"
-                  echo "$(cat /tmp/kubectl.sha256)  /tmp/kubectl" | sha256sum -c - >/dev/null
-                  install -m 0755 /tmp/kubectl /usr/local/bin/kubectl
-                  work="$(mktemp -d)"
-                  trap 'rm -rf "$work"' EXIT
-                  git clone --quiet --depth 1 --branch main https://github.com/jlevangi/home-infra.git "$work/repo"
-                  cd "$work/repo"
-                  python3 scripts/cloudflare/render_enabled_prod_apps.py --apps argocd/apps/prod --output "$work/rendered"
-                  python3 scripts/cloudflare/generate_exposure.py --input-dir "$work/rendered" --terraform terraform/stacks/cloudflare/tunnel/main.tf --output "$work/exposure.tfvars.json" --report "$work/report.json" --origin https://k3s-prod.levangie.dev
-                  cd terraform/stacks/cloudflare/tunnel
-                  export TF_DATA_DIR="$work/terraform-data"
-                  cloudflare_api_token="$CLOUDFLARE_API_TOKEN" python3 - <<'PY' >"$work/r2.env"
-                  import hashlib, json, os, urllib.request
-                  token = os.environ["cloudflare_api_token"]
-                  request = urllib.request.Request("https://api.cloudflare.com/client/v4/user/tokens/verify", headers={"Authorization": f"Bearer {token}"})
-                  with urllib.request.urlopen(request, timeout=15) as response:
-                      verification = json.load(response)
-                  if verification.get("success") is not True or not verification.get("result", {}).get("id"):
-                      raise SystemExit("Cloudflare API token verification failed")
-                  print("export AWS_ACCESS_KEY_ID=" + verification["result"]["id"])
-                  print("export AWS_SECRET_ACCESS_KEY=" + hashlib.sha256(token.encode()).hexdigest())
-                  PY
-                  . "$work/r2.env"
-                  export AWS_EC2_METADATA_DISABLED=true TF_VAR_cloudflare_api_token="$CLOUDFLARE_API_TOKEN"
-                  terraform init -input=false -reconfigure
-                  state="$(terraform state list)"
-                  printf '%s\n' "$state" | grep -Fx 'cloudflare_zero_trust_tunnel_cloudflared_config.maurice_config' >/dev/null
-                  printf '%s\n' "$state" | grep -Fx 'cloudflare_dns_record.tunnel_test' >/dev/null
-                  terraform apply -input=false -auto-approve -var-file="$work/exposure.tfvars.json"
-                  cat "$work/report.json"
+                  cd /tmp
+                  git clone --quiet --depth 1 https://github.com/jlevangi/home-infra.git repo
+                  cd repo/terraform/stacks/cloudflare/tunnel
+                  # R2 S3 credentials derive from the Cloudflare token: key = token ID, secret = SHA-256(token).
+                  AWS_ACCESS_KEY_ID="$(wget -qO- --header "Authorization: Bearer $CLOUDFLARE_API_TOKEN" https://api.cloudflare.com/client/v4/user/tokens/verify | sed -n 's/.*"id":"\([0-9a-f]\{32\}\)".*/\1/p')"
+                  test -n "$AWS_ACCESS_KEY_ID"
+                  AWS_SECRET_ACCESS_KEY="$(printf %s "$CLOUDFLARE_API_TOKEN" | sha256sum | cut -d' ' -f1)"
+                  export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY TF_VAR_cloudflare_api_token="$CLOUDFLARE_API_TOKEN"
+                  terraform init -input=false
+                  # Refuse to run against an empty backend: that would recreate already-managed resources.
+                  terraform state list | grep -qx cloudflare_zero_trust_tunnel_cloudflared_config.maurice_config
+                  terraform apply -input=false -auto-approve
               envFrom:
                 - secretRef:
                     name: cloudflare-exposure-secrets
               env:
+                - name: HOME
+                  value: /tmp
                 - name: TF_IN_AUTOMATION
                   value: "true"
                 - name: TF_CLI_ARGS
@@ -75,9 +87,15 @@ spec:
                   cpu: 100m
                   memory: 256Mi
                 limits:
-                  cpu: "1"
-                  memory: 1Gi
+                  memory: 512Mi
               securityContext:
                 allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
                 capabilities:
                   drop: ["ALL"]
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir: {}
