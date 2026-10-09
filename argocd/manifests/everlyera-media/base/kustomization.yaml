@@ -8,7 +8,6 @@ resources:
   - pvc-minio.yaml
   - deployment-minio.yaml
   - service-minio.yaml
-  - job-minio-bootstrap.yaml
   - deployment-imgproxy.yaml
   - service-imgproxy.yaml
 

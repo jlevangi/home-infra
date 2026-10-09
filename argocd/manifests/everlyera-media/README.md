@@ -25,7 +25,7 @@ re-enabling is uncommenting seven lines, and no manifest was deleted.
 
 | Component | State |
 | --- | --- |
-| MinIO + both buckets + bootstrap Job | live |
+| MinIO + both buckets | live |
 | imgproxy | live |
 | `everlyera-media-secrets` ExternalSecret | live (reads `kv/prod/everlyera`) |
 | FileBrowser Deployment/Service/PVC/ExternalSecret/ConfigMap | commented out |
@@ -35,6 +35,12 @@ The Ingress is the load-bearing exclusion. `files.everlyera.com` does not resolv
 live Ingress makes Traefik retry HTTP-01 against Let's Encrypt, which rate-limits failed
 validations at 5 per hostname per hour. Protecting that budget is why the rollout was
 split.
+
+Buckets, the S3 user, and the `everlyera-media` policy live on the MinIO PVC. There is no
+bootstrap Job (its pinned `minio/mc` image was pulled upstream). After restoring MinIO onto
+an empty volume, recreate them once by hand with `mc` (`mc mb` for both buckets,
+`mc admin user add`, then `mc admin policy create` + `attach`) using the policy JSON from
+`base/configmap-minio-policy.yaml`.
 
 Three things must clear before uncommenting.
 
