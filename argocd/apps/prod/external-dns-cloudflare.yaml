@@ -29,11 +29,15 @@ spec:
 
         domainFilters:
           - levangie.dev
+          - levangie.org
+          - everlyera.com
 
         logLevel: info
 
         extraArgs:
           - --zone-id-filter=2a78e16b4af72edb6058ea4127aee9cd
+          - --zone-id-filter=620ef49385ca465ce84f6f70c4ec37ca
+          - --zone-id-filter=6817543196da1a4f7bde9de5649a628a
           - --cloudflare-proxied
           - --default-targets=e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com
           - --force-default-targets

@@ -86,11 +86,14 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "maurice_config" {
   tunnel_id  = "e163e2bb-e184-41aa-a96b-eb1dbdb99418"
 
   config = {
-    # Explicit routes win; any other levangie.dev host that external-dns points at the tunnel goes to Traefik.
+    # Explicit routes win; other approved hosts that external-dns points at the tunnel go to Traefik.
     ingress = concat(
       local.static_ingress,
       [
-        { hostname = "*.levangie.dev", service = "https://k3s-prod.levangie.dev", origin_request = { match_sn_ito_host = true } },
+        for domain in ["levangie.dev", "levangie.org", "everlyera.com"] :
+        { hostname = "*.${domain}", service = "https://k3s-prod.levangie.dev", origin_request = { match_sn_ito_host = true } }
+      ],
+      [
         { service = "http_status:404" },
       ],
     )
