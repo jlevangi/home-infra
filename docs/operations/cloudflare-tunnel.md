@@ -64,7 +64,7 @@ Also verified `levangie.org` public canary HTTPS and DNS creation/deletion in bo
 kubectl -n cloudflare-exposure logs deploy/external-dns-cloudflare
 ```
 
-The token needs DNS Edit on `levangie.dev` (it currently reuses `prod/cloudflare-iac`).
+The token comes from `prod/cloudflare-external-dns`, property `CLOUDFLARE_API_TOKEN`, and needs DNS Edit and Zone Read for `levangie.dev`, `levangie.org` and `everlyera.com`. After changing its Kubernetes Secret, restart `external-dns-cloudflare` to reload the environment variable. The dedicated token was verified active on 2026-10-09: the controller created and removed canary CNAMEs in all three zones, and the `.org` canary served public HTTPS. Cloudflare's zone-list response included other zones; exact permission restrictions were not verified.
 
 ## Direct Management
 
