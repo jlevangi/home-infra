@@ -19,6 +19,8 @@ This directory is organized around current operator workflows first. Historical 
   Deploying and maintaining Ansible-managed LXC containers.
 - [Network Topology](operations/network-topology.md)
   Switch port map, Proxmox host bonding, and the procedure for changing a host's network configuration.
+- [Cloudflare Tunnel](operations/cloudflare-tunnel.md)
+  Terraform-owned Maurice routes, annotation-driven external-dns publication, TLS requirements, and legacy DNS ownership boundaries.
 - [LLM Default Model](operations/llm-default-model.md)
   How llama-cpp and automation clients coordinate the hot-loaded default model without hiding the real model name.
 - [LLM Model Storage](operations/llm-model-storage.md)

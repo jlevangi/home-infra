@@ -4,26 +4,26 @@
 
 Production uses the remotely managed `Maurice` tunnel (`e163e2bb-e184-41aa-a96b-eb1dbdb99418`) and its active LXC connector on `172.20.20.254`. The existing connector and tunnel identity are not managed or replaced by this Terraform stack.
 
-The planned `k3s-prod-gitops` local-tunnel migration is separate future work. This stack manages only `Maurice`'s remote ingress configuration and reviewed DNS records. Do not change connectors or existing DNS as part of a route test.
+Route/DNS IaC migration is complete: Terraform owns Maurice's remote configuration and the `tunnel-test` DNS record; external-dns owns annotated application DNS. Moving connectors to a locally managed `k3s-prod-gitops` tunnel is a separate, unimplemented proposal. Do not modify the remote ingress configuration in the dashboard: a later Terraform apply will overwrite it.
 
 ## Ownership
 
 | Concern | Owner |
 |---|---|
 | Existing tunnel identity and connector | Existing Cloudflare/LXC operations |
-| Remote ingress configuration (legacy routes + `*.levangie.dev` wildcard) | Terraform |
+| Remote ingress configuration (legacy routes + three domain wildcards) | Terraform |
 | Public DNS for annotated Ingresses | `external-dns-cloudflare` (ArgoCD app) |
 | API token | Vault + External Secrets Operator |
 | Public exposure decision | Per-Ingress `cloudflare-tunnel.levangie.dev/exposure: external` annotation (opt-in), plus the static legacy list in `main.tf` |
 
-An Ingress without the annotation is never published.
+An Ingress without the annotation is not automatically published. Existing legacy DNS records and dashboard-created CNAMEs are exceptions; an annotation does not withdraw records owned elsewhere.
 
 ## Current inventory
 
 The live `Maurice` tunnel is remotely managed. Terraform references its fixed ID and manages the ordered ingress config, preserving current service targets and origin settings. Review the Cloudflare API configuration and Terraform plan before changes; do not suppress differences with `ignore_changes`.
 
 `tunnel-test.levangie.dev` uses Cloudflare's `hello_world` built-in service and a proxied CNAME to the existing tunnel. It must precede the final `http_status:404` catch-all.
-- The IaC token comes from Vault key `prod/cloudflare-iac`, property `CLOUDFLARE_API_TOKEN`, through the `vault-kv` ClusterSecretStore. Do not use the separate cert-manager token.
+- The IaC token comes from Vault key `prod/cloudflare-iac`, property `CLOUDFLARE_API_TOKEN`, for manual Terraform use. It is no longer synced into the cluster by an ExternalSecret. Do not use the separate cert-manager token.
 - This stack pins `cloudflare/cloudflare` v5.27.0. Provider v5 uses `cloudflare_dns_record` and an ingress list of object attributes, not `cloudflare_record` or `ingress_rule` blocks.
 - Applied on 2026-10-09: one remote configuration update and one proxied DNS record creation; no resources destroyed. All 42 existing hostname routes, origin values, catch-all, and disabled WARP routing were preserved. Empty origin objects were normalized to absent objects.
 - Verification: public DNS resolved through 1.1.1.1 and 8.8.8.8; HTTPS returned the built-in “Congrats! You created a tunnel!” page. The local resolver initially cached NXDOMAIN, so the HTTPS check used a public DNS address with the original hostname and TLS verification. Maurice remained healthy and the post-apply Terraform plan reported no changes.
@@ -40,17 +40,19 @@ To expose a Kubernetes application publicly:
      annotations:
        cloudflare-tunnel.levangie.dev/exposure: external
    ```
-2. Ensure the host has a valid TLS certificate on Traefik. The wildcard route verifies it (`matchSNItoHost`), and Cloudflare's universal edge certificate only covers single-level names such as `app.levangie.dev`.
+2. Ensure the host has a valid TLS certificate on Traefik before publication. The wildcard route verifies it (`matchSNItoHost`); Cloudflare's universal edge certificate covers the zone apex and single-level names such as `app.levangie.dev`, not nested names such as `a.b.levangie.dev`.
 
 `external-dns-cloudflare` watches annotated Ingresses in `levangie.dev`, `levangie.org` and `everlyera.com` and keeps a proxied CNAME to `e163e2bb-e184-41aa-a96b-eb1dbdb99418.cfargotunnel.com` for each host. Maurice has static wildcard rules for all three domains pointing to `https://k3s-prod.levangie.dev`, placed after the explicit legacy routes, so Traefik routes the request by Host. The DNS record is the only switch; the tunnel config does not change per app.
 
 - **Latency**: external-dns runs every minute.
-- **Removal**: change the annotation to `internal` or remove it. The record is deleted on the next run (`policy: sync`). Only records with this instance's TXT owner (`k3s-prod-cloudflare-tunnel`, prefix `_edns.`) are ever deleted, so legacy records are safe.
+- **Removal**: change the annotation to `internal` or remove it. The controller reconciles every minute; deletion took about 3–3.5 minutes in canary checks. Only records with this instance's TXT owner (`k3s-prod-cloudflare-tunnel`, prefix `_edns.`) are deleted, so legacy records remain.
 - **Whole-hostname publication**: a tunnel route exposes every path on a host. Do not annotate a host that also carries internal-only paths.
 - **Targets**: `--force-default-targets` points every record at the tunnel, even on Ingresses that set `external-dns.alpha.kubernetes.io/target` for Technitium.
 - **No Cloudflare Access**: publishing adds no Access policy. The application's own authentication is the only gate.
 - **IP allowlists do not apply**: tunnel traffic reaches Traefik from the connector's LAN address, so source-IP allowlists treat public visitors as internal.
 - **Wildcard caveat**: any proxied CNAME to Maurice under one of the three domains, including one added by hand in the dashboard, now reaches Traefik.
+- **Resource support**: only Kubernetes `Ingress` is watched; `IngressRoute`, Service and Gateway resources are not publication sources.
+- **Future domains**: add domain and zone filters in `argocd/apps/prod/external-dns-cloudflare.yaml` and a wildcard route in `terraform/stacks/cloudflare/tunnel/main.tf`, then verify DNS and TLS. All-zone token access does not automatically enable additional domains.
 
 > **Note**: Static legacy routes (e.g., `hass`, `auth`) live in `local.static_ingress` in `main.tf`. Explicit routes match before the wildcard. To move one to annotation ownership, delete its route and its hand-made DNS record, then add the annotation.
 
@@ -64,7 +66,7 @@ Also verified `levangie.org` public canary HTTPS and DNS creation/deletion in bo
 kubectl -n cloudflare-exposure logs deploy/external-dns-cloudflare
 ```
 
-The token comes from `prod/cloudflare-external-dns`, property `CLOUDFLARE_API_TOKEN`, and needs DNS Edit and Zone Read for `levangie.dev`, `levangie.org` and `everlyera.com`. After changing its Kubernetes Secret, restart `external-dns-cloudflare` to reload the environment variable. The dedicated token was verified active on 2026-10-09: the controller created and removed canary CNAMEs in all three zones, and the `.org` canary served public HTTPS. Cloudflare's zone-list response included other zones; exact permission restrictions were not verified.
+The token comes from `prod/cloudflare-external-dns`, property `CLOUDFLARE_API_TOKEN`, and needs DNS Edit and Zone Read. The user deliberately scoped it to all zones for future projects; controller domain/zone filters still restrict publication to the three configured zones. After changing its Kubernetes Secret, restart `external-dns-cloudflare` to reload the environment variable. The dedicated token was verified active on 2026-10-09: the controller created and removed canary CNAMEs in all three zones, and the `.org` canary served public HTTPS. Exact token restrictions were not inspected in the dashboard.
 
 ## Direct Management
 

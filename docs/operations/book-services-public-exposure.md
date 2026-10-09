@@ -1,19 +1,14 @@
 # Book services public exposure checklist
 
-Manual Cloudflare Tunnel + DNS steps for exposing Shelfmark, Calibre-Web, and
-Audiobookshelf publicly. Tunnel `Maurice` (`e163e2bb-e184-41aa-a96b-eb1dbdb99418`)
-is remotely managed outside this repo; both steps below are dashboard work.
+Current publication is documented in [Cloudflare Tunnel operations](cloudflare-tunnel.md): Terraform owns Maurice's remote ingress configuration and external-dns publishes annotated Kubernetes Ingresses. The existing LXC connector is unchanged. Do not add tunnel routes in the dashboard; Terraform will overwrite remote configuration changes.
 
-Each service already has a live Traefik Ingress (host matches the hostname below),
-so no cluster-side change is needed. All three require authentication
-(Shelfmark and Audiobookshelf via Keycloak OIDC, Calibre-Web via OAuth with
-anonymous browsing disabled) — do not expose any of these without that in place.
+The three book-service routes below were published manually on 2026-10-08 and remain explicit legacy routes in Terraform. Their existing DNS records are not automatically owned or withdrawn by external-dns. Moving them to annotation ownership requires a reviewed route/DNS cutover; adding or removing an annotation alone does not migrate legacy records.
 
-## Step 1: Tunnel ingress rules
+All three require authentication (Shelfmark and Audiobookshelf via Keycloak OIDC, Calibre-Web via OAuth with anonymous browsing disabled). Do not expose them without that in place. New annotation-driven publication also requires a valid origin TLS certificate; the historical `noTLSVerify` settings below are not the wildcard-route standard.
 
-Cloudflare Zero Trust dashboard → Networks → Tunnels → `Maurice` → Public Hostname
-→ Add a public hostname. Insert each **immediately before** the final
-`http_status:404` catch-all; order matters.
+## Historical tunnel ingress setup — 2026-10-08
+
+The following routes were added through the dashboard before Terraform took ownership. Preserve this inventory as history, not instructions for new publication. Explicit rules precede wildcard rules and the final `http_status:404` catch-all.
 
 | Hostname | Service | Origin request |
 |---|---|---|
@@ -23,9 +18,9 @@ Cloudflare Zero Trust dashboard → Networks → Tunnels → `Maurice` → Publi
 
 No path matchers. Type: `HTTPS`.
 
-## Step 2: DNS CNAMEs
+## Historical DNS setup — 2026-10-08
 
-Cloudflare dashboard → `levangie.dev` zone → DNS → Add record, one per hostname:
+These CNAMEs were created manually in the `levangie.dev` zone. They remain separately owned legacy records, not external-dns-managed records:
 
 | Type | Name | Target | Proxy | TTL |
 |---|---|---|---|---|
