@@ -49,6 +49,8 @@ spec:
               value: https://jellyfin.levangie.org
             - name: REQUESTS_URL
               value: https://request.levangie.dev
+            - name: KEYCLOAK_ADMIN_SUBJECTS
+              value: acc9e37a-1138-414d-b274-5a0ef97afe4b # Keycloak user "pierce"
             - name: ADMIN_TOKEN
               valueFrom:
                 secretKeyRef:
