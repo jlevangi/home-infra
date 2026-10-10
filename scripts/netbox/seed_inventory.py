@@ -170,8 +170,8 @@ VMS = [
     # atlas cluster - k3s-prod
     ("k3s-prod-worker-1", "172.20.20.101", "atlas", "k3s-worker", "active", "76:5a:f1:57:5a:01", "k3s-prod-worker-1.levangie.org",
      "K3s-prod worker VM (atlas)", []),
-    ("k3s-prod-worker-2", "172.20.20.102", "atlas", "k3s-worker", "active", "76:5a:f1:57:5a:02", "k3s-prod-worker-2.levangie.org",
-     "K3s-prod worker VM (atlas)", []),
+    ("k3s-prod-worker-2", "172.20.20.102", "thinkcentre-1", "k3s-worker", "active", "76:5a:f1:57:5a:02", "k3s-prod-worker-2.levangie.org",
+     "K3s-prod worker VM (thinkcentre-1)", []),
     ("k3s-prod-worker-3", "172.20.20.103", "atlas", "k3s-worker", "active", "76:5a:f1:57:5a:03", "k3s-prod-worker-3.levangie.org",
      "K3s-prod worker VM (atlas)", []),
     ("k3s-prod-cp-1", "172.20.20.104", "atlas", "k3s-control-plane", "active", "76:5a:f1:57:5a:11", "k3s-prod-cp-1.levangie.org",
@@ -216,8 +216,6 @@ VMS = [
     # planned new hardware
     ("k3s-prod-worker-4", "172.20.20.108", "elitedesk-1", "k3s-worker", "planned", None, "k3s-prod-worker-4.levangie.org",
      "K3s-prod worker VM (planned, elitedesk-1)", ["planned"]),
-    ("k3s-prod-worker-5", "172.20.20.109", "dell-sff", "k3s-worker", "planned", None, "k3s-prod-worker-5.levangie.org",
-     "K3s-prod worker VM (planned, dell-sff) - compute-only, no Longhorn", ["planned", "no-longhorn"]),
 ]
 
 # Bare reserved/free IPs not yet tied to a device (status, ip, description)

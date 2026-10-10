@@ -23,14 +23,14 @@ fi
 
 # Cluster IP configurations
 declare -A CLUSTER_IPS=(
-    ["prod"]="172.20.20.101 172.20.20.104 172.20.20.106 172.20.20.107 172.20.20.108 172.20.20.109 172.20.20.110 172.20.20.111"
+    ["prod"]="172.20.20.101 172.20.20.102 172.20.20.104 172.20.20.106 172.20.20.107 172.20.20.108 172.20.20.110 172.20.20.111"
     ["test"]="172.20.21.121 172.20.21.122 172.20.21.123 172.20.21.124"
     ["stage"]="172.20.21.111 172.20.21.112 172.20.21.113 172.20.21.114"
 )
 
 # Cluster hostnames (optional - if you use hostnames in addition to IPs)
 declare -A CLUSTER_HOSTNAMES=(
-    ["prod"]="k3s-prod-worker-1 k3s-prod-worker-2 k3s-prod-worker-3 k3s-prod-cp-1 k3s-prod-cp-3 k3s-prod-worker-gpu-1"
+    ["prod"]="k3s-prod-worker-1 k3s-prod-worker-2 k3s-prod-cp-1 k3s-prod-cp-3 k3s-prod-worker-gpu-1 k3s-prod-worker-4 k3s-prod-worker-6 k3s-prod-cp-4"
     ["test"]="k3s-test-worker-1 k3s-test-worker-2 k3s-test-worker-3 k3s-test-cp-1"
     ["stage"]="k3s-stage-worker-1 k3s-stage-worker-2 k3s-stage-worker-3 k3s-stage-cp-1"
 )

@@ -107,8 +107,8 @@ variable "search_domain" {
 }
 
 resource "proxmox_vm_qemu" "worker" {
-  name        = "k3s-prod-worker-5"
-  vmid        = 109
+  name        = "k3s-prod-worker-2"
+  vmid        = 102
   target_node = "thinkcentre-1"
   tags        = join(";", sort(distinct(var.proxmox_tags)))
   description = "Managed by Terraform."
@@ -123,12 +123,12 @@ resource "proxmox_vm_qemu" "worker" {
   cpu {
     cores   = 4
     sockets = 1
-    # ponytail: "host" kernel-panics Debian 12 at init on the Ryzen 2200GE; generic v2 model boots.
-    type = "x86-64-v2-AES"
+    # ponytail: v2-AES panics during init on this host; kvm64 boots the Debian template.
+    type = "kvm64"
   }
 
   vm_state = "running"
-  memory   = 4608
+  memory   = 16384
   balloon  = 0
   scsihw   = "virtio-scsi-pci"
 
@@ -150,9 +150,7 @@ resource "proxmox_vm_qemu" "worker" {
     storage    = var.vm_storage
   }
 
-  # Dedicated Longhorn data disk. Single-replica storage class, so this
-  # doesn't need to match atlas's tank/flash split - see the Longhorn
-  # single-replica migration notes.
+  # Dedicated Longhorn data disk on the host's existing local-lvm pool.
   disk {
     discard   = true
     format    = "raw"
@@ -167,10 +165,10 @@ resource "proxmox_vm_qemu" "worker" {
     id      = 0
     model   = "virtio"
     bridge  = var.nic_name
-    macaddr = "76:5A:F1:57:5A:09"
+    macaddr = "76:5A:F1:57:5A:02"
   }
 
-  ipconfig0    = "ip=172.20.20.109/${var.subnet_mask},gw=${var.gateway}"
+  ipconfig0    = "ip=172.20.20.102/${var.subnet_mask},gw=${var.gateway}"
   nameserver   = var.nameserver
   searchdomain = var.search_domain
 
@@ -202,5 +200,5 @@ resource "proxmox_vm_qemu" "worker" {
 }
 
 output "worker_ip" {
-  value = "172.20.20.109"
+  value = "172.20.20.102"
 }
