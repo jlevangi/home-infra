@@ -12,6 +12,10 @@ labels:
   - pairs: { environment: prod }
     includeSelectors: true
 patches:
+  # Public website is on Cloudflare Workers; retain k3s resources for rollback.
+  - target: { kind: Deployment, name: everlyera-web }
+    patch: |
+      - { op: replace, path: /spec/replicas, value: 0 }
   - target: { kind: PersistentVolumeClaim, name: everlyera-postgres-pvc }
     patch: |
       - { op: add, path: /spec/volumeName, value: pvc-3a6d8ac5-a6a1-44bd-a8b6-e9cb78be842b }

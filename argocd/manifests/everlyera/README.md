@@ -9,18 +9,20 @@ GitOps source for the Everly Era photography site.
 | Stage | `everlyera-stage` | `staging.everlyera.com` | `prod/everlyera` (shared with prod for now) | immutable `main-<sha>` candidate |
 | Prod | `everlyera` | `everlyera.com`, `www.everlyera.com` | `prod/everlyera` | immutable release tag before launch |
 
-> **2026-08-04 status**: the stage cluster (172.20.21.111-114) is offline. Until it returns, both the
-> staging site (`everlyera-stage` ns) and the primary site (`everlyera` ns) run **on k3s-prod** from the
-> `main` branch, deployed via `argocd/apps/prod/everlyera-stage.yaml` and `argocd/apps/prod/everlyera.yaml`.
-> They share Vault `prod/everlyera`. The `stage` branch / `argocd/apps/stage` flow resumes when the stage
-> cluster is back online.
+> **2026-10-10:** the public production site runs on Cloudflare Workers, D1 and R2.
+> `overlays/prod` sets only `everlyera-web` to zero replicas; PostgreSQL and PVCs remain
+> intact for rollback. Restore the website by removing that replica patch and syncing
+> only `Deployment/everlyera-web`, then restore DNS if reverting the public cutover.
+> k3s staging is also dormant; galleries and shared media are separate active applications.
 
 ## DNS (split-horizon)
 
 - `everlyera.com` is authoritative in the site's own Cloudflare account (separate from homelab Technitium/DYNU). Public records are managed there; the homelab external-dns (Technitium webhook) does NOT manage this zone.
 - Internal resolution uses a `everlyera.com` Primary zone in Technitium, member of the `cluster-catalog.levangie.org` catalog, created 2026-08-04.
 - `staging.everlyera.com` → `172.20.20.200` (k3s-prod Traefik LB), internal-only. No public record.
-- The `everlyera.com` zone is unsigned; unknown records fall through to public resolvers (Cloudflare).
+- The zone is authoritative: missing records do not fall through. Internal apex/www A
+  records now point to Cloudflare edges (`104.21.82.110`, `172.67.200.172`, TTL 300).
+  `gallery` stays at `172.20.20.200`. Refresh edge overrides if public DNS answers change.
 
 The site source and image workflow live in `jlevangi/everlyera.com`. This directory owns Kubernetes desired state.
 
