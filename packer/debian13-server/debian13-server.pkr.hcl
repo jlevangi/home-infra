@@ -1,4 +1,4 @@
-# Packer template for Debian 12 Server on Proxmox
+# Packer template for Debian 13 Server on Proxmox
 # This creates a VM template with qemu-guest-agent and cloud-init pre-configured
 
 packer {
@@ -29,31 +29,31 @@ variable "proxmox_token" {
 
 variable "proxmox_node" {
   type        = string
-  default     = "pve1"
+  default     = "atlas"
   description = "Proxmox node to build on"
 }
 
 variable "iso_file" {
   type        = string
-  default     = "local:iso/debian-12.13.0-amd64-netinst.iso"
+  default     = "local:iso/debian-13.7.0-amd64-netinst.iso"
   description = "Path to Debian ISO on Proxmox storage"
 }
 
 variable "vm_id" {
   type        = number
-  default     = 9000
+  default     = 9010
   description = "VM ID for the template"
 }
 
 variable "template_name" {
   type        = string
-  default     = "debian12-server-template"
+  default     = "debian13-server-template"
   description = "Name for the VM template"
 }
 
 variable "storage_pool" {
   type        = string
-  default     = "local-lvm"
+  default     = "tank"
   description = "Storage pool for VM disk"
 }
 
@@ -70,7 +70,13 @@ variable "ssh_password" {
   description = "SSH password for provisioning"
 }
 
-source "proxmox-iso" "debian12" {
+variable "ci_user" {
+  type        = string
+  default     = "ansible"
+  description = "Default cloud-init user baked into the image"
+}
+
+source "proxmox-iso" "debian13" {
   # Proxmox connection
   proxmox_url              = var.proxmox_url
   username                 = var.proxmox_username
@@ -81,7 +87,8 @@ source "proxmox-iso" "debian12" {
   # VM settings
   vm_id                = var.vm_id
   vm_name              = var.template_name
-  template_description = "Debian 12 Server Template - Built with Packer"
+  template_description = "Debian 13 Server Template - Built with Packer ${timestamp()}"
+  tags                 = "debian13;template"
 
   # ISO
   boot_iso {
@@ -93,9 +100,11 @@ source "proxmox-iso" "debian12" {
 
   # System
   qemu_agent      = true
-  scsi_controller = "virtio-scsi-pci"
+  scsi_controller = "virtio-scsi-single"
   os              = "l26"
   bios            = "seabios"
+  cpu_type        = "host"
+  serials         = ["socket"]
 
   # CPU & Memory
   cores  = 2
@@ -107,12 +116,15 @@ source "proxmox-iso" "debian12" {
     bridge = "vmbr0"
   }
 
-  # Disk
+  # Disk: kept small; clones grow root on first boot.
   disks {
-    disk_size    = "20G"
+    disk_size    = "10G"
     storage_pool = var.storage_pool
     type         = "scsi"
     format       = "raw"
+    discard      = true
+    ssd          = true
+    io_thread    = true
   }
 
   # Cloud-init drive
@@ -145,18 +157,20 @@ source "proxmox-iso" "debian12" {
 }
 
 build {
-  sources = ["source.proxmox-iso.debian12"]
+  sources = ["source.proxmox-iso.debian13"]
 
-  # Install essential packages
   provisioner "shell" {
     inline = [
       "echo 'Installing essential packages...'",
       "sudo apt-get update",
-      "sudo apt-get install -y qemu-guest-agent cloud-init curl wget gnupg2 ca-certificates",
-      "sudo systemctl enable qemu-guest-agent",
+      "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-guest-agent cloud-init cloud-guest-utils curl wget gnupg ca-certificates python3",
 
       "echo 'Configuring cloud-init...'",
-      "sudo systemctl enable cloud-init",
+      "printf 'datasource_list: [NoCloud, ConfigDrive]\\nsystem_info:\\n  default_user:\\n    name: ${var.ci_user}\\n' | sudo tee /etc/cloud/cloud.cfg.d/99-pve.cfg",
+
+      "echo 'Enabling serial console...'",
+      "sudo sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT=\"console=tty0 console=ttyS0,115200\"/' /etc/default/grub",
+      "sudo update-grub",
 
       "echo 'Cleaning up...'",
       "sudo apt-get autoremove -y",

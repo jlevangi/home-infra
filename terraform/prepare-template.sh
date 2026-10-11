@@ -19,17 +19,17 @@ apt-get install -y \
     sudo \
     openssh-server \
     ca-certificates \
-    software-properties-common \
-    apt-transport-https \
     gnupg \
+    cloud-guest-utils \
     lsb-release
 
 # Configure cloud-init
 echo "☁️ Configuring cloud-init..."
 cat > /etc/cloud/cloud.cfg.d/99-pve.cfg << EOF
-# This file is generated from the template file
-# /usr/share/cloud-init/templates/sources.list.debian.tmpl
-datasource_list: [ConfigDrive, NoCloud]
+datasource_list: [NoCloud, ConfigDrive]
+system_info:
+  default_user:
+    name: ansible
 EOF
 
 # Enable services
