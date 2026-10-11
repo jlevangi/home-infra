@@ -185,6 +185,16 @@ Most apps don't auto-link when a Keycloak user has the same email as an existing
 
 For all of these: snapshot the DB or volume first (Longhorn or `kubectl cp`), then restart the app pod after the edit so caches drop.
 
+## Proxmox VE (not GitOps)
+
+Proxmox stores realms and users in cluster-wide `/etc/pve/domains.cfg` and `/etc/pve/user.cfg`, so this is configured live, not from git.
+
+- Keycloak client `proxmox` (confidential). Redirect URIs cover `https://proxmox.levangie.org/*` plus `https://<node>.levangie.org:8006/*` and `https://<node-ip>:8006/*` for every node. Add a node's URIs when a node joins.
+- Secret: `kv/prod/proxmox-oidc.OIDC_CLIENT_SECRET`.
+- Realm `keycloak` (`openid`, `--username-claim username`, `--autocreate 0`, not default). Only users pre-created in Proxmox can log in; other Keycloak users get `authentication failure`.
+- Group `admins` has `Administrator` on `/`; `pierce@keycloak` is a member. Grant another person access with `pveum user add <kc-username>@keycloak --groups admins`.
+- `root@pam` stays the break-glass login (per-node password, works when Keycloak is down). A Proxmox cluster join replaces `/etc/pve`, so record this realm in the pre-join checklist.
+
 ## See also
 
 - [Vault and ESO](./vault-and-eso.md) — secret storage and sync
