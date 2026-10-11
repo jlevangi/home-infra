@@ -58,7 +58,7 @@ rm -f /root/.bash_history
 rm -f /home/*/.bash_history
 
 # Remove cloud-init artifacts
-cloud-init clean --logs
+cloud-init clean --logs --seed
 
 # Remove machine ID
 truncate -s 0 /etc/machine-id

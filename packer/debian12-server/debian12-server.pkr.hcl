@@ -4,7 +4,7 @@
 packer {
   required_plugins {
     proxmox = {
-      version = ">= 1.1.0"
+      version = "= 1.2.4"
       source  = "github.com/hashicorp/proxmox"
     }
   }
@@ -35,7 +35,7 @@ variable "proxmox_node" {
 
 variable "iso_file" {
   type        = string
-  default     = "local:iso/debian-12.8.0-amd64-netinst.iso"
+  default     = "local:iso/debian-12.13.0-amd64-netinst.iso"
   description = "Path to Debian ISO on Proxmox storage"
 }
 
@@ -84,9 +84,12 @@ source "proxmox-iso" "debian12" {
   template_description = "Debian 12 Server Template - Built with Packer"
 
   # ISO
-  iso_file         = var.iso_file
-  iso_storage_pool = "local"
-  unmount_iso      = true
+  boot_iso {
+    type             = "scsi"
+    iso_file         = var.iso_file
+    iso_storage_pool = "local"
+    unmount          = true
+  }
 
   # System
   qemu_agent      = true
@@ -158,6 +161,7 @@ build {
       "echo 'Cleaning up...'",
       "sudo apt-get autoremove -y",
       "sudo apt-get clean",
+      "sudo cloud-init clean --logs --seed",
       "sudo rm -rf /var/lib/apt/lists/*",
 
       "echo 'Removing machine-id for proper cloning...'",
@@ -168,6 +172,8 @@ build {
       "echo 'Clearing SSH host keys (will regenerate on first boot)...'",
       "sudo rm -f /etc/ssh/ssh_host_*",
 
+      "sudo passwd -l ${var.ssh_username}",
+      "sudo rm -f /etc/sudoers.d/packer",
       "echo 'Template preparation complete!'"
     ]
   }
