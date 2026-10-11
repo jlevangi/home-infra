@@ -108,9 +108,9 @@ k3s_node_profiles:
         tags: [flash]
 
   # ---------------------------------------------------------------------------
-  # ThinkCentre M715q worker — k3s-prod-worker-{5,6}
+  # ThinkCentre M715q workers — k3s-prod-worker-{2,3}
   # Terraform: terraform/stacks/k3s/thinkcentre-{1,2}/prod/workers
-  # 8GB hosts (6.7GiB usable): 4.5GiB VMs, 120G flash disk each.
+  # Both use /mnt/longhorn-flash on scsi1; worker-3 has dedicated 500G SSD.
   # ---------------------------------------------------------------------------
   thinkcentre-worker:
     compute_tier: light
@@ -161,7 +161,7 @@ k3s_node_profile:
   k3s-prod-worker-1: atlas-worker
   k3s-prod-worker-4: elitedesk-worker
   k3s-prod-worker-2: thinkcentre-worker
-  k3s-prod-worker-6: thinkcentre-worker
+  k3s-prod-worker-3: thinkcentre-worker
   k3s-prod-worker-gpu-1: atlas-gpu-worker
 
 # =============================================================================
@@ -190,7 +190,7 @@ k3s_node_zone:
   k3s-prod-worker-1: atlas
   k3s-prod-worker-4: elitedesk-1
   k3s-prod-worker-2: thinkcentre-1
-  k3s-prod-worker-6: thinkcentre-2
+  k3s-prod-worker-3: thinkcentre-2
   k3s-prod-worker-gpu-1: atlas
 
   # --- test ---
