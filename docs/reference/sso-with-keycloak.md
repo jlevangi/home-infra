@@ -193,7 +193,8 @@ Proxmox stores realms and users in cluster-wide `/etc/pve/domains.cfg` and `/etc
 - Secret: `kv/prod/proxmox-oidc.OIDC_CLIENT_SECRET`.
 - Realm `keycloak` (`openid`, `--username-claim username`, `--autocreate 0`, not default). Only users pre-created in Proxmox can log in; other Keycloak users get `authentication failure`.
 - Group `admins` has `Administrator` on `/`; `pierce@keycloak` is a member. Grant another person access with `pveum user add <kc-username>@keycloak --groups admins`.
-- `root@pam` stays the break-glass login (per-node password, works when Keycloak is down). A Proxmox cluster join replaces `/etc/pve`, so record this realm in the pre-join checklist.
+- `root@pam` stays the break-glass login (per-node password, works when Keycloak is down).
+- Adding or removing a Proxmox node requires re-syncing the client's redirect URIs: see [Proxmox Keycloak SSO runbook](../operations/proxmox-keycloak-sso.md).
 
 ## See also
 
